@@ -5,6 +5,7 @@ import { TextSizeController } from './TextSizeController'
 
 const NAV: { href: string; label: string }[] = [
   { href: '/', label: 'Penjadwalan' },
+  { href: '/kalender', label: 'Kalender' },
   { href: '/mata-kuliah', label: 'Mata Kuliah' },
   { href: '/dosen', label: 'Dosen' },
   { href: '/ruangan', label: 'Ruangan' },

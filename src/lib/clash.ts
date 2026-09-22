@@ -5,7 +5,7 @@ export function weeksCollide(a: Minggu, b: Minggu): boolean {
   return a === 'setiap' || b === 'setiap' || a === b
 }
 
-function toMinutes(hhmm: string): number {
+export function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map((n) => parseInt(n, 10))
   return h * 60 + (m || 0)
 }

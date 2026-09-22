@@ -9,7 +9,8 @@
     "lint": "eslint",
     "check:sesi": "tsx scripts/check-sesi-generator.ts",
     "check:clash": "tsx scripts/check-clash.ts",
-    "check:print": "tsx scripts/check-print.ts"
+    "check:print": "tsx scripts/check-print.ts",
+    "check:calendar": "tsx scripts/check-calendar-layout.ts"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.7",
