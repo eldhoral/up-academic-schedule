@@ -41,6 +41,22 @@ Borders only. No shadows anywhere — this was violated once (a stray
 phase-12 pass. Every modal across the app is `border border-[var(--garis-kuat)]`
 with no shadow.
 
+Custom popups (the `Select` dropdown, below) follow the same rule: the popup
+is `border border-[var(--garis-kuat)]`, no shadow, even though it's a
+floating element that would conventionally get one.
+
+## Tailwind v4: custom base CSS must be `@layer base`-wrapped
+
+Per the CSS Cascade Layers spec, unlayered rules always beat every `@layer`'d
+rule regardless of specificity or source order. `globals.css`'s custom rules
+(`html`, `body`, `a`, `button/input/select` resets, etc.) were written as
+plain unlayered CSS sitting next to `@import "tailwindcss"` — so
+`a{color:var(--biru)}` silently out-ranked every `text-[var(--tinta-2)]`
+utility applied to a link or `next/link`, no matter how specific. Fixed by
+wrapping the whole custom block in `@layer base { ... }`. Any future custom
+global CSS added to this file must go inside that same block, or it will
+silently win over Tailwind utilities again.
+
 ## Type & density
 
 - Font: IBM Plex Sans (`--font-sans`), IBM Plex Mono (`--font-mono`) for
@@ -81,6 +97,26 @@ with no shadow.
   injected via a `<style>` tag built from the `ukuran_kertas`/`orientasi`
   settings; `.no-print` (in `globals.css`) hides chrome; `.rekap-break`
   (`page-break-before: always`) separates lecturers in "print all" mode.
+  Print pages show Indonesian day names straight from the DB — never call
+  `hariLabel()` here (see Language, below); this was a real bug (CetakClient
+  and RekapClient both printed English) fixed by removing the call.
+- **Select** (`src/components/Select.tsx`) — every `<select>` in the app was
+  replaced with this, built on `@radix-ui/react-select`. Root cause: a
+  native `<select>` popup is OS chrome (Safari repositions it to keep the
+  selected option in view, so picking option 8 of 8 shows a truncated list
+  instead of the full one from the top) — no CSS reaches into it. `Select`
+  renders its own popup instead, skinned to the exact existing token/border
+  styling, and mirrors each call site's `name`/`required`/`placeholder`/
+  controlled-vs-uncontrolled semantics via Radix's hidden native-select form
+  participation. Always reuse this for any new dropdown — never a raw
+  `<select>` or a hand-rolled listbox.
+- **Findings bar** (`src/app/ClashFindingsBar.tsx`) — the standing, always-
+  visible clash summary above the Penjadwalan table (the "Direction and
+  feel" principle above, made real): a big `1.87rem` red count when clashes
+  exist, or a quiet green one-liner when clean. Scoped to the whole academic
+  year via `checkAllClashes()` (`app/clash-actions.ts`), not the
+  semester/kelas filter, since a lecturer or room clashing across two
+  different semesters still matters — only refetched when the year changes.
 
 ## Motion
 
@@ -94,6 +130,34 @@ Admin UI shows English day names (`src/lib/hari.ts` — `hariLabel()`); the
 database stores and every printed document shows Indonesian (`SENIN` etc.),
 per PLAN.md §4. This is a real split, not a translation layer — never run
 `hariLabel()` before writing to the DB or rendering a print page.
+
+## Kalender (week view)
+
+`src/app/kalender/` — a read-only Google-Calendar-style week grid (Senin–
+Sabtu × time-of-day) for a kaprodi to review a semester at a glance. No
+add/edit/delete anywhere on the page. Decisions held to this system rather
+than inventing new ones for the new surface:
+
+- **No new hue for kelas identity.** A calendar naturally wants categorical
+  color per class, but "colour is scarce and only ever means status" (see
+  Direction, above) is load-bearing here too — introducing 4-6 arbitrary
+  hues to distinguish kelas would fragment the palette this system
+  deliberately avoids. Kelas identity is a small mono badge + the course
+  name instead; color stays reserved for status exactly as elsewhere:
+  `--biru-lembut` for a normal block, `--merah-lembut`/`--merah-garis` for
+  `is_override`, the same meaning as the Penjadwalan table's row tint.
+- **Signature: overlap-as-layout.** Overlapping blocks split into side-by-
+  side columns (`src/lib/calendar-layout.ts`, a pure greedy column-packing
+  function, self-checked by `npm run check:calendar`) — this is the one
+  element that could only exist for a *clash-detecting* scheduler: a dense
+  cluster of narrow side-by-side blocks spatially IS a clash, visible
+  without reading the findings-bar list.
+- **Context bar** reuses the exact same three-`Select` filter
+  (academic year / program / semester) and `.53rem/.33rem` rhythm as
+  Penjadwalan/Cetak/Rekap's filter bars — same mental model, same pixels.
+- Grid uses a `rem`-per-minute scale (`REM_PER_MIN = 0.055` in
+  `KalenderClient.tsx`) rather than fixed `px`, so it rescales with the
+  root text-size lever like everything else in the app.
 
 ## What's still design-debt
 
