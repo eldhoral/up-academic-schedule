@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getSettings, settingInt, settingText } from '@/lib/settings'
 import { PenjadwalanClient } from './PenjadwalanClient'
 import { fetchSchedulesForContext } from './schedule-query'
+import { checkAllClashes } from './clash-actions'
 import type { AcademicYear, Course, Lecturer, Room, SessionRow } from './penjadwalan-types'
 
 function classLetters(maxLetter: string): string[] {
@@ -32,13 +33,15 @@ export default async function DashboardPage(props: PageProps<'/'>) {
     semester_ke: parseInt((searchParams.smt as string) || '1', 10) || 1,
   }
 
-  const [{ data: courses }, { data: lecturers }, { data: rooms }, { data: sessions }, schedules] = await Promise.all([
-    supabase.from('courses').select('*').order('kode_mk'),
-    supabase.from('lecturers').select('*').order('nama'),
-    supabase.from('rooms').select('*').eq('active', true).order('nama'),
-    supabase.from('sessions').select('*').order('hari').order('sesi_ke'),
-    fetchSchedulesForContext(context),
-  ])
+  const [{ data: courses }, { data: lecturers }, { data: rooms }, { data: sessions }, schedules, clashes] =
+    await Promise.all([
+      supabase.from('courses').select('*').order('kode_mk'),
+      supabase.from('lecturers').select('*').order('nama'),
+      supabase.from('rooms').select('*').eq('active', true).order('nama'),
+      supabase.from('sessions').select('*').order('hari').order('sesi_ke'),
+      fetchSchedulesForContext(context),
+      checkAllClashes(context.academic_year_id),
+    ])
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
@@ -50,6 +53,7 @@ export default async function DashboardPage(props: PageProps<'/'>) {
         rooms={(rooms as Room[]) ?? []}
         sessions={(sessions as SessionRow[]) ?? []}
         schedules={schedules}
+        clashes={clashes}
         kelasOptions={classLetters(settingText(settings, 'kelas_maksimal', 'Z'))}
         defaultZoomId={settingText(settings, 'zoom_id', '')}
         maksMahasiswaPerKelas={settingInt(settings, 'maks_mahasiswa_per_kelas', 50)}

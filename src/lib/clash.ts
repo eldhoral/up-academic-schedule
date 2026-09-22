@@ -90,3 +90,39 @@ export function findClashes(candidate: ScheduleCandidate, existing: ExistingSche
 
   return clashes
 }
+
+export type ClashPairing = {
+  type: ClashType
+  a: ExistingScheduleForClash
+  b: ExistingScheduleForClash
+  overlapMinutes: number
+  detail: string
+}
+
+/**
+ * All-pairs scan across a set of already-saved schedules — the standing
+ * findings-bar view, as opposed to findClashes' one-candidate-vs-many check
+ * used while editing a single row. O(n^2) over ~100 rows; fine at this size.
+ */
+export function findAllClashes(existing: ExistingScheduleForClash[]): ClashPairing[] {
+  const pairings: ClashPairing[] = []
+  for (let i = 0; i < existing.length; i++) {
+    const a = existing[i]
+    const candidate: ScheduleCandidate = {
+      id: a.id,
+      hari: a.hari,
+      jam_mulai: a.jam_mulai,
+      jam_selesai: a.jam_selesai,
+      minggu: a.minggu,
+      kelas: a.kelas,
+      jenis_kelas: a.jenis_kelas,
+      semester_ke: a.semester_ke,
+      room_id: a.room_id,
+      dosenCodes: a.dosenCodes,
+    }
+    for (const clash of findClashes(candidate, existing.slice(i + 1))) {
+      pairings.push({ type: clash.type, a, b: clash.with, overlapMinutes: clash.overlapMinutes, detail: clash.detail })
+    }
+  }
+  return pairings
+}

@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { hariLabel } from '@/lib/hari'
 import { ScheduleFormModal } from './ScheduleFormModal'
+import { ClashFindingsBar } from './ClashFindingsBar'
+import type { ClashFinding, ClashFindingSide } from './clash-actions'
 import type { AcademicYear, Course, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -15,6 +17,7 @@ export function PenjadwalanClient({
   rooms,
   sessions,
   schedules: initialSchedules,
+  clashes: initialClashes,
   kelasOptions,
   defaultZoomId,
   maksMahasiswaPerKelas,
@@ -27,6 +30,7 @@ export function PenjadwalanClient({
   rooms: Room[]
   sessions: SessionRow[]
   schedules: ScheduleRow[]
+  clashes: ClashFinding[]
   kelasOptions: string[]
   defaultZoomId: string
   maksMahasiswaPerKelas: number
@@ -35,14 +39,24 @@ export function PenjadwalanClient({
 }) {
   const [modalOpen, setModalOpen] = useState<'new' | ScheduleRow | null>(null)
   const [schedules, setSchedules] = useState(initialSchedules)
+  const [clashes, setClashes] = useState(initialClashes)
   const [context, setContext] = useState(initialContext)
 
   // router.refresh() (after add/edit save) re-renders the server page with fresh props — resync.
   // (React "adjusting state during render" pattern: avoids an effect + extra render pass.)
-  const [prevInitial, setPrevInitial] = useState({ schedules: initialSchedules, context: initialContext })
-  if (initialSchedules !== prevInitial.schedules || initialContext !== prevInitial.context) {
-    setPrevInitial({ schedules: initialSchedules, context: initialContext })
+  const [prevInitial, setPrevInitial] = useState({
+    schedules: initialSchedules,
+    clashes: initialClashes,
+    context: initialContext,
+  })
+  if (
+    initialSchedules !== prevInitial.schedules ||
+    initialClashes !== prevInitial.clashes ||
+    initialContext !== prevInitial.context
+  ) {
+    setPrevInitial({ schedules: initialSchedules, clashes: initialClashes, context: initialContext })
     setSchedules(initialSchedules)
+    setClashes(initialClashes)
     setContext(initialContext)
   }
 
@@ -53,10 +67,22 @@ export function PenjadwalanClient({
       jenis: merged.jenis_kelas,
       smt: String(merged.semester_ke),
     })
+    const yearChanged = merged.academic_year_id !== context.academic_year_id
     setContext(merged)
     window.history.replaceState(null, '', `/?${params.toString()}`)
-    const res = await fetch(`/api/schedules?${params.toString()}`)
-    setSchedules(await res.json())
+
+    const schedulesPromise = fetch(`/api/schedules?${params.toString()}`).then((r) => r.json())
+    // Clashes are scoped to the whole academic year, not the semester/kelas filter — only refetch when the year changes.
+    const clashesPromise = yearChanged
+      ? fetch(`/api/clashes?ay=${merged.academic_year_id}`).then((r) => r.json())
+      : null
+
+    setSchedules(await schedulesPromise)
+    if (clashesPromise) setClashes(await clashesPromise)
+  }
+
+  function viewClashSide(side: ClashFindingSide) {
+    navigate({ jenis_kelas: side.jenis_kelas as 'reguler' | 'regsus', semester_ke: side.semester_ke })
   }
 
   const byKelas = new Map<string, ScheduleRow[]>()
@@ -124,6 +150,12 @@ export function PenjadwalanClient({
       </div>
 
       <div className="p-[1.07rem_1.3rem_1.3rem]">
+        <ClashFindingsBar
+          clashes={clashes}
+          academicYearLabel={academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? 'this year'}
+          onView={viewClashSide}
+        />
+
         <div className="flex items-end justify-between gap-[1rem] mb-[1rem] flex-wrap">
           <div>
             <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.015em]">
