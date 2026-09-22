@@ -9,6 +9,7 @@ const NAV: { href: string; label: string }[] = [
   { href: '/dosen', label: 'Dosen' },
   { href: '/ruangan', label: 'Ruangan' },
   { href: '/sesi', label: 'Sesi' },
+  { href: '/tahun-akademik', label: 'Tahun Akademik' },
   { href: '/pengaturan', label: 'Pengaturan' },
   { href: '/cetak', label: 'Cetak Jadwal' },
   { href: '/rekap', label: 'Rekap Dosen' },
