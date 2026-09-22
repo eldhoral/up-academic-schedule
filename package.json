@@ -13,6 +13,7 @@
     "check:calendar": "tsx scripts/check-calendar-layout.ts"
   },
   "dependencies": {
+    "@radix-ui/react-dropdown-menu": "^2.1.24",
     "@radix-ui/react-select": "^2.3.7",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
