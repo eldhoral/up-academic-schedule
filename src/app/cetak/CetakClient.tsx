@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
-import { hariLabel } from '@/lib/hari'
 import type { AcademicYear, ScheduleRow } from '../penjadwalan-types'
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -163,7 +162,7 @@ export function CetakClient({
                         {suffix}
                       </Td>
                       <Td center>{r.courses?.sks ?? ''}</Td>
-                      <Td>{hariLabel(r.hari)}</Td>
+                      <Td>{r.hari}</Td>
                       <Td>
                         {r.jam_mulai.slice(0, 5)} - {r.jam_selesai.slice(0, 5)}
                       </Td>

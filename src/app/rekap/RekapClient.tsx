@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
-import { hariLabel } from '@/lib/hari'
 import type { AcademicYear, Lecturer, ScheduleRow } from '../penjadwalan-types'
 
 export function RekapClient({
@@ -148,7 +147,7 @@ function RekapSection({ title, rows }: { title: string; rows: ScheduleRow[] }) {
                   <Td>{r.courses?.nama_mk ?? r.kode_mk}</Td>
                   <Td center>{r.courses?.sks ?? ''}</Td>
                   <Td center>{r.kelas}</Td>
-                  <Td>{hariLabel(r.hari)}</Td>
+                  <Td>{r.hari}</Td>
                   <Td>
                     {r.jam_mulai.slice(0, 5)} - {r.jam_selesai.slice(0, 5)}
                   </Td>
