@@ -198,6 +198,7 @@ export function PenjadwalanClient({
                       <Th style={{ width: '8rem' }}>Time</Th>
                       <Th style={{ width: '17rem' }}>Lecturer</Th>
                       <Th style={{ width: '5rem' }}>Room</Th>
+                      <Th style={{ width: '6rem' }}>Zoom</Th>
                       <Th style={{ width: '3rem' }}>&nbsp;</Th>
                     </tr>
                   </thead>
@@ -246,6 +247,9 @@ export function PenjadwalanClient({
                           </Td>
                           <Td className="mono" style={{ color: 'var(--tinta-3)', fontSize: '.93rem' }}>
                             {r.rooms?.nama ?? '—'}
+                          </Td>
+                          <Td className="mono" style={{ color: 'var(--tinta-3)', fontSize: '.93rem' }}>
+                            {r.zoom_id || '—'}
                           </Td>
                           <Td style={{ textAlign: 'right' }}>
                             <button
