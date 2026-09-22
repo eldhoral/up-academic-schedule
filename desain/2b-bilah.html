@@ -1,0 +1,198 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Course Scheduling &mdash; Universitas Pancasila</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+*{box-sizing:border-box}
+:root{
+  --kertas:#F2F3F5; --lembar:#FFFFFF; --cekung:#F7F8FA;
+  --garis:rgba(16,24,40,.11); --garis-kuat:rgba(16,24,40,.22);
+  --tinta:#0E1626; --tinta-2:#3C4657; --tinta-3:#5C6474;
+  --biru:#1A3FA0; --biru-lembut:#EAEEF9;
+  --merah:#A81E14; --merah-lembut:#FDF0EE; --merah-garis:#E0A79F;
+  --hijau:#17683F;
+  --r-kecil:3px; --r-sedang:5px;
+}
+/* one lever: every size below is rem, so this rescales the whole interface */
+html{font-size:15px;-webkit-font-smoothing:antialiased}
+html[data-teks="sedang"]{font-size:17px}
+html[data-teks="besar"]{font-size:19px}
+
+body{margin:0;background:var(--kertas);color:var(--tinta);
+  font:400 1rem/1.5 'IBM Plex Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+h1{margin:0;font-size:1.6rem;font-weight:600;letter-spacing:-.015em;text-wrap:balance}
+p{text-wrap:pretty}
+button,input,select{font:inherit;color:inherit}
+a{color:var(--biru)}
+
+/* ---- chrome ---- */
+.atas{min-height:3.4rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:.4rem 1.3rem;background:var(--lembar);border-bottom:1px solid var(--garis);flex-wrap:wrap}
+.merek{font-size:1.07rem;font-weight:600;letter-spacing:-.01em}
+.nav{display:flex;gap:.13rem;margin-left:1.5rem;flex-wrap:wrap}
+.nav a{display:block;padding:.4rem .6rem;border-radius:var(--r-kecil);color:var(--tinta-2);
+  text-decoration:none;font-size:.93rem;transition:background 140ms cubic-bezier(.23,1,.32,1)}
+.nav a:hover{background:var(--cekung);color:var(--tinta)}
+.nav a[aria-current]{background:var(--biru-lembut);color:var(--biru);font-weight:500}
+
+.teks-ukur{display:flex;align-items:center;gap:.4rem}
+.teks-ukur span{font-size:.8rem;color:var(--tinta-3)}
+.teks-ukur div{display:flex;border:1px solid var(--garis-kuat);border-radius:var(--r-kecil);overflow:hidden}
+.teks-ukur button{min-width:2.4rem;min-height:2.4rem;background:var(--lembar);border:0;cursor:pointer;
+  color:var(--tinta-2);transition:background 140ms cubic-bezier(.23,1,.32,1)}
+.teks-ukur button + button{border-left:1px solid var(--garis)}
+.teks-ukur button:hover{background:var(--cekung)}
+.teks-ukur button[aria-pressed=true]{background:var(--biru-lembut);color:var(--biru);font-weight:600}
+
+.konteks{min-height:3.2rem;display:flex;align-items:center;gap:.53rem;padding:.4rem 1.3rem;
+  background:var(--lembar);border-bottom:1px solid var(--garis);flex-wrap:wrap}
+.konteks label{font-size:.8rem;color:var(--tinta-3);margin-left:.53rem}
+.konteks label:first-of-type{margin-left:0}
+select,input[type=text]{background:var(--cekung);border:1px solid var(--garis-kuat);
+  border-radius:var(--r-kecil);padding:.33rem .53rem;font-size:.93rem;min-height:2.4rem}
+select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{
+  outline:2px solid var(--biru);outline-offset:1px}
+
+.tbl-btn{background:var(--lembar);border:1px solid var(--garis-kuat);border-radius:var(--r-kecil);
+  padding:.4rem .8rem;min-height:2.5rem;cursor:pointer;font-size:.93rem;
+  transition:background 140ms cubic-bezier(.23,1,.32,1)}
+.tbl-btn:hover{background:var(--cekung)}
+.tbl-btn:active{transform:scale(.97)}
+.utama{background:var(--biru);color:#fff;border:1px solid var(--biru);border-radius:var(--r-kecil);
+  padding:.4rem 1rem;min-height:2.5rem;font-weight:500;cursor:pointer;font-size:.93rem;
+  transition:background 140ms cubic-bezier(.23,1,.32,1)}
+.utama:hover{background:#16358A}
+.utama:active{transform:scale(.97)}
+.tautan{background:none;border:0;padding:.27rem .13rem;color:var(--biru);font-size:.93rem;cursor:pointer;
+  text-decoration:underline;text-underline-offset:2px;min-height:2.2rem}
+
+/* ---- findings bar ---- */
+.bilah{background:var(--lembar);border:1px solid var(--merah-garis);border-radius:var(--r-sedang);
+  overflow:hidden;margin-bottom:1rem}
+.bilah-kepala{display:flex;align-items:center;gap:.8rem;padding:.67rem 1rem;background:var(--merah-lembut);
+  border-bottom:1px solid var(--merah-garis);flex-wrap:wrap}
+.hitung{font-size:1.87rem;font-weight:600;color:var(--merah);letter-spacing:-.025em;line-height:1}
+.bilah ol{list-style:none;margin:0;padding:0}
+.bilah li{display:flex;align-items:baseline;gap:.8rem;padding:.67rem 1rem;
+  border-bottom:1px solid var(--garis);transition:background 140ms cubic-bezier(.23,1,.32,1)}
+.bilah li:last-child{border-bottom:0}
+.bilah li:hover{background:var(--cekung)}
+.bilah .tmp{width:14.7rem;flex:none;font-size:.87rem;color:var(--tinta-3);
+  font-family:'IBM Plex Mono',monospace}
+.bilah .apa{flex:1;min-width:16rem;font-size:1rem}
+.bilah .apa b{font-weight:600}
+.bilah .lam{width:4.7rem;flex:none;text-align:right;font-size:.87rem;color:var(--merah);
+  font-family:'IBM Plex Mono',monospace}
+.bilah .aksi{width:6rem;flex:none;text-align:right}
+
+/* ---- table ---- */
+table{border-collapse:collapse;width:100%}
+th{font-size:.8rem;font-weight:500;color:var(--tinta-3);text-align:left;
+  padding:0 .53rem .47rem;border-bottom:1px solid var(--garis-kuat);white-space:nowrap}
+td{padding:.27rem .53rem;height:2.6rem;border-bottom:1px solid var(--garis);font-size:1rem}
+tbody tr{transition:background 120ms cubic-bezier(.23,1,.32,1)}
+tbody tr:hover{background:var(--cekung)}
+tr.bentrok td{background:var(--merah-lembut)}
+tr.bentrok:hover td{background:#FBE6E2}
+.kode{color:var(--tinta-2);font-size:.93rem}
+.sunyi{color:var(--tinta-3)}
+.lencana{display:inline-block;font-size:.8rem;padding:.07rem .47rem;border-radius:999px;
+  border:1px solid var(--garis-kuat);color:var(--tinta-2);background:var(--cekung)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+
+<div class="atas">
+  <div style="display:flex;align-items:center;flex-wrap:wrap">
+    <span class="merek">Course Scheduling</span>
+    <nav class="nav">
+      <a href="#" aria-current="page">Schedule</a><a href="#">Lecturer load</a>
+      <a href="#">Courses</a><a href="#">Lecturers</a><a href="#">Rooms</a><a href="#">Settings</a>
+    </nav>
+  </div>
+  <div class="teks-ukur">
+    <span>Text size</span>
+    <div role="group" aria-label="Text size">
+      <button type="button" data-ukur="kecil" aria-pressed="true" style="font-size:.87rem">A</button>
+      <button type="button" data-ukur="sedang" aria-pressed="false" style="font-size:1.07rem">A</button>
+      <button type="button" data-ukur="besar" aria-pressed="false" style="font-size:1.27rem">A</button>
+    </div>
+  </div>
+</div>
+
+<div class="konteks">
+  <label for="k1">Academic year</label><select id="k1"><option>2026/2027 Odd</option></select>
+  <label for="k2">Program</label><select id="k2"><option>Reguler</option><option>Reguler Khusus</option></select>
+  <label for="k3">Semester</label><select id="k3"><option>I</option><option>III</option><option>V</option></select>
+  <label for="k4">Class</label><select id="k4"><option>C</option></select>
+  <span style="margin-left:auto;font-size:.87rem" class="sunyi">Intake 2026 &middot; 9 rows &middot; 20 SKS &middot; 39 students</span>
+</div>
+
+<div style="padding:1.07rem 1.3rem 1.3rem">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap">
+    <div>
+      <h1>Semester I &middot; Class C</h1>
+      <p style="margin:.27rem 0 0;font-size:.93rem;color:var(--tinta-3)">Findings stack above the table, so the table keeps its full width.</p>
+    </div>
+    <button class="utama">Add course</button>
+  </div>
+
+  <div class="bilah">
+    <div class="bilah-kepala">
+      <span class="hitung">5</span>
+      <b style="font-size:1rem">clashes to resolve</b>
+      <span style="font-size:.93rem;color:var(--tinta-2)">across 2026/2027 Odd &middot; 96 rows checked &middot; 4 possible combined classes</span>
+      <span style="margin-left:auto;display:flex;gap:.47rem">
+        <button class="tbl-btn">Show combined</button>
+        <button class="tbl-btn">Collapse</button>
+      </span>
+    </div>
+    <ol>
+      <li><span class="tmp">Semester I &middot; Class C</span><span class="apa"><b>Penulisan Ilmiah</b> and <b>Kewarganegaraan</b> run at the same time on Friday &mdash; both are required.</span><span class="lam">100 min</span><span class="aksi"><button class="tautan">Resolve</button></span></li>
+      <li><span class="tmp">Semester I RK &middot; Class A</span><span class="apa"><b>Bahasa Indonesia</b> and <b>Filsafat</b> run at the same time on Thursday &mdash; one sits entirely inside the other.</span><span class="lam">100 min</span><span class="aksi"><button class="tautan">Resolve</button></span></li>
+      <li><span class="tmp">Semester I RK &middot; Class A</span><span class="apa"><b>Pancasila</b> and <b>Filsafat</b> run at the same time on Thursday &mdash; both are required.</span><span class="lam">40 min</span><span class="aksi"><button class="tautan">Resolve</button></span></li>
+      <li><span class="tmp">Semester III RK &middot; Class A</span><span class="apa"><b>Psikologi Remaja (P)</b> and <b>Psikologi Pendidikan</b> run at the same time on Monday &mdash; one is an elective.</span><span class="lam">40 min</span><span class="aksi"><button class="tautan">Resolve</button></span></li>
+      <li><span class="tmp">Semester III RK &middot; Class A</span><span class="apa"><b>Psikologi Industri &amp; Organisasi</b> and <b>Psikologi Perilaku Seksual (P)</b> run at the same time on Tuesday, even weeks &mdash; one is an elective.</span><span class="lam">100 min</span><span class="aksi"><button class="tautan">Resolve</button></span></li>
+    </ol>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th style="width:7rem">Code</th><th>Course</th>
+      <th style="width:3.6rem;text-align:center">SKS</th><th style="width:7rem">Day</th>
+      <th style="width:8rem">Time</th><th style="width:17rem">Lecturer</th><th style="width:5rem">Room</th>
+    </tr></thead>
+    <tbody>
+      <tr><td class="mono kode">15113002</td><td>Filsafat</td><td class="mono" style="text-align:center">3</td><td>Monday</td><td class="mono" style="font-size:.93rem">09.20&ndash;11.50</td><td>Dr. M. Akhyar, M.Si</td><td class="mono sunyi" style="font-size:.93rem">301</td></tr>
+      <tr><td class="mono kode">15111001</td><td>Sejarah Aliran Psikologi</td><td class="mono" style="text-align:center">2</td><td>Wednesday</td><td class="mono" style="font-size:.93rem">09.20&ndash;11.00</td><td>Dr. Seta A Wicaksana, M.Psi., MM., Psikolog</td><td class="mono sunyi" style="font-size:.93rem">302</td></tr>
+      <tr><td class="mono kode">15112004</td><td>Pengembangan Diri dan Karier</td><td class="mono" style="text-align:center">2</td><td>Thursday</td><td class="mono" style="font-size:.93rem">09.20&ndash;11.00</td><td>Ni Made Rai Kistyanti, M.Psi., Psikolog</td><td class="mono sunyi" style="font-size:.93rem">302</td></tr>
+      <tr><td class="mono kode">15113005</td><td>Statistika I</td><td class="mono" style="text-align:center">3</td><td>Thursday</td><td class="mono" style="font-size:.93rem">13.00&ndash;15.30</td><td>Andri Setia Dharma, M.Psi., Psikolog</td><td class="mono sunyi" style="font-size:.93rem">303</td></tr>
+      <tr><td class="mono kode">10012001</td><td>Pancasila</td><td class="mono" style="text-align:center">2</td><td>Friday</td><td class="mono" style="font-size:.93rem">07.30&ndash;09.10</td><td><span class="lencana">MKWU</span></td><td class="mono sunyi" style="font-size:.93rem">&mdash;</td></tr>
+      <tr><td class="mono kode">10012002</td><td>Bahasa Indonesia</td><td class="mono" style="text-align:center">2</td><td>Friday</td><td class="mono" style="font-size:.93rem">09.20&ndash;11.00</td><td><span class="lencana">MKWU</span></td><td class="mono sunyi" style="font-size:.93rem">&mdash;</td></tr>
+      <tr class="bentrok"><td class="mono kode">15112003</td><td>Penulisan Ilmiah</td><td class="mono" style="text-align:center">2</td><td>Friday</td><td class="mono" style="font-size:.93rem">13.00&ndash;14.40</td><td>Aisyah, M.Si</td><td class="mono sunyi" style="font-size:.93rem">302</td></tr>
+      <tr class="bentrok"><td class="mono kode">10012003</td><td>Kewarganegaraan</td><td class="mono" style="text-align:center">2</td><td>Friday</td><td class="mono" style="font-size:.93rem">13.00&ndash;14.40</td><td><span class="lencana">MKWU</span></td><td class="mono sunyi" style="font-size:.93rem">&mdash;</td></tr>
+      <tr><td class="mono kode">10012004</td><td>Agama</td><td class="mono" style="text-align:center">2</td><td>Friday</td><td class="mono" style="font-size:.93rem">14.50&ndash;16.30</td><td><span class="lencana">MKWU</span></td><td class="mono sunyi" style="font-size:.93rem">&mdash;</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement, key='krs-teks';
+  try{ var v=localStorage.getItem(key); if(v) set(v); }catch(e){}
+  function set(v){
+    if(v==='kecil'){ root.removeAttribute('data-teks'); } else { root.setAttribute('data-teks',v); }
+    document.querySelectorAll('[data-ukur]').forEach(function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.ukur===v));
+    });
+  }
+  document.querySelectorAll('[data-ukur]').forEach(function(b){
+    b.addEventListener('click', function(){
+      set(b.dataset.ukur);
+      try{ localStorage.setItem(key, b.dataset.ukur); }catch(e){}
+    });
+  });
+})();
+</script>
+</body></html>

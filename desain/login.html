@@ -1,0 +1,184 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in &mdash; Course Scheduling, Universitas Pancasila</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+*{box-sizing:border-box}
+:root{
+  --kertas:#F2F3F5; --lembar:#FFFFFF; --cekung:#F7F8FA;
+  --garis:rgba(16,24,40,.11); --garis-kuat:rgba(16,24,40,.22);
+  --tinta:#0E1626; --tinta-2:#3C4657; --tinta-3:#5C6474;
+  --biru:#1A3FA0; --biru-lembut:#EAEEF9;
+  --merah:#A81E14; --merah-lembut:#FDF0EE; --merah-garis:#E0A79F;
+  --r-kecil:3px; --r-sedang:5px;
+}
+html{font-size:15px;-webkit-font-smoothing:antialiased}
+html[data-teks="sedang"]{font-size:17px}
+html[data-teks="besar"]{font-size:19px}
+
+body{margin:0;min-height:100vh;background:var(--kertas);color:var(--tinta);
+  font:400 1rem/1.5 'IBM Plex Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;
+  display:flex;flex-direction:column}
+h1{margin:0;font-size:1.6rem;font-weight:600;letter-spacing:-.015em}
+h2{margin:0;font-size:1.07rem;font-weight:600}
+p{margin:0;text-wrap:pretty}
+button,input{font:inherit;color:inherit}
+a{color:var(--biru);text-underline-offset:2px}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--biru);outline-offset:1px}
+
+/* text size control, reachable before sign-in */
+.pojok{display:flex;justify-content:flex-end;padding:.8rem 1.3rem 0}
+.teks-ukur{display:flex;align-items:center;gap:.4rem}
+.teks-ukur > span{font-size:.8rem;color:var(--tinta-3)}
+.teks-ukur div{display:flex;border:1px solid var(--garis-kuat);border-radius:var(--r-kecil);
+  overflow:hidden;background:var(--lembar)}
+.teks-ukur button{min-width:2.4rem;min-height:2.4rem;background:var(--lembar);border:0;cursor:pointer;
+  color:var(--tinta-2);transition:background 140ms cubic-bezier(.23,1,.32,1)}
+.teks-ukur button + button{border-left:1px solid var(--garis)}
+.teks-ukur button:hover{background:var(--cekung)}
+.teks-ukur button[aria-pressed=true]{background:var(--biru-lembut);color:var(--biru);font-weight:600}
+
+.tengah{flex:1;display:flex;align-items:center;justify-content:center;padding:1.3rem}
+.kolom{width:100%;max-width:25.3rem}
+
+.judul{margin-bottom:1.6rem}
+.judul .lembaga{font-size:.93rem;font-weight:500;color:var(--tinta-2);margin-bottom:.27rem}
+.judul .prodi{margin-top:.27rem;font-size:.93rem;color:var(--tinta-3)}
+
+.panel{background:var(--lembar);border:1px solid var(--garis);border-radius:var(--r-sedang);
+  padding:1.6rem}
+
+.galat{display:flex;gap:.6rem;align-items:flex-start;background:var(--merah-lembut);
+  border:1px solid var(--merah-garis);border-radius:var(--r-kecil);padding:.67rem .8rem;
+  margin-bottom:1.2rem}
+.galat svg{flex:none;margin-top:.13rem}
+.galat p{font-size:.93rem;color:#7A1710;line-height:1.45}
+.galat b{display:block;font-weight:600;color:var(--merah);margin-bottom:.13rem}
+
+.bidang{margin-bottom:1.07rem}
+.bidang label{display:block;font-size:.93rem;font-weight:500;margin-bottom:.33rem}
+.bidang input{width:100%;background:var(--cekung);border:1px solid var(--garis-kuat);
+  border-radius:var(--r-kecil);padding:.53rem .67rem;min-height:2.8rem;font-size:1rem;
+  transition:border-color 140ms cubic-bezier(.23,1,.32,1),background 140ms cubic-bezier(.23,1,.32,1)}
+.bidang input:hover{border-color:rgba(16,24,40,.32)}
+.bidang input:focus{background:var(--lembar)}
+.bidang input[aria-invalid=true]{border-color:var(--merah)}
+.bidang .bantu{margin-top:.33rem;font-size:.87rem;color:var(--tinta-3)}
+
+.sandi-bungkus{position:relative;display:flex}
+.sandi-bungkus input{padding-right:5rem}
+.lihat{position:absolute;right:.27rem;top:50%;transform:translateY(-50%);background:none;border:0;
+  color:var(--biru);font-size:.87rem;cursor:pointer;padding:.53rem;min-height:2.4rem;
+  text-decoration:underline;text-underline-offset:2px}
+
+.baris-atas{display:flex;align-items:baseline;justify-content:space-between;gap:.8rem;margin-bottom:.33rem}
+.baris-atas label{margin-bottom:0}
+.baris-atas a{font-size:.87rem}
+
+.masuk{width:100%;background:var(--biru);color:#fff;border:1px solid var(--biru);
+  border-radius:var(--r-kecil);padding:.6rem 1rem;min-height:2.93rem;font-size:1rem;font-weight:500;
+  cursor:pointer;transition:background 140ms cubic-bezier(.23,1,.32,1)}
+.masuk:hover{background:#16358A}
+.masuk:active{transform:scale(.985)}
+.masuk[aria-busy=true]{background:#46589B;border-color:#46589B;cursor:default}
+
+.kaki{margin-top:1.2rem;padding-top:1.07rem;border-top:1px solid var(--garis);
+  font-size:.87rem;color:var(--tinta-3);line-height:1.5}
+.sisip{margin-top:1.07rem;font-size:.8rem;color:var(--tinta-3);text-align:center}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+
+<div class="pojok">
+  <div class="teks-ukur">
+    <span>Text size</span>
+    <div role="group" aria-label="Text size">
+      <button type="button" data-ukur="kecil" aria-pressed="true" style="font-size:.87rem">A</button>
+      <button type="button" data-ukur="sedang" aria-pressed="false" style="font-size:1.07rem">A</button>
+      <button type="button" data-ukur="besar" aria-pressed="false" style="font-size:1.27rem">A</button>
+    </div>
+  </div>
+</div>
+
+<main class="tengah">
+  <div class="kolom">
+
+    <div class="judul">
+      <p class="lembaga">Universitas Pancasila &middot; Jakarta</p>
+      <h1>Course Scheduling</h1>
+      <p class="prodi">Faculty of Psychology &middot; Undergraduate program</p>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin-bottom:1.2rem">Sign in</h2>
+
+      <div class="galat" role="alert" aria-live="polite">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" stroke="#A81E14" stroke-width="1.5"/>
+          <path d="M8 4.5v4" stroke="#A81E14" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="8" cy="11.2" r=".9" fill="#A81E14"/>
+        </svg>
+        <p><b>That email and password don't match</b>Check both and try again. After five failed attempts sign-in is paused for 15 minutes.</p>
+      </div>
+
+      <form novalidate>
+        <div class="bidang">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="username"
+                 inputmode="email" spellcheck="false" value="admin@univpancasila.ac.id"
+                 aria-invalid="true" aria-describedby="bantu-email">
+          <p class="bantu" id="bantu-email">The address your administrator registered.</p>
+        </div>
+
+        <div class="bidang">
+          <div class="baris-atas">
+            <label for="sandi">Password</label>
+            <a href="#">Forgot your password?</a>
+          </div>
+          <div class="sandi-bungkus">
+            <input id="sandi" name="password" type="password" autocomplete="current-password"
+                   value="xxxxxxxxxxxx" aria-invalid="true">
+            <button type="button" class="lihat" aria-pressed="false">Show</button>
+          </div>
+        </div>
+
+        <button type="submit" class="masuk">Sign in</button>
+      </form>
+
+      <div class="kaki">
+        Accounts are created by the Faculty of Psychology administrator. If you need access, or your
+        account is locked, ask them to add you.
+      </div>
+    </div>
+
+    <p class="sisip">Signing in keeps you signed in on this computer for 7 days.</p>
+  </div>
+</main>
+
+<script>
+(function(){
+  var root=document.documentElement, key='krs-teks';
+  try{ var v=localStorage.getItem(key); if(v) set(v); }catch(e){}
+  function set(v){
+    if(v==='kecil'){ root.removeAttribute('data-teks'); } else { root.setAttribute('data-teks',v); }
+    document.querySelectorAll('[data-ukur]').forEach(function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.ukur===v));
+    });
+  }
+  document.querySelectorAll('[data-ukur]').forEach(function(b){
+    b.addEventListener('click', function(){
+      set(b.dataset.ukur);
+      try{ localStorage.setItem(key, b.dataset.ukur); }catch(e){}
+    });
+  });
+  var lihat=document.querySelector('.lihat'), sandi=document.getElementById('sandi');
+  lihat.addEventListener('click', function(){
+    var on = sandi.type === 'password';
+    sandi.type = on ? 'text' : 'password';
+    lihat.textContent = on ? 'Hide' : 'Show';
+    lihat.setAttribute('aria-pressed', String(on));
+    sandi.focus();
+  });
+})();
+</script>
+</body></html>
