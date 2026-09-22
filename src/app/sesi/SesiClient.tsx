@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Select } from '@/components/Select'
 import type { GeneratedSlot } from '@/lib/sesi-generator'
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
 import {
@@ -178,17 +179,13 @@ function GeneratorPanel({
 
       <div className="flex flex-wrap gap-[0.8rem] items-end">
         <Field label="Hari">
-          <select
+          <Select
             value={hari}
-            onChange={(e) => setHari(e.target.value)}
+            onValueChange={setHari}
+            options={HARI.map((h) => ({ value: h, label: hariLabel(h) }))}
+            ariaLabel="Hari"
             className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-          >
-            {HARI.map((h) => (
-              <option key={h} value={h}>
-                {hariLabel(h)}
-              </option>
-            ))}
-          </select>
+          />
         </Field>
 
         <Field label="Jam mulai">

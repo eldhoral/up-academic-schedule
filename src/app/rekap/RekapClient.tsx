@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { hariLabel } from '@/lib/hari'
 import type { AcademicYear, Lecturer, ScheduleRow } from '../penjadwalan-types'
@@ -55,35 +56,27 @@ export function RekapClient({
         <label className="text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-ay">
           Academic year
         </label>
-        <select
+        <Select
           id="ctx-ay"
           value={academicYearId}
-          onChange={(e) => navigate({ ay: e.target.value })}
+          onValueChange={(v) => navigate({ ay: v })}
+          options={academicYears.map((ay) => ({ value: ay.id, label: ay.label }))}
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
-        >
-          {academicYears.map((ay) => (
-            <option key={ay.id} value={ay.id}>
-              {ay.label}
-            </option>
-          ))}
-        </select>
+        />
 
         <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-dosen">
           Dosen
         </label>
-        <select
+        <Select
           id="ctx-dosen"
           value={selectedDosen}
-          onChange={(e) => navigate({ dosen: e.target.value })}
+          onValueChange={(v) => navigate({ dosen: v })}
+          options={[
+            { value: 'all', label: `Semua dosen (${lecturersWithLoad.length})` },
+            ...lecturersWithLoad.map((l) => ({ value: l.kode_dosen, label: lecturerDisplayName(l) })),
+          ]}
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem] max-w-[18rem]"
-        >
-          <option value="all">Semua dosen ({lecturersWithLoad.length})</option>
-          {lecturersWithLoad.map((l) => (
-            <option key={l.kode_dosen} value={l.kode_dosen}>
-              {lecturerDisplayName(l)}
-            </option>
-          ))}
-        </select>
+        />
 
         <button
           type="button"

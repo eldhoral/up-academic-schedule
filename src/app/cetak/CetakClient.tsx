@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { hariLabel } from '@/lib/hari'
 import type { AcademicYear, ScheduleRow } from '../penjadwalan-types'
@@ -64,47 +65,38 @@ export function CetakClient({
         <label className="text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-ay">
           Academic year
         </label>
-        <select
+        <Select
           id="ctx-ay"
           value={context.academic_year_id}
-          onChange={(e) => navigate({ academic_year_id: e.target.value })}
+          onValueChange={(v) => navigate({ academic_year_id: v })}
+          options={academicYears.map((ay) => ({ value: ay.id, label: ay.label }))}
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
-        >
-          {academicYears.map((ay) => (
-            <option key={ay.id} value={ay.id}>
-              {ay.label}
-            </option>
-          ))}
-        </select>
+        />
 
         <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
           Program
         </label>
-        <select
+        <Select
           id="ctx-jenis"
           value={context.jenis_kelas}
-          onChange={(e) => navigate({ jenis_kelas: e.target.value as 'reguler' | 'regsus' })}
+          onValueChange={(v) => navigate({ jenis_kelas: v as 'reguler' | 'regsus' })}
+          options={[
+            { value: 'reguler', label: 'Reguler' },
+            { value: 'regsus', label: 'Reguler Khusus' },
+          ]}
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
-        >
-          <option value="reguler">Reguler</option>
-          <option value="regsus">Reguler Khusus</option>
-        </select>
+        />
 
         <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-smt">
           Semester
         </label>
-        <select
+        <Select
           id="ctx-smt"
-          value={context.semester_ke}
-          onChange={(e) => navigate({ semester_ke: parseInt(e.target.value, 10) })}
+          value={String(context.semester_ke)}
+          onValueChange={(v) => navigate({ semester_ke: parseInt(v, 10) })}
+          options={SEMESTERS.map((s) => ({ value: String(s), label: String(s) }))}
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
-        >
-          {SEMESTERS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        />
 
         <button
           type="button"

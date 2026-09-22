@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { createScheduleAction, deleteScheduleAction, updateScheduleAction, type FormState } from './penjadwalan-actions'
 import { checkScheduleClashes, type ClashCheckResult } from './clash-actions'
@@ -144,20 +145,19 @@ export function ScheduleFormModal({
           <input type="hidden" name="jam_selesai" value={jamSelesai} />
 
           <Field label="Mata Kuliah">
-            <select
+            <Select
               name="kode_mk"
               required
               value={kodeMk}
-              onChange={(e) => setKodeMk(e.target.value)}
+              onValueChange={setKodeMk}
+              placeholder="— pilih mata kuliah —"
+              ariaLabel="Mata Kuliah"
+              options={visibleCourses.map((c) => ({
+                value: c.kode_mk,
+                label: `${c.kode_mk} — ${c.nama_mk} — ${c.sks} SKS`,
+              }))}
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-            >
-              <option value="">— pilih mata kuliah —</option>
-              {visibleCourses.map((c) => (
-                <option key={c.kode_mk} value={c.kode_mk}>
-                  {c.kode_mk} — {c.nama_mk} — {c.sks} SKS
-                </option>
-              ))}
-            </select>
+            />
             <label className="mt-[0.3rem] flex items-center gap-[0.4rem] text-[0.8rem] text-[var(--tinta-3)]">
               <input
                 type="checkbox"
@@ -172,18 +172,17 @@ export function ScheduleFormModal({
           <Field label="Sesi">
             {sesiMode === 'terjadwal' ? (
               <>
-                <select
+                <Select
                   value={sesiId}
-                  onChange={(e) => pickSesi(e.target.value)}
+                  onValueChange={pickSesi}
+                  placeholder="— pilih sesi —"
+                  ariaLabel="Sesi"
+                  options={visibleSessions.map((s) => ({
+                    value: s.id,
+                    label: `${hariLabel(s.hari)} · ${s.jam_mulai.slice(0, 5)}–${s.jam_selesai.slice(0, 5)} (${s.sks} SKS)`,
+                  }))}
                   className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-                >
-                  <option value="">— pilih sesi —</option>
-                  {visibleSessions.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {hariLabel(s.hari)} · {s.jam_mulai.slice(0, 5)}–{s.jam_selesai.slice(0, 5)} ({s.sks} SKS)
-                    </option>
-                  ))}
-                </select>
+                />
                 <div className="mt-[0.3rem] flex items-center gap-[1rem] flex-wrap">
                   <label className="flex items-center gap-[0.4rem] text-[0.8rem] text-[var(--tinta-3)]">
                     <input
@@ -206,19 +205,15 @@ export function ScheduleFormModal({
             ) : (
               <div className="space-y-[0.5rem]">
                 <div className="flex gap-[0.6rem]">
-                  <select
+                  <Select
                     value={hari}
-                    onChange={(e) => setHari(e.target.value)}
+                    onValueChange={setHari}
                     required
+                    placeholder="— hari —"
+                    ariaLabel="Hari"
+                    options={HARI.map((h) => ({ value: h, label: hariLabel(h) }))}
                     className="flex-1 bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-                  >
-                    <option value="">— hari —</option>
-                    {HARI.map((h) => (
-                      <option key={h} value={h}>
-                        {hariLabel(h)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                   <input
                     type="time"
                     value={jamMulai}
@@ -246,38 +241,30 @@ export function ScheduleFormModal({
           </Field>
 
           <Field label="Kelas">
-            <select
+            <Select
               name="kelas"
               required
               value={kelas}
-              onChange={(e) => setKelas(e.target.value)}
+              onValueChange={setKelas}
+              ariaLabel="Kelas"
+              options={kelasOptions.map((k) => ({ value: k, label: k }))}
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-            >
-              {kelasOptions.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
+            />
           </Field>
 
           <Field label="Dosen">
             <div className="space-y-[0.5rem]">
               {dosenRows.map((kode, i) => (
                 <div key={i} className="flex gap-[0.5rem]">
-                  <select
+                  <Select
                     name="dosen"
                     value={kode}
-                    onChange={(e) => setDosenRows((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))}
+                    onValueChange={(v) => setDosenRows((prev) => prev.map((row, j) => (j === i ? v : row)))}
+                    placeholder="— pilih dosen —"
+                    ariaLabel="Dosen"
+                    options={lecturers.map((l) => ({ value: l.kode_dosen, label: lecturerDisplayName(l) }))}
                     className="flex-1 bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-                  >
-                    <option value="">— pilih dosen —</option>
-                    {lecturers.map((l) => (
-                      <option key={l.kode_dosen} value={l.kode_dosen}>
-                        {lecturerDisplayName(l)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                   <button
                     type="button"
                     onClick={() => setDosenRows((prev) => prev.filter((_, j) => j !== i))}
@@ -305,19 +292,15 @@ export function ScheduleFormModal({
 
           <div className="flex gap-[0.8rem]">
             <Field label="Ruangan" className="flex-1">
-              <select
+              <Select
                 name="room_id"
                 value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
+                onValueChange={setRoomId}
+                placeholder="—"
+                ariaLabel="Ruangan"
+                options={rooms.map((r) => ({ value: r.id, label: r.nama }))}
                 className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-              >
-                <option value="">—</option>
-                {rooms.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.nama}
-                  </option>
-                ))}
-              </select>
+              />
             </Field>
             <Field label="Zoom ID" className="flex-1">
               <input
@@ -347,16 +330,18 @@ export function ScheduleFormModal({
             </Field>
             {context.jenis_kelas === 'regsus' && (
               <Field label="Minggu" className="flex-1">
-                <select
+                <Select
                   name="minggu"
                   value={minggu}
-                  onChange={(e) => setMinggu(e.target.value as 'setiap' | 'ganjil' | 'genap')}
+                  onValueChange={(v) => setMinggu(v as 'setiap' | 'ganjil' | 'genap')}
+                  ariaLabel="Minggu"
+                  options={[
+                    { value: 'setiap', label: 'Setiap minggu' },
+                    { value: 'ganjil', label: 'Minggu ganjil (A)' },
+                    { value: 'genap', label: 'Minggu genap (B)' },
+                  ]}
                   className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-                >
-                  <option value="setiap">Setiap minggu</option>
-                  <option value="ganjil">Minggu ganjil (A)</option>
-                  <option value="genap">Minggu genap (B)</option>
-                </select>
+                />
               </Field>
             )}
           </div>

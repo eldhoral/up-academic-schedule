@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useState } from 'react'
+import { Select } from '@/components/Select'
 import { saveSettingsAction, type FormState } from './actions'
 
 export type SettingRow = {
@@ -122,18 +123,13 @@ function SettingInput({ row, name }: { row: SettingRow; name: string }) {
   const options = SELECT_OPTIONS[row.key]
   if (options) {
     return (
-      <select
+      <Select
         id={name}
         name={name}
         defaultValue={row.value}
+        options={options}
         className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      />
     )
   }
 

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
+import { Select } from '@/components/Select'
 import { createCourseAction, deleteCourseAction, updateCourseAction, type FormState } from './actions'
 
 export type Course = {
@@ -185,14 +186,16 @@ function CourseFormModal({ course, onClose }: { course: Course | null; onClose: 
           </div>
           <div className="flex gap-[0.8rem]">
             <Field label="Jenis" className="flex-1">
-              <select
+              <Select
                 name="jenis_mk"
                 defaultValue={course?.jenis_mk ?? 'A'}
-                className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
-              >
-                <option value="A">A — Wajib</option>
-                <option value="B">B — Pilihan</option>
-              </select>
+                ariaLabel="Jenis"
+                options={[
+                  { value: 'A', label: 'A — Wajib' },
+                  { value: 'B', label: 'B — Pilihan' },
+                ]}
+                className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
+              />
             </Field>
             <Field label="Kurikulum" className="flex-1">
               <input
