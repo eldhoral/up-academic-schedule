@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { hariLabel } from '@/lib/hari'
 import { ScheduleFormModal } from './ScheduleFormModal'
@@ -15,12 +14,12 @@ export function PenjadwalanClient({
   lecturers,
   rooms,
   sessions,
-  schedules,
+  schedules: initialSchedules,
   kelasOptions,
   defaultZoomId,
   maksMahasiswaPerKelas,
   minMahasiswaPilihan,
-  context,
+  context: initialContext,
 }: {
   academicYears: AcademicYear[]
   courses: Course[]
@@ -34,17 +33,30 @@ export function PenjadwalanClient({
   minMahasiswaPilihan: number
   context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
 }) {
-  const router = useRouter()
   const [modalOpen, setModalOpen] = useState<'new' | ScheduleRow | null>(null)
+  const [schedules, setSchedules] = useState(initialSchedules)
+  const [context, setContext] = useState(initialContext)
 
-  function navigate(next: Partial<typeof context>) {
+  // router.refresh() (after add/edit save) re-renders the server page with fresh props — resync.
+  // (React "adjusting state during render" pattern: avoids an effect + extra render pass.)
+  const [prevInitial, setPrevInitial] = useState({ schedules: initialSchedules, context: initialContext })
+  if (initialSchedules !== prevInitial.schedules || initialContext !== prevInitial.context) {
+    setPrevInitial({ schedules: initialSchedules, context: initialContext })
+    setSchedules(initialSchedules)
+    setContext(initialContext)
+  }
+
+  async function navigate(next: Partial<typeof context>) {
     const merged = { ...context, ...next }
     const params = new URLSearchParams({
       ay: merged.academic_year_id,
       jenis: merged.jenis_kelas,
       smt: String(merged.semester_ke),
     })
-    router.push(`/?${params.toString()}`)
+    setContext(merged)
+    window.history.replaceState(null, '', `/?${params.toString()}`)
+    const res = await fetch(`/api/schedules?${params.toString()}`)
+    setSchedules(await res.json())
   }
 
   const byKelas = new Map<string, ScheduleRow[]>()
