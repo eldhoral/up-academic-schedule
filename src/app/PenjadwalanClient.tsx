@@ -82,8 +82,15 @@ export function PenjadwalanClient({
     if (clashesPromise) setClashes(await clashesPromise)
   }
 
-  function viewClashSide(side: ClashFindingSide) {
-    navigate({ jenis_kelas: side.jenis_kelas as 'reguler' | 'regsus', semester_ke: side.semester_ke })
+  async function viewClashSide(side: ClashFindingSide) {
+    const needsNav = side.jenis_kelas !== context.jenis_kelas || side.semester_ke !== context.semester_ke
+    if (needsNav) {
+      await navigate({ jenis_kelas: side.jenis_kelas as 'reguler' | 'regsus', semester_ke: side.semester_ke })
+    }
+    // rAF: wait a paint past the state update above so the target kelas group exists in the DOM.
+    requestAnimationFrame(() => {
+      document.getElementById(`kelas-${side.kelas}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   const byKelas = new Map<string, ScheduleRow[]>()
@@ -176,7 +183,7 @@ export function PenjadwalanClient({
           {kelasGroups.map(([kelas, rows]) => {
             const subtotal = rows.reduce((sum, r) => sum + (r.courses?.sks ?? 0), 0)
             return (
-              <div key={kelas}>
+              <div key={kelas} id={`kelas-${kelas}`}>
                 <h2 className="text-[0.93rem] font-semibold text-[var(--tinta-2)] mb-[0.4rem]">
                   Kelas {kelas} <span className="font-normal text-[var(--tinta-3)]">&middot; {subtotal} SKS</span>
                 </h2>
