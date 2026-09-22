@@ -1,87 +1,96 @@
 @import "tailwindcss";
 
-:root {
-  --kertas: #F2F3F5;
-  --lembar: #FFFFFF;
-  --cekung: #F7F8FA;
-  --garis: rgba(16, 24, 40, 0.11);
-  --garis-kuat: rgba(16, 24, 40, 0.22);
-  --tinta: #0E1626;
-  --tinta-2: #3C4657;
-  --tinta-3: #5C6474;
-  --biru: #1A3FA0;
-  --biru-lembut: #EAEEF9;
-  --biru-hover: #16358A;
-  --biru-disabled: #46589B;
-  --merah: #A81E14;
-  --merah-lembut: #FDF0EE;
-  --merah-garis: #E0A79F;
-  --merah-teks: #7A1710;
-  --hijau: #17683F;
-  --hijau-lembut: #EAF6EE;
-  --kuning: #8A5A00;
-  --kuning-lembut: #FFF6E5;
-  --kuning-garis: #F0D08A;
-  --r-kecil: 3px;
-  --r-sedang: 5px;
-}
-
-/* One root lever: every rem dimension scales dynamically */
-html {
-  font-size: 15px;
-  -webkit-font-smoothing: antialiased;
-}
-html[data-teks="sedang"] {
-  font-size: 17px;
-}
-html[data-teks="besar"] {
-  font-size: 19px;
-}
-
-body {
-  margin: 0;
-  background: var(--kertas);
-  color: var(--tinta);
-  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.5;
-}
-
-.mono {
-  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Common interactive styling matching Bilah system */
-button, input, select {
-  font: inherit;
-  color: inherit;
-}
-
-a {
-  color: var(--biru);
-  text-underline-offset: 2px;
-}
-
-a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
-  outline: 2px solid var(--biru);
-  outline-offset: 1px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
+/*
+ * Wrapped in @layer base: per the CSS Cascade Layers spec, unlayered rules
+ * always beat every @layer'd rule regardless of specificity or source order.
+ * Tailwind's utilities (text-[var(--tinta-2)] etc.) live in @layer utilities,
+ * so leaving these unlayered silently overrides every per-component color
+ * override on links, buttons, and inputs app-wide.
+ */
+@layer base {
+  :root {
+    --kertas: #F2F3F5;
+    --lembar: #FFFFFF;
+    --cekung: #F7F8FA;
+    --garis: rgba(16, 24, 40, 0.11);
+    --garis-kuat: rgba(16, 24, 40, 0.22);
+    --tinta: #0E1626;
+    --tinta-2: #3C4657;
+    --tinta-3: #5C6474;
+    --biru: #1A3FA0;
+    --biru-lembut: #EAEEF9;
+    --biru-hover: #16358A;
+    --biru-disabled: #46589B;
+    --merah: #A81E14;
+    --merah-lembut: #FDF0EE;
+    --merah-garis: #E0A79F;
+    --merah-teks: #7A1710;
+    --hijau: #17683F;
+    --hijau-lembut: #EAF6EE;
+    --kuning: #8A5A00;
+    --kuning-lembut: #FFF6E5;
+    --kuning-garis: #F0D08A;
+    --r-kecil: 3px;
+    --r-sedang: 5px;
   }
-}
 
-@media print {
-  .no-print {
-    display: none !important;
+  /* One root lever: every rem dimension scales dynamically */
+  html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
   }
+  html[data-teks="sedang"] {
+    font-size: 17px;
+  }
+  html[data-teks="besar"] {
+    font-size: 19px;
+  }
+
   body {
-    background: #fff;
+    margin: 0;
+    background: var(--kertas);
+    color: var(--tinta);
+    font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
   }
-  .rekap-break {
-    page-break-before: always;
+
+  .mono {
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Common interactive styling matching Bilah system */
+  button, input, select {
+    font: inherit;
+    color: inherit;
+  }
+
+  a {
+    color: var(--biru);
+    text-underline-offset: 2px;
+  }
+
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--biru);
+    outline-offset: 1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+    }
+  }
+
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    body {
+      background: #fff;
+    }
+    .rekap-break {
+      page-break-before: always;
+    }
   }
 }
