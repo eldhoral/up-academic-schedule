@@ -22,6 +22,14 @@ export function buildTemplateBuffer(
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer
 }
 
+/** Builds a downloadable .xlsx of the current DB rows — column names match import headers, so it re-uploads cleanly. */
+export function buildExportBuffer(rows: Record<string, unknown>[]): Buffer {
+  const sheet = XLSX.utils.json_to_sheet(rows)
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Data')
+  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+}
+
 export type RowOutcome<T> =
   | { status: 'new'; key: string; data: T; notes: string[] }
   | { status: 'changed'; key: string; data: T; notes: string[]; before: T }

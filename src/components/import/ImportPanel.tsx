@@ -81,13 +81,22 @@ export function ImportPanel({
             Download the template, fill it in Excel, then upload to preview before committing.
           </p>
         </div>
-        <a
-          href={`/api/import/${tableSlug}/template`}
-          download
-          className="shrink-0 px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] font-medium text-[var(--tinta-2)] hover:bg-[var(--cekung)] transition-colors"
-        >
-          Download template
-        </a>
+        <div className="flex gap-[0.5rem] shrink-0">
+          <a
+            href={`/api/export/${tableSlug}`}
+            download
+            className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] font-medium text-[var(--tinta-2)] hover:bg-[var(--cekung)] transition-colors"
+          >
+            Export data
+          </a>
+          <a
+            href={`/api/import/${tableSlug}/template`}
+            download
+            className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] font-medium text-[var(--tinta-2)] hover:bg-[var(--cekung)] transition-colors"
+          >
+            Download template
+          </a>
+        </div>
       </div>
 
       <div className="flex items-center gap-[0.8rem] flex-wrap">
