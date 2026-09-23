@@ -38,7 +38,9 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
           <div>
             <h1 className="text-[1.3rem] font-semibold">Mata Kuliah</h1>
             <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">
-              {filtered.length} dari {courses.length} mata kuliah &middot; {kurikulumList.length} kurikulum
+              {kurikulumFilter === 'semua'
+                ? `${filtered.length} dari ${courses.length} mata kuliah · ${kurikulumList.length} kurikulum`
+                : `${filtered.length} mata kuliah kurikulum ${kurikulumFilter}`}
             </p>
           </div>
           <button
