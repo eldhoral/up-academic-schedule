@@ -85,29 +85,29 @@ begin
         'sessions', 'schedules', 'schedule_lecturers', 'settings'
     ]
     loop
-        execute format('drop policy if exists %L on %I', 'Allow authenticated users full access to ' || t, t);
+        execute format('drop policy if exists %I on %I', 'Allow authenticated users full access to ' || t, t);
 
-        execute format('drop policy if exists %L on %I', t || '_select', t);
+        execute format('drop policy if exists %I on %I', t || '_select', t);
         execute format(
-            'create policy %L on %I for select to authenticated using (true)',
+            'create policy %I on %I for select to authenticated using (true)',
             t || '_select', t
         );
 
-        execute format('drop policy if exists %L on %I', t || '_insert', t);
+        execute format('drop policy if exists %I on %I', t || '_insert', t);
         execute format(
-            'create policy %L on %I for insert to authenticated with check (is_scheduler_or_above())',
+            'create policy %I on %I for insert to authenticated with check (is_scheduler_or_above())',
             t || '_insert', t
         );
 
-        execute format('drop policy if exists %L on %I', t || '_update', t);
+        execute format('drop policy if exists %I on %I', t || '_update', t);
         execute format(
-            'create policy %L on %I for update to authenticated using (is_scheduler_or_above()) with check (is_scheduler_or_above())',
+            'create policy %I on %I for update to authenticated using (is_scheduler_or_above()) with check (is_scheduler_or_above())',
             t || '_update', t
         );
 
-        execute format('drop policy if exists %L on %I', t || '_delete', t);
+        execute format('drop policy if exists %I on %I', t || '_delete', t);
         execute format(
-            'create policy %L on %I for delete to authenticated using (is_scheduler_or_above())',
+            'create policy %I on %I for delete to authenticated using (is_scheduler_or_above())',
             t || '_delete', t
         );
     end loop;
