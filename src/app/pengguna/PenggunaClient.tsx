@@ -19,6 +19,15 @@ const ROLE_OPTIONS = ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))
 export function PenggunaClient({ users, currentUserId }: { users: Profile[]; currentUserId: string }) {
   const router = useRouter()
   const [showCreate, setShowCreate] = useState(false)
+  const [query, setQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState<'semua' | Role>('semua')
+
+  const filtered = users.filter((u) => {
+    if (roleFilter !== 'semua' && u.role !== roleFilter) return false
+    const q = query.trim().toLowerCase()
+    if (!q) return true
+    return u.email.toLowerCase().includes(q)
+  })
 
   return (
     <div className="space-y-[1.2rem]">
@@ -26,7 +35,9 @@ export function PenggunaClient({ users, currentUserId }: { users: Profile[]; cur
         <div className="flex items-center justify-between pb-[1rem] border-b border-[var(--garis)] mb-[1.2rem] gap-[1rem] flex-wrap">
           <div>
             <h1 className="text-[1.3rem] font-semibold">Pengguna</h1>
-            <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">{users.length} akun</p>
+            <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">
+              {roleFilter === 'semua' ? `${filtered.length} dari ${users.length} akun` : `${filtered.length} akun · ${ROLE_LABEL[roleFilter]}`}
+            </p>
           </div>
           <button
             type="button"
@@ -35,6 +46,26 @@ export function PenggunaClient({ users, currentUserId }: { users: Profile[]; cur
           >
             Tambah pengguna
           </button>
+        </div>
+
+        <div className="flex items-center gap-[0.53rem] flex-wrap mb-[1rem]">
+          <input
+            type="search"
+            placeholder="Cari email…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full max-w-[20rem] bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
+          />
+          <div className="flex items-center gap-[0.4rem] flex-wrap">
+            <FilterChip active={roleFilter === 'semua'} onClick={() => setRoleFilter('semua')}>
+              Semua peran
+            </FilterChip>
+            {ROLES.map((r) => (
+              <FilterChip key={r} active={roleFilter === r} onClick={() => setRoleFilter(r)}>
+                {ROLE_LABEL[r]}
+              </FilterChip>
+            ))}
+          </div>
         </div>
 
         <div className="overflow-x-auto border border-[var(--garis)] rounded-[var(--r-kecil)]">
@@ -48,7 +79,7 @@ export function PenggunaClient({ users, currentUserId }: { users: Profile[]; cur
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {filtered.map((u) => (
                 <tr key={u.id} className="border-t border-[var(--garis)] h-[2.4rem]">
                   <Td>{u.email}</Td>
                   <Td>
@@ -73,10 +104,10 @@ export function PenggunaClient({ users, currentUserId }: { users: Profile[]; cur
                   </Td>
                 </tr>
               ))}
-              {users.length === 0 && (
+              {filtered.length === 0 && (
                 <tr>
                   <td colSpan={4} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
-                    Belum ada pengguna.
+                    {users.length === 0 ? 'Belum ada pengguna.' : <>Tidak ada pengguna yang cocok dengan &ldquo;{query}&rdquo;.</>}
                   </td>
                 </tr>
               )}
@@ -217,4 +248,29 @@ function Th({ children, className = '' }: { children: React.ReactNode; className
 
 function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-[0.6rem] py-[0.4rem] ${className}`}>{children}</td>
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] text-[0.8rem] font-medium border transition-colors cursor-pointer ${
+        active
+          ? 'bg-[var(--biru-lembut)] text-[var(--biru)] border-[var(--biru)]/30'
+          : 'bg-[var(--lembar)] text-[var(--tinta-3)] border-[var(--garis-kuat)] hover:bg-[var(--cekung)]'
+      }`}
+    >
+      {children}
+    </button>
+  )
 }

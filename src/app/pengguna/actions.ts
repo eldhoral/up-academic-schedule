@@ -19,6 +19,14 @@ function readRole(formData: FormData): Role | null {
   return (ROLES as readonly string[]).includes(value) ? (value as Role) : null
 }
 
+async function isLastSuperadmin(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<boolean> {
+  const { data: target } = await admin.from('profiles').select('role').eq('id', userId).single()
+  if (target?.role !== 'SUPERADMIN') return false
+
+  const { count } = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'SUPERADMIN')
+  return (count ?? 0) <= 1
+}
+
 export async function createUserAction(_prev: FormState, formData: FormData): Promise<FormState> {
   try {
     await requireSuperadmin()
@@ -64,6 +72,10 @@ export async function updateUserRoleAction(userId: string, _prev: FormState, for
   if (!role) return { error: 'Peran tidak valid.' }
 
   const admin = createAdminClient()
+  if (role !== 'SUPERADMIN' && (await isLastSuperadmin(admin, userId))) {
+    return { error: 'Tidak dapat mengubah peran ini — setidaknya harus ada satu Super Admin.' }
+  }
+
   const { error } = await admin.from('profiles').update({ role }).eq('id', userId)
   if (error) return { error: error.message }
 
@@ -81,6 +93,10 @@ export async function deleteUserAction(userId: string): Promise<FormState> {
   if (userId === me.id) return { error: 'Tidak dapat menghapus akun Anda sendiri.' }
 
   const admin = createAdminClient()
+  if (await isLastSuperadmin(admin, userId)) {
+    return { error: 'Tidak dapat menghapus akun ini — setidaknya harus ada satu Super Admin.' }
+  }
+
   const { error } = await admin.auth.admin.deleteUser(userId)
   if (error) return { error: error.message }
 
