@@ -108,7 +108,7 @@ export function PenjadwalanClient({
     <div>
       <div className="min-h-[3.2rem] flex items-center gap-[0.53rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
         <label className="text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-ay">
-          Academic year
+          Tahun akademik
         </label>
         <Select
           id="ctx-ay"
@@ -144,14 +144,14 @@ export function PenjadwalanClient({
         />
 
         <span className="ml-auto text-[0.87rem] text-[var(--tinta-3)]">
-          {schedules.length} row{schedules.length === 1 ? '' : 's'} &middot; {totalSks} SKS &middot; {totalMhs} students
+          {schedules.length} baris &middot; {totalSks} SKS &middot; {totalMhs} mahasiswa
         </span>
       </div>
 
       <div className="p-[1.07rem_1.3rem_1.3rem]">
         <ClashFindingsBar
           clashes={clashes}
-          academicYearLabel={academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? 'this year'}
+          academicYearLabel={academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? 'tahun ini'}
           onView={viewClashSide}
         />
 
@@ -161,7 +161,7 @@ export function PenjadwalanClient({
               Semester {context.semester_ke} &middot; {context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'}
             </h1>
             <p className="mt-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
-              Pick a course on the right; the table grows below, grouped by kelas.
+              Pilih mata kuliah di sebelah kanan; tabel akan bertambah di bawah, dikelompokkan per kelas.
             </p>
           </div>
           <button
@@ -169,13 +169,13 @@ export function PenjadwalanClient({
             onClick={() => setModalOpen('new')}
             className="px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
           >
-            Add course
+            Tambah mata kuliah
           </button>
         </div>
 
         {kelasGroups.length === 0 && (
           <p className="text-[0.93rem] text-[var(--tinta-3)] py-[2rem] text-center">
-            No schedule rows yet for this semester &mdash; add the first course.
+            Belum ada jadwal untuk semester ini &mdash; tambahkan mata kuliah pertama.
           </p>
         )}
 
@@ -190,13 +190,13 @@ export function PenjadwalanClient({
                 <table className="w-full border-collapse">
                   <thead>
                     <tr>
-                      <Th style={{ width: '7rem' }}>Code</Th>
-                      <Th>Course</Th>
+                      <Th style={{ width: '7rem' }}>Kode</Th>
+                      <Th>Mata Kuliah</Th>
                       <Th style={{ width: '3.6rem', textAlign: 'center' }}>SKS</Th>
-                      <Th style={{ width: '7rem' }}>Day</Th>
-                      <Th style={{ width: '8rem' }}>Time</Th>
-                      <Th style={{ width: '17rem' }}>Lecturer</Th>
-                      <Th style={{ width: '5rem' }}>Room</Th>
+                      <Th style={{ width: '7rem' }}>Hari</Th>
+                      <Th style={{ width: '8rem' }}>Waktu</Th>
+                      <Th style={{ width: '17rem' }}>Dosen</Th>
+                      <Th style={{ width: '5rem' }}>Ruangan</Th>
                       <Th style={{ width: '6rem' }}>Zoom</Th>
                       <Th style={{ width: '3rem' }}>&nbsp;</Th>
                     </tr>
@@ -219,9 +219,9 @@ export function PenjadwalanClient({
                             {r.is_override && (
                               <span
                                 className="ml-[0.4rem] inline-block text-[0.8rem] px-[0.47rem] py-[0.07rem] rounded-full border border-[var(--merah-garis)] text-[var(--merah)] bg-[var(--lembar)]"
-                                title={r.override_reason || 'Overridden clash'}
+                                title={r.override_reason || 'Bentrokan diterobos'}
                               >
-                                Overridden
+                                Diterobos
                               </span>
                             )}
                           </Td>
@@ -256,7 +256,7 @@ export function PenjadwalanClient({
                               onClick={() => setModalOpen(r)}
                               className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
                             >
-                              Edit
+                              Ubah
                             </button>
                           </Td>
                         </tr>

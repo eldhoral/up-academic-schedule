@@ -128,7 +128,7 @@ export function ScheduleFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" role="dialog" aria-modal="true">
       <div className="w-full max-w-[34rem] my-[2rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
-        <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">{editing ? 'Edit jadwal' : 'Add course'}</h3>
+        <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">{editing ? 'Edit jadwal' : 'Tambah mata kuliah'}</h3>
 
         {state && 'error' in state && (
           <div className="bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.87rem] text-[var(--merah)] mb-[1rem]">
@@ -269,7 +269,7 @@ export function ScheduleFormModal({
                     type="button"
                     onClick={() => setDosenRows((prev) => prev.filter((_, j) => j !== i))}
                     className="px-[0.6rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--merah)] cursor-pointer hover:bg-[var(--merah-lembut)]"
-                    aria-label="Remove dosen"
+                    aria-label="Hapus dosen"
                   >
                     ×
                   </button>
@@ -277,7 +277,7 @@ export function ScheduleFormModal({
               ))}
               {dosenRows.length === 0 && (
                 <p className="text-[0.8rem] text-[var(--tinta-3)]">
-                  No lecturer — prints as <span className="mono">MKWU</span>.
+                  Tanpa dosen — tercetak sebagai <span className="mono">MKWU</span>.
                 </p>
               )}
               <button
@@ -322,10 +322,10 @@ export function ScheduleFormModal({
                 className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mono"
               />
               {overCapacity && (
-                <p className="mt-[0.2rem] text-[0.8rem] text-[var(--kuning)]">Above the {maksMahasiswaPerKelas}-student advisory limit.</p>
+                <p className="mt-[0.2rem] text-[0.8rem] text-[var(--kuning)]">Melebihi batas anjuran {maksMahasiswaPerKelas} mahasiswa.</p>
               )}
               {underPilihan && (
-                <p className="mt-[0.2rem] text-[0.8rem] text-[var(--kuning)]">Below the {minMahasiswaPilihan}-student advisory minimum for an elective.</p>
+                <p className="mt-[0.2rem] text-[0.8rem] text-[var(--kuning)]">Di bawah batas minimum anjuran {minMahasiswaPilihan} mahasiswa untuk mata kuliah pilihan.</p>
               )}
             </Field>
             {context.jenis_kelas === 'regsus' && (
@@ -349,7 +349,7 @@ export function ScheduleFormModal({
           <input type="hidden" name="confirm_override" value={overrideConfirmed ? 'ya' : 'tidak'} />
           <input type="hidden" name="override_reason" value={overrideReason} />
 
-          {isCheckingClash && <p className="text-[0.8rem] text-[var(--tinta-3)]">Checking for clashes…</p>}
+          {isCheckingClash && <p className="text-[0.8rem] text-[var(--tinta-3)]">Memeriksa bentrokan…</p>}
 
           {candidateComplete && livePreview && livePreview.clashes.length > 0 && (
             <ClashList clashes={livePreview.clashes} />
@@ -358,8 +358,7 @@ export function ScheduleFormModal({
           {needsOverride && (
             <div className="bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.8rem] space-y-[0.6rem]">
               <p className="text-[0.87rem] text-[var(--merah)] font-medium">
-                Saving is blocked by {needsOverride.clashes.filter((c) => c.policy === 'blok').length} clash
-                {needsOverride.clashes.filter((c) => c.policy === 'blok').length === 1 ? '' : 'es'}.
+                Penyimpanan diblokir oleh {needsOverride.clashes.filter((c) => c.policy === 'blok').length} bentrokan.
               </p>
               <ClashList clashes={needsOverride.clashes} />
               <label className="flex items-start gap-[0.4rem] text-[0.87rem]">
@@ -369,7 +368,7 @@ export function ScheduleFormModal({
                   onChange={(e) => setOverrideConfirmed(e.target.checked)}
                   className="mt-[0.2rem] w-[1rem] h-[1rem]"
                 />
-                Save anyway — this schedule is correct as entered.
+                Tetap simpan — jadwal ini sudah benar sesuai yang dimasukkan.
               </label>
               {overrideConfirmed && (
                 <input
@@ -377,7 +376,7 @@ export function ScheduleFormModal({
                   required
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
-                  placeholder="Reason for overriding this clash…"
+                  placeholder="Alasan menerobos bentrokan ini…"
                   className="w-full bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.87rem]"
                 />
               )}
@@ -392,7 +391,7 @@ export function ScheduleFormModal({
                   onClick={() => setConfirmingDelete(true)}
                   className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.87rem] text-[var(--merah)] cursor-pointer hover:bg-[var(--merah-lembut)]"
                 >
-                  Delete
+                  Hapus
                 </button>
               ) : (
                 <button
@@ -404,7 +403,7 @@ export function ScheduleFormModal({
                   }}
                   className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--merah)] text-white text-[0.87rem] font-medium cursor-pointer"
                 >
-                  Confirm delete?
+                  Konfirmasi hapus?
                 </button>
               ))}
             <div className="flex gap-[0.6rem] ml-auto">
@@ -413,14 +412,14 @@ export function ScheduleFormModal({
                 onClick={onClose}
                 className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
                 disabled={isPending}
                 className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] disabled:opacity-60"
               >
-                {isPending ? 'Saving…' : 'Save'}
+                {isPending ? 'Menyimpan…' : 'Simpan'}
               </button>
             </div>
           </div>
@@ -442,9 +441,9 @@ function ClashList({ clashes }: { clashes: { type: string; policy: string; detai
               : 'bg-[var(--kuning-lembut)] border-[var(--kuning-garis)] text-[var(--kuning)]'
           }`}
         >
-          <span className="font-medium">{CLASH_LABEL[c.type] ?? c.type}</span> clash with{' '}
+          <span className="font-medium">{CLASH_LABEL[c.type] ?? c.type}</span> bentrok dengan{' '}
           <b>{c.nama_mk}</b> (Kelas {c.kelas}, {c.detail}) — {hariLabel(c.hari)} {c.jam_mulai.slice(0, 5)}–{c.jam_selesai.slice(0, 5)},{' '}
-          {c.overlapMinutes} min overlap.
+          tumpang tindih {c.overlapMinutes} menit.
         </li>
       ))}
     </ul>

@@ -20,7 +20,7 @@ export async function signInAction(
 
   if (!email || !password) {
     return {
-      error: 'Please enter both email and password.',
+      error: 'Silakan isi email dan kata sandi.',
     }
   }
 
@@ -28,7 +28,7 @@ export async function signInAction(
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
     return {
       error:
-        'Supabase is not configured yet. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.',
+        'Supabase belum dikonfigurasi. Silakan atur NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY pada berkas .env.local Anda.',
     }
   }
 
@@ -43,13 +43,13 @@ export async function signInAction(
     // Specific check for rate-limiting
     if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
       return {
-        error: 'Too many failed sign-in attempts. Sign-in is temporarily paused. Please wait 15 minutes and try again.',
+        error: 'Terlalu banyak percobaan masuk yang gagal. Proses masuk ditunda sementara. Silakan tunggu 15 menit lalu coba lagi.',
       }
     }
 
     // Standard credential error per PLAN.md §3.1c
     return {
-      error: "That email and password don't match. Check both and try again. After five failed attempts sign-in is paused for 15 minutes.",
+      error: 'Email dan kata sandi tidak cocok. Periksa kembali keduanya lalu coba lagi. Setelah lima kali gagal, proses masuk akan ditunda selama 15 menit.',
     }
   }
 
@@ -60,14 +60,14 @@ export async function signInAction(
 export async function resetPasswordAction(email: string): Promise<AuthState> {
   if (!email || !email.includes('@')) {
     return {
-      error: 'Please enter a valid email address.',
+      error: 'Silakan masukkan alamat email yang valid.',
     }
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
     return {
-      error: 'Supabase is not configured yet. Please configure your .env.local file.',
+      error: 'Supabase belum dikonfigurasi. Silakan atur berkas .env.local Anda.',
     }
   }
 
@@ -82,7 +82,7 @@ export async function resetPasswordAction(email: string): Promise<AuthState> {
   // Same confirmation regardless of whether email exists (per PLAN.md §3.1c)
   return {
     success: true,
-    message: 'If that email address is registered, a password reset link has been sent. Please check your inbox.',
+    message: 'Jika alamat email tersebut terdaftar, tautan atur ulang kata sandi telah dikirim. Silakan periksa kotak masuk Anda.',
   }
 }
 

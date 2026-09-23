@@ -31,7 +31,7 @@ const linkClass = (isActive: boolean) =>
 
 export function HeaderNav({ active }: { active: string }) {
   return (
-    <nav className="flex items-center gap-[0.13rem]" aria-label="Main navigation">
+    <nav className="flex items-center gap-[0.13rem]" aria-label="Navigasi utama">
       {PRIMARY_NAV.map((item) => (
         <Link
           key={item.href}
@@ -43,7 +43,7 @@ export function HeaderNav({ active }: { active: string }) {
         </Link>
       ))}
 
-      <NavGroup label="Master Data" items={DATA_NAV} active={active} />
+      <NavGroup label="Data Master" items={DATA_NAV} active={active} />
       <NavGroup label="Cetak & Rekap" items={CETAK_NAV} active={active} />
     </nav>
   )

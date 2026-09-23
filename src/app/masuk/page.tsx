@@ -20,7 +20,7 @@ function MasukForm() {
   const errorMessage =
     state?.error ||
     (queryError === 'auth_callback_failed'
-      ? 'Authentication link expired or invalid. Please try signing in again.'
+      ? 'Tautan autentikasi kedaluwarsa atau tidak valid. Silakan coba masuk kembali.'
       : null)
 
   function handleForgotSubmit(e: React.FormEvent) {
@@ -39,16 +39,16 @@ function MasukForm() {
           Universitas Pancasila &middot; Jakarta
         </p>
         <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.015em]">
-          Course Scheduling
+          Penjadwalan Perkuliahan
         </h1>
         <p className="mt-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
-          Faculty of Psychology &middot; Undergraduate program
+          Fakultas Psikologi &middot; Program Sarjana
         </p>
       </div>
 
       {/* Main Card */}
       <div className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem]">
-        <h2 className="m-0 text-[1.07rem] font-semibold mb-[1.2rem]">Sign in</h2>
+        <h2 className="m-0 text-[1.07rem] font-semibold mb-[1.2rem]">Masuk</h2>
 
         {/* Error Banner */}
         {errorMessage && (
@@ -72,10 +72,10 @@ function MasukForm() {
             <div className="text-[0.93rem] text-[var(--merah-teks)] leading-[1.45]">
               <b className="block font-semibold text-[var(--merah)] mb-[0.13rem]">
                 {errorMessage.includes('paused') || errorMessage.includes('rate limit')
-                  ? 'Sign-in temporarily paused'
+                  ? 'Proses masuk sementara ditunda'
                   : errorMessage.includes('Supabase is not configured')
-                  ? 'Configuration Notice'
-                  : "That email and password don't match"}
+                  ? 'Catatan Konfigurasi'
+                  : 'Email dan kata sandi tidak cocok'}
               </b>
               <span>{errorMessage}</span>
             </div>
@@ -106,14 +106,14 @@ function MasukForm() {
               aria-describedby="bantu-email"
             />
             <p className="mt-[0.33rem] text-[0.87rem] text-[var(--tinta-3)]" id="bantu-email">
-              The address your administrator registered.
+              Alamat yang telah didaftarkan oleh administrator Anda.
             </p>
           </div>
 
           <div className="mb-[1.07rem]">
             <div className="flex items-baseline justify-between gap-[0.8rem] mb-[0.33rem]">
               <label htmlFor="sandi" className="text-[0.93rem] font-medium">
-                Password
+                Kata Sandi
               </label>
               <button
                 type="button"
@@ -123,7 +123,7 @@ function MasukForm() {
                 }}
                 className="text-[0.87rem] text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0"
               >
-                Forgot your password?
+                Lupa kata sandi?
               </button>
             </div>
             <div className="relative flex">
@@ -141,7 +141,7 @@ function MasukForm() {
                 className="absolute right-[0.27rem] top-1/2 -translate-y-1/2 bg-transparent border-0 text-[var(--biru)] text-[0.87rem] cursor-pointer p-[0.53rem] min-h-[2.4rem] underline"
                 aria-pressed={showPassword}
               >
-                {showPassword ? 'Hide' : 'Show'}
+                {showPassword ? 'Sembunyikan' : 'Tampilkan'}
               </button>
             </div>
           </div>
@@ -152,18 +152,18 @@ function MasukForm() {
             aria-busy={isPending}
             className="w-full bg-[var(--biru)] text-white border border-[var(--biru)] rounded-[var(--r-kecil)] p-[0.6rem_1rem] min-h-[2.93rem] text-[1rem] font-medium cursor-pointer transition-colors hover:bg-[var(--biru-hover)] active:scale-[0.985] disabled:bg-[var(--biru-disabled)] disabled:border-[var(--biru-disabled)] disabled:cursor-default"
           >
-            {isPending ? 'Signing in...' : 'Sign in'}
+            {isPending ? 'Sedang masuk...' : 'Masuk'}
           </button>
         </form>
 
         <div className="mt-[1.2rem] pt-[1.07rem] border-t border-[var(--garis)] text-[0.87rem] text-[var(--tinta-3)] leading-[1.5]">
-          Accounts are created by the Faculty of Psychology administrator. If you need access,
-          or your account is locked, ask them to add you.
+          Akun dibuat oleh administrator Fakultas Psikologi. Jika Anda memerlukan akses,
+          atau akun Anda terkunci, hubungi administrator untuk didaftarkan.
         </div>
       </div>
 
       <p className="mt-[1.07rem] text-[0.8rem] text-[var(--tinta-3)] text-center">
-        Signing in keeps you signed in on this computer for 7 days.
+        Sesi masuk Anda akan tersimpan di perangkat ini selama 7 hari.
       </p>
 
       {/* Forgot Password Modal */}
@@ -176,10 +176,10 @@ function MasukForm() {
         >
           <div className="w-full max-w-[22rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
             <h3 id="forgot-title" className="m-0 text-[1.1rem] font-semibold mb-[0.6rem]">
-              Reset password
+              Atur ulang kata sandi
             </h3>
             <p className="text-[0.87rem] text-[var(--tinta-3)] mb-[1rem] leading-[1.4]">
-              Enter your registered email address. We will send you a link to reset your password.
+              Masukkan alamat email yang telah terdaftar. Kami akan mengirimkan tautan untuk mengatur ulang kata sandi Anda.
             </p>
 
             {forgotState?.message && (
@@ -197,7 +197,7 @@ function MasukForm() {
               <form onSubmit={handleForgotSubmit}>
                 <div className="mb-[1rem]">
                   <label htmlFor="forgot-email" className="block text-[0.87rem] font-medium mb-[0.3rem]">
-                    Registered email
+                    Email terdaftar
                   </label>
                   <input
                     id="forgot-email"
@@ -215,14 +215,14 @@ function MasukForm() {
                     onClick={() => setShowForgotModal(false)}
                     className="px-3 py-1.5 border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] text-[0.87rem] bg-[var(--lembar)] hover:bg-[var(--cekung)] cursor-pointer"
                   >
-                    Cancel
+                    Batal
                   </button>
                   <button
                     type="submit"
                     disabled={isForgotPending}
                     className="px-4 py-1.5 bg-[var(--biru)] text-white border border-[var(--biru)] rounded-[var(--r-kecil)] text-[0.87rem] font-medium hover:bg-[var(--biru-hover)] cursor-pointer disabled:opacity-60"
                   >
-                    {isForgotPending ? 'Sending...' : 'Send reset link'}
+                    {isForgotPending ? 'Mengirim...' : 'Kirim tautan'}
                   </button>
                 </div>
               </form>
@@ -233,7 +233,7 @@ function MasukForm() {
                   onClick={() => setShowForgotModal(false)}
                   className="px-4 py-1.5 bg-[var(--biru)] text-white rounded-[var(--r-kecil)] text-[0.87rem] font-medium"
                 >
-                  Close
+                  Tutup
                 </button>
               </div>
             )}
@@ -257,7 +257,7 @@ export default function MasukPage() {
         <Suspense
           fallback={
             <div className="w-full max-w-[25.3rem] text-center p-8 text-[var(--tinta-3)]">
-              Loading sign in...
+              Memuat halaman masuk...
             </div>
           }
         >

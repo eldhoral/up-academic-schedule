@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import type { GeneratedSlot } from '@/lib/sesi-generator'
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
 import {
@@ -55,12 +56,12 @@ export function SesiClient({
           <div>
             <h2 className="text-[1.07rem] font-semibold">Sesi tersimpan</h2>
             <p className="text-[0.87rem] text-[var(--tinta-3)] mt-[0.2rem]">
-              {sessions.length} session{sessions.length === 1 ? '' : 's'}
+              {sessions.length} sesi
             </p>
           </div>
         </div>
 
-        {byHari.length === 0 && <p className="text-[0.93rem] text-[var(--tinta-3)] py-[1rem]">No sessions yet — generate a day above.</p>}
+        {byHari.length === 0 && <p className="text-[0.93rem] text-[var(--tinta-3)] py-[1rem]">Belum ada sesi — buat jadwal hari di atas.</p>}
 
         <div className="space-y-[1.2rem]">
           {byHari.map(({ hari, rows }) => (
@@ -93,7 +94,7 @@ export function SesiClient({
                                 s.active ? 'bg-[var(--hijau-lembut)] text-[var(--hijau)]' : 'bg-[var(--cekung)] text-[var(--tinta-3)]'
                               }`}
                             >
-                              {s.active ? 'Active' : 'Inactive'}
+                              {s.active ? 'Aktif' : 'Nonaktif'}
                             </span>
                           </Td>
                           <Td className="text-right">
@@ -102,7 +103,7 @@ export function SesiClient({
                               onClick={() => setEditing(s)}
                               className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
                             >
-                              Edit
+                              Ubah
                             </button>
                           </Td>
                         </tr>
@@ -160,7 +161,7 @@ function GeneratorPanel({
     startSaving(async () => {
       const result = await commitGeneratedSessions(hari, replaceDay, preview)
       if (result.ok) {
-        setMessage(`${preview.length} session${preview.length === 1 ? '' : 's'} saved for ${hariLabel(hari)}.`)
+        setMessage(`${preview.length} sesi berhasil disimpan untuk ${hariLabel(hari)}.`)
         setPreview(null)
         onSaved()
       } else {
@@ -173,8 +174,8 @@ function GeneratorPanel({
     <div className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem]">
       <h1 className="text-[1.3rem] font-semibold">Sesi Perkuliahan</h1>
       <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem] mb-[1.2rem]">
-        Generate a day of back-to-back sessions from a start time and an SKS pattern. Jeda and midday break come from
-        Pengaturan; rows stay editable afterwards.
+        Buat rangkaian sesi berurutan dalam satu hari dari jam mulai dan pola SKS. Jeda dan istirahat siang mengikuti
+        Pengaturan; baris tetap dapat diubah setelahnya.
       </p>
 
       <div className="flex flex-wrap gap-[0.8rem] items-end">
@@ -244,7 +245,7 @@ function GeneratorPanel({
           disabled={isPreviewing}
           className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--cekung)] disabled:opacity-60"
         >
-          {isPreviewing ? 'Menghitung…' : 'Preview'}
+          {isPreviewing ? 'Menghitung…' : 'Pratinjau'}
         </button>
       </div>
 
@@ -293,7 +294,6 @@ function SessionFormModal({ session, onClose }: { session: SessionRow; onClose: 
   const boundAction = updateSessionAction.bind(null, session.id)
   const [state, formAction, isPending] = useActionState<FormState, FormData>(boundAction, null)
   const router = useRouter()
-  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     if (state && 'success' in state) {
@@ -306,7 +306,7 @@ function SessionFormModal({ session, onClose }: { session: SessionRow; onClose: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-[24rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
         <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">
-          Edit {hariLabel(session.hari)} · sesi {session.sesi_ke}
+          Ubah {hariLabel(session.hari)} · sesi {session.sesi_ke}
         </h3>
 
         {state && 'error' in state && (
@@ -359,45 +359,31 @@ function SessionFormModal({ session, onClose }: { session: SessionRow; onClose: 
           </Field>
           <label className="flex items-center gap-[0.5rem] text-[0.93rem]">
             <input type="checkbox" name="active" defaultChecked={session.active} className="w-[1rem] h-[1rem]" />
-            Active
+            Aktif
           </label>
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
-            {!confirming ? (
-              <button
-                type="button"
-                onClick={() => setConfirming(true)}
-                className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.87rem] text-[var(--merah)] cursor-pointer hover:bg-[var(--merah-lembut)]"
-              >
-                Delete
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={async () => {
-                  await deleteSessionAction(session.id)
-                  router.refresh()
-                  onClose()
-                }}
-                className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--merah)] text-white text-[0.87rem] font-medium cursor-pointer"
-              >
-                Confirm delete?
-              </button>
-            )}
+            <ConfirmDeleteButton
+              onConfirm={async () => {
+                await deleteSessionAction(session.id)
+                router.refresh()
+                onClose()
+              }}
+            />
             <div className="flex gap-[0.6rem] ml-auto">
               <button
                 type="button"
                 onClick={onClose}
                 className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
                 disabled={isPending}
                 className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] disabled:opacity-60"
               >
-                {isPending ? 'Saving…' : 'Save'}
+                {isPending ? 'Menyimpan…' : 'Simpan'}
               </button>
             </div>
           </div>

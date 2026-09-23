@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { createRoomAction, deleteRoomAction, updateRoomAction, type FormState } from './actions'
 
 export type Room = {
@@ -24,7 +25,7 @@ export function RuanganClient({ rooms }: { rooms: Room[] }) {
           <div>
             <h1 className="text-[1.3rem] font-semibold">Ruangan</h1>
             <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">
-              {rooms.length} room{rooms.length === 1 ? '' : 's'}
+              {rooms.length} ruangan
             </p>
           </div>
           <button
@@ -32,7 +33,7 @@ export function RuanganClient({ rooms }: { rooms: Room[] }) {
             onClick={() => setEditing('new')}
             className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
           >
-            Add ruangan
+            Tambah Ruangan
           </button>
         </div>
 
@@ -59,7 +60,7 @@ export function RuanganClient({ rooms }: { rooms: Room[] }) {
                         r.active ? 'bg-[var(--hijau-lembut)] text-[var(--hijau)]' : 'bg-[var(--cekung)] text-[var(--tinta-3)]'
                       }`}
                     >
-                      {r.active ? 'Active' : 'Inactive'}
+                      {r.active ? 'Aktif' : 'Nonaktif'}
                     </span>
                   </Td>
                   <Td className="text-right">
@@ -68,7 +69,7 @@ export function RuanganClient({ rooms }: { rooms: Room[] }) {
                       onClick={() => setEditing(r)}
                       className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
                     >
-                      Edit
+                      Ubah
                     </button>
                   </Td>
                 </tr>
@@ -76,7 +77,7 @@ export function RuanganClient({ rooms }: { rooms: Room[] }) {
               {rooms.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
-                    No rooms yet.
+                    Belum ada ruangan.
                   </td>
                 </tr>
               )}
@@ -107,7 +108,7 @@ function RoomFormModal({ room, onClose }: { room: Room | null; onClose: () => vo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-[26rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
-        <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">{room ? `Edit ${room.nama}` : 'Add ruangan'}</h3>
+        <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">{room ? `Ubah ${room.nama}` : 'Tambah Ruangan'}</h3>
 
         {state && 'error' in state && (
           <div className="bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.87rem] text-[var(--merah)] mb-[1rem]">
@@ -147,62 +148,39 @@ function RoomFormModal({ room, onClose }: { room: Room | null; onClose: () => vo
               defaultChecked={room?.active ?? true}
               className="w-[1rem] h-[1rem]"
             />
-            Active
+            Aktif
           </label>
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
-            {room && <DeleteButton id={room.id} onDone={onClose} />}
+            {room && (
+              <ConfirmDeleteButton
+                onConfirm={async () => {
+                  await deleteRoomAction(room.id)
+                  router.refresh()
+                  onClose()
+                }}
+              />
+            )}
             <div className="flex gap-[0.6rem] ml-auto">
               <button
                 type="button"
                 onClick={onClose}
                 className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
                 disabled={isPending}
                 className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] disabled:opacity-60"
               >
-                {isPending ? 'Saving…' : 'Save'}
+                {isPending ? 'Menyimpan…' : 'Simpan'}
               </button>
             </div>
           </div>
         </form>
       </div>
     </div>
-  )
-}
-
-function DeleteButton({ id, onDone }: { id: string; onDone: () => void }) {
-  const [confirming, setConfirming] = useState(false)
-  const router = useRouter()
-
-  if (!confirming) {
-    return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.87rem] text-[var(--merah)] cursor-pointer hover:bg-[var(--merah-lembut)]"
-      >
-        Delete
-      </button>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await deleteRoomAction(id)
-        router.refresh()
-        onDone()
-      }}
-      className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--merah)] text-white text-[0.87rem] font-medium cursor-pointer"
-    >
-      Confirm delete?
-    </button>
   )
 }
 

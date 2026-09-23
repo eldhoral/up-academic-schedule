@@ -12,7 +12,7 @@ export async function AppHeader({ active }: { active: string }) {
   return (
     <header className="min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
       <div className="flex items-center gap-x-[1.5rem] gap-y-[0.4rem]">
-        <span className="text-[1.07rem] font-semibold tracking-[-0.01em]">Course Scheduling</span>
+        <span className="text-[1.07rem] font-semibold tracking-[-0.01em]">Penjadwalan Perkuliahan</span>
         <HeaderNav active={active} />
       </div>
 
@@ -28,7 +28,7 @@ export async function AppHeader({ active }: { active: string }) {
               type="submit"
               className="px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--cekung)] cursor-pointer text-[0.87rem]"
             >
-              Sign out
+              Keluar
             </button>
           </form>
         </div>

@@ -64,13 +64,13 @@ export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
       )}
       {state && 'success' in state && (
         <div className="bg-[var(--hijau-lembut)] border border-[var(--hijau)]/30 rounded-[var(--r-kecil)] p-[0.7rem] text-[0.87rem] text-[var(--hijau)]">
-          Settings saved.
+          Pengaturan berhasil disimpan.
         </div>
       )}
 
       {settings.length === 0 && (
         <div className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem] text-center text-[0.93rem] text-[var(--tinta-3)]">
-          No settings found. Run the seed migration to populate the default keys.
+          Belum ada pengaturan. Jalankan seed migration untuk mengisi kunci bawaan.
         </div>
       )}
 
@@ -92,7 +92,7 @@ export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
         disabled={isPending || settings.length === 0}
         className="px-[1rem] py-[0.6rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.93rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] disabled:opacity-60 transition-colors"
       >
-        {isPending ? 'Saving…' : 'Save settings'}
+        {isPending ? 'Menyimpan…' : 'Simpan pengaturan'}
       </button>
     </form>
   )
@@ -238,7 +238,7 @@ function ImageField({ name, value }: { name: string; value: string }) {
           onClick={() => setData('')}
           className="block text-[0.8rem] text-[var(--merah)] hover:underline cursor-pointer bg-transparent border-0 p-0"
         >
-          Remove image
+          Hapus gambar
         </button>
       )}
     </div>

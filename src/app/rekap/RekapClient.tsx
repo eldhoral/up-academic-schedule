@@ -53,7 +53,7 @@ export function RekapClient({
 
       <div className="no-print min-h-[3.2rem] flex items-center gap-[0.53rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
         <label className="text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-ay">
-          Academic year
+          Tahun akademik
         </label>
         <Select
           id="ctx-ay"
@@ -82,12 +82,12 @@ export function RekapClient({
           onClick={() => window.print()}
           className="ml-auto px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
         >
-          Print
+          Cetak
         </button>
       </div>
 
       {toPrint.length === 0 && (
-        <p className="text-center text-[0.93rem] text-[var(--tinta-3)] py-[2rem]">No teaching rows for this selection.</p>
+        <p className="text-center text-[0.93rem] text-[var(--tinta-3)] py-[2rem]">Tidak ada data mengajar untuk pilihan ini.</p>
       )}
 
       {toPrint.map((l, i) => (

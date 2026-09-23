@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import {
   createAcademicYearAction,
   deleteAcademicYearAction,
@@ -33,7 +34,7 @@ export function TahunAkademikClient({ years }: { years: AcademicYearRow[] }) {
             onClick={() => setEditing('new')}
             className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
           >
-            Add tahun akademik
+            Tambah Tahun Akademik
           </button>
         </div>
 
@@ -58,7 +59,7 @@ export function TahunAkademikClient({ years }: { years: AcademicYearRow[] }) {
                         y.is_active ? 'bg-[var(--hijau-lembut)] text-[var(--hijau)]' : 'bg-[var(--cekung)] text-[var(--tinta-3)]'
                       }`}
                     >
-                      {y.is_active ? 'Active' : 'Inactive'}
+                      {y.is_active ? 'Aktif' : 'Nonaktif'}
                     </span>
                   </Td>
                   <Td className="text-right">
@@ -67,7 +68,7 @@ export function TahunAkademikClient({ years }: { years: AcademicYearRow[] }) {
                       onClick={() => setEditing(y)}
                       className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
                     >
-                      Edit
+                      Ubah
                     </button>
                   </Td>
                 </tr>
@@ -75,7 +76,7 @@ export function TahunAkademikClient({ years }: { years: AcademicYearRow[] }) {
               {years.length === 0 && (
                 <tr>
                   <td colSpan={4} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
-                    No academic years yet — add the first one.
+                    Belum ada tahun akademik — tambahkan yang pertama.
                   </td>
                 </tr>
               )}
@@ -107,7 +108,7 @@ function AcademicYearFormModal({ year, onClose }: { year: AcademicYearRow | null
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-[26rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
         <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">
-          {year ? `Edit ${year.label}` : 'Add tahun akademik'}
+          {year ? `Ubah ${year.label}` : 'Tambah Tahun Akademik'}
         </h3>
 
         {state && 'error' in state && (
@@ -129,8 +130,8 @@ function AcademicYearFormModal({ year, onClose }: { year: AcademicYearRow | null
               }`}
             />
             <p className="mt-[0.2rem] text-[0.8rem] text-[var(--tinta-3)]">
-              A short unique code, e.g. &ldquo;20271&rdquo; for 2027/2028 Gasal. Can&apos;t be changed after
-              creating.
+              Kode unik singkat, misalnya &ldquo;20271&rdquo; untuk 2027/2028 Gasal. Tidak dapat diubah setelah
+              dibuat.
             </p>
           </Field>
           <Field label="Label">
@@ -144,65 +145,42 @@ function AcademicYearFormModal({ year, onClose }: { year: AcademicYearRow | null
           </Field>
           <label className="flex items-center gap-[0.5rem] text-[0.93rem]">
             <input type="checkbox" name="is_active" defaultChecked={year?.is_active ?? false} className="w-[1rem] h-[1rem]" />
-            Active
+            Aktif
           </label>
           <p className="text-[0.8rem] text-[var(--tinta-3)]">
-            Only one academic year can be active. Checking this unchecks any other active year.
+            Hanya satu tahun akademik yang dapat aktif. Mencentang ini akan menonaktifkan tahun akademik lain yang aktif.
           </p>
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
-            {year && <DeleteButton id={year.id} onDone={onClose} />}
+            {year && (
+              <ConfirmDeleteButton
+                onConfirm={async () => {
+                  await deleteAcademicYearAction(year.id)
+                  router.refresh()
+                  onClose()
+                }}
+              />
+            )}
             <div className="flex gap-[0.6rem] ml-auto">
               <button
                 type="button"
                 onClick={onClose}
                 className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
                 disabled={isPending}
                 className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] disabled:opacity-60"
               >
-                {isPending ? 'Saving…' : 'Save'}
+                {isPending ? 'Menyimpan…' : 'Simpan'}
               </button>
             </div>
           </div>
         </form>
       </div>
     </div>
-  )
-}
-
-function DeleteButton({ id, onDone }: { id: string; onDone: () => void }) {
-  const [confirming, setConfirming] = useState(false)
-  const router = useRouter()
-
-  if (!confirming) {
-    return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.87rem] text-[var(--merah)] cursor-pointer hover:bg-[var(--merah-lembut)]"
-      >
-        Delete
-      </button>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await deleteAcademicYearAction(id)
-        router.refresh()
-        onDone()
-      }}
-      className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--merah)] text-white text-[0.87rem] font-medium cursor-pointer"
-    >
-      Confirm delete?
-    </button>
   )
 }
 

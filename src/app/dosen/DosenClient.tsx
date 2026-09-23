@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { createLecturerAction, deleteLecturerAction, updateLecturerAction, type FormState } from './actions'
 
@@ -32,7 +33,7 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
           <div>
             <h1 className="text-[1.3rem] font-semibold">Dosen</h1>
             <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">
-              {lecturers.length} lecturer{lecturers.length === 1 ? '' : 's'}
+              {lecturers.length} dosen
             </p>
           </div>
           <button
@@ -40,13 +41,13 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
             onClick={() => setEditing('new')}
             className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
           >
-            Add dosen
+            Tambah dosen
           </button>
         </div>
 
         <input
           type="search"
-          placeholder="Search kode, nama, or NIDN…"
+          placeholder="Cari kode, nama, atau NIDN…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full max-w-[20rem] bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mb-[1rem]"
@@ -74,7 +75,7 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
                       onClick={() => setEditing(l)}
                       className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
                     >
-                      Edit
+                      Ubah
                     </button>
                   </Td>
                 </tr>
@@ -83,8 +84,8 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
                 <tr>
                   <td colSpan={4} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
                     {lecturers.length === 0
-                      ? 'No lecturers yet — add one, or import from Excel below.'
-                      : <>No lecturers match &ldquo;{query}&rdquo;.</>}
+                      ? 'Belum ada data dosen — tambahkan satu, atau impor dari Excel di bawah.'
+                      : <>Tidak ada dosen yang cocok dengan &ldquo;{query}&rdquo;.</>}
                   </td>
                 </tr>
               )}
@@ -116,7 +117,7 @@ function LecturerFormModal({ lecturer, onClose }: { lecturer: Lecturer | null; o
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-[26rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
         <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">
-          {lecturer ? `Edit ${lecturer.kode_dosen}` : 'Add dosen'}
+          {lecturer ? `Ubah ${lecturer.kode_dosen}` : 'Tambah dosen'}
         </h3>
 
         {state && 'error' in state && (
@@ -172,58 +173,35 @@ function LecturerFormModal({ lecturer, onClose }: { lecturer: Lecturer | null; o
           </Field>
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
-            {lecturer && <DeleteButton kodeDosen={lecturer.kode_dosen} onDone={onClose} />}
+            {lecturer && (
+              <ConfirmDeleteButton
+                onConfirm={async () => {
+                  await deleteLecturerAction(lecturer.kode_dosen)
+                  router.refresh()
+                  onClose()
+                }}
+              />
+            )}
             <div className="flex gap-[0.6rem] ml-auto">
               <button
                 type="button"
                 onClick={onClose}
                 className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
                 disabled={isPending}
                 className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] disabled:opacity-60"
               >
-                {isPending ? 'Saving…' : 'Save'}
+                {isPending ? 'Menyimpan…' : 'Simpan'}
               </button>
             </div>
           </div>
         </form>
       </div>
     </div>
-  )
-}
-
-function DeleteButton({ kodeDosen, onDone }: { kodeDosen: string; onDone: () => void }) {
-  const [confirming, setConfirming] = useState(false)
-  const router = useRouter()
-
-  if (!confirming) {
-    return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.87rem] text-[var(--merah)] cursor-pointer hover:bg-[var(--merah-lembut)]"
-      >
-        Delete
-      </button>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await deleteLecturerAction(kodeDosen)
-        router.refresh()
-        onDone()
-      }}
-      className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--merah)] text-white text-[0.87rem] font-medium cursor-pointer"
-    >
-      Confirm delete?
-    </button>
   )
 }
 

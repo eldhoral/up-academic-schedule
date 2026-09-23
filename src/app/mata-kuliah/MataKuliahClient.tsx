@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
 import { Select } from '@/components/Select'
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { createCourseAction, deleteCourseAction, updateCourseAction, type FormState } from './actions'
 
 export type Course = {
@@ -33,7 +34,7 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
           <div>
             <h1 className="text-[1.3rem] font-semibold">Mata Kuliah</h1>
             <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">
-              {courses.length} course{courses.length === 1 ? '' : 's'} &middot; kurikulum 2026
+              {courses.length} mata kuliah &middot; kurikulum 2026
             </p>
           </div>
           <button
@@ -41,13 +42,13 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
             onClick={() => setEditing('new')}
             className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
           >
-            Add mata kuliah
+            Tambah mata kuliah
           </button>
         </div>
 
         <input
           type="search"
-          placeholder="Search kode or nama…"
+          placeholder="Cari kode atau nama…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full max-w-[20rem] bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mb-[1rem]"
@@ -81,7 +82,7 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
                       onClick={() => setEditing(c)}
                       className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
                     >
-                      Edit
+                      Ubah
                     </button>
                   </Td>
                 </tr>
@@ -90,8 +91,8 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
                 <tr>
                   <td colSpan={7} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
                     {courses.length === 0
-                      ? 'No courses yet — add one, or import from Excel below.'
-                      : <>No courses match &ldquo;{query}&rdquo;.</>}
+                      ? 'Belum ada mata kuliah — tambahkan satu, atau impor dari Excel di bawah.'
+                      : <>Tidak ada mata kuliah yang cocok dengan &ldquo;{query}&rdquo;.</>}
                   </td>
                 </tr>
               )}
@@ -132,7 +133,7 @@ function CourseFormModal({ course, onClose }: { course: Course | null; onClose: 
     >
       <div className="w-full max-w-[26rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
         <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">
-          {course ? `Edit ${course.kode_mk}` : 'Add mata kuliah'}
+          {course ? `Ubah ${course.kode_mk}` : 'Tambah mata kuliah'}
         </h3>
 
         {state && 'error' in state && (
@@ -207,58 +208,35 @@ function CourseFormModal({ course, onClose }: { course: Course | null; onClose: 
           </div>
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
-            {course && <DeleteButton kodeMk={course.kode_mk} onDone={onClose} />}
+            {course && (
+              <ConfirmDeleteButton
+                onConfirm={async () => {
+                  await deleteCourseAction(course.kode_mk)
+                  router.refresh()
+                  onClose()
+                }}
+              />
+            )}
             <div className="flex gap-[0.6rem] ml-auto">
               <button
                 type="button"
                 onClick={onClose}
                 className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
                 disabled={isPending}
                 className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] disabled:opacity-60"
               >
-                {isPending ? 'Saving…' : 'Save'}
+                {isPending ? 'Menyimpan…' : 'Simpan'}
               </button>
             </div>
           </div>
         </form>
       </div>
     </div>
-  )
-}
-
-function DeleteButton({ kodeMk, onDone }: { kodeMk: string; onDone: () => void }) {
-  const [confirming, setConfirming] = useState(false)
-  const router = useRouter()
-
-  if (!confirming) {
-    return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.87rem] text-[var(--merah)] cursor-pointer hover:bg-[var(--merah-lembut)]"
-      >
-        Delete
-      </button>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await deleteCourseAction(kodeMk)
-        router.refresh()
-        onDone()
-      }}
-      className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--merah)] text-white text-[0.87rem] font-medium cursor-pointer"
-    >
-      Confirm delete?
-    </button>
   )
 }
 
