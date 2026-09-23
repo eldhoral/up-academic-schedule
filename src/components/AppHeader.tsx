@@ -10,7 +10,7 @@ export async function AppHeader({ active }: { active: string }) {
   } = await supabase.auth.getUser()
 
   return (
-    <header className="min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
+    <header className="sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
       <div className="flex items-center gap-x-[1.5rem] gap-y-[0.4rem]">
         <span className="text-[1.07rem] font-semibold tracking-[-0.01em]">Penjadwalan Perkuliahan</span>
         <HeaderNav active={active} />
