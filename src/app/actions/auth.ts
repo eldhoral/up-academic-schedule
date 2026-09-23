@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 
@@ -8,6 +9,22 @@ export type AuthState = {
   error?: string
   message?: string
   success?: boolean
+}
+
+/** Best-effort: sign-in/out never fails because logging failed (e.g. service
+ *  role key not configured yet). */
+async function logAuthEvent(action: 'LOGIN' | 'LOGOUT', userId: string, email: string) {
+  try {
+    const admin = createAdminClient()
+    await admin.from('audit_log').insert({
+      actor_id: userId,
+      actor_email: email,
+      action,
+      table_name: 'auth',
+    })
+  } catch {
+    // ignore — see comment above
+  }
 }
 
 export async function signInAction(
@@ -34,7 +51,7 @@ export async function signInAction(
 
   const supabase = await createClient()
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
@@ -52,6 +69,8 @@ export async function signInAction(
       error: 'Email dan kata sandi tidak cocok. Periksa kembali keduanya lalu coba lagi. Setelah lima kali gagal, proses masuk akan ditunda selama 15 menit.',
     }
   }
+
+  if (data.user) await logAuthEvent('LOGIN', data.user.id, data.user.email ?? email)
 
   const destination = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`
   redirect(destination)
@@ -88,6 +107,11 @@ export async function resetPasswordAction(email: string): Promise<AuthState> {
 
 export async function signOutAction() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (user) await logAuthEvent('LOGOUT', user.id, user.email ?? '')
+
   await supabase.auth.signOut()
   redirect('/masuk')
 }

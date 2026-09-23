@@ -1166,3 +1166,37 @@ begin
         );
     end loop;
 end $$;
+
+-- ==============================================================================
+-- Migration: 20260924000006_audit_log_auth_events.sql
+-- Description: Allow LOGIN/LOGOUT actions in audit_log for sign-in/out events.
+-- ==============================================================================
+
+alter table audit_log drop constraint if exists audit_log_action_check;
+alter table audit_log add constraint audit_log_action_check
+    check (action in ('INSERT', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT'));
+
+-- ==============================================================================
+-- Migration: 20260924000007_audit_log_retention.sql
+-- Description: Nightly purge of audit_log entries older than 1 month.
+-- ==============================================================================
+
+create extension if not exists pg_cron;
+
+create or replace function purge_old_audit_log()
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+    delete from audit_log where at < now() - interval '1 month';
+$$;
+
+do $$
+begin
+    perform cron.unschedule('purge_old_audit_log');
+exception when others then
+    null;
+end $$;
+
+select cron.schedule('purge_old_audit_log', '0 3 * * *', 'select purge_old_audit_log()');

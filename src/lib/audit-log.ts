@@ -1,4 +1,4 @@
-export type AuditAction = 'INSERT' | 'UPDATE' | 'DELETE'
+export type AuditAction = 'INSERT' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT'
 
 export type AuditRow = {
   id: number
@@ -22,12 +22,15 @@ export const TABLE_LABEL: Record<string, string> = {
   schedule_lecturers: 'Dosen Jadwal',
   settings: 'Pengaturan',
   profiles: 'Pengguna',
+  auth: 'Autentikasi',
 }
 
 export const ACTION_LABEL: Record<AuditAction, string> = {
   INSERT: 'Tambah',
   UPDATE: 'Ubah',
   DELETE: 'Hapus',
+  LOGIN: 'Masuk',
+  LOGOUT: 'Keluar',
 }
 
 export function tableLabel(name: string): string {

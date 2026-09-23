@@ -15,6 +15,8 @@ const ACTION_BADGE: Record<AuditAction, string> = {
   INSERT: 'bg-[var(--hijau-lembut)] text-[var(--hijau)]',
   UPDATE: 'bg-[var(--biru-lembut)] text-[var(--biru)]',
   DELETE: 'bg-[var(--merah-lembut)] text-[var(--merah)]',
+  LOGIN: 'bg-[var(--hijau-lembut)] text-[var(--hijau)]',
+  LOGOUT: 'bg-[var(--cekung)] text-[var(--tinta-3)]',
 }
 
 export function LogAktivitasClient({ rows }: { rows: AuditRow[] }) {
@@ -148,7 +150,7 @@ function DetailModal({ row, onClose }: { row: AuditRow; onClose: () => void }) {
       >
         <div className="flex items-start justify-between gap-[0.8rem] mb-[0.2rem]">
           <h3 className="m-0 text-[1.07rem] font-semibold">
-            {ACTION_LABEL[row.action]} {tableLabel(row.table_name)}
+            {row.action === 'LOGIN' || row.action === 'LOGOUT' ? ACTION_LABEL[row.action] : `${ACTION_LABEL[row.action]} ${tableLabel(row.table_name)}`}
           </h3>
           <button
             type="button"
@@ -164,7 +166,11 @@ function DetailModal({ row, onClose }: { row: AuditRow; onClose: () => void }) {
           {row.actor_email ?? 'Sistem'}
         </p>
 
-        {fields.length === 0 && <p className="text-[0.87rem] text-[var(--tinta-3)]">Tidak ada kolom yang berubah.</p>}
+        {fields.length === 0 && (
+          <p className="text-[0.87rem] text-[var(--tinta-3)]">
+            {row.action === 'LOGIN' || row.action === 'LOGOUT' ? 'Tidak ada rincian tambahan untuk peristiwa ini.' : 'Tidak ada kolom yang berubah.'}
+          </p>
+        )}
 
         {fields.length > 0 && (
           <div className="border border-[var(--garis)] rounded-[var(--r-kecil)] overflow-hidden">
