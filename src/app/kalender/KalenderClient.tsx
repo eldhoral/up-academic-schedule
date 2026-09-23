@@ -43,6 +43,7 @@ export function KalenderClient({
 }) {
   const [schedules, setSchedules] = useState(initialSchedules)
   const [context, setContext] = useState(initialContext)
+  const [selected, setSelected] = useState<ScheduleRow | null>(null)
 
   const [prevInitial, setPrevInitial] = useState({ schedules: initialSchedules, context: initialContext })
   if (initialSchedules !== prevInitial.schedules || initialContext !== prevInitial.context) {
@@ -192,10 +193,12 @@ export function KalenderClient({
                   const color = courseColor(r.kode_mk)
 
                   return (
-                    <div
+                    <button
                       key={r.id}
+                      type="button"
                       title={title}
-                      className={`absolute overflow-hidden rounded-[var(--r-kecil)] border p-[0.2rem_0.33rem] cursor-default ${
+                      onClick={() => setSelected(r)}
+                      className={`absolute overflow-hidden rounded-[var(--r-kecil)] border p-[0.2rem_0.33rem] text-left cursor-pointer transition-shadow hover:shadow-[0_0_0_2px_var(--biru)] ${
                         r.is_override ? 'bg-[var(--merah-lembut)] border-[var(--merah-garis)]' : ''
                       }`}
                       style={{
@@ -217,7 +220,7 @@ export function KalenderClient({
                         {r.is_override && <span className="ml-[0.27rem] text-[var(--merah)]">&#9888;</span>}
                       </div>
                       <div className="text-[0.7rem] text-[var(--tinta-3)] truncate">{r.rooms?.nama ?? dosen}</div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -225,6 +228,88 @@ export function KalenderClient({
           </div>
         </div>
       </div>
+
+      {selected && <ScheduleDetailModal schedule={selected} onClose={() => setSelected(null)} />}
+    </div>
+  )
+}
+
+function ScheduleDetailModal({ schedule: r, onClose }: { schedule: ScheduleRow; onClose: () => void }) {
+  const color = courseColor(r.kode_mk)
+  const dosen =
+    r.schedule_lecturers.length === 0
+      ? [{ label: 'MKWU' }]
+      : r.schedule_lecturers
+          .sort((a, b) => a.urutan - b.urutan)
+          .map((sl) => ({ label: sl.lecturers ? lecturerDisplayName(sl.lecturers) : '—' }))
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[26rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="h-[0.33rem]" style={{ backgroundColor: r.is_override ? 'var(--merah)' : color.border }} />
+        <div className="p-[1.4rem]">
+          <div className="flex items-start justify-between gap-[0.8rem] mb-[0.2rem]">
+            <h3 className="m-0 text-[1.07rem] font-semibold leading-[1.3]">{r.courses?.nama_mk ?? r.kode_mk}</h3>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Tutup"
+              className="shrink-0 text-[var(--tinta-3)] hover:text-[var(--tinta)] cursor-pointer bg-transparent border-0 p-0 text-[1.2rem] leading-none"
+            >
+              &times;
+            </button>
+          </div>
+          <p className="mt-0 mb-[1.1rem] text-[0.8rem] mono text-[var(--tinta-3)]">
+            {r.kode_mk} &middot; Kelas {r.kelas} &middot; {r.courses?.sks ?? '—'} SKS
+          </p>
+
+          {r.is_override && (
+            <div className="mb-[1rem] bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.8rem] text-[var(--merah-teks)]">
+              <b className="text-[var(--merah)]">&#9888; Jadwal ini menerobos aturan bentrok.</b>
+              {r.override_reason && <span className="block mt-[0.13rem]">{r.override_reason}</span>}
+            </div>
+          )}
+
+          <dl className="space-y-[0.7rem] text-[0.93rem]">
+            <DetailRow label="Hari & jam">
+              {hariLabel(r.hari)}, {r.jam_mulai.slice(0, 5)}–{r.jam_selesai.slice(0, 5)}
+              {r.minggu !== 'setiap' && ` (minggu ${r.minggu})`}
+            </DetailRow>
+            <DetailRow label="Dosen">{dosen.map((d) => d.label).join(', ')}</DetailRow>
+            <DetailRow label="Ruangan">{r.rooms?.nama || '—'}</DetailRow>
+            <DetailRow label="Zoom">{r.zoom_id || '—'}</DetailRow>
+            <DetailRow label="Jumlah mahasiswa">{r.jumlah_mhs}</DetailRow>
+            {r.keterangan && <DetailRow label="Keterangan">{r.keterangan}</DetailRow>}
+          </dl>
+
+          <div className="flex justify-end pt-[1.2rem]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-[0.8rem]">
+      <dt className="w-[7.5rem] shrink-0 text-[var(--tinta-3)]">{label}</dt>
+      <dd className="m-0 flex-1">{children}</dd>
     </div>
   )
 }
