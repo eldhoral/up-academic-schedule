@@ -1080,3 +1080,11 @@ begin
         );
     end loop;
 end $$;
+
+-- ==============================================================================
+-- Migration: 20260924000004_grant_service_role_profiles.sql
+-- Description: service_role needs the table-level GRANT on profiles too —
+-- RLS bypass doesn't imply privilege.
+-- ==============================================================================
+
+grant select, insert, update, delete on profiles to service_role;
