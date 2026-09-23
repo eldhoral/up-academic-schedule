@@ -13,6 +13,22 @@ const REM_PER_MIN = 0.055
 const DEFAULT_START_HOUR = 7
 const DEFAULT_END_HOUR = 21
 
+/** Deterministic pastel per mata kuliah, so the same course reads as the same
+ *  color everywhere on the grid — hue from a hash, fixed saturation/lightness
+ *  so every course stays legible against the dark --tinta text used on cards. */
+function courseColor(kodeMk: string) {
+  let hash = 0
+  for (let i = 0; i < kodeMk.length; i++) hash = (hash * 31 + kodeMk.charCodeAt(i)) >>> 0
+  // Sequential course codes (10012001, 10012002, …) differ by 1 in the hash too —
+  // multiplicative mixing spreads them around the hue circle instead of clumping.
+  hash = Math.imul(hash, 2654435761) >>> 0
+  const hue = hash % 360
+  return {
+    bg: `hsl(${hue} 65% 93%)`,
+    border: `hsl(${hue} 45% 60%)`,
+  }
+}
+
 // Sunday getDay()=0 has no column in this six-day academic week.
 const TODAY_HARI_INDEX: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5 }
 
@@ -71,7 +87,7 @@ export function KalenderClient({
     <div className="flex-1 flex flex-col">
       <div className="min-h-[3.2rem] flex items-center gap-[0.53rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
         <label className="text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-ay">
-          Academic year
+          Tahun akademik
         </label>
         <Select
           id="ctx-ay"
@@ -107,7 +123,7 @@ export function KalenderClient({
         />
 
         <span className="ml-auto text-[0.87rem] text-[var(--tinta-3)]">
-          {schedules.length} class{schedules.length === 1 ? '' : 'es'} this week &middot; view only
+          {schedules.length} kelas minggu ini &middot; hanya lihat
         </span>
       </div>
 
@@ -128,9 +144,7 @@ export function KalenderClient({
                 >
                   {hariLabel(hari)}
                 </div>
-                <div className="text-[0.8rem] text-[var(--tinta-3)]">
-                  {rows.length} class{rows.length === 1 ? '' : 'es'}
-                </div>
+                <div className="text-[0.8rem] text-[var(--tinta-3)]">{rows.length} kelas</div>
               </div>
             ))}
           </div>
@@ -175,21 +189,21 @@ export function KalenderClient({
                           .map((sl) => (sl.lecturers ? lecturerDisplayName(sl.lecturers) : '—'))
                           .join(', ')
                   const title = `${r.courses?.nama_mk ?? r.kode_mk} — Kelas ${r.kelas} — ${r.jam_mulai.slice(0, 5)}–${r.jam_selesai.slice(0, 5)} — ${dosen}${r.rooms ? ` — ${r.rooms.nama}` : ''}`
+                  const color = courseColor(r.kode_mk)
 
                   return (
                     <div
                       key={r.id}
                       title={title}
                       className={`absolute overflow-hidden rounded-[var(--r-kecil)] border p-[0.2rem_0.33rem] cursor-default ${
-                        r.is_override
-                          ? 'bg-[var(--merah-lembut)] border-[var(--merah-garis)]'
-                          : 'bg-[var(--biru-lembut)] border-[var(--biru)]/25'
+                        r.is_override ? 'bg-[var(--merah-lembut)] border-[var(--merah-garis)]' : ''
                       }`}
                       style={{
                         top: `${(startMin - gridStartMin) * REM_PER_MIN}rem`,
                         height: `${Math.max(endMin - startMin, 20) * REM_PER_MIN}rem`,
                         left: `${(col / cols) * 100}%`,
                         width: `calc(${100 / cols}% - 0.13rem)`,
+                        ...(r.is_override ? {} : { backgroundColor: color.bg, borderColor: color.border }),
                       }}
                     >
                       <div className="flex items-center gap-[0.27rem] leading-none mb-[0.13rem]">
