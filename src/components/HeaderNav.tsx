@@ -22,7 +22,6 @@ const SUPERADMIN_NAV = [{ href: '/pengguna', label: 'Pengguna' }]
 const CETAK_NAV = [
   { href: '/cetak', label: 'Cetak Jadwal' },
   { href: '/rekap', label: 'Rekap Dosen' },
-  { href: '/log-aktivitas', label: 'Log Aktivitas' },
 ]
 
 const linkClass = (isActive: boolean) =>
@@ -48,6 +47,14 @@ export function HeaderNav({ active, isSuperadmin }: { active: string; isSuperadm
 
       <NavGroup label="Data Master" items={isSuperadmin ? [...DATA_NAV, ...SUPERADMIN_NAV] : DATA_NAV} active={active} />
       <NavGroup label="Cetak & Rekap" items={CETAK_NAV} active={active} />
+
+      <Link
+        href="/log-aktivitas"
+        aria-current={active === '/log-aktivitas' ? 'page' : undefined}
+        className={linkClass(active === '/log-aktivitas')}
+      >
+        Log Aktivitas
+      </Link>
     </nav>
   )
 }
