@@ -107,7 +107,7 @@ CREATE TRIGGER update_rooms_updated_at
 -- Sessions
 CREATE TABLE IF NOT EXISTS sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    hari VARCHAR(10) NOT NULL CHECK (hari IN ('SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU')),
+    hari VARCHAR(10) NOT NULL CHECK (hari IN ('SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU', 'MINGGU')),
     sesi_ke INTEGER NOT NULL,
     jam_mulai TIME NOT NULL,
     jam_selesai TIME NOT NULL,
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS schedules (
     semester_ke INTEGER NOT NULL CHECK (semester_ke BETWEEN 1 AND 8),
     kode_mk VARCHAR(20) NOT NULL REFERENCES courses(kode_mk) ON DELETE RESTRICT,
     kelas VARCHAR(5) NOT NULL,
-    hari VARCHAR(10) NOT NULL CHECK (hari IN ('SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU')),
+    hari VARCHAR(10) NOT NULL CHECK (hari IN ('SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU', 'MINGGU')),
     jam_mulai TIME NOT NULL,
     jam_selesai TIME NOT NULL,
     room_id UUID REFERENCES rooms(id) ON DELETE SET NULL,

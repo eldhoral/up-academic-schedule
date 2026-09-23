@@ -19,14 +19,14 @@ export type GeneratorInput = {
 export type GeneratorResult = { ok: true; preview: GeneratedSlot[] } | { ok: false; error: string }
 
 export async function previewGeneratedSessions(input: GeneratorInput): Promise<GeneratorResult> {
-  if (!(HARI_VALUES as readonly string[]).includes(input.hari)) return { ok: false, error: 'Pick a valid hari.' }
-  if (!/^\d{1,2}:\d{2}$/.test(input.startJam)) return { ok: false, error: 'Jam mulai must be HH:MM.' }
+  if (!(HARI_VALUES as readonly string[]).includes(input.hari)) return { ok: false, error: 'Pilih hari yang valid.' }
+  if (!/^\d{1,2}:\d{2}$/.test(input.startJam)) return { ok: false, error: 'Jam mulai harus berformat HH:MM.' }
 
   const pattern = input.pattern
     .split(',')
     .map((s) => parseInt(s.trim(), 10))
     .filter((n) => Number.isFinite(n) && n > 0)
-  if (pattern.length === 0) return { ok: false, error: 'SKS pattern needs at least one positive number, e.g. "2,2,3".' }
+  if (pattern.length === 0) return { ok: false, error: 'Pola SKS butuh minimal satu angka positif, mis. "2,2,3".' }
 
   const settings = await getSettings()
   const menitPerSks = settingInt(settings, 'menit_per_sks', 50)
@@ -63,7 +63,7 @@ export async function commitGeneratedSessions(
   replaceDay: boolean,
   slots: GeneratedSlot[]
 ): Promise<GeneratorResult> {
-  if (slots.length === 0) return { ok: false, error: 'Nothing to save.' }
+  if (slots.length === 0) return { ok: false, error: 'Tidak ada yang disimpan.' }
 
   const supabase = await createClient()
 
@@ -100,8 +100,8 @@ function readSessionForm(formData: FormData) {
 
 export async function updateSessionAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const row = readSessionForm(formData)
-  if (!row.jam_mulai || !row.jam_selesai) return { error: 'jam_mulai and jam_selesai are required.' }
-  if (row.jam_selesai <= row.jam_mulai) return { error: 'jam_selesai must be after jam_mulai.' }
+  if (!row.jam_mulai || !row.jam_selesai) return { error: 'jam_mulai dan jam_selesai wajib diisi.' }
+  if (row.jam_selesai <= row.jam_mulai) return { error: 'jam_selesai harus setelah jam_mulai.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('sessions').update(row).eq('id', id)

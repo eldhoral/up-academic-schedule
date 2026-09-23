@@ -15,20 +15,20 @@ export async function previewImportAction(
 ): Promise<PreviewState> {
   const file = formData.get('file')
   if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: 'Choose an .xlsx file first.' }
+    return { ok: false, error: 'Pilih file .xlsx terlebih dahulu.' }
   }
 
   const def = importTables[tableSlug]
   const buffer = await file.arrayBuffer()
   const parsed = parseWorkbookRows(buffer)
   if (parsed.length === 0) {
-    return { ok: false, error: 'The file has no data rows.' }
+    return { ok: false, error: 'File tidak memiliki baris data.' }
   }
 
   const supabase = await createClient()
   const { data: existingRows, error } = await supabase.from(def.slug).select('*')
   if (error) {
-    return { ok: false, error: `Could not read existing ${def.label} rows: ${error.message}` }
+    return { ok: false, error: `Gagal membaca data ${def.label} yang ada: ${error.message}` }
   }
 
   const existingByKey = new Map<string, Record<string, unknown>>()
@@ -53,7 +53,7 @@ export async function commitImportAction(
   rows: Record<string, unknown>[]
 ): Promise<CommitState> {
   if (rows.length === 0) {
-    return { ok: false, error: 'Nothing to commit.' }
+    return { ok: false, error: 'Tidak ada data untuk disimpan.' }
   }
 
   const def = importTables[tableSlug]

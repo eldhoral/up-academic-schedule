@@ -53,14 +53,14 @@ function readScheduleForm(formData: FormData) {
 }
 
 function validateSchedule(row: ReturnType<typeof readScheduleForm>): string | null {
-  if (!row.academic_year_id) return 'Pick an academic year.'
-  if (row.jenis_kelas !== 'reguler' && row.jenis_kelas !== 'regsus') return 'Pick jenis kelas.'
-  if (row.semester_ke < 1 || row.semester_ke > 8) return 'Semester must be between 1 and 8.'
-  if (!row.kode_mk) return 'Pick a mata kuliah.'
-  if (!row.kelas) return 'Kelas is required.'
-  if (!row.hari) return 'Pick a hari (via Sesi or waktu bebas).'
-  if (!row.jam_mulai || !row.jam_selesai) return 'Jam mulai and jam selesai are required.'
-  if (row.jam_selesai <= row.jam_mulai) return 'Jam selesai must be after jam mulai.'
+  if (!row.academic_year_id) return 'Pilih tahun akademik.'
+  if (row.jenis_kelas !== 'reguler' && row.jenis_kelas !== 'regsus') return 'Pilih jenis kelas.'
+  if (row.semester_ke < 1 || row.semester_ke > 8) return 'Semester harus antara 1 dan 8.'
+  if (!row.kode_mk) return 'Pilih mata kuliah.'
+  if (!row.kelas) return 'Kelas wajib diisi.'
+  if (!row.hari) return 'Pilih hari (lewat Sesi atau waktu bebas).'
+  if (!row.jam_mulai || !row.jam_selesai) return 'Jam mulai dan jam selesai wajib diisi.'
+  if (row.jam_selesai <= row.jam_mulai) return 'Jam selesai harus setelah jam mulai.'
   return null
 }
 

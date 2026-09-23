@@ -48,10 +48,10 @@ export const coursesTable: ImportTableDef<CourseRow> = {
     a.nama_mk === b.nama_mk && a.sks === b.sks && a.jenis_mk === b.jenis_mk && a.smt === b.smt && a.kurikulum === b.kurikulum,
   parseRow(raw) {
     const kode_mk = str(raw, 'kode_mk')
-    if (!kode_mk) return { reason: 'kode_mk is required.' }
+    if (!kode_mk) return { reason: 'kode_mk wajib diisi.' }
 
     let nama_mk = str(raw, 'nama_mk')
-    if (!nama_mk) return { reason: `Row for ${kode_mk}: nama_mk is required.` }
+    if (!nama_mk) return { reason: `Baris ${kode_mk}: nama_mk wajib diisi.` }
 
     const notes: string[] = []
     const pilihanSuffix = /\s*\(P\)\s*$/i
@@ -63,25 +63,25 @@ export const coursesTable: ImportTableDef<CourseRow> = {
     const sksRaw = raw['sks']
     const sks = typeof sksRaw === 'number' ? sksRaw : parseInt(str(raw, 'sks'), 10)
     if (!Number.isFinite(sks) || sks <= 0) {
-      return { reason: `Row for ${kode_mk}: sks must be a positive number.` }
+      return { reason: `Baris ${kode_mk}: sks harus berupa angka positif.` }
     }
 
     const smtRaw = raw['smt']
     const smt = typeof smtRaw === 'number' ? smtRaw : parseInt(str(raw, 'smt'), 10)
     if (!Number.isFinite(smt) || smt < 1 || smt > 8) {
-      return { reason: `Row for ${kode_mk}: smt must be between 1 and 8.` }
+      return { reason: `Baris ${kode_mk}: smt harus antara 1 dan 8.` }
     }
 
     let jenis_mk = str(raw, 'jenis_mk').toUpperCase()
     if (jenis_mk !== 'A' && jenis_mk !== 'B') {
       if (hasPSuffix) {
         jenis_mk = 'B'
-        notes.push('jenis_mk defaulted to B from the "(P)" suffix on nama_mk.')
+        notes.push('jenis_mk otomatis diisi B karena akhiran "(P)" pada nama_mk.')
       } else {
-        return { reason: `Row for ${kode_mk}: jenis_mk must be A or B.` }
+        return { reason: `Baris ${kode_mk}: jenis_mk harus A atau B.` }
       }
     } else if (hasPSuffix && jenis_mk !== 'B') {
-      notes.push(`nama_mk carried a "(P)" suffix but jenis_mk was ${jenis_mk}; kept jenis_mk as given.`)
+      notes.push(`nama_mk memiliki akhiran "(P)" tetapi jenis_mk adalah ${jenis_mk}; jenis_mk tetap dipakai sesuai data.`)
     }
 
     const kurikulum = str(raw, 'kurikulum') || '2026'
@@ -122,10 +122,10 @@ export const lecturersTable: ImportTableDef<LecturerRow> = {
     a.nidn === b.nidn && a.nama === b.nama && a.gelar_depan === b.gelar_depan && a.gelar_belakang === b.gelar_belakang,
   parseRow(raw) {
     const kode_dosen = str(raw, 'Kode Dosen') || str(raw, 'kode_dosen')
-    if (!kode_dosen) return { reason: 'Kode Dosen is required.' }
+    if (!kode_dosen) return { reason: 'Kode Dosen wajib diisi.' }
 
     const nama = str(raw, 'Nama Dosen') || str(raw, 'nama')
-    if (!nama) return { reason: `Row for ${kode_dosen}: Nama Dosen is required.` }
+    if (!nama) return { reason: `Baris ${kode_dosen}: Nama Dosen wajib diisi.` }
 
     const notes: string[] = []
 
@@ -134,7 +134,7 @@ export const lecturersTable: ImportTableDef<LecturerRow> = {
       const digitsOnly = /^\d+$/.test(nidn)
       if (digitsOnly && nidn.length < 10) {
         const padded = nidn.padStart(10, '0')
-        notes.push(`NIDN left-padded from "${nidn}" to "${padded}" (leading zero restored).`)
+        notes.push(`NIDN diberi awalan nol dari "${nidn}" menjadi "${padded}" (nol di depan dipulihkan).`)
         nidn = padded
       }
     }
@@ -176,7 +176,7 @@ export const roomsTable: ImportTableDef<RoomRow> = {
   equal: (a, b) => a.kapasitas === b.kapasitas && a.keterangan === b.keterangan,
   parseRow(raw) {
     const nama = str(raw, 'nama')
-    if (!nama) return { reason: 'nama is required.' }
+    if (!nama) return { reason: 'nama wajib diisi.' }
 
     const kapRaw = raw['kapasitas']
     const kapasitasParsed = typeof kapRaw === 'number' ? kapRaw : parseInt(str(raw, 'kapasitas'), 10)

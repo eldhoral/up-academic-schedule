@@ -17,10 +17,10 @@ function readCourseForm(formData: FormData) {
 
 export async function createCourseAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const row = readCourseForm(formData)
-  if (!row.kode_mk || !row.nama_mk) return { error: 'kode_mk and nama_mk are required.' }
-  if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'sks must be a positive number.' }
-  if (row.smt < 1 || row.smt > 8) return { error: 'smt must be between 1 and 8.' }
-  if (row.jenis_mk !== 'A' && row.jenis_mk !== 'B') return { error: 'jenis_mk must be A or B.' }
+  if (!row.kode_mk || !row.nama_mk) return { error: 'kode_mk dan nama_mk wajib diisi.' }
+  if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'sks harus berupa angka positif.' }
+  if (row.smt < 1 || row.smt > 8) return { error: 'smt harus antara 1 dan 8.' }
+  if (row.jenis_mk !== 'A' && row.jenis_mk !== 'B') return { error: 'jenis_mk harus A atau B.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('courses').insert(row)
@@ -32,9 +32,9 @@ export async function createCourseAction(_prev: FormState, formData: FormData): 
 
 export async function updateCourseAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const row = readCourseForm(formData)
-  if (!row.kode_mk) return { error: 'kode_mk is required.' }
-  if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'sks must be a positive number.' }
-  if (row.smt < 1 || row.smt > 8) return { error: 'smt must be between 1 and 8.' }
+  if (!row.kode_mk) return { error: 'kode_mk wajib diisi.' }
+  if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'sks harus berupa angka positif.' }
+  if (row.smt < 1 || row.smt > 8) return { error: 'smt harus antara 1 dan 8.' }
 
   const supabase = await createClient()
   const { error } = await supabase

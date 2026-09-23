@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react'
 import { Select } from '@/components/Select'
+import { HARI_DB as HARI } from '@/lib/hari'
 import { saveSettingsAction, type FormState } from './actions'
 
 export type SettingRow = {
@@ -45,7 +46,6 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
 }
 
 const TEXTAREA_KEYS = new Set(['header_baris', 'keterangan_cetak'])
-const HARI = ['SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU']
 
 export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
   const [state, formAction, isPending] = useActionState<FormState, FormData>(saveSettingsAction, null)
