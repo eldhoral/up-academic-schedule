@@ -17,6 +17,8 @@ const DATA_NAV = [
   { href: '/pengaturan', label: 'Pengaturan' },
 ]
 
+const SUPERADMIN_NAV = [{ href: '/pengguna', label: 'Pengguna' }]
+
 const CETAK_NAV = [
   { href: '/cetak', label: 'Cetak Jadwal' },
   { href: '/rekap', label: 'Rekap Dosen' },
@@ -29,7 +31,7 @@ const linkClass = (isActive: boolean) =>
       : 'text-[var(--tinta)] hover:bg-[var(--cekung)]'
   }`
 
-export function HeaderNav({ active }: { active: string }) {
+export function HeaderNav({ active, isSuperadmin }: { active: string; isSuperadmin?: boolean }) {
   return (
     <nav className="flex items-center gap-[0.13rem]" aria-label="Navigasi utama">
       {PRIMARY_NAV.map((item) => (
@@ -43,7 +45,7 @@ export function HeaderNav({ active }: { active: string }) {
         </Link>
       ))}
 
-      <NavGroup label="Data Master" items={DATA_NAV} active={active} />
+      <NavGroup label="Data Master" items={isSuperadmin ? [...DATA_NAV, ...SUPERADMIN_NAV] : DATA_NAV} active={active} />
       <NavGroup label="Cetak & Rekap" items={CETAK_NAV} active={active} />
     </nav>
   )

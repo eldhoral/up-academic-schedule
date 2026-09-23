@@ -1,14 +1,11 @@
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/server'
 import { signOutAction } from '@/app/actions/auth'
+import { getCurrentUser } from '@/lib/roles'
 import { TextSizeController } from './TextSizeController'
 import { HeaderNav } from './HeaderNav'
 
 export async function AppHeader({ active }: { active: string }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   return (
     <header className="sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--header)] border-b border-[var(--garis-kuat)] flex-wrap">
@@ -31,7 +28,7 @@ export async function AppHeader({ active }: { active: string }) {
           />
           <span className="sr-only">Penjadwalan Perkuliahan</span>
         </div>
-        <HeaderNav active={active} />
+        <HeaderNav active={active} isSuperadmin={user?.role === 'SUPERADMIN'} />
       </div>
 
       {/* ml-auto (not the parent's justify-between) so this group stays flush right even
