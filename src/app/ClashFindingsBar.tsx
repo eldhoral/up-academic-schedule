@@ -38,7 +38,7 @@ export function ClashFindingsBar({
         <span className="text-[1.87rem] font-semibold text-[var(--merah)] tracking-[-0.025em] leading-none">
           {clashes.length}
         </span>
-        <b className="text-[1rem] font-semibold">bentrokan untuk diselesaikan</b>
+        <b className="text-[1rem] font-semibold">bentrokan jadwal perlu diperbaiki</b>
         <span className="text-[0.93rem] text-[var(--tinta-2)]">
           di {academicYearLabel} &middot; {blocking} diblokir{warning > 0 ? ` · ${warning} peringatan` : ''}
         </span>
