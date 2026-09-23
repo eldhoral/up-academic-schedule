@@ -9,7 +9,13 @@ import type { AcademicYear } from '../penjadwalan-types'
 function pageCss(ukuranKertas: string, orientasi: string): string {
   const size = (['A4', 'Letter', 'Legal'] as const).includes(ukuranKertas as 'A4' | 'Letter' | 'Legal') ? ukuranKertas : 'A4'
   const orientation = orientasi === 'landscape' ? 'landscape' : 'portrait'
-  return `@media print { @page { size: ${size} ${orientation}; margin: 1.5cm; } }`
+  return `
+    @media print { @page { size: ${size} ${orientation}; margin: 1.5cm; } }
+    .print-sheet, .print-sheet * { font-family: Arial, Helvetica, sans-serif !important; line-height: 1.25; }
+    .print-sheet table { page-break-inside: auto; }
+    .print-sheet tr { page-break-inside: avoid; }
+    .print-sheet thead { display: table-header-group; }
+  `
 }
 
 export default async function CetakPage(props: PageProps<'/cetak'>) {

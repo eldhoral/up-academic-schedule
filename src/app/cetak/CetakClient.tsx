@@ -121,8 +121,8 @@ export function CetakClient({
 
         {kelasGroups.length === 0 && <p className="text-center text-[11pt] py-[2rem]">Tidak ada data jadwal untuk pilihan ini.</p>}
 
-        {kelasGroups.map(([kelas, rows]) => (
-          <table key={kelas} className="w-full border-collapse mb-[1rem] text-[10pt]">
+        {kelasGroups.length > 0 && (
+          <table className="w-full border-collapse mb-[1rem] text-[10pt]">
             <thead>
               <tr>
                 <Th w="10%">KODE MK</Th>
@@ -137,44 +137,46 @@ export function CetakClient({
                 <Th w="6%">ZOOM</Th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td colSpan={8} className="border border-black text-center font-bold py-[0.15rem]">
-                  KELAS {kelas}
-                </td>
-              </tr>
-              {rows
-                .sort((a, b) => a.hari.localeCompare(b.hari) || a.jam_mulai.localeCompare(b.jam_mulai))
-                .map((r) => {
-                  const suffix = r.minggu === 'ganjil' ? ' (A)' : r.minggu === 'genap' ? ' (B)' : ''
-                  const dosen =
-                    r.schedule_lecturers.length === 0
-                      ? 'MKWU'
-                      : r.schedule_lecturers
-                          .sort((a, b) => a.urutan - b.urutan)
-                          .map((sl) => (sl.lecturers ? lecturerDisplayName(sl.lecturers) : ''))
-                          .join(', ')
-                  return (
-                    <tr key={r.id}>
-                      <Td>{r.kode_mk}</Td>
-                      <Td>
-                        {r.courses?.nama_mk ?? r.kode_mk}
-                        {suffix}
-                      </Td>
-                      <Td center>{r.courses?.sks ?? ''}</Td>
-                      <Td>{r.hari}</Td>
-                      <Td>
-                        {r.jam_mulai.slice(0, 5)} - {r.jam_selesai.slice(0, 5)}
-                      </Td>
-                      <Td>{dosen}</Td>
-                      <Td>{r.rooms?.nama ?? ''}</Td>
-                      <Td>{r.zoom_id || ''}</Td>
-                    </tr>
-                  )
-                })}
-            </tbody>
+            {kelasGroups.map(([kelas, rows]) => (
+              <tbody key={kelas}>
+                <tr>
+                  <td colSpan={8} className="border border-black text-center font-bold py-[0.15rem]">
+                    KELAS {kelas}
+                  </td>
+                </tr>
+                {rows
+                  .sort((a, b) => a.hari.localeCompare(b.hari) || a.jam_mulai.localeCompare(b.jam_mulai))
+                  .map((r) => {
+                    const suffix = r.minggu === 'ganjil' ? ' (A)' : r.minggu === 'genap' ? ' (B)' : ''
+                    const dosen =
+                      r.schedule_lecturers.length === 0
+                        ? 'MKWU'
+                        : r.schedule_lecturers
+                            .sort((a, b) => a.urutan - b.urutan)
+                            .map((sl) => (sl.lecturers ? lecturerDisplayName(sl.lecturers) : ''))
+                            .join(', ')
+                    return (
+                      <tr key={r.id}>
+                        <Td>{r.kode_mk}</Td>
+                        <Td>
+                          {r.courses?.nama_mk ?? r.kode_mk}
+                          {suffix}
+                        </Td>
+                        <Td center>{r.courses?.sks ?? ''}</Td>
+                        <Td>{r.hari}</Td>
+                        <Td>
+                          {r.jam_mulai.slice(0, 5)} - {r.jam_selesai.slice(0, 5)}
+                        </Td>
+                        <Td>{dosen}</Td>
+                        <Td>{r.rooms?.nama ?? ''}</Td>
+                        <Td>{r.zoom_id || ''}</Td>
+                      </tr>
+                    )
+                  })}
+              </tbody>
+            ))}
           </table>
-        ))}
+        )}
 
         <div className="mt-[1rem] text-[10pt]">
           <p className="font-bold m-0">KETERANGAN:</p>
