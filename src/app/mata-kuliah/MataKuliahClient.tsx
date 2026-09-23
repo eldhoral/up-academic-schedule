@@ -20,8 +20,12 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
   const router = useRouter()
   const [editing, setEditing] = useState<Course | 'new' | null>(null)
   const [query, setQuery] = useState('')
+  const [kurikulumFilter, setKurikulumFilter] = useState('semua')
+
+  const kurikulumList = Array.from(new Set(courses.map((c) => c.kurikulum))).sort((a, b) => b.localeCompare(a))
 
   const filtered = courses.filter((c) => {
+    if (kurikulumFilter !== 'semua' && c.kurikulum !== kurikulumFilter) return false
     const q = query.trim().toLowerCase()
     if (!q) return true
     return c.kode_mk.toLowerCase().includes(q) || c.nama_mk.toLowerCase().includes(q)
@@ -34,7 +38,7 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
           <div>
             <h1 className="text-[1.3rem] font-semibold">Mata Kuliah</h1>
             <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">
-              {courses.length} mata kuliah &middot; kurikulum 2026
+              {filtered.length} dari {courses.length} mata kuliah &middot; {kurikulumList.length} kurikulum
             </p>
           </div>
           <button
@@ -46,13 +50,25 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
           </button>
         </div>
 
-        <input
-          type="search"
-          placeholder="Cari kode atau nama…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full max-w-[20rem] bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mb-[1rem]"
-        />
+        <div className="flex items-center gap-[0.53rem] flex-wrap mb-[1rem]">
+          <input
+            type="search"
+            placeholder="Cari kode atau nama…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full max-w-[20rem] bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
+          />
+          <div className="flex items-center gap-[0.4rem] flex-wrap">
+            <FilterChip active={kurikulumFilter === 'semua'} onClick={() => setKurikulumFilter('semua')}>
+              Semua kurikulum
+            </FilterChip>
+            {kurikulumList.map((k) => (
+              <FilterChip key={k} active={kurikulumFilter === k} onClick={() => setKurikulumFilter(k)}>
+                {k}
+              </FilterChip>
+            ))}
+          </div>
+        </div>
 
         <div className="overflow-x-auto border border-[var(--garis)] rounded-[var(--r-kecil)]">
           <table className="w-full text-[0.87rem] border-collapse">
@@ -106,6 +122,8 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
       {editing && (
         <CourseFormModal
           course={editing === 'new' ? null : editing}
+          kurikulumList={kurikulumList}
+          defaultKurikulum={kurikulumFilter !== 'semua' ? kurikulumFilter : kurikulumList[0] ?? ''}
           onClose={() => setEditing(null)}
         />
       )}
@@ -113,10 +131,52 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
   )
 }
 
-function CourseFormModal({ course, onClose }: { course: Course | null; onClose: () => void }) {
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] text-[0.8rem] font-medium border transition-colors cursor-pointer ${
+        active
+          ? 'bg-[var(--biru-lembut)] text-[var(--biru)] border-[var(--biru)]/30'
+          : 'bg-[var(--lembar)] text-[var(--tinta-3)] border-[var(--garis-kuat)] hover:bg-[var(--cekung)]'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function CourseFormModal({
+  course,
+  kurikulumList,
+  defaultKurikulum,
+  onClose,
+}: {
+  course: Course | null
+  kurikulumList: string[]
+  defaultKurikulum: string
+  onClose: () => void
+}) {
   const action = course ? updateCourseAction : createCourseAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
   const router = useRouter()
+
+  const NEW_KURIKULUM = '__baru__'
+  const initialKurikulum = course?.kurikulum ?? defaultKurikulum
+  const [kurikulumMode, setKurikulumMode] = useState<'pilih' | 'baru'>(
+    initialKurikulum && !kurikulumList.includes(initialKurikulum) ? 'baru' : 'pilih'
+  )
+  const [kurikulum, setKurikulum] = useState(initialKurikulum)
 
   useEffect(() => {
     if (state && 'success' in state) {
@@ -198,14 +258,49 @@ function CourseFormModal({ course, onClose }: { course: Course | null; onClose: 
                 className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
               />
             </Field>
-            <Field label="Kurikulum" className="flex-1">
-              <input
-                name="kurikulum"
-                defaultValue={course?.kurikulum ?? '2026'}
-                className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
-              />
-            </Field>
           </div>
+
+          <Field label="Kurikulum">
+            {kurikulumMode === 'pilih' && kurikulumList.length > 0 ? (
+              <Select
+                value={kurikulum}
+                onValueChange={(v) => {
+                  if (v === NEW_KURIKULUM) {
+                    setKurikulumMode('baru')
+                    setKurikulum('')
+                  } else {
+                    setKurikulum(v)
+                  }
+                }}
+                ariaLabel="Kurikulum"
+                options={[...kurikulumList.map((k) => ({ value: k, label: k })), { value: NEW_KURIKULUM, label: '+ Kurikulum baru…' }]}
+                className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
+              />
+            ) : (
+              <div className="flex gap-[0.5rem]">
+                <input
+                  value={kurikulum}
+                  onChange={(e) => setKurikulum(e.target.value)}
+                  placeholder="mis. 2029"
+                  required
+                  className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
+                />
+                {kurikulumList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKurikulumMode('pilih')
+                      setKurikulum(kurikulumList[0])
+                    }}
+                    className="shrink-0 text-[0.8rem] text-[var(--tinta-3)] hover:underline cursor-pointer bg-transparent border-0 px-[0.4rem]"
+                  >
+                    Batal
+                  </button>
+                )}
+              </div>
+            )}
+            <input type="hidden" name="kurikulum" value={kurikulum} />
+          </Field>
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {course && (

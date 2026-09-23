@@ -50,14 +50,30 @@ export function ScheduleFormModal({
     }
   }, [state, router, onSaved])
 
+  const kurikulumList = useMemo(
+    () => Array.from(new Set(courses.map((c) => c.kurikulum))).sort((a, b) => b.localeCompare(a)),
+    [courses]
+  )
+  const editingCourse = editing ? courses.find((c) => c.kode_mk === editing.kode_mk) ?? null : null
+  const [kurikulum, setKurikulum] = useState(editingCourse?.kurikulum ?? kurikulumList[0] ?? '')
+
   const [showAllCourses, setShowAllCourses] = useState(!!editing)
   const [kodeMk, setKodeMk] = useState(editing?.kode_mk ?? '')
   const selectedCourse = courses.find((c) => c.kode_mk === kodeMk) ?? null
 
+  const coursesInKurikulum = useMemo(
+    () => courses.filter((c) => c.kurikulum === kurikulum),
+    [courses, kurikulum]
+  )
   const visibleCourses = useMemo(() => {
-    const scoped = showAllCourses ? courses : courses.filter((c) => c.smt === context.semester_ke)
-    return scoped.length > 0 ? scoped : courses
-  }, [courses, showAllCourses, context.semester_ke])
+    const scoped = showAllCourses ? coursesInKurikulum : coursesInKurikulum.filter((c) => c.smt === context.semester_ke)
+    return scoped.length > 0 ? scoped : coursesInKurikulum
+  }, [coursesInKurikulum, showAllCourses, context.semester_ke])
+
+  function pickKurikulum(next: string) {
+    setKurikulum(next)
+    if (!editing) setKodeMk('')
+  }
 
   const [sesiMode, setSesiMode] = useState<'terjadwal' | 'bebas'>(editing ? 'bebas' : 'terjadwal')
   const [showAllSessions, setShowAllSessions] = useState(false)
@@ -143,6 +159,17 @@ export function ScheduleFormModal({
           <input type="hidden" name="hari" value={hari} />
           <input type="hidden" name="jam_mulai" value={jamMulai} />
           <input type="hidden" name="jam_selesai" value={jamSelesai} />
+
+          <Field label="Kurikulum">
+            <Select
+              value={kurikulum}
+              onValueChange={pickKurikulum}
+              placeholder="— pilih kurikulum —"
+              ariaLabel="Kurikulum"
+              options={kurikulumList.map((k) => ({ value: k, label: k }))}
+              className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
+            />
+          </Field>
 
           <Field label="Mata Kuliah">
             <Select
