@@ -1,9 +1,14 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { Select } from '@/components/Select'
 import { HARI_DB as HARI } from '@/lib/hari'
+import { createClient } from '@/lib/supabase/client'
 import { saveSettingsAction, type FormState } from './actions'
+
+const FOTO_LOGIN_BUCKET = 'up_kiprat'
+const FOTO_LOGIN_PREFIX = 'login'
+const FOTO_LOGIN_MAX_BYTES = 1024 * 1024
 
 export type SettingRow = {
   key: string
@@ -86,6 +91,8 @@ export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
           </div>
         </section>
       ))}
+
+      <FotoLoginSection />
 
       <button
         type="submit"
@@ -242,5 +249,132 @@ function ImageField({ name, value }: { name: string; value: string }) {
         </button>
       )}
     </div>
+  )
+}
+
+type FotoLogin = { name: string; url: string }
+
+function FotoLoginSection() {
+  const [photos, setPhotos] = useState<FotoLogin[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function fetchPhotos(): Promise<{ photos: FotoLogin[]; error: string }> {
+    const supabase = createClient()
+    const { data, error } = await supabase.storage
+      .from(FOTO_LOGIN_BUCKET)
+      .list(FOTO_LOGIN_PREFIX, { sortBy: { column: 'created_at', order: 'asc' } })
+    if (error) return { photos: [], error: error.message }
+    const files = (data ?? []).filter((f) => f.name && !f.name.endsWith('/'))
+    return {
+      photos: files.map((f) => ({
+        name: f.name,
+        url: supabase.storage.from(FOTO_LOGIN_BUCKET).getPublicUrl(`${FOTO_LOGIN_PREFIX}/${f.name}`).data.publicUrl,
+      })),
+      error: '',
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    fetchPhotos().then((result) => {
+      if (cancelled) return
+      if (result.error) setError(result.error)
+      setPhotos(result.photos)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setError('')
+
+    if (!file.type.startsWith('image/')) {
+      setError('File harus berupa gambar.')
+      return
+    }
+    if (file.size > FOTO_LOGIN_MAX_BYTES) {
+      setError('Ukuran gambar maksimal 1 MB.')
+      return
+    }
+
+    setUploading(true)
+    const supabase = createClient()
+    const ext = file.name.split('.').pop() || 'jpg'
+    const path = `${FOTO_LOGIN_PREFIX}/${Date.now()}.${ext}`
+    const { error: uploadError } = await supabase.storage.from(FOTO_LOGIN_BUCKET).upload(path, file)
+    setUploading(false)
+    if (uploadError) {
+      setError(uploadError.message)
+      return
+    }
+    const result = await fetchPhotos()
+    if (result.error) setError(result.error)
+    setPhotos(result.photos)
+  }
+
+  async function handleDelete(name: string) {
+    setError('')
+    const supabase = createClient()
+    const { error: deleteError } = await supabase.storage.from(FOTO_LOGIN_BUCKET).remove([`${FOTO_LOGIN_PREFIX}/${name}`])
+    if (deleteError) {
+      setError(deleteError.message)
+      return
+    }
+    setPhotos((prev) => prev.filter((p) => p.name !== name))
+  }
+
+  return (
+    <section className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem]">
+      <h2 className="m-0 text-[1.07rem] font-semibold mb-[0.3rem]">Foto Halaman Masuk</h2>
+      <p className="mt-0 mb-[1rem] text-[0.8rem] text-[var(--tinta-3)] leading-[1.4]">
+        Foto yang tampil bergantian di halaman masuk. Maksimal 1 MB per gambar (PNG, JPG, atau WEBP).
+      </p>
+
+      {error && (
+        <div className="mb-[0.8rem] bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.8rem] text-[var(--merah)]">
+          {error}
+        </div>
+      )}
+
+      {!loading && (
+        <div className="flex flex-wrap gap-[0.8rem] mb-[1rem]">
+          {photos.map((p) => (
+            <div key={p.name} className="relative w-[9rem] h-[6rem] shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={p.url}
+                alt=""
+                className="w-full h-full object-cover rounded-[var(--r-kecil)] border border-[var(--garis-kuat)]"
+              />
+              <button
+                type="button"
+                onClick={() => handleDelete(p.name)}
+                className="absolute top-[0.25rem] right-[0.25rem] w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-black/60 text-white text-[0.8rem] leading-none cursor-pointer hover:bg-black/80"
+                aria-label="Hapus foto"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+          {photos.length === 0 && <p className="text-[0.87rem] text-[var(--tinta-3)]">Belum ada foto.</p>}
+        </div>
+      )}
+
+      <input
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        onChange={handleUpload}
+        disabled={uploading}
+        className="text-[0.87rem] text-[var(--tinta-2)] file:mr-[0.6rem] file:px-[0.6rem] file:py-[0.4rem] file:rounded-[var(--r-kecil)] file:border file:border-[var(--garis-kuat)] file:bg-[var(--cekung)] file:cursor-pointer cursor-pointer disabled:opacity-60"
+      />
+      {uploading && <p className="mt-[0.4rem] text-[0.8rem] text-[var(--tinta-3)]">Mengunggah…</p>}
+    </section>
   )
 }

@@ -1,9 +1,44 @@
 'use client'
 
-import { Suspense, useActionState, useState, useTransition } from 'react'
+import { Suspense, useActionState, useEffect, useState, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { TextSizeController } from '@/components/TextSizeController'
 import { signInAction, resetPasswordAction, type AuthState } from '@/app/actions/auth'
+import { createClient } from '@/lib/supabase/client'
+
+const FOTO_LOGIN_BUCKET = 'up_kiprat'
+const FOTO_LOGIN_PREFIX = 'login'
+const FOTO_LOGIN_FALLBACK = '/images/fakultas-psikologi.jpg'
+const CAROUSEL_INTERVAL_MS = 7000
+
+/** Login carousel photos come from Supabase Storage so kaprodi can swap them via Pengaturan,
+ *  without a deploy. Falls back to the bundled campus photo if the bucket is empty. */
+function useFotoLogin(): string[] {
+  const [photos, setPhotos] = useState<string[]>([FOTO_LOGIN_FALLBACK])
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const supabase = createClient()
+      const { data, error } = await supabase.storage
+        .from(FOTO_LOGIN_BUCKET)
+        .list(FOTO_LOGIN_PREFIX, { sortBy: { column: 'created_at', order: 'asc' } })
+      if (error || cancelled) return
+      const files = (data ?? []).filter((f) => f.name && !f.name.endsWith('/'))
+      if (files.length === 0) return
+      const urls = files.map(
+        (f) => supabase.storage.from(FOTO_LOGIN_BUCKET).getPublicUrl(`${FOTO_LOGIN_PREFIX}/${f.name}`).data.publicUrl
+      )
+      setPhotos(urls)
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return photos
+}
 
 function MasukForm() {
   const searchParams = useSearchParams()
@@ -244,26 +279,83 @@ function MasukForm() {
   )
 }
 
+function LoginCarousel() {
+  const photos = useFotoLogin()
+  const [active, setActive] = useState(0)
+
+  useEffect(() => {
+    if (photos.length < 2) return
+    const id = setInterval(() => setActive((i) => (i + 1) % photos.length), CAROUSEL_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [photos.length])
+
+  const safeActive = active < photos.length ? active : 0
+
+  return (
+    <div className="hidden lg:block relative w-[42%] shrink-0 overflow-hidden bg-[var(--tinta)]">
+      {photos.map((src, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={src}
+          src={src}
+          alt={i === 0 ? 'Gedung Fakultas Psikologi, Universitas Pancasila' : ''}
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out"
+          style={{ opacity: i === safeActive ? 1 : 0 }}
+        />
+      ))}
+      <div className="absolute inset-0 bg-gradient-to-t from-[var(--tinta)]/85 via-[var(--tinta)]/10 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 p-[2.4rem]">
+        <p className="m-0 text-[0.8rem] font-medium tracking-[0.04em] uppercase text-white/70">
+          Universitas Pancasila
+        </p>
+        <p className="mt-[0.27rem] text-[1.4rem] font-semibold leading-[1.3] text-white tracking-[-0.01em]">
+          Fakultas Psikologi
+        </p>
+        {photos.length > 1 && (
+          <div className="flex gap-[0.4rem] mt-[1rem]">
+            {photos.map((src, i) => (
+              <button
+                key={src}
+                type="button"
+                onClick={() => setActive(i)}
+                aria-label={`Foto ${i + 1}`}
+                aria-current={i === safeActive}
+                className={`h-[0.35rem] rounded-full transition-all cursor-pointer ${
+                  i === safeActive ? 'w-[1.4rem] bg-white' : 'w-[0.35rem] bg-white/40 hover:bg-white/60'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function MasukPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      {/* Top bar with text scaler */}
-      <div className="flex justify-end p-[0.8rem_1.3rem_0]">
-        <TextSizeController />
-      </div>
+    <div className="min-h-screen flex bg-[var(--kertas)] text-[var(--tinta)]">
+      <LoginCarousel />
 
-      {/* Centered login column wrapped in Suspense for useSearchParams */}
-      <main className="flex-1 flex items-center justify-center p-[1.3rem]">
-        <Suspense
-          fallback={
-            <div className="w-full max-w-[25.3rem] text-center p-8 text-[var(--tinta-3)]">
-              Memuat halaman masuk...
-            </div>
-          }
-        >
-          <MasukForm />
-        </Suspense>
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top bar with text scaler */}
+        <div className="flex justify-end p-[0.8rem_1.3rem_0]">
+          <TextSizeController />
+        </div>
+
+        {/* Centered login column wrapped in Suspense for useSearchParams */}
+        <main className="flex-1 flex items-center justify-center p-[1.3rem]">
+          <Suspense
+            fallback={
+              <div className="w-full max-w-[25.3rem] text-center p-8 text-[var(--tinta-3)]">
+                Memuat halaman masuk...
+              </div>
+            }
+          >
+            <MasukForm />
+          </Suspense>
+        </main>
+      </div>
     </div>
   )
 }
