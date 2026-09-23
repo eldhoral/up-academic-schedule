@@ -11,7 +11,7 @@ export async function AppHeader({ active }: { active: string }) {
   } = await supabase.auth.getUser()
 
   return (
-    <header className="sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
+    <header className="sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--header)] border-b border-[var(--garis-kuat)] flex-wrap">
       <div className="flex items-center gap-x-[1.5rem] gap-y-[0.4rem]">
         <div className="flex items-center gap-[0.6rem]">
           <Image
@@ -40,7 +40,7 @@ export async function AppHeader({ active }: { active: string }) {
       <div className="flex items-center gap-[1.2rem] ml-auto">
         <TextSizeController />
         <div className="flex items-center gap-[0.8rem] pl-[0.8rem] border-l border-[var(--garis)] text-[0.87rem]">
-          <span className="text-[var(--tinta-3)] truncate max-w-[12rem]">{user?.email || 'Admin'}</span>
+          <span className="text-[var(--tinta-2)] truncate max-w-[12rem]">{user?.email || 'Admin'}</span>
           <form action={signOutAction}>
             <button
               type="submit"
