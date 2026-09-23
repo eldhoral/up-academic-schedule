@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { signOutAction } from '@/app/actions/auth'
 import { TextSizeController } from './TextSizeController'
@@ -12,7 +13,24 @@ export async function AppHeader({ active }: { active: string }) {
   return (
     <header className="sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
       <div className="flex items-center gap-x-[1.5rem] gap-y-[0.4rem]">
-        <span className="text-[1.07rem] font-semibold tracking-[-0.01em]">Penjadwalan Perkuliahan</span>
+        <div className="flex items-center gap-[0.6rem]">
+          <Image
+            src="/images/logo-universitas-pancasila.png"
+            alt="Universitas Pancasila"
+            width={64}
+            height={64}
+            className="h-[2.13rem] w-auto"
+          />
+          <span className="w-px h-[1.6rem] bg-[var(--garis-kuat)]" aria-hidden="true" />
+          <Image
+            src="/images/logo-fakultas-psikologi.png"
+            alt="Fakultas Psikologi"
+            width={64}
+            height={64}
+            className="h-[2.13rem] w-auto"
+          />
+          <span className="sr-only">Penjadwalan Perkuliahan</span>
+        </div>
         <HeaderNav active={active} />
       </div>
 
