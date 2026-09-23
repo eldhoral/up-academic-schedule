@@ -26,7 +26,7 @@ const linkClass = (isActive: boolean) =>
   `block px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.93rem] transition-colors ${
     isActive
       ? 'bg-[var(--biru-lembut)] text-[var(--biru)] font-medium'
-      : 'text-[var(--tinta-2)] hover:bg-[var(--cekung)] hover:text-[var(--tinta)]'
+      : 'text-[var(--tinta)] hover:bg-[var(--cekung)]'
   }`
 
 export function HeaderNav({ active }: { active: string }) {

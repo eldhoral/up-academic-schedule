@@ -39,8 +39,8 @@ export async function AppHeader({ active }: { active: string }) {
           flex item, unlike justify-content, which needs 2+ items on the line to do anything. */}
       <div className="flex items-center gap-[1.2rem] ml-auto">
         <TextSizeController />
-        <div className="flex items-center gap-[0.8rem] pl-[0.8rem] border-l border-[var(--garis)] text-[0.87rem]">
-          <span className="text-[var(--tinta-2)] truncate max-w-[12rem]">{user?.email || 'Admin'}</span>
+        <div className="flex items-center gap-[0.8rem] pl-[0.8rem] border-l border-[var(--garis-kuat)] text-[0.87rem]">
+          <span className="text-[var(--tinta)] truncate max-w-[12rem]">{user?.email || 'Admin'}</span>
           <form action={signOutAction}>
             <button
               type="submit"

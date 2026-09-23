@@ -34,7 +34,7 @@ export function TextSizeController() {
   }
 
   return (
-    <div className="flex items-center gap-[0.4rem] text-[0.8rem] text-[var(--tinta-2)]">
+    <div className="flex items-center gap-[0.4rem] text-[0.8rem] text-[var(--tinta)]">
       <span>Text size</span>
       <div
         role="group"
