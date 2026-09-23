@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser, ROLES, type Role } from '@/lib/roles'
+import { humanDbError } from '@/lib/db-error'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -48,11 +49,11 @@ export async function createUserAction(_prev: FormState, formData: FormData): Pr
     password,
     email_confirm: true,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error) }
 
   if (role !== 'VIEWER') {
     const { error: roleError } = await admin.from('profiles').update({ role }).eq('id', data.user.id)
-    if (roleError) return { error: roleError.message }
+    if (roleError) return { error: humanDbError(roleError) }
   }
 
   revalidatePath('/pengguna')
@@ -77,7 +78,7 @@ export async function updateUserRoleAction(userId: string, _prev: FormState, for
   }
 
   const { error } = await admin.from('profiles').update({ role }).eq('id', userId)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error) }
 
   revalidatePath('/pengguna')
   return { success: true }
@@ -98,7 +99,7 @@ export async function deleteUserAction(userId: string): Promise<FormState> {
   }
 
   const { error } = await admin.auth.admin.deleteUser(userId)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error) }
 
   revalidatePath('/pengguna')
   return { success: true }

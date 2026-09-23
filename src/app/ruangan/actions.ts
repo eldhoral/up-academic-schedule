@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { humanDbError } from '@/lib/db-error'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -15,11 +16,11 @@ function readRoomForm(formData: FormData) {
 
 export async function createRoomAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const row = readRoomForm(formData)
-  if (!row.nama) return { error: 'nama is required.' }
+  if (!row.nama) return { error: 'Nama wajib diisi.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('rooms').insert(row)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error, 'Nama ruangan') }
 
   revalidatePath('/ruangan')
   return { success: true }
@@ -27,11 +28,11 @@ export async function createRoomAction(_prev: FormState, formData: FormData): Pr
 
 export async function updateRoomAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const row = readRoomForm(formData)
-  if (!row.nama) return { error: 'nama is required.' }
+  if (!row.nama) return { error: 'Nama wajib diisi.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('rooms').update(row).eq('id', id)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error, 'Nama ruangan') }
 
   revalidatePath('/ruangan')
   return { success: true }
@@ -40,7 +41,7 @@ export async function updateRoomAction(id: string, _prev: FormState, formData: F
 export async function deleteRoomAction(id: string): Promise<FormState> {
   const supabase = await createClient()
   const { error } = await supabase.from('rooms').delete().eq('id', id)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error) }
 
   revalidatePath('/ruangan')
   return { success: true }

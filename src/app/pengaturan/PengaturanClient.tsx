@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from 'react'
 import { Select } from '@/components/Select'
 import { HARI_DB as HARI } from '@/lib/hari'
 import { createClient } from '@/lib/supabase/client'
+import { humanDbError } from '@/lib/db-error'
 import { saveSettingsAction, type FormState } from './actions'
 
 const FOTO_LOGIN_BUCKET = 'up_kiprat'
@@ -265,7 +266,7 @@ function FotoLoginSection() {
     const { data, error } = await supabase.storage
       .from(FOTO_LOGIN_BUCKET)
       .list(FOTO_LOGIN_PREFIX, { sortBy: { column: 'created_at', order: 'asc' } })
-    if (error) return { photos: [], error: error.message }
+    if (error) return { photos: [], error: humanDbError(error) }
     const files = (data ?? []).filter((f) => f.name && !f.name.endsWith('/'))
     return {
       photos: files.map((f) => ({
@@ -311,7 +312,7 @@ function FotoLoginSection() {
     const { error: uploadError } = await supabase.storage.from(FOTO_LOGIN_BUCKET).upload(path, file)
     setUploading(false)
     if (uploadError) {
-      setError(uploadError.message)
+      setError(humanDbError(uploadError))
       return
     }
     const result = await fetchPhotos()
@@ -324,7 +325,7 @@ function FotoLoginSection() {
     const supabase = createClient()
     const { error: deleteError } = await supabase.storage.from(FOTO_LOGIN_BUCKET).remove([`${FOTO_LOGIN_PREFIX}/${name}`])
     if (deleteError) {
-      setError(deleteError.message)
+      setError(humanDbError(deleteError))
       return
     }
     setPhotos((prev) => prev.filter((p) => p.name !== name))

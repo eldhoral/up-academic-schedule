@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { generateDaySessions, type GeneratedSlot } from '@/lib/sesi-generator'
 import { getSettings, settingInt, settingText } from '@/lib/settings'
 import { HARI_DB as HARI_VALUES } from '@/lib/hari'
+import { humanDbError } from '@/lib/db-error'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -69,7 +70,7 @@ export async function commitGeneratedSessions(
 
   if (replaceDay) {
     const { error } = await supabase.from('sessions').delete().eq('hari', hari)
-    if (error) return { ok: false, error: error.message }
+    if (error) return { ok: false, error: humanDbError(error) }
   }
 
   const rows = slots.map((s) => ({
@@ -82,7 +83,7 @@ export async function commitGeneratedSessions(
   }))
 
   const { error } = await supabase.from('sessions').insert(rows)
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: humanDbError(error) }
 
   revalidatePath('/sesi')
   return { ok: true, preview: slots }
@@ -105,7 +106,7 @@ export async function updateSessionAction(id: string, _prev: FormState, formData
 
   const supabase = await createClient()
   const { error } = await supabase.from('sessions').update(row).eq('id', id)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error) }
 
   revalidatePath('/sesi')
   return { success: true }
@@ -114,7 +115,7 @@ export async function updateSessionAction(id: string, _prev: FormState, formData
 export async function deleteSessionAction(id: string): Promise<FormState> {
   const supabase = await createClient()
   const { error } = await supabase.from('sessions').delete().eq('id', id)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error) }
 
   revalidatePath('/sesi')
   return { success: true }

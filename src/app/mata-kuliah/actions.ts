@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { humanDbError } from '@/lib/db-error'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -17,14 +18,14 @@ function readCourseForm(formData: FormData) {
 
 export async function createCourseAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const row = readCourseForm(formData)
-  if (!row.kode_mk || !row.nama_mk) return { error: 'kode_mk dan nama_mk wajib diisi.' }
-  if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'sks harus berupa angka positif.' }
-  if (row.smt < 1 || row.smt > 8) return { error: 'smt harus antara 1 dan 8.' }
-  if (row.jenis_mk !== 'A' && row.jenis_mk !== 'B') return { error: 'jenis_mk harus A atau B.' }
+  if (!row.kode_mk || !row.nama_mk) return { error: 'Kode MK dan Nama MK wajib diisi.' }
+  if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'SKS harus berupa angka positif.' }
+  if (row.smt < 1 || row.smt > 8) return { error: 'Semester harus antara 1 dan 8.' }
+  if (row.jenis_mk !== 'A' && row.jenis_mk !== 'B') return { error: 'Jenis harus Wajib atau Pilihan.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('courses').insert(row)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error, 'Kode mata kuliah') }
 
   revalidatePath('/mata-kuliah')
   return { success: true }
@@ -32,16 +33,16 @@ export async function createCourseAction(_prev: FormState, formData: FormData): 
 
 export async function updateCourseAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const row = readCourseForm(formData)
-  if (!row.kode_mk) return { error: 'kode_mk wajib diisi.' }
-  if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'sks harus berupa angka positif.' }
-  if (row.smt < 1 || row.smt > 8) return { error: 'smt harus antara 1 dan 8.' }
+  if (!row.kode_mk) return { error: 'Kode MK wajib diisi.' }
+  if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'SKS harus berupa angka positif.' }
+  if (row.smt < 1 || row.smt > 8) return { error: 'Semester harus antara 1 dan 8.' }
 
   const supabase = await createClient()
   const { error } = await supabase
     .from('courses')
     .update({ nama_mk: row.nama_mk, sks: row.sks, jenis_mk: row.jenis_mk, smt: row.smt, kurikulum: row.kurikulum })
     .eq('kode_mk', row.kode_mk)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error, 'Kode mata kuliah') }
 
   revalidatePath('/mata-kuliah')
   return { success: true }
@@ -50,7 +51,7 @@ export async function updateCourseAction(_prev: FormState, formData: FormData): 
 export async function deleteCourseAction(kodeMk: string): Promise<FormState> {
   const supabase = await createClient()
   const { error } = await supabase.from('courses').delete().eq('kode_mk', kodeMk)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error) }
 
   revalidatePath('/mata-kuliah')
   return { success: true }

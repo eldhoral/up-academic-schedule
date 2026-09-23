@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { classifyRows, parseWorkbookRows } from './engine'
 import { importTables, type ImportTableSlug } from './tables'
 import type { ImportPreview } from './engine'
+import { humanDbError } from '@/lib/db-error'
 
 export type PreviewState =
   | { ok: true; preview: ImportPreview<Record<string, unknown>> }
@@ -28,7 +29,7 @@ export async function previewImportAction(
   const supabase = await createClient()
   const { data: existingRows, error } = await supabase.from(def.slug).select('*')
   if (error) {
-    return { ok: false, error: `Gagal membaca data ${def.label} yang ada: ${error.message}` }
+    return { ok: false, error: `Gagal membaca data ${def.label} yang ada. ${humanDbError(error)}` }
   }
 
   const existingByKey = new Map<string, Record<string, unknown>>()
@@ -62,7 +63,7 @@ export async function commitImportAction(
   // A single upsert call is one SQL statement: all rows land or none do.
   const { error } = await supabase.from(def.slug).upsert(rows, { onConflict: def.keyField })
   if (error) {
-    return { ok: false, error: error.message }
+    return { ok: false, error: humanDbError(error, def.label) }
   }
 
   return { ok: true, written: rows.length }

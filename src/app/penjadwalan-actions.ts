@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getSettings, settingText } from '@/lib/settings'
 import { checkScheduleClashes, type ClashSummary } from './clash-actions'
+import { humanDbError } from '@/lib/db-error'
 
 export type FormState =
   | { error: string }
@@ -94,7 +95,7 @@ async function guardAgainstClashes(
     const settings = await getSettings()
     const izinkanOverride = settingText(settings, 'izinkan_override', 'ya') === 'ya'
     if (!izinkanOverride) {
-      return { formState: { error: 'This schedule has a blocking clash and overrides are disabled in Pengaturan.' } }
+      return { formState: { error: 'Jadwal ini bentrok dan fitur terobos bentrok sedang dinonaktifkan di Pengaturan.' } }
     }
     return { isOverride: true, overrideReason: row.overrideReason }
   }
@@ -138,13 +139,13 @@ export async function createScheduleAction(_prev: FormState, formData: FormData)
     })
     .select('id')
     .single()
-  if (insertError) return { error: insertError.message }
+  if (insertError) return { error: humanDbError(insertError, 'Jadwal untuk kelas ini') }
 
   if (dosen.length > 0) {
     const { error: lecturerError } = await supabase
       .from('schedule_lecturers')
       .insert(dosen.map((kode_dosen, i) => ({ schedule_id: inserted.id, kode_dosen, urutan: i + 1 })))
-    if (lecturerError) return { error: lecturerError.message }
+    if (lecturerError) return { error: humanDbError(lecturerError, 'Dosen ini pada jadwal') }
   }
 
   revalidatePath('/')
@@ -186,16 +187,16 @@ export async function updateScheduleAction(id: string, _prev: FormState, formDat
       override_by: guard.isOverride ? (user?.id ?? null) : null,
     })
     .eq('id', id)
-  if (updateError) return { error: updateError.message }
+  if (updateError) return { error: humanDbError(updateError, 'Jadwal untuk kelas ini') }
 
   const { error: deleteError } = await supabase.from('schedule_lecturers').delete().eq('schedule_id', id)
-  if (deleteError) return { error: deleteError.message }
+  if (deleteError) return { error: humanDbError(deleteError) }
 
   if (dosen.length > 0) {
     const { error: lecturerError } = await supabase
       .from('schedule_lecturers')
       .insert(dosen.map((kode_dosen, i) => ({ schedule_id: id, kode_dosen, urutan: i + 1 })))
-    if (lecturerError) return { error: lecturerError.message }
+    if (lecturerError) return { error: humanDbError(lecturerError, 'Dosen ini pada jadwal') }
   }
 
   revalidatePath('/')
@@ -205,7 +206,7 @@ export async function updateScheduleAction(id: string, _prev: FormState, formDat
 export async function deleteScheduleAction(id: string): Promise<FormState> {
   const supabase = await createClient()
   const { error } = await supabase.from('schedules').delete().eq('id', id)
-  if (error) return { error: error.message }
+  if (error) return { error: humanDbError(error) }
 
   revalidatePath('/')
   return { success: true }
