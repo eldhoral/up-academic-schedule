@@ -106,7 +106,7 @@ export function PenjadwalanClient({
 
   return (
     <div>
-      <div className="min-h-[3.2rem] flex items-center gap-[0.53rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
+      <div className="sticky top-[3.4rem] z-10 min-h-[3.2rem] flex items-center gap-[0.53rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
         <label className="text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-ay">
           Tahun akademik
         </label>
