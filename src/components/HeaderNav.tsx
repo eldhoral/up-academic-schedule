@@ -22,6 +22,7 @@ const SUPERADMIN_NAV = [{ href: '/pengguna', label: 'Pengguna' }]
 const CETAK_NAV = [
   { href: '/cetak', label: 'Cetak Jadwal' },
   { href: '/rekap', label: 'Rekap Dosen' },
+  { href: '/log-aktivitas', label: 'Log Aktivitas' },
 ]
 
 const linkClass = (isActive: boolean) =>
