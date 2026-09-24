@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import type { AcademicYear } from '../penjadwalan-types'
@@ -14,6 +15,7 @@ export function CetakClient({
   context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
 }) {
   const router = useRouter()
+  const [showPreview, setShowPreview] = useState(false)
 
   function navigate(next: Partial<typeof context>) {
     const merged = { ...context, ...next }
@@ -22,6 +24,7 @@ export function CetakClient({
       jenis: merged.jenis_kelas,
       smt: String(merged.semester_ke),
     })
+    setShowPreview(false)
     router.push(`/cetak?${params.toString()}`)
   }
 
@@ -72,15 +75,23 @@ export function CetakClient({
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
         />
 
+        <button
+          type="button"
+          onClick={() => setShowPreview(true)}
+          className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] bg-[var(--cekung)] font-medium cursor-pointer hover:bg-[var(--lembar)] active:scale-[0.97] transition-colors text-[0.93rem]"
+        >
+          Lihat Pratinjau PDF
+        </button>
+
         <a
           href={xlsxUrl}
-          className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
+          className="inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
         >
           Unduh Excel
         </a>
       </div>
 
-      <iframe key={pdfUrl} src={pdfUrl} title="Pratinjau Jadwal" className="flex-1 w-full border-0" />
+      {showPreview && <iframe key={pdfUrl} src={pdfUrl} title="Pratinjau Jadwal" className="flex-1 w-full border-0" />}
     </div>
   )
 }

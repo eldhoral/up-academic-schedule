@@ -8,6 +8,26 @@ const COLUMN_COUNT = COLUMN_WIDTHS.length
 const THIN = { style: 'thin' as const, color: { argb: 'FF000000' } }
 const BORDER_ALL = { top: THIN, left: THIN, bottom: THIN, right: THIN }
 
+/**
+ * Desktop Excel auto-fits row height for wrapped text when a file is opened,
+ * but Aspose's server-side PDF conversion doesn't -- it clips wrapped text to
+ * whatever height is stored, so we estimate and bake in the height ourselves.
+ * `0.85` is a deliberately conservative chars-per-line factor: overestimating
+ * only wastes a little whitespace, underestimating clips real text.
+ */
+function estimateLines(value: unknown, widthUnits: number): number {
+  const text = String(value ?? '')
+  if (!text) return 1
+  const charsPerLine = Math.max(6, Math.round(widthUnits * 0.85))
+  // A literal "\n" forces a break; each segment may still wrap further on its own.
+  return text.split('\n').reduce((sum, segment) => sum + Math.max(1, Math.ceil(segment.length / charsPerLine)), 0)
+}
+
+function setRowHeightForContent(sheet: ExcelJS.Worksheet, rowIndex: number, values: unknown[]) {
+  const lines = Math.max(...values.map((value, i) => estimateLines(value, COLUMN_WIDTHS[i])))
+  sheet.getRow(rowIndex).height = lines * 16
+}
+
 function mergedText(
   sheet: ExcelJS.Worksheet,
   row: number,
@@ -32,7 +52,7 @@ export async function buildXlsx(props: {
   jabatanPenandatangan: string
   ukuranKertas: string
   orientasi: string
-}): Promise<ExcelJS.Buffer> {
+}): Promise<Uint8Array<ArrayBuffer>> {
   const workbook = new ExcelJS.Workbook()
   // exceljs paper-size codes: 5 = Legal, 9 = A4, undefined = Letter (its default)
   const paperSize = props.ukuranKertas === 'Legal' ? 5 : props.ukuranKertas === 'Letter' ? undefined : 9
@@ -66,6 +86,7 @@ export async function buildXlsx(props: {
 
   const headerRowIndex = r
   const headerLabels = [...COLUMN_LABELS.slice(0, -1), `BOR ZOOM \n${props.zoomId}`]
+  setRowHeightForContent(sheet, r, headerLabels)
   headerLabels.forEach((label, i) => {
     const cell = sheet.getCell(r, i + 1)
     cell.value = label
@@ -89,6 +110,7 @@ export async function buildXlsx(props: {
 
     for (const row of rows) {
       const values = [row.kode_mk, row.mata_kuliah, row.sks, row.hari, row.jam, row.dosen, row.ruangan, row.zoom]
+      setRowHeightForContent(sheet, r, values)
       values.forEach((value, i) => {
         const cell = sheet.getCell(r, i + 1)
         cell.value = value
@@ -124,5 +146,5 @@ export async function buildXlsx(props: {
   // Repeats the column header row on every printed page (Excel's "Print Titles").
   sheet.pageSetup.printTitlesRow = `${headerRowIndex}:${headerRowIndex}`
 
-  return workbook.xlsx.writeBuffer()
+  return new Uint8Array(await workbook.xlsx.writeBuffer())
 }
