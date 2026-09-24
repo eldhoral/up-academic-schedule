@@ -131,9 +131,9 @@ export function CetakClient({
                 </Th>
                 <Th w="10%">HARI</Th>
                 <Th w="16%">JAM</Th>
-                <Th w="20%">NAMA DOSEN</Th>
-                <Th w="8%">RUANGAN LURING</Th>
-                <Th w="6%">BOR ZOOM {zoomId}</Th>
+                <Th w="17%">NAMA DOSEN</Th>
+                <Th w="9%">RUANGAN LURING</Th>
+                <Th w="8%">BOR ZOOM {zoomId}</Th>
               </tr>
             </thead>
             {kelasGroups.map(([kelas, rows]) => (
@@ -204,7 +204,7 @@ export function CetakClient({
 function Th({ children, w, center }: { children: React.ReactNode; w: string; center?: boolean }) {
   return (
     <th
-      style={{ width: w, textAlign: center ? 'center' : 'left', verticalAlign: 'middle' }}
+      style={{ width: w, textAlign: center ? 'center' : 'left', verticalAlign: 'middle', overflowWrap: 'break-word' }}
       className="border border-black px-[0.3rem] py-[0.2rem] font-bold text-[10pt]"
     >
       {children}
@@ -215,7 +215,12 @@ function Th({ children, w, center }: { children: React.ReactNode; w: string; cen
 function Td({ children, center, nowrap }: { children: React.ReactNode; center?: boolean; nowrap?: boolean }) {
   return (
     <td
-      style={{ textAlign: center ? 'center' : 'left', verticalAlign: 'middle', whiteSpace: nowrap ? 'nowrap' : 'normal' }}
+      style={{
+        textAlign: center ? 'center' : 'left',
+        verticalAlign: 'middle',
+        whiteSpace: nowrap ? 'nowrap' : 'normal',
+        overflowWrap: 'break-word',
+      }}
       className="border border-black px-[0.3rem] py-[0.15rem]"
     >
       {children}

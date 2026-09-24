@@ -11,7 +11,7 @@ function pageCss(ukuranKertas: string, orientasi: string): string {
   const orientation = orientasi === 'landscape' ? 'landscape' : 'portrait'
   return `
     @media print {
-      @page { size: ${size} ${orientation}; margin: 1.5cm; }
+      @page { size: ${size} ${orientation}; margin: 1.5cm 1cm; }
       .print-sheet { padding: 0 !important; }
     }
     .print-sheet, .print-sheet * { font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif !important; line-height: 1.25; }
