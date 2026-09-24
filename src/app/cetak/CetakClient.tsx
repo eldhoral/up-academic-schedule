@@ -121,16 +121,16 @@ export function CetakClient({
         {kelasGroups.length === 0 && <p className="text-center text-[11pt] py-[2rem]">Tidak ada data jadwal untuk pilihan ini.</p>}
 
         {kelasGroups.length > 0 && (
-          <table className="w-full border-collapse mb-[1rem] text-[10pt]">
+          <table className="w-full border-collapse mb-[1rem] text-[10pt]" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
                 <Th w="10%">KODE MK</Th>
-                <Th w="26%">MATA KULIAH</Th>
+                <Th w="24%">MATA KULIAH</Th>
                 <Th w="6%" center>
                   SKS
                 </Th>
                 <Th w="10%">HARI</Th>
-                <Th w="14%">JAM</Th>
+                <Th w="16%">JAM</Th>
                 <Th w="20%">NAMA DOSEN</Th>
                 <Th w="8%">RUANGAN LURING</Th>
                 <Th w="6%">BOR ZOOM {zoomId}</Th>
@@ -163,7 +163,7 @@ export function CetakClient({
                         </Td>
                         <Td center>{r.courses?.sks ?? ''}</Td>
                         <Td>{r.hari}</Td>
-                        <Td>
+                        <Td nowrap>
                           {r.jam_mulai.slice(0, 5)} - {r.jam_selesai.slice(0, 5)}
                         </Td>
                         <Td>{dosen}</Td>
@@ -204,7 +204,7 @@ export function CetakClient({
 function Th({ children, w, center }: { children: React.ReactNode; w: string; center?: boolean }) {
   return (
     <th
-      style={{ width: w, textAlign: center ? 'center' : 'left' }}
+      style={{ width: w, textAlign: center ? 'center' : 'left', verticalAlign: 'middle' }}
       className="border border-black px-[0.3rem] py-[0.2rem] font-bold text-[10pt]"
     >
       {children}
@@ -212,9 +212,12 @@ function Th({ children, w, center }: { children: React.ReactNode; w: string; cen
   )
 }
 
-function Td({ children, center }: { children: React.ReactNode; center?: boolean }) {
+function Td({ children, center, nowrap }: { children: React.ReactNode; center?: boolean; nowrap?: boolean }) {
   return (
-    <td style={{ textAlign: center ? 'center' : 'left' }} className="border border-black px-[0.3rem] py-[0.15rem]">
+    <td
+      style={{ textAlign: center ? 'center' : 'left', verticalAlign: 'middle', whiteSpace: nowrap ? 'nowrap' : 'normal' }}
+      className="border border-black px-[0.3rem] py-[0.15rem]"
+    >
       {children}
     </td>
   )
