@@ -3,6 +3,7 @@ import { lecturerDisplayName } from '@/lib/import/tables'
 import { HARI_DB } from '@/lib/hari'
 import { REKAP_COLUMN_ALIGN, REKAP_COLUMN_LABELS, REKAP_COLUMN_WIDTHS, REKAP_SIGNATURE_START_COLUMN } from './rekap-columns'
 import { LOGO_UP_PNG_BASE64 } from './logo-up'
+import { FOOTER_BANNER_PNG_BASE64 } from './footer-banner'
 import type { ScheduleRow, Lecturer } from '../penjadwalan-types'
 
 const COLUMN_COUNT = REKAP_COLUMN_WIDTHS.length
@@ -67,17 +68,34 @@ function writeTableSection(sheet: ExcelJS.Worksheet, r: number, title: string, r
   return r
 }
 
+// Logo sized/positioned and kop text font/alignment match the reference's
+// header1.xml exactly (wp:extent for the image, w:ind + rFonts/sz per run):
+// a ~5.4x3.4cm logo with the text starting to its right, not centered above
+// it -- title in Ebrima 18pt bold, address lines in the default 12pt.
 function writeLetterheadAndRule(sheet: ExcelJS.Worksheet, imageId: number, r: number, kopLines: string[]): number {
-  sheet.addImage(imageId, { tl: { col: 0, row: r - 1 }, ext: { width: 70, height: 44 } })
+  sheet.addImage(imageId, { tl: { col: 0, row: r - 1 }, ext: { width: 205, height: 130 } })
 
   kopLines.forEach((line, i) => {
-    mergedText(sheet, r + i, line, { bold: i === 0, size: i === 0 ? 12 : 9, align: 'center' })
+    const cell = sheet.getCell(r + i, 3)
+    cell.value = line
+    cell.font = i === 0 ? { name: 'Ebrima', bold: true, size: 18 } : { size: 12 }
+    cell.alignment = { horizontal: 'left', wrapText: false }
+    sheet.getRow(r + i).height = i === 0 ? 24 : 18
   })
   const lastRow = r + kopLines.length - 1
   sheet.getRow(lastRow).eachCell({ includeEmpty: true }, (cell) => {
     cell.border = { bottom: { style: 'medium', color: { argb: 'FF000000' } } }
   })
   return lastRow + 1
+}
+
+// Excel has no equivalent of Word's floating footer image, so this renders
+// as the last block of page content instead of a true fixed-position
+// footer -- it lands near the bottom because each lecturer's letter is
+// short relative to the page, not because it's pinned there.
+function writeFooterBanner(sheet: ExcelJS.Worksheet, imageId: number, r: number): number {
+  sheet.addImage(imageId, { tl: { col: 0, row: r - 1 }, ext: { width: 760, height: 65 } })
+  return r + 4
 }
 
 /** Sanitizes a lecturer's name into a safe, unique-enough Excel sheet name (max 31 chars, no []:*?/\). */
@@ -117,7 +135,8 @@ export async function buildSuratXlsx(data: {
     margins: { top: 0.6, bottom: 0.6, left: 0.4, right: 0.4, header: 0.3, footer: 0.3 },
     horizontalCentered: false,
   }
-  const imageId = workbook.addImage({ base64: `data:image/png;base64,${LOGO_UP_PNG_BASE64}`, extension: 'png' })
+  const logoImageId = workbook.addImage({ base64: `data:image/png;base64,${LOGO_UP_PNG_BASE64}`, extension: 'png' })
+  const footerImageId = workbook.addImage({ base64: `data:image/png;base64,${FOOTER_BANNER_PNG_BASE64}`, extension: 'png' })
   const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 
   if (data.lecturersToRender.length === 0) {
@@ -134,7 +153,7 @@ export async function buildSuratXlsx(data: {
     const sheet = workbook.addWorksheet(sheetNameFor(lecturer, index), { pageSetup })
     sheet.columns = REKAP_COLUMN_WIDTHS.map((width) => ({ width }))
 
-    let r = writeLetterheadAndRule(sheet, imageId, 1, data.kopLines)
+    let r = writeLetterheadAndRule(sheet, logoImageId, 1, data.kopLines)
     r++
 
     sheet.mergeCells(r, 1, r, 3)
@@ -217,6 +236,8 @@ export async function buildSuratXlsx(data: {
       mergedText(sheet, r, line, { size: 10 })
       r++
     }
+    r++
+    writeFooterBanner(sheet, footerImageId, r)
   })
 
   return new Uint8Array(await workbook.xlsx.writeBuffer())
