@@ -21,12 +21,13 @@ export type SettingRow = {
   urutan: number
 }
 
-const GROUP_ORDER = ['waktu', 'kelas', 'bentrok', 'cetak']
+const GROUP_ORDER = ['waktu', 'kelas', 'bentrok', 'cetak', 'surat']
 const GROUP_LABEL: Record<string, string> = {
   waktu: 'Waktu & Sesi',
   kelas: 'Kelas',
   bentrok: 'Bentrok',
   cetak: 'Cetak',
+  surat: 'Surat Penugasan',
 }
 
 const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
@@ -51,7 +52,7 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
 }
 
-const TEXTAREA_KEYS = new Set(['header_baris', 'keterangan_cetak'])
+const TEXTAREA_KEYS = new Set(['header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'tembusan'])
 
 export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
   const [state, formAction, isPending] = useActionState<FormState, FormData>(saveSettingsAction, null)
@@ -126,7 +127,7 @@ function SettingField({ row }: { row: SettingRow }) {
 
 function SettingInput({ row, name }: { row: SettingRow; name: string }) {
   if (row.key === 'hari_aktif') return <HariAktifField name={name} value={row.value} />
-  if (row.key === 'gambar_tanda_tangan') return <ImageField name={name} value={row.value} />
+  if (row.type === 'image') return <ImageField name={name} value={row.value} />
 
   const options = SELECT_OPTIONS[row.key]
   if (options) {
