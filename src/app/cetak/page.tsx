@@ -40,10 +40,14 @@ export default async function CetakPage(props: PageProps<'/cetak'>) {
 
   const year = years.find((y) => y.id === context.academic_year_id)
   const angkatan = computeAngkatan(context.academic_year_id, context.semester_ke)
+  const label = year?.label ?? ''
+  const space = label.indexOf(' ')
   const templateVars = {
     semester: romanSemester(context.semester_ke),
     angkatan: String(angkatan),
-    tahun_akademik: year?.label ?? '',
+    tahun_akademik: label,
+    tahun: space === -1 ? label : label.slice(0, space),
+    term: space === -1 ? '' : label.slice(space + 1).toUpperCase(),
   }
   const headerLines = settingText(settings, 'header_baris', '')
     .split('\n')

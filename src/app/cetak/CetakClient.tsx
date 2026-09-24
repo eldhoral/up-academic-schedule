@@ -3,9 +3,11 @@
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
+import { HARI_DB } from '@/lib/hari'
 import type { AcademicYear, ScheduleRow } from '../penjadwalan-types'
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
+const hariIndex = (h: string) => (HARI_DB as readonly string[]).indexOf(h)
 
 export function CetakClient({
   academicYears,
@@ -15,7 +17,6 @@ export function CetakClient({
   zoomId,
   zoomPasscode,
   keteranganLines,
-  kota,
   namaPenandatangan,
   jabatanPenandatangan,
   gambarTandaTangan,
@@ -53,8 +54,6 @@ export function CetakClient({
     byKelas.set(s.kelas, list)
   }
   const kelasGroups = Array.from(byKelas.entries()).sort(([a], [b]) => a.localeCompare(b))
-
-  const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 
   return (
     <div>
@@ -133,8 +132,8 @@ export function CetakClient({
                 <Th w="10%">HARI</Th>
                 <Th w="14%">JAM</Th>
                 <Th w="20%">NAMA DOSEN</Th>
-                <Th w="8%">RUANGAN</Th>
-                <Th w="6%">ZOOM</Th>
+                <Th w="8%">RUANGAN LURING</Th>
+                <Th w="6%">BOR ZOOM {zoomId}</Th>
               </tr>
             </thead>
             {kelasGroups.map(([kelas, rows]) => (
@@ -145,7 +144,7 @@ export function CetakClient({
                   </td>
                 </tr>
                 {rows
-                  .sort((a, b) => a.hari.localeCompare(b.hari) || a.jam_mulai.localeCompare(b.jam_mulai))
+                  .sort((a, b) => hariIndex(a.hari) - hariIndex(b.hari) || a.jam_mulai.localeCompare(b.jam_mulai))
                   .map((r) => {
                     const suffix = r.minggu === 'ganjil' ? ' (A)' : r.minggu === 'genap' ? ' (B)' : ''
                     const dosen =
@@ -187,10 +186,7 @@ export function CetakClient({
           ))}
         </div>
 
-        <div className="mt-[2.5rem] text-right text-[10pt]" style={{ marginLeft: '55%' }}>
-          <p className="m-0">
-            {kota}, {today}
-          </p>
+        <div className="mt-[2.5rem] text-center text-[10pt]" style={{ marginLeft: '55%' }}>
           <p className="m-0 mt-[0.3rem]">{jabatanPenandatangan}</p>
           {gambarTandaTangan ? (
             // eslint-disable-next-line @next/next/no-img-element
