@@ -13,6 +13,8 @@ import {
   BorderStyle,
   AlignmentType,
   VerticalAlign,
+  Tab,
+  TabStopType,
   Packer,
 } from 'docx'
 import { lecturerDisplayName } from '@/lib/import/tables'
@@ -22,6 +24,15 @@ import { FOOTER_BANNER_PNG_BASE64 } from './footer-banner'
 import type { ScheduleRow, Lecturer } from '../penjadwalan-types'
 
 const hariIndex = (h: string) => (HARI_DB as readonly string[]).indexOf(h)
+
+// A4 in twips (1440 per inch), with 2.5cm side margins -> matches the
+// reference's usable content width. Percentage-based table widths turned
+// out not to resolve reliably in Word/QuickLook (only docx-preview's more
+// lenient renderer tolerated them) -- every table here uses explicit DXA
+// (twip) widths instead, verified against a real docx-compatible renderer.
+const PAGE_WIDTH_DXA = 11906
+const PAGE_MARGIN_DXA = 1417
+const CONTENT_WIDTH_DXA = PAGE_WIDTH_DXA - PAGE_MARGIN_DXA * 2
 const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
 const NO_BORDERS = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER }
 const CELL_BORDER = { style: BorderStyle.SINGLE, size: 2, color: '000000' }
@@ -108,16 +119,18 @@ function tableSection(title: string, rows: ScheduleRow[]) {
 
 function buildHeader(kopLines: string[]): Header {
   const logo = Buffer.from(LOGO_UP_PNG_BASE64, 'base64')
+  const logoColWidth = Math.round(CONTENT_WIDTH_DXA * 0.13)
+  const textColWidth = CONTENT_WIDTH_DXA - logoColWidth
   return new Header({
     children: [
       new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA },
+        columnWidths: [logoColWidth, textColWidth],
         borders: NO_BORDERS,
         rows: [
           new TableRow({
             children: [
               new TableCell({
-                width: { size: 18, type: WidthType.PERCENTAGE },
                 verticalAlign: VerticalAlign.CENTER,
                 borders: NO_BORDERS,
                 children: [
@@ -128,7 +141,6 @@ function buildHeader(kopLines: string[]): Header {
                 ],
               }),
               new TableCell({
-                width: { size: 82, type: WidthType.PERCENTAGE },
                 verticalAlign: VerticalAlign.CENTER,
                 borders: NO_BORDERS,
                 children: kopLines.map(
@@ -183,26 +195,17 @@ function buildLetterParagraphs(
   tanggal: string,
 ): (Paragraph | Table)[] {
   const signatureImage = data.gambarTandaTanganDekan ? parseImageDataUri(data.gambarTandaTanganDekan) : null
-  const nomorRow = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: NO_BORDERS,
-    rows: [
-      new TableRow({
-        children: [
-          new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, children: [textParagraph(`Nomor: ${data.nomorSurat}`)] }),
-          new TableCell({
-            width: { size: 50, type: WidthType.PERCENTAGE },
-            borders: NO_BORDERS,
-            children: [textParagraph(`${data.kota}, ${tanggal}`, { align: AlignmentType.RIGHT })],
-          }),
-        ],
-      }),
-    ],
+  // A right tab stop at the page's right margin, rather than a borderless
+  // table -- more reliably supported across docx renderers for a simple
+  // "left text ... right text" line.
+  const nomorRow = new Paragraph({
+    tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH_DXA }],
+    children: [new TextRun(`Nomor: ${data.nomorSurat}`), new TextRun({ children: [new Tab()] }), new TextRun(`${data.kota}, ${tanggal}`)],
   })
 
   const table = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    columnWidths: [500, 3200, 500, 900, 1400, 700, 900],
+    width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA },
+    columnWidths: [500, 4172, 500, 900, 1400, 700, 900],
     rows: [
       new TableRow({
         children: [
@@ -300,7 +303,8 @@ export async function buildSuratDocx(data: {
       {
         properties: {
           page: {
-            margin: { top: '1.5cm', bottom: '1.5cm', left: '2.5cm', right: '2cm', header: '1cm', footer: '0.8cm' },
+            size: { width: PAGE_WIDTH_DXA, height: 16838 },
+            margin: { top: 850, bottom: 850, left: PAGE_MARGIN_DXA, right: PAGE_MARGIN_DXA, header: 567, footer: 454 },
           },
         },
         headers: { default: header },
