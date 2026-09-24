@@ -12,18 +12,19 @@ export type AuthState = {
 }
 
 /** Best-effort: sign-in/out never fails because logging failed (e.g. service
- *  role key not configured yet). */
+ *  role key not configured yet), but the failure is logged so it's visible. */
 async function logAuthEvent(action: 'LOGIN' | 'LOGOUT', userId: string, email: string) {
   try {
     const admin = createAdminClient()
-    await admin.from('audit_log').insert({
+    const { error } = await admin.from('audit_log').insert({
       actor_id: userId,
       actor_email: email,
       action,
       table_name: 'auth',
     })
-  } catch {
-    // ignore — see comment above
+    if (error) console.error(`audit_log ${action} insert failed:`, error.message)
+  } catch (err) {
+    console.error(`audit_log ${action} insert failed:`, err)
   }
 }
 

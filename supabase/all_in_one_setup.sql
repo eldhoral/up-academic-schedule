@@ -1211,3 +1211,10 @@ exception when others then
 end $$;
 
 select cron.schedule('purge_old_audit_log', '0 3 * * *', 'select purge_old_audit_log()');
+
+-- ==============================================================================
+-- Migration: 20260924000010_grant_service_role_audit_log.sql
+-- Description: Let the service-role client insert LOGIN/LOGOUT entries.
+-- ==============================================================================
+
+grant select, insert on audit_log to service_role;
