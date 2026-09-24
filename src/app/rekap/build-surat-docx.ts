@@ -5,7 +5,7 @@ import {
   Paragraph,
   TextRun,
   ImageRun,
-  PageBreak,
+  ExternalHyperlink,
   Table,
   TableRow,
   TableCell,
@@ -13,9 +13,16 @@ import {
   BorderStyle,
   AlignmentType,
   VerticalAlign,
+  HeightRule,
+  HorizontalPositionRelativeFrom,
+  VerticalPositionRelativeFrom,
+  TextWrappingType,
+  LevelFormat,
   Tab,
   TabStopType,
   Packer,
+  type ParagraphChild,
+  type IRunOptions,
 } from 'docx'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { HARI_DB } from '@/lib/hari'
@@ -23,28 +30,35 @@ import { LOGO_UP_PNG_BASE64 } from './logo-up'
 import { FOOTER_BANNER_PNG_BASE64 } from './footer-banner'
 import type { ScheduleRow, Lecturer } from '../penjadwalan-types'
 
+// Every measurement below is copied from the faculty's reference,
+// docs/Draft Surat Penugasan Pengampu Dosen MK Gasal 26-27.docx (its
+// document.xml / header1.xml / footer1.xml): Letter page, Arial 11pt body,
+// tab stops, table grid, border styles, row heights, image extents.
+// Twips (1/1440 in) for layout; EMU (914400/in) for floating image offsets.
+const EMU_PER_PX = 9525
+
+const PAGE = { width: 12240, height: 15840 } // Letter
+const MARGIN = { top: 709, right: 1440, bottom: 0, left: 1440, header: 720, footer: 720 }
+const BODY_TABS = [
+  { type: TabStopType.LEFT, position: 993 },
+  { type: TabStopType.LEFT, position: 1134 },
+  { type: TabStopType.LEFT, position: 6521 },
+]
+const TABLE_WIDTH = 9453
+const TABLE_GRID = [608, 3458, 843, 1120, 1394, 989, 1041]
+const HYPERLINK_COLOR = '0563C1'
+// Fonts go on every run, as in the reference: QuickLook/Pages ignore docDefaults.
+// The kop's address lines use the theme's minorBidi font, which Word resolves to Times New Roman.
+const KOP_FONT = 'Times New Roman'
+
+const run = (o: string | IRunOptions) => new TextRun({ font: 'Arial', ...(typeof o === 'string' ? { text: o } : o) })
+
 const hariIndex = (h: string) => (HARI_DB as readonly string[]).indexOf(h)
+const SINGLE = { style: BorderStyle.SINGLE, size: 4, color: 'auto' }
+const THIN_THICK = { style: BorderStyle.THIN_THICK_SMALL_GAP, size: 24, color: 'auto' }
+const THICK_THIN = { style: BorderStyle.THICK_THIN_SMALL_GAP, size: 24, color: 'auto' }
 
-// A4 in twips (1440 per inch), with 2.5cm side margins -> matches the
-// reference's usable content width. Percentage-based table widths turned
-// out not to resolve reliably in Word/QuickLook (only docx-preview's more
-// lenient renderer tolerated them) -- every table here uses explicit DXA
-// (twip) widths instead, verified against a real docx-compatible renderer.
-const PAGE_WIDTH_DXA = 11906
-const PAGE_MARGIN_DXA = 1417
-const CONTENT_WIDTH_DXA = PAGE_WIDTH_DXA - PAGE_MARGIN_DXA * 2
-const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-const NO_BORDERS = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER }
-const CELL_BORDER = { style: BorderStyle.SINGLE, size: 2, color: '000000' }
-const ALL_CELL_BORDERS = { top: CELL_BORDER, bottom: CELL_BORDER, left: CELL_BORDER, right: CELL_BORDER }
-
-const DOCX_IMAGE_TYPES: Record<string, 'png' | 'jpg' | 'gif' | 'bmp'> = {
-  png: 'png',
-  jpeg: 'jpg',
-  jpg: 'jpg',
-  gif: 'gif',
-  bmp: 'bmp',
-}
+const DOCX_IMAGE_TYPES: Record<string, 'png' | 'jpg' | 'gif' | 'bmp'> = { png: 'png', jpeg: 'jpg', jpg: 'jpg', gif: 'gif', bmp: 'bmp' }
 
 /** Parses a "data:image/png;base64,..." string from the settings' image upload field. */
 function parseImageDataUri(dataUri: string): { type: 'png' | 'jpg' | 'gif' | 'bmp'; data: Buffer } | null {
@@ -55,109 +69,148 @@ function parseImageDataUri(dataUri: string): { type: 'png' | 'jpg' | 'gif' | 'bm
   return { type, data: Buffer.from(match[2], 'base64') }
 }
 
+/** "PENGEMBANGAN DIRI DAN KARIER" -> "Pengembangan Diri Dan Karier", keeping roman numerals ("STATISTIKA II" -> "Statistika II"). */
+function titleCase(text: string): string {
+  return text
+    .split(/(\s+)/)
+    .map((w) => (/^[IVXLC]+$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+    .join('')
+}
+
 function sortByHariJam(rows: ScheduleRow[]): ScheduleRow[] {
   return [...rows].sort((a, b) => hariIndex(a.hari) - hariIndex(b.hari) || a.jam_mulai.localeCompare(b.jam_mulai))
 }
 
-function textParagraph(text: string, opts: { bold?: boolean; align?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}) {
-  return new Paragraph({ alignment: opts.align, children: [new TextRun({ text, bold: opts.bold ?? false })] })
-}
-
-function cell(text: string, opts: { bold?: boolean; align?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}) {
-  return new TableCell({
-    borders: ALL_CELL_BORDERS,
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 40, bottom: 40, left: 60, right: 60 },
-    children: [textParagraph(text, { bold: opts.bold, align: opts.align ?? AlignmentType.LEFT })],
+function bodyParagraph(
+  children: ParagraphChild[] | string,
+  opts: { bold?: boolean; justify?: boolean; indentLeft?: number; pageBreakBefore?: boolean } = {},
+) {
+  return new Paragraph({
+    tabStops: BODY_TABS,
+    pageBreakBefore: opts.pageBreakBefore,
+    alignment: opts.justify ? AlignmentType.JUSTIFIED : undefined,
+    indent: opts.indentLeft ? { left: opts.indentLeft } : undefined,
+    children: typeof children === 'string' ? [run({ text: children, bold: opts.bold })] : children,
   })
 }
 
-function tableSection(title: string, rows: ScheduleRow[]) {
-  const banner = new TableRow({
+const tab = () => run({ children: [new Tab()] })
+
+function tableCell(text: string, opts: { bold?: boolean; center?: boolean; span?: number; width: number; borders?: object }) {
+  return new TableCell({
+    width: { size: opts.width, type: WidthType.DXA },
+    columnSpan: opts.span,
+    verticalAlign: VerticalAlign.CENTER,
+    borders: opts.borders,
     children: [
-      new TableCell({
-        columnSpan: 7,
-        borders: ALL_CELL_BORDERS,
-        margins: { top: 40, bottom: 40, left: 60, right: 60 },
-        children: [textParagraph(title, { bold: true })],
+      new Paragraph({
+        alignment: opts.center ? AlignmentType.CENTER : undefined,
+        children: [run({ text, bold: opts.bold })],
       }),
     ],
   })
+}
 
-  if (rows.length === 0) {
-    return [
-      banner,
-      new TableRow({
-        children: [
-          new TableCell({
-            columnSpan: 7,
-            borders: ALL_CELL_BORDERS,
-            margins: { top: 40, bottom: 40, left: 60, right: 60 },
-            children: [textParagraph('—', { align: AlignmentType.CENTER })],
-          }),
-        ],
-      }),
-    ]
+function buildTable(rows: ScheduleRow[]): Table {
+  const thickEdges = { top: THIN_THICK, bottom: THICK_THIN }
+  const header = new TableRow({
+    height: { value: 580, rule: HeightRule.ATLEAST },
+    children: ['NO.', 'MATA KULIAH', 'SKS', 'HARI', 'JAM', 'KELAS', 'RUANG'].map((label, i) =>
+      tableCell(label, { bold: true, center: true, width: TABLE_GRID[i], borders: thickEdges }),
+    ),
+  })
+
+  const section = (title: string, list: ScheduleRow[], first: boolean) => {
+    const banner = new TableRow({
+      height: { value: first ? 580 : 504, rule: HeightRule.ATLEAST },
+      children: [tableCell(title, { bold: true, span: 7, width: TABLE_WIDTH, borders: first ? thickEdges : undefined })],
+    })
+    if (list.length === 0) {
+      return [
+        banner,
+        new TableRow({
+          height: { value: 504, rule: HeightRule.ATLEAST },
+          children: [tableCell('—', { center: true, span: 7, width: TABLE_WIDTH })],
+        }),
+      ]
+    }
+    const data = sortByHariJam(list).map(
+      (r, i) =>
+        new TableRow({
+          height: { value: 504, rule: HeightRule.ATLEAST },
+          children: [
+            tableCell(`${i + 1}.`, { center: true, width: TABLE_GRID[0] }),
+            tableCell(titleCase(r.courses?.nama_mk ?? r.kode_mk), { width: TABLE_GRID[1] }),
+            tableCell(String(r.courses?.sks ?? ''), { center: true, width: TABLE_GRID[2] }),
+            tableCell(titleCase(r.hari), { center: true, width: TABLE_GRID[3] }),
+            tableCell(`${r.jam_mulai.slice(0, 5)}-${r.jam_selesai.slice(0, 5)}`.replace(/:/g, '.'), { center: true, width: TABLE_GRID[4] }),
+            tableCell(r.kelas, { center: true, width: TABLE_GRID[5] }),
+            tableCell(r.rooms?.nama ?? '', { center: true, width: TABLE_GRID[6] }),
+          ],
+        }),
+    )
+    return [banner, ...data]
   }
 
-  const dataRows = sortByHariJam(rows).map(
-    (r, i) =>
-      new TableRow({
-        children: [
-          cell(String(i + 1), { align: AlignmentType.CENTER }),
-          cell(r.courses?.nama_mk ?? r.kode_mk),
-          cell(String(r.courses?.sks ?? ''), { align: AlignmentType.CENTER }),
-          cell(r.hari, { align: AlignmentType.CENTER }),
-          cell(`${r.jam_mulai.slice(0, 5)} - ${r.jam_selesai.slice(0, 5)}`, { align: AlignmentType.CENTER }),
-          cell(r.kelas, { align: AlignmentType.CENTER }),
-          cell(r.rooms?.nama ?? '', { align: AlignmentType.CENTER }),
-        ],
+  return new Table({
+    width: { size: TABLE_WIDTH, type: WidthType.DXA },
+    columnWidths: TABLE_GRID,
+    borders: { top: THIN_THICK, left: THIN_THICK, bottom: THICK_THIN, right: THICK_THIN, insideHorizontal: SINGLE, insideVertical: SINGLE },
+    rows: [
+      header,
+      ...section('Kelas Reguler', rows.filter((s) => s.jenis_kelas === 'reguler'), true),
+      ...section('Kelas Reguler Khusus', rows.filter((s) => s.jenis_kelas === 'regsus'), false),
+    ],
+  })
+}
+
+/** Splits a kop line into text + blue underlined hyperlinks for any URL or email in it. */
+function kopLineRuns(line: string): ParagraphChild[] {
+  const runs: ParagraphChild[] = []
+  const pattern = /(https?:\/\/\S+|[\w.+-]+@[\w-]+\.[\w.]+)/g
+  let last = 0
+  for (const match of line.matchAll(pattern)) {
+    const at = match.index ?? 0
+    if (at > last) runs.push(new TextRun({ text: line.slice(last, at), size: 24, font: KOP_FONT }))
+    const target = match[0]
+    runs.push(
+      new ExternalHyperlink({
+        link: target.includes('@') && !target.startsWith('http') ? `mailto:${target}` : target,
+        children: [new TextRun({ text: target, size: 24, font: KOP_FONT, color: HYPERLINK_COLOR, underline: {} })],
       }),
-  )
-  return [banner, ...dataRows]
+    )
+    last = at + target.length
+  }
+  if (last < line.length) runs.push(new TextRun({ text: line.slice(last), size: 24, font: KOP_FONT }))
+  return runs
 }
 
 function buildHeader(kopLines: string[]): Header {
-  const logo = Buffer.from(LOGO_UP_PNG_BASE64, 'base64')
-  const logoColWidth = Math.round(CONTENT_WIDTH_DXA * 0.13)
-  const textColWidth = CONTENT_WIDTH_DXA - logoColWidth
+  const [title = '', ...rest] = kopLines
+  const logo = new ImageRun({
+    type: 'png',
+    data: Buffer.from(LOGO_UP_PNG_BASE64, 'base64'),
+    transformation: { width: Math.round(1951812 / EMU_PER_PX), height: Math.round(1238013 / EMU_PER_PX) },
+    floating: {
+      horizontalPosition: { relative: HorizontalPositionRelativeFrom.COLUMN, offset: -1042035 },
+      verticalPosition: { relative: VerticalPositionRelativeFrom.PARAGRAPH, offset: -119380 },
+      behindDocument: true,
+      wrap: { type: TextWrappingType.NONE },
+    },
+  })
   return new Header({
     children: [
-      new Table({
-        width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA },
-        columnWidths: [logoColWidth, textColWidth],
-        borders: NO_BORDERS,
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({
-                verticalAlign: VerticalAlign.CENTER,
-                borders: NO_BORDERS,
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [new ImageRun({ type: 'png', data: logo, transformation: { width: 80, height: 80 } })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                verticalAlign: VerticalAlign.CENTER,
-                borders: NO_BORDERS,
-                children: kopLines.map(
-                  (line, i) =>
-                    new Paragraph({
-                      spacing: { after: 0 },
-                      children: [new TextRun({ text: line, bold: i === 0, size: i === 0 ? 32 : 22, font: i === 0 ? 'Ebrima' : undefined })],
-                    }),
-                ),
-              }),
-            ],
-          }),
-        ],
-      }),
       new Paragraph({
-        spacing: { before: 60 },
-        border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000' } },
+        indent: { firstLine: 851, right: -710 },
+        children: [logo, new TextRun({ text: title, font: 'Ebrima', size: 36, bold: true })],
+      }),
+      ...rest.map((line) => new Paragraph({ indent: { left: 851, right: -1135 }, children: kopLineRuns(line) })),
+      // The reference draws a 3pt, 18.1cm-wide line shape under the kop; a
+      // paragraph border widened past the margins renders the same in every
+      // docx viewer, unlike a floating shape.
+      new Paragraph({
+        indent: { left: -454, right: -454 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 24, color: '000000', space: 1 } },
         children: [],
       }),
     ],
@@ -165,109 +218,32 @@ function buildHeader(kopLines: string[]): Header {
 }
 
 function buildFooter(): Footer {
-  const banner = Buffer.from(FOOTER_BANNER_PNG_BASE64, 'base64')
   return new Footer({
     children: [
       new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new ImageRun({ type: 'png', data: banner, transformation: { width: 500, height: 43 } })],
-      }),
-    ],
-  })
-}
-
-function buildLetterParagraphs(
-  lecturer: Lecturer,
-  rows: ScheduleRow[],
-  data: {
-    kota: string
-    namaFakultas: string
-    term: string
-    tahun: string
-    nomorSurat: string
-    lampiranSurat: string
-    perihalSurat: string
-    catatanPerkuliahan: string
-    namaDekan: string
-    jabatanDekan: string
-    gambarTandaTanganDekan: string
-  },
-  tanggal: string,
-): (Paragraph | Table)[] {
-  const signatureImage = data.gambarTandaTanganDekan ? parseImageDataUri(data.gambarTandaTanganDekan) : null
-  // A right tab stop at the page's right margin, rather than a borderless
-  // table -- more reliably supported across docx renderers for a simple
-  // "left text ... right text" line.
-  const nomorRow = new Paragraph({
-    tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH_DXA }],
-    children: [new TextRun(`Nomor: ${data.nomorSurat}`), new TextRun({ children: [new Tab()] }), new TextRun(`${data.kota}, ${tanggal}`)],
-  })
-
-  const table = new Table({
-    width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA },
-    columnWidths: [500, 4172, 500, 900, 1400, 700, 900],
-    rows: [
-      new TableRow({
         children: [
-          cell('NO.', { bold: true, align: AlignmentType.CENTER }),
-          cell('MATA KULIAH', { bold: true, align: AlignmentType.CENTER }),
-          cell('SKS', { bold: true, align: AlignmentType.CENTER }),
-          cell('HARI', { bold: true, align: AlignmentType.CENTER }),
-          cell('JAM', { bold: true, align: AlignmentType.CENTER }),
-          cell('KELAS', { bold: true, align: AlignmentType.CENTER }),
-          cell('RUANG', { bold: true, align: AlignmentType.CENTER }),
+          new ImageRun({
+            type: 'png',
+            data: Buffer.from(FOOTER_BANNER_PNG_BASE64, 'base64'),
+            transformation: { width: Math.round(7444001 / EMU_PER_PX), height: Math.round(638132 / EMU_PER_PX) },
+            floating: {
+              horizontalPosition: { relative: HorizontalPositionRelativeFrom.MARGIN, offset: -723900 },
+              verticalPosition: { relative: VerticalPositionRelativeFrom.PARAGRAPH, offset: 0 },
+              behindDocument: true,
+              wrap: { type: TextWrappingType.NONE },
+            },
+          }),
         ],
       }),
-      ...tableSection('Kelas Reguler', rows.filter((s) => s.jenis_kelas === 'reguler')),
-      ...tableSection('Kelas Reguler Khusus', rows.filter((s) => s.jenis_kelas === 'regsus')),
     ],
   })
-
-  return [
-    nomorRow,
-    textParagraph(`Lampiran: ${data.lampiranSurat}`),
-    textParagraph(`Perihal: ${data.perihalSurat}`),
-    textParagraph(''),
-    textParagraph('Kepada Yth.'),
-    textParagraph(`Bapak/Ibu/Sdr. ${lecturerDisplayName(lecturer)}`),
-    textParagraph(`Dosen ${data.namaFakultas}`),
-    textParagraph('Universitas Pancasila'),
-    textParagraph('Di Tempat'),
-    textParagraph(''),
-    textParagraph('Dengan hormat,'),
-    textParagraph(''),
-    textParagraph(`Berikut disampaikan jadwal mengajar Bapak/Ibu/Sdr. pada Semester ${data.term} Tahun Akademik ${data.tahun} :`),
-    table,
-    textParagraph(''),
-    textParagraph(data.catatanPerkuliahan),
-    textParagraph(''),
-    textParagraph('Demikian agar menjadi perhatian.'),
-    textParagraph(''),
-    textParagraph(''),
-    new Paragraph({ indent: { left: 5000 }, children: [new TextRun({ text: data.jabatanDekan })] }),
-    signatureImage
-      ? new Paragraph({
-          indent: { left: 5000 },
-          children: [new ImageRun({ type: signatureImage.type, data: signatureImage.data, transformation: { width: 120, height: 60 } })],
-        })
-      : textParagraph(''),
-    textParagraph(''),
-    textParagraph(''),
-    new Paragraph({
-      indent: { left: 5000 },
-      children: [new TextRun({ text: data.namaDekan, bold: true, underline: {} })],
-    }),
-  ]
 }
 
-export async function buildSuratDocx(data: {
-  lecturersToRender: Lecturer[]
-  byDosen: Map<string, ScheduleRow[]>
+type LetterData = {
   kota: string
   namaFakultas: string
   term: string
   tahun: string
-  kopLines: string[]
   nomorSurat: string
   lampiranSurat: string
   perihalSurat: string
@@ -276,39 +252,105 @@ export async function buildSuratDocx(data: {
   jabatanDekan: string
   gambarTandaTanganDekan: string
   tembusanLines: string[]
-}): Promise<Uint8Array<ArrayBuffer>> {
-  const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-  const header = buildHeader(data.kopLines)
-  const footer = buildFooter()
+}
 
+function buildLetter(lecturer: Lecturer, rows: ScheduleRow[], data: LetterData, tanggal: string, letterIndex: number, newPage: boolean): (Paragraph | Table)[] {
+  const signature = data.gambarTandaTanganDekan ? parseImageDataUri(data.gambarTandaTanganDekan) : null
+  const text = run
+
+  return [
+    bodyParagraph([text('Nomor'), tab(), text(':'), tab(), text(data.nomorSurat), tab(), text(`${data.kota}, ${tanggal}`)], {
+      pageBreakBefore: newPage,
+    }),
+    bodyParagraph([text('Lampiran'), tab(), text(':'), tab(), text(data.lampiranSurat)]),
+    bodyParagraph([text('Perihal'), tab(), text(':'), tab(), text(data.perihalSurat)]),
+    bodyParagraph(''),
+    bodyParagraph('Kepada Yth.'),
+    bodyParagraph([text('Bapak/Ibu/Sdr. '), run({ text: lecturerDisplayName(lecturer), bold: true })]),
+    bodyParagraph(`Dosen ${data.namaFakultas}`),
+    bodyParagraph('Universitas Pancasila'),
+    bodyParagraph('Di Tempat'),
+    bodyParagraph(''),
+    bodyParagraph('Dengan hormat,'),
+    bodyParagraph(''),
+    bodyParagraph(`Berikut disampaikan jadwal mengajar Bapak/Ibu/Sdr. pada Semester ${titleCase(data.term)} Tahun Akademik ${data.tahun} :`),
+    buildTable(rows),
+    bodyParagraph(data.catatanPerkuliahan, { bold: true }),
+    bodyParagraph('Demikian agar menjadi perhatian.', { justify: true }),
+    bodyParagraph(data.jabatanDekan, { justify: true, indentLeft: 5670 }),
+    bodyParagraph('', { justify: true, indentLeft: 5670 }),
+    bodyParagraph('', { justify: true, indentLeft: 5670 }),
+    signature
+      ? bodyParagraph([new ImageRun({ type: signature.type, data: signature.data, transformation: { width: 120, height: 60 } })], {
+          justify: true,
+          indentLeft: 5670,
+        })
+      : bodyParagraph('', { justify: true, indentLeft: 5670 }),
+    new Paragraph({
+      tabStops: BODY_TABS,
+      alignment: AlignmentType.JUSTIFIED,
+      indent: { left: 5245, right: -421 },
+      children: [run({ text: data.namaDekan, bold: true })],
+    }),
+    bodyParagraph('', { justify: true }),
+    bodyParagraph('Tembusan Kepada Yth.:', { justify: true }),
+    ...data.tembusanLines.map(
+      (line) =>
+        new Paragraph({
+          tabStops: BODY_TABS,
+          alignment: AlignmentType.JUSTIFIED,
+          numbering: { reference: 'tembusan', level: 0, instance: letterIndex },
+          children: [run(line)],
+        }),
+    ),
+  ]
+}
+
+export async function buildSuratDocx(data: LetterData & { lecturersToRender: Lecturer[]; byDosen: Map<string, ScheduleRow[]>; kopLines: string[] }): Promise<
+  Uint8Array<ArrayBuffer>
+> {
+  const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
   const children: (Paragraph | Table)[] = []
 
   if (data.lecturersToRender.length === 0) {
-    children.push(textParagraph('Tidak ada data mengajar untuk pilihan ini.', { align: AlignmentType.CENTER }))
+    children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [run('Tidak ada data mengajar untuk pilihan ini.')] }))
   }
 
   data.lecturersToRender.forEach((lecturer, index) => {
-    if (index > 0) {
-      children.push(new Paragraph({ children: [new PageBreak()] }))
-    }
-    const rows = data.byDosen.get(lecturer.kode_dosen) ?? []
-    children.push(...buildLetterParagraphs(lecturer, rows, data, tanggal))
-    children.push(textParagraph(''))
-    children.push(textParagraph('Tembusan Kepada Yth.:'))
-    for (const line of data.tembusanLines) children.push(textParagraph(line))
+    const letter = buildLetter(lecturer, data.byDosen.get(lecturer.kode_dosen) ?? [], data, tanggal, index, index > 0)
+    children.push(...letter)
   })
 
   const doc = new Document({
+    styles: {
+      default: {
+        document: {
+          run: { font: 'Arial', size: 22 },
+          paragraph: { spacing: { after: 0, line: 259 } },
+        },
+      },
+    },
+    numbering: {
+      config: [
+        {
+          reference: 'tembusan',
+          levels: [
+            {
+              level: 0,
+              format: LevelFormat.DECIMAL,
+              text: '%1.',
+              alignment: AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+            },
+          ],
+        },
+      ],
+    },
     sections: [
       {
-        properties: {
-          page: {
-            size: { width: PAGE_WIDTH_DXA, height: 16838 },
-            margin: { top: 850, bottom: 850, left: PAGE_MARGIN_DXA, right: PAGE_MARGIN_DXA, header: 567, footer: 454 },
-          },
-        },
-        headers: { default: header },
-        footers: { default: footer },
+        properties: { page: { size: PAGE, margin: MARGIN } },
+        headers: { default: buildHeader(data.kopLines) },
+        footers: { default: buildFooter() },
         children,
       },
     ],

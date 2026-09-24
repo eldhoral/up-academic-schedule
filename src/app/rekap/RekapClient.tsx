@@ -85,9 +85,20 @@ function DocxPreview({ url }: { url: string }) {
       })
       .then((blob) => {
         if (cancelled || !previewRef.current) return
-        return renderAsync(blob, previewRef.current)
+        // experimental: computes tab stops, which the Nomor/date line relies on.
+        return renderAsync(blob, previewRef.current, undefined, { experimental: true })
       })
       .then(() => {
+        // docx-preview's floating-image support is rough; patch the kop logo to sit
+        // where Word puts it: top-aligned (a baseline 0x0 inline-block stretches the
+        // line), offset from the column rather than the indented text start, and
+        // behind the text (multiply lets black text show through).
+        previewRef.current?.querySelectorAll<HTMLElement>('header div[style*="position: relative"]').forEach((el) => {
+          const indent = el.closest('p')?.style.textIndent || '0px'
+          el.style.verticalAlign = 'top'
+          el.style.left = `calc(${el.style.left || '0px'} - ${indent})`
+          el.style.mixBlendMode = 'multiply'
+        })
         if (!cancelled) setStatus('ready')
       })
       .catch(() => {
