@@ -2,38 +2,16 @@
 
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
-import { lecturerDisplayName } from '@/lib/import/tables'
-import { HARI_DB } from '@/lib/hari'
-import type { AcademicYear, ScheduleRow } from '../penjadwalan-types'
+import type { AcademicYear } from '../penjadwalan-types'
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
-const hariIndex = (h: string) => (HARI_DB as readonly string[]).indexOf(h)
 
 export function CetakClient({
   academicYears,
-  schedules,
   context,
-  headerLines,
-  zoomId,
-  zoomPasscode,
-  keteranganLines,
-  namaPenandatangan,
-  jabatanPenandatangan,
-  gambarTandaTangan,
-  pageStyle,
 }: {
   academicYears: AcademicYear[]
-  schedules: ScheduleRow[]
   context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
-  headerLines: string[]
-  zoomId: string
-  zoomPasscode: string
-  keteranganLines: string[]
-  kota: string
-  namaPenandatangan: string
-  jabatanPenandatangan: string
-  gambarTandaTangan: string
-  pageStyle: string
 }) {
   const router = useRouter()
 
@@ -47,18 +25,14 @@ export function CetakClient({
     router.push(`/cetak?${params.toString()}`)
   }
 
-  const byKelas = new Map<string, ScheduleRow[]>()
-  for (const s of schedules) {
-    const list = byKelas.get(s.kelas) ?? []
-    list.push(s)
-    byKelas.set(s.kelas, list)
-  }
-  const kelasGroups = Array.from(byKelas.entries()).sort(([a], [b]) => a.localeCompare(b))
+  const pdfUrl = `/cetak/pdf?${new URLSearchParams({
+    ay: context.academic_year_id,
+    jenis: context.jenis_kelas,
+    smt: String(context.semester_ke),
+  }).toString()}`
 
   return (
-    <div>
-      <style dangerouslySetInnerHTML={{ __html: pageStyle }} />
-
+    <div className="flex flex-col flex-1">
       <div className="no-print min-h-[3.2rem] flex items-center gap-[0.53rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
         <label className="text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-ay">
           Tahun akademik
@@ -96,134 +70,17 @@ export function CetakClient({
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
         />
 
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="ml-auto px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
+        <a
+          href={pdfUrl}
+          target="_blank"
+          rel="noopener"
+          className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
         >
-          Cetak
-        </button>
+          Buka PDF
+        </a>
       </div>
 
-      <div className="print-sheet mx-auto bg-white text-black p-[1.5cm]" style={{ maxWidth: '21cm' }}>
-        <header className="text-center mb-[1rem]">
-          {headerLines.map((line, i) => (
-            <p key={i} className="m-0 font-bold text-[13pt] leading-[1.4]">
-              {line}
-            </p>
-          ))}
-          <p className="m-0 font-bold text-[13pt] leading-[1.4]">
-            ID ZOOM : {zoomId}
-            {zoomPasscode && <>&nbsp;&nbsp;&nbsp;&nbsp;PASSCODE : {zoomPasscode}</>}
-          </p>
-        </header>
-
-        {kelasGroups.length === 0 && <p className="text-center text-[11pt] py-[2rem]">Tidak ada data jadwal untuk pilihan ini.</p>}
-
-        {kelasGroups.length > 0 && (
-          <table className="w-full border-collapse mb-[1rem] text-[10pt]" style={{ tableLayout: 'fixed' }}>
-            <thead>
-              <tr>
-                <Th w="10%">KODE MK</Th>
-                <Th w="24%">MATA KULIAH</Th>
-                <Th w="6%" center>
-                  SKS
-                </Th>
-                <Th w="10%">HARI</Th>
-                <Th w="16%">JAM</Th>
-                <Th w="17%">NAMA DOSEN</Th>
-                <Th w="9%">RUANGAN LURING</Th>
-                <Th w="8%">BOR ZOOM {zoomId}</Th>
-              </tr>
-            </thead>
-            {kelasGroups.map(([kelas, rows]) => (
-              <tbody key={kelas}>
-                <tr>
-                  <td colSpan={8} className="border border-black text-center font-bold py-[0.15rem]">
-                    KELAS {kelas}
-                  </td>
-                </tr>
-                {rows
-                  .sort((a, b) => hariIndex(a.hari) - hariIndex(b.hari) || a.jam_mulai.localeCompare(b.jam_mulai))
-                  .map((r) => {
-                    const suffix = r.minggu === 'ganjil' ? ' (A)' : r.minggu === 'genap' ? ' (B)' : ''
-                    const dosen =
-                      r.schedule_lecturers.length === 0
-                        ? 'MKWU'
-                        : r.schedule_lecturers
-                            .sort((a, b) => a.urutan - b.urutan)
-                            .map((sl) => (sl.lecturers ? lecturerDisplayName(sl.lecturers) : ''))
-                            .join(', ')
-                    return (
-                      <tr key={r.id}>
-                        <Td>{r.kode_mk}</Td>
-                        <Td>
-                          {r.courses?.nama_mk ?? r.kode_mk}
-                          {suffix}
-                        </Td>
-                        <Td center>{r.courses?.sks ?? ''}</Td>
-                        <Td>{r.hari}</Td>
-                        <Td nowrap>
-                          {r.jam_mulai.slice(0, 5)} - {r.jam_selesai.slice(0, 5)}
-                        </Td>
-                        <Td>{dosen}</Td>
-                        <Td>{r.rooms?.nama ?? ''}</Td>
-                        <Td>{r.zoom_id || ''}</Td>
-                      </tr>
-                    )
-                  })}
-              </tbody>
-            ))}
-          </table>
-        )}
-
-        <div className="mt-[1rem] text-[10pt]">
-          <p className="font-bold m-0">KETERANGAN:</p>
-          {keteranganLines.map((line, i) => (
-            <p key={i} className="m-0">
-              {line}
-            </p>
-          ))}
-        </div>
-
-        <div className="mt-[2.5rem] text-center text-[10pt]" style={{ marginLeft: '55%' }}>
-          <p className="m-0 mt-[0.3rem]">{jabatanPenandatangan}</p>
-          {gambarTandaTangan ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={gambarTandaTangan} alt="" className="h-[3.2cm] mx-auto" />
-          ) : (
-            <div className="h-[2cm]" />
-          )}
-          <p className="m-0 font-bold underline">{namaPenandatangan}</p>
-        </div>
-      </div>
+      <iframe key={pdfUrl} src={pdfUrl} title="Pratinjau Jadwal" className="flex-1 w-full border-0" />
     </div>
-  )
-}
-
-function Th({ children, w, center }: { children: React.ReactNode; w: string; center?: boolean }) {
-  return (
-    <th
-      style={{ width: w, textAlign: center ? 'center' : 'left', verticalAlign: 'middle', overflowWrap: 'break-word' }}
-      className="border border-black px-[0.3rem] py-[0.2rem] font-bold text-[10pt]"
-    >
-      {children}
-    </th>
-  )
-}
-
-function Td({ children, center, nowrap }: { children: React.ReactNode; center?: boolean; nowrap?: boolean }) {
-  return (
-    <td
-      style={{
-        textAlign: center ? 'center' : 'left',
-        verticalAlign: 'middle',
-        whiteSpace: nowrap ? 'nowrap' : 'normal',
-        overflowWrap: 'break-word',
-      }}
-      className="border border-black px-[0.3rem] py-[0.15rem]"
-    >
-      {children}
-    </td>
   )
 }
