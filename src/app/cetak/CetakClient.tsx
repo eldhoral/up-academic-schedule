@@ -25,11 +25,13 @@ export function CetakClient({
     router.push(`/cetak?${params.toString()}`)
   }
 
-  const pdfUrl = `/cetak/pdf?${new URLSearchParams({
+  const query = new URLSearchParams({
     ay: context.academic_year_id,
     jenis: context.jenis_kelas,
     smt: String(context.semester_ke),
-  }).toString()}`
+  }).toString()
+  const pdfUrl = `/cetak/pdf?${query}`
+  const xlsxUrl = `/cetak/xlsx?${query}`
 
   return (
     <div className="flex flex-col flex-1">
@@ -71,10 +73,17 @@ export function CetakClient({
         />
 
         <a
+          href={xlsxUrl}
+          className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] bg-[var(--cekung)] font-medium cursor-pointer hover:bg-[var(--lembar)] active:scale-[0.97] transition-colors text-[0.93rem]"
+        >
+          Unduh Excel
+        </a>
+
+        <a
           href={pdfUrl}
           target="_blank"
           rel="noopener"
-          className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
+          className="inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
         >
           Buka PDF
         </a>

@@ -1,13 +1,10 @@
 import { Document, Page, View, Text, Image, StyleSheet, Font } from '@react-pdf/renderer'
-import { lecturerDisplayName } from '@/lib/import/tables'
-import { HARI_DB } from '@/lib/hari'
+import { groupSchedulesByKelas } from './schedule-rows'
 import type { ScheduleRow } from '../penjadwalan-types'
 
 // The reference document never hyphenates; react-pdf's default hyphenation
 // callback would otherwise break long words like "RUANGAN" as "RUAN-GAN".
 Font.registerHyphenationCallback((word) => [word])
-
-const hariIndex = (h: string) => (HARI_DB as readonly string[]).indexOf(h)
 
 const BORDER = '#000'
 
@@ -48,17 +45,13 @@ const styles = StyleSheet.create({
     marginVertical: 24,
   },
   table: {
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: BORDER,
     marginBottom: 12,
   },
   row: {
     flexDirection: 'row',
   },
   headerCell: {
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
+    borderWidth: 1,
     borderColor: BORDER,
     paddingHorizontal: 4,
     paddingVertical: 3,
@@ -69,8 +62,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   cell: {
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
+    borderWidth: 1,
     borderColor: BORDER,
     paddingHorizontal: 4,
     paddingVertical: 2,
@@ -80,8 +72,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   kelasBanner: {
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
+    borderWidth: 1,
     borderColor: BORDER,
     paddingVertical: 2,
     alignItems: 'center',
@@ -145,13 +136,7 @@ export function CetakDocument({
   ukuranKertas: string
   orientasi: string
 }) {
-  const byKelas = new Map<string, ScheduleRow[]>()
-  for (const s of schedules) {
-    const list = byKelas.get(s.kelas) ?? []
-    list.push(s)
-    byKelas.set(s.kelas, list)
-  }
-  const kelasGroups = Array.from(byKelas.entries()).sort(([a], [b]) => a.localeCompare(b))
+  const kelasGroups = groupSchedulesByKelas(schedules)
 
   const size = (['A4', 'Letter', 'Legal'] as const).includes(ukuranKertas as 'A4' | 'Letter' | 'Legal')
     ? (ukuranKertas.toUpperCase() as 'A4' | 'LETTER' | 'LEGAL')
@@ -177,7 +162,7 @@ export function CetakDocument({
 
         {kelasGroups.length > 0 && (
           <View style={styles.table}>
-            <View style={styles.row} wrap={false}>
+            <View style={styles.row} fixed>
               {COLUMNS.map((col) => (
                 <View key={col.key} style={[styles.headerCell, { width: col.w, alignItems: col.center ? 'center' : 'flex-start' }]}>
                   <Text style={styles.headerCellText}>{col.key === 'zoom' ? `BOR ZOOM ${zoomId}` : col.label}</Text>
@@ -192,51 +177,34 @@ export function CetakDocument({
                     <Text style={styles.headerCellText}>KELAS {kelas}</Text>
                   </View>
                 </View>
-                {rows
-                  .sort((a, b) => hariIndex(a.hari) - hariIndex(b.hari) || a.jam_mulai.localeCompare(b.jam_mulai))
-                  .map((r) => {
-                    const suffix = r.minggu === 'ganjil' ? ' (A)' : r.minggu === 'genap' ? ' (B)' : ''
-                    const dosen =
-                      r.schedule_lecturers.length === 0
-                        ? 'MKWU'
-                        : r.schedule_lecturers
-                            .sort((a, b) => a.urutan - b.urutan)
-                            .map((sl) => (sl.lecturers ? lecturerDisplayName(sl.lecturers) : ''))
-                            .join(', ')
-                    return (
-                      <View key={r.id} style={styles.row} wrap={false}>
-                        <View style={[styles.cell, { width: COLUMNS[0].w }]}>
-                          <Text style={styles.cellText}>{r.kode_mk}</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COLUMNS[1].w }]}>
-                          <Text style={styles.cellText}>
-                            {r.courses?.nama_mk ?? r.kode_mk}
-                            {suffix}
-                          </Text>
-                        </View>
-                        <View style={[styles.cell, { width: COLUMNS[2].w, alignItems: 'center' }]}>
-                          <Text style={styles.cellText}>{r.courses?.sks ?? ''}</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COLUMNS[3].w }]}>
-                          <Text style={styles.cellText}>{r.hari}</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COLUMNS[4].w }]}>
-                          <Text style={styles.cellText}>
-                            {r.jam_mulai.slice(0, 5)} - {r.jam_selesai.slice(0, 5)}
-                          </Text>
-                        </View>
-                        <View style={[styles.cell, { width: COLUMNS[5].w }]}>
-                          <Text style={styles.cellText}>{dosen}</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COLUMNS[6].w }]}>
-                          <Text style={styles.cellText}>{r.rooms?.nama ?? ''}</Text>
-                        </View>
-                        <View style={[styles.cell, { width: COLUMNS[7].w }]}>
-                          <Text style={styles.cellText}>{r.zoom_id || ''}</Text>
-                        </View>
-                      </View>
-                    )
-                  })}
+                {rows.map((r) => (
+                  <View key={r.id} style={styles.row} wrap={false}>
+                    <View style={[styles.cell, { width: COLUMNS[0].w }]}>
+                      <Text style={styles.cellText}>{r.kode_mk}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COLUMNS[1].w }]}>
+                      <Text style={styles.cellText}>{r.mata_kuliah}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COLUMNS[2].w, alignItems: 'center' }]}>
+                      <Text style={styles.cellText}>{r.sks}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COLUMNS[3].w }]}>
+                      <Text style={styles.cellText}>{r.hari}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COLUMNS[4].w }]}>
+                      <Text style={styles.cellText}>{r.jam}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COLUMNS[5].w }]}>
+                      <Text style={styles.cellText}>{r.dosen}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COLUMNS[6].w }]}>
+                      <Text style={styles.cellText}>{r.ruangan}</Text>
+                    </View>
+                    <View style={[styles.cell, { width: COLUMNS[7].w }]}>
+                      <Text style={styles.cellText}>{r.zoom}</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             ))}
           </View>

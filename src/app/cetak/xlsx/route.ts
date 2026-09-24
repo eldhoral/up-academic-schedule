@@ -1,7 +1,5 @@
-import { createElement } from 'react'
-import { renderToBuffer } from '@react-pdf/renderer'
 import { buildCetakData } from '../cetak-data'
-import { CetakDocument } from '../CetakDocument'
+import { buildXlsx } from '../build-xlsx'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -11,12 +9,12 @@ export async function GET(request: Request) {
     smt: searchParams.get('smt'),
   })
 
-  const buffer = await renderToBuffer(createElement(CetakDocument, data) as Parameters<typeof renderToBuffer>[0])
+  const buffer = await buildXlsx(data)
 
   return new Response(new Uint8Array(buffer), {
     headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': 'inline; filename="jadwal.pdf"',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': 'attachment; filename="jadwal.xlsx"',
     },
   })
 }
