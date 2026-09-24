@@ -4,6 +4,8 @@ import type { ScheduleRow } from '../penjadwalan-types'
 
 const COLUMN_COUNT = 8
 const COLUMN_WIDTHS = [12, 34, 6, 10, 16, 28, 14, 16]
+// KODE MK, SKS, HARI, JAM are short/uniform values -> centered; the rest are free text -> left.
+const COLUMN_ALIGN: ('center' | 'left')[] = ['center', 'left', 'center', 'center', 'center', 'left', 'left', 'left']
 
 const THIN = { style: 'thin' as const, color: { argb: 'FF000000' } }
 const BORDER_ALL = { top: THIN, left: THIN, bottom: THIN, right: THIN }
@@ -45,6 +47,7 @@ export async function buildXlsx(props: {
       fitToHeight: 0,
       margins: { top: 0.6, bottom: 0.6, left: 0.4, right: 0.4, header: 0.3, footer: 0.3 },
       horizontalCentered: true,
+      scale: 66,
     },
   })
   sheet.columns = COLUMN_WIDTHS.map((width) => ({ width }))
@@ -64,12 +67,12 @@ export async function buildXlsx(props: {
   const kelasGroups = groupSchedulesByKelas(props.schedules)
 
   const headerRowIndex = r
-  const headerLabels = ['KODE MK', 'MATA KULIAH', 'SKS', 'HARI', 'JAM', 'NAMA DOSEN', 'RUANGAN LURING', `BOR ZOOM ${props.zoomId}`]
+  const headerLabels = ['KODE MK', 'MATA KULIAH', 'SKS', 'HARI', 'JAM', 'NAMA DOSEN', 'RUANGAN LURING', `BOR ZOOM \n${props.zoomId}`]
   headerLabels.forEach((label, i) => {
     const cell = sheet.getCell(r, i + 1)
     cell.value = label
     cell.font = { bold: true }
-    cell.alignment = { vertical: 'middle', horizontal: i === 2 ? 'center' : 'left', wrapText: true }
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
     cell.border = BORDER_ALL
   })
   r++
@@ -80,7 +83,7 @@ export async function buildXlsx(props: {
   }
 
   for (const [kelas, rows] of kelasGroups) {
-    mergedText(sheet, r, `KELAS ${kelas}`, { bold: true, align: 'center' })
+    mergedText(sheet, r, `KELAS ${kelas}`, { bold: true, size: 10, align: 'center' })
     sheet.getRow(r).eachCell({ includeEmpty: true }, (cell) => {
       cell.border = BORDER_ALL
     })
@@ -91,7 +94,7 @@ export async function buildXlsx(props: {
       values.forEach((value, i) => {
         const cell = sheet.getCell(r, i + 1)
         cell.value = value
-        cell.alignment = { vertical: 'middle', horizontal: i === 2 ? 'center' : 'left', wrapText: true }
+        cell.alignment = { vertical: 'middle', horizontal: COLUMN_ALIGN[i], wrapText: true }
         cell.border = BORDER_ALL
       })
       r++

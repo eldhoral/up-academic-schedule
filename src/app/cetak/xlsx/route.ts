@@ -10,11 +10,12 @@ export async function GET(request: Request) {
   })
 
   const buffer = await buildXlsx(data)
+  const filename = `Jadwal Perkuliahan ${data.academicYearLabel.replace(/\//g, '-')}.xlsx`
 
   return new Response(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': 'attachment; filename="jadwal.xlsx"',
+      'Content-Disposition': `attachment; filename="${filename}"`,
     },
   })
 }

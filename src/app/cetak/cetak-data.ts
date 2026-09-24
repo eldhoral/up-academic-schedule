@@ -38,6 +38,7 @@ export async function buildCetakData(params: { ay?: string | null; jenis?: strin
   const keteranganLines = settingText(settings, 'keterangan_cetak', '').split('\n').filter(Boolean)
 
   return {
+    academicYearLabel: label,
     schedules,
     headerLines,
     zoomId: settingText(settings, 'zoom_id', ''),
