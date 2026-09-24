@@ -66,7 +66,7 @@ export function formatValue(value: unknown): string {
   if (value === null || value === undefined) return '—'
   if (typeof value === 'string') {
     if (value.startsWith('data:image')) return '(gambar)'
-    return value.length > 60 ? value.slice(0, 60) + '…' : value
+    return value
   }
   if (typeof value === 'boolean') return value ? 'ya' : 'tidak'
   return String(value)

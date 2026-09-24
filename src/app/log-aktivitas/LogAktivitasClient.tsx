@@ -186,8 +186,10 @@ function DetailModal({ row, onClose }: { row: AuditRow; onClose: () => void }) {
                 {fields.map((f) => (
                   <tr key={f} className="border-t border-[var(--garis)]">
                     <Td className="mono font-medium">{f}</Td>
-                    {row.action !== 'INSERT' && <Td className="text-[var(--tinta-3)]">{formatValue(row.old_data?.[f])}</Td>}
-                    {row.action !== 'DELETE' && <Td>{formatValue(row.new_data?.[f])}</Td>}
+                    {row.action !== 'INSERT' && (
+                      <Td className="text-[var(--tinta-3)] whitespace-pre-wrap break-words">{formatValue(row.old_data?.[f])}</Td>
+                    )}
+                    {row.action !== 'DELETE' && <Td className="whitespace-pre-wrap break-words">{formatValue(row.new_data?.[f])}</Td>}
                   </tr>
                 ))}
               </tbody>
