@@ -111,7 +111,8 @@ function DocxPreview({ url }: { url: string }) {
 
   return (
     <>
-      {status === 'error' && <p className="text-center text-[0.93rem] text-[var(--merah)] py-[2rem]">Gagal memuat pratinjau.</p>}
+      <p className="text-center text-[0.8rem] text-[var(--tinta-3)] pt-[0.53rem] bg-[var(--kertas)]">Pratinjau (perkiraan)</p>
+      {status === 'error' &&<p className="text-center text-[0.93rem] text-[var(--merah)] py-[2rem]">Gagal memuat pratinjau.</p>}
       <div ref={previewRef} className="flex-1 overflow-auto bg-[var(--kertas)] py-[1rem]" />
     </>
   )
