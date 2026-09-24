@@ -13,8 +13,9 @@ export const COLUMN_WIDTHS = [12, 34, 6, 10, 16, 28, 14, 16]
 // same way, and reusing COLUMN_WIDTHS verbatim made JAM wrap onto two lines.
 export const PDF_COLUMN_WIDTH_PERCENT = [9, 23, 5, 9, 16, 16, 11, 11]
 
-// KODE MK, SKS, HARI, JAM are short/uniform values -> centered; the rest are free text -> left.
-export const COLUMN_ALIGN: ColumnAlign[] = ['center', 'left', 'center', 'center', 'center', 'left', 'left', 'left']
+// KODE MK, SKS, HARI, JAM, RUANGAN LURING, and BOR ZOOM are short/uniform
+// values -> centered; MATA KULIAH and NAMA DOSEN are free text -> left.
+export const COLUMN_ALIGN: ColumnAlign[] = ['center', 'left', 'center', 'center', 'center', 'left', 'center', 'center']
 
 // The signature block starts after this many columns (Excel merges from column E, index 4, onward).
 export const SIGNATURE_START_COLUMN = 4
