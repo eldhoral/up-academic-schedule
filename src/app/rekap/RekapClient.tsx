@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { renderAsync } from 'docx-preview'
 import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import type { AcademicYear, Lecturer } from '../penjadwalan-types'
@@ -18,20 +19,17 @@ export function RekapClient({
   selectedDosen: string // kode_dosen, or 'all'
 }) {
   const router = useRouter()
-  const [showPreview, setShowPreview] = useState(false)
 
   function navigate(next: { ay?: string; dosen?: string }) {
     const params = new URLSearchParams({
       ay: next.ay ?? academicYearId,
       dosen: next.dosen ?? selectedDosen,
     })
-    setShowPreview(false)
     router.push(`/rekap?${params.toString()}`)
   }
 
   const query = new URLSearchParams({ ay: academicYearId, dosen: selectedDosen }).toString()
-  const xlsxUrl = `/rekap/xlsx?${query}`
-  const pdfUrl = `/rekap/pdf?${query}`
+  const docxUrl = `/rekap/docx?${query}`
 
   return (
     <div className="flex flex-col flex-1">
@@ -61,23 +59,49 @@ export function RekapClient({
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem] max-w-[18rem]"
         />
 
-        <button
-          type="button"
-          onClick={() => setShowPreview(true)}
-          className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] bg-[var(--cekung)] font-medium cursor-pointer hover:bg-[var(--lembar)] active:scale-[0.97] transition-colors text-[0.93rem]"
-        >
-          Lihat Pratinjau PDF
-        </button>
-
         <a
-          href={xlsxUrl}
-          className="inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
+          href={docxUrl}
+          className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
         >
-          Unduh Excel
+          Unduh Word
         </a>
       </div>
 
-      {showPreview && <iframe key={pdfUrl} src={pdfUrl} title="Pratinjau Surat Penugasan" className="flex-1 w-full border-0" />}
+      <DocxPreview key={docxUrl} url={docxUrl} />
     </div>
+  )
+}
+
+function DocxPreview({ url }: { url: string }) {
+  const previewRef = useRef<HTMLDivElement>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`${res.status}`)
+        return res.blob()
+      })
+      .then((blob) => {
+        if (cancelled || !previewRef.current) return
+        return renderAsync(blob, previewRef.current)
+      })
+      .then(() => {
+        if (!cancelled) setStatus('ready')
+      })
+      .catch(() => {
+        if (!cancelled) setStatus('error')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [url])
+
+  return (
+    <>
+      {status === 'error' && <p className="text-center text-[0.93rem] text-[var(--merah)] py-[2rem]">Gagal memuat pratinjau.</p>}
+      <div ref={previewRef} className="flex-1 overflow-auto bg-[var(--kertas)] py-[1rem]" />
+    </>
   )
 }
