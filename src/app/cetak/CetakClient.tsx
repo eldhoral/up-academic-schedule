@@ -25,11 +25,13 @@ export function CetakClient({
     router.push(`/cetak?${params.toString()}`)
   }
 
-  const xlsxUrl = `/cetak/xlsx?${new URLSearchParams({
+  const query = new URLSearchParams({
     ay: context.academic_year_id,
     jenis: context.jenis_kelas,
     smt: String(context.semester_ke),
-  }).toString()}`
+  }).toString()
+  const xlsxUrl = `/cetak/xlsx?${query}`
+  const pdfUrl = `/cetak/pdf?${query}`
 
   return (
     <div className="flex flex-col flex-1">
@@ -77,6 +79,8 @@ export function CetakClient({
           Unduh Excel
         </a>
       </div>
+
+      <iframe key={pdfUrl} src={pdfUrl} title="Pratinjau Jadwal" className="flex-1 w-full border-0" />
     </div>
   )
 }

@@ -1,11 +1,9 @@
 import ExcelJS from 'exceljs'
 import { groupSchedulesByKelas } from './schedule-rows'
+import { COLUMN_ALIGN, COLUMN_LABELS, COLUMN_WIDTHS, SIGNATURE_START_COLUMN } from './columns'
 import type { ScheduleRow } from '../penjadwalan-types'
 
-const COLUMN_COUNT = 8
-const COLUMN_WIDTHS = [12, 34, 6, 10, 16, 28, 14, 16]
-// KODE MK, SKS, HARI, JAM are short/uniform values -> centered; the rest are free text -> left.
-const COLUMN_ALIGN: ('center' | 'left')[] = ['center', 'left', 'center', 'center', 'center', 'left', 'left', 'left']
+const COLUMN_COUNT = COLUMN_WIDTHS.length
 
 const THIN = { style: 'thin' as const, color: { argb: 'FF000000' } }
 const BORDER_ALL = { top: THIN, left: THIN, bottom: THIN, right: THIN }
@@ -67,7 +65,7 @@ export async function buildXlsx(props: {
   const kelasGroups = groupSchedulesByKelas(props.schedules)
 
   const headerRowIndex = r
-  const headerLabels = ['KODE MK', 'MATA KULIAH', 'SKS', 'HARI', 'JAM', 'NAMA DOSEN', 'RUANGAN LURING', `BOR ZOOM \n${props.zoomId}`]
+  const headerLabels = [...COLUMN_LABELS.slice(0, -1), `BOR ZOOM \n${props.zoomId}`]
   headerLabels.forEach((label, i) => {
     const cell = sheet.getCell(r, i + 1)
     cell.value = label
@@ -109,7 +107,7 @@ export async function buildXlsx(props: {
     r++
   }
 
-  const signatureCol = Math.round(COLUMN_COUNT * 0.55) + 1 // mirrors the PDF's marginLeft: 55%
+  const signatureCol = SIGNATURE_START_COLUMN + 1
   const signatureText = (row: number, text: string, opts: { bold?: boolean; underline?: boolean }) => {
     sheet.mergeCells(row, signatureCol, row, COLUMN_COUNT)
     const cell = sheet.getCell(row, signatureCol)
