@@ -162,6 +162,14 @@ function buildTable(rows: ScheduleRow[]): Table {
       header,
       ...section('Kelas Reguler', rows.filter((s) => s.jenis_kelas === 'reguler'), true),
       ...section('Kelas Reguler Khusus', rows.filter((s) => s.jenis_kelas === 'regsus'), false),
+      new TableRow({
+        height: { value: 504, rule: HeightRule.ATLEAST },
+        children: [
+          tableCell('TOTAL', { bold: true, center: true, span: 2, width: TABLE_GRID[0] + TABLE_GRID[1] }),
+          tableCell(String(rows.reduce((sum, r) => sum + (r.courses?.sks ?? 0), 0)), { bold: true, center: true, width: TABLE_GRID[2] }),
+          tableCell('', { span: TABLE_GRID.length - 3, width: TABLE_GRID.slice(3).reduce((sum, w) => sum + w, 0) }),
+        ],
+      }),
     ],
   })
 }
