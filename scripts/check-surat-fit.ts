@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import JSZip from 'jszip'
 import { buildSuratDocx } from '../src/app/rekap/build-surat-docx'
 
-// Calibrated against Aspose Words renders on A4 with a 4-line kop and 3 tembusan lines:
-// 4 classes (with 2-line zoom cells) fit and 5 overflow by one line, so the estimate splits from 5.
+// Calibrated against Aspose Words renders on A4 with the faculty's 5-line kop and 3 tembusan
+// lines: 4 classes (with 2-line zoom cells) overflow by one line, so the estimate splits from 4.
 const lecturer = { kode_dosen: 'D1', nama: 'Budi Santoso', gelar_depan: 'Dr.', gelar_belakang: 'M.Kom' }
 const schedule = (i: number, jenis: 'reguler' | 'regsus') => ({
   id: String(i), kelas: 'A', jenis_kelas: jenis, hari: 'SENIN', jam_mulai: '08:00:00', jam_selesai: '10:30:00',
@@ -14,7 +14,7 @@ const schedule = (i: number, jenis: 'reguler' | 'regsus') => ({
 async function tableCount(rows: ReturnType<typeof schedule>[]) {
   const buf = await buildSuratDocx({
     lecturersToRender: [lecturer], byDosen: new Map([['D1', rows]]), namaFakultas: 'Teknik', kota: 'Jakarta',
-    kopLines: ['FAKULTAS TEKNIK', 'Alamat', 'Telp.', 'Website'], term: 'GANJIL', tahun: '2026/2027',
+    kopLines: ['FAKULTAS PSIKOLOGI', 'Gedung', 'Alamat', 'Telp. | Website', 'E-mail'], term: 'GANJIL', tahun: '2026/2027',
     nomorSurat: '1', lampiranSurat: '-', perihalSurat: '-', catatanPerkuliahan: 'Catatan: perkuliahan dimulai 1 September.',
     namaDekan: 'Nama Dekan', jabatanDekan: 'Dekan', gambarTandaTanganDekan: '', tembusanLines: ['A', 'B', 'C'],
   } as unknown as Parameters<typeof buildSuratDocx>[0])
@@ -25,7 +25,7 @@ async function tableCount(rows: ReturnType<typeof schedule>[]) {
 const mixed = (n: number) => Array.from({ length: n }, (_, i) => schedule(i, i % 2 ? 'regsus' : 'reguler'))
 
 async function main() {
-  assert.equal(await tableCount(mixed(4)), 1, 'a short letter keeps one table')
+  assert.equal(await tableCount(mixed(3)), 1, 'a short letter keeps one table')
   assert.equal(await tableCount(mixed(12)), 2, 'an overlong letter splits Reguler / Reguler Khusus')
   assert.equal(
     await tableCount(Array.from({ length: 12 }, (_, i) => schedule(i, 'reguler'))),

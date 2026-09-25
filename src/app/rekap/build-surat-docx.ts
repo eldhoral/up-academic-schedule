@@ -53,6 +53,7 @@ const HYPERLINK_COLOR = '0563C1'
 // Fonts go on every run, as in the reference: QuickLook/Pages ignore docDefaults.
 // The kop's address lines use the theme's minorBidi font, which Word resolves to Times New Roman.
 const KOP_FONT = 'Times New Roman'
+const KOP_GAP = 360
 
 const run = (o: string | IRunOptions) => new TextRun({ font: 'Arial', ...(typeof o === 'string' ? { text: o } : o) })
 
@@ -256,7 +257,7 @@ function letterTextHeight(data: LetterData, intro: string): number {
 /** Usable body height on one page: below the kop header, above the footer. */
 function bodyHeight(kopLines: string[]): number {
   // Ebrima 18pt title + Times 12pt address lines + the ruled paragraph under them.
-  const header = 478 + 298 * Math.max(0, kopLines.length - 1) + 335
+  const header = 478 + 298 * Math.max(0, kopLines.length - 1) + 335 + KOP_GAP
   const top = Math.max(MARGIN.top, MARGIN.header + header)
   const bottom = Math.max(MARGIN.bottom, MARGIN.footer + LINE)
   return PAGE.height - top - bottom
@@ -309,6 +310,8 @@ function buildHeader(kopLines: string[]): Header {
       new Paragraph({
         indent: { left: -454, right: -454 },
         border: { bottom: { style: BorderStyle.SINGLE, size: 24, color: '000000', space: 1 } },
+        // Gap between the kop and the letter; counts toward the header's height, so it pushes the body down.
+        spacing: { after: KOP_GAP },
         children: [],
       }),
     ],
