@@ -126,6 +126,18 @@ export function KalenderClient({
         <span className="ml-auto text-[0.87rem] text-[var(--tinta-3)]">
           {schedules.length} kelas minggu ini &middot; hanya lihat
         </span>
+
+        {/* ponytail: same workbook as Cetak Jadwal's "Unduh Excel" -- same filters, same route */}
+        <a
+          href={`/cetak/xlsx?${new URLSearchParams({
+            ay: context.academic_year_id,
+            jenis: context.jenis_kelas,
+            smt: String(context.semester_ke),
+          }).toString()}`}
+          className="inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
+        >
+          Unduh Excel
+        </a>
       </div>
 
       <div className="flex-1 overflow-auto p-[1.3rem]">
