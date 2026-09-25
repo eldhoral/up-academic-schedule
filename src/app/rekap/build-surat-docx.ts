@@ -361,7 +361,9 @@ type LetterData = {
 function buildTables(rows: ScheduleRow[], data: LetterData, intro: string, kopLines: string[]): (Paragraph | Table)[] {
   const reguler = { title: 'Kelas Reguler', rows: rows.filter((s) => s.jenis_kelas === 'reguler') }
   const regsus = { title: 'Kelas Reguler Khusus', rows: rows.filter((s) => s.jenis_kelas === 'regsus') }
-  const whole = [reguler, regsus]
+  // Only the sections this dosen teaches in; a lone empty Reguler keeps the "—" row as a fallback.
+  const taught = [reguler, regsus].filter((sec) => sec.rows.length > 0)
+  const whole = taught.length > 0 ? taught : [reguler]
   const total = [{ label: 'TOTAL', sks: sumSks(rows) }]
 
   const fits = letterTextHeight(data, intro) + tableHeight(whole, total) <= bodyHeight(kopLines) * FIT_SAFETY
