@@ -3,7 +3,7 @@ import JSZip from 'jszip'
 import { buildSuratDocx } from '../src/app/rekap/build-surat-docx'
 
 // Calibrated against Aspose Words renders on A4 with a 4-line kop and 3 tembusan lines:
-// 6 classes (with 2-line zoom cells) fill the page exactly, so the estimate splits from 6.
+// 4 classes (with 2-line zoom cells) fit and 5 overflow by one line, so the estimate splits from 5.
 const lecturer = { kode_dosen: 'D1', nama: 'Budi Santoso', gelar_depan: 'Dr.', gelar_belakang: 'M.Kom' }
 const schedule = (i: number, jenis: 'reguler' | 'regsus') => ({
   id: String(i), kelas: 'A', jenis_kelas: jenis, hari: 'SENIN', jam_mulai: '08:00:00', jam_selesai: '10:30:00',

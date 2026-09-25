@@ -86,11 +86,12 @@ function sortByHariJam(rows: ScheduleRow[]): ScheduleRow[] {
 
 function bodyParagraph(
   children: ParagraphChild[] | string,
-  opts: { bold?: boolean; justify?: boolean; indentLeft?: number; pageBreakBefore?: boolean } = {},
+  opts: { bold?: boolean; justify?: boolean; indentLeft?: number; pageBreakBefore?: boolean; before?: number; after?: number } = {},
 ) {
   return new Paragraph({
     tabStops: BODY_TABS,
     pageBreakBefore: opts.pageBreakBefore,
+    spacing: opts.before || opts.after ? { before: opts.before, after: opts.after } : undefined,
     alignment: opts.justify ? AlignmentType.JUSTIFIED : undefined,
     indent: opts.indentLeft ? { left: opts.indentLeft } : undefined,
     children: typeof children === 'string' ? [run({ text: children, bold: opts.bold })] : children,
@@ -188,6 +189,8 @@ function buildTable(sections: Section[], totals: TotalRow[]): Table {
 const LINE = 273 // one Arial 11pt line at the 259 line spacing, in twips
 const CELL_PADDING = 216 // Word's default 108-twip left + right cell margins
 const FIT_SAFETY = 0.95
+const TABLE_GAP = 240 // space between the table and the paragraphs above/below it
+const SIGNATURE_LINES = 5 // blank lines (or the image) between jabatan and nama dekan
 
 /** Approximate width in twips of `text` in Arial 11pt. */
 function textWidth(text: string, bold = false): number {
@@ -238,10 +241,11 @@ function letterTextHeight(data: LetterData, intro: string): number {
   return (
     12 * LINE + // Nomor ... "Dengan hormat," with its blank lines
     para(intro) +
+    2 * TABLE_GAP +
     para(data.catatanPerkuliahan, TEXT_WIDTH, true) +
     LINE + // Demikian
     para(data.jabatanDekan, TEXT_WIDTH - 5670) +
-    2 * LINE +
+    (SIGNATURE_LINES - 1) * LINE +
     (data.gambarTandaTanganDekan ? 900 : LINE) + // 60px signature image
     para(data.namaDekan, TEXT_WIDTH - 5245 + 421, true) +
     2 * LINE + // blank + "Tembusan Kepada Yth.:"
@@ -396,13 +400,12 @@ function buildLetter(
     bodyParagraph(''),
     bodyParagraph('Dengan hormat,'),
     bodyParagraph(''),
-    bodyParagraph(intro),
+    bodyParagraph(intro, { after: TABLE_GAP }),
     ...buildTables(rows, data, intro, kopLines),
-    bodyParagraph(data.catatanPerkuliahan, { bold: true }),
+    bodyParagraph(data.catatanPerkuliahan, { bold: true, before: TABLE_GAP }),
     bodyParagraph('Demikian agar menjadi perhatian.', { justify: true }),
     bodyParagraph(data.jabatanDekan, { justify: true, indentLeft: 5670 }),
-    bodyParagraph('', { justify: true, indentLeft: 5670 }),
-    bodyParagraph('', { justify: true, indentLeft: 5670 }),
+    ...Array.from({ length: SIGNATURE_LINES - 1 }, () => bodyParagraph('', { justify: true, indentLeft: 5670 })),
     signature
       ? bodyParagraph([new ImageRun({ type: signature.type, data: signature.data, transformation: { width: 120, height: 60 } })], {
           justify: true,
