@@ -379,16 +379,13 @@ function buildLetter(
   kopLines: string[],
   tanggal: string,
   letterIndex: number,
-  newPage: boolean,
 ): (Paragraph | Table)[] {
   const signature = data.gambarTandaTanganDekan ? parseImageDataUri(data.gambarTandaTanganDekan) : null
   const text = run
   const intro = `Berikut disampaikan jadwal mengajar Bapak/Ibu/Sdr. pada Semester ${titleCase(data.term)} Tahun Akademik ${data.tahun} :`
 
   return [
-    bodyParagraph([text('Nomor'), tab(), text(':'), tab(), text(data.nomorSurat), tab(), text(`${data.kota}, ${tanggal}`)], {
-      pageBreakBefore: newPage,
-    }),
+    bodyParagraph([text('Nomor'), tab(), text(':'), tab(), text(data.nomorSurat), tab(), text(`${data.kota}, ${tanggal}`)]),
     bodyParagraph([text('Lampiran'), tab(), text(':'), tab(), text(data.lampiranSurat)]),
     bodyParagraph([text('Perihal'), tab(), text(':'), tab(), text(data.perihalSurat)]),
     bodyParagraph(''),
@@ -436,16 +433,12 @@ export async function buildSuratDocx(data: LetterData & { lecturersToRender: Lec
   Uint8Array<ArrayBuffer>
 > {
   const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-  const children: (Paragraph | Table)[] = []
-
-  if (data.lecturersToRender.length === 0) {
-    children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [run('Tidak ada data mengajar untuk pilihan ini.')] }))
+  const letters: (Paragraph | Table)[][] = data.lecturersToRender.map((lecturer, index) =>
+    buildLetter(lecturer, data.byDosen.get(lecturer.kode_dosen) ?? [], data, data.kopLines, tanggal, index),
+  )
+  if (letters.length === 0) {
+    letters.push([new Paragraph({ alignment: AlignmentType.CENTER, children: [run('Tidak ada data mengajar untuk pilihan ini.')] })])
   }
-
-  data.lecturersToRender.forEach((lecturer, index) => {
-    const letter = buildLetter(lecturer, data.byDosen.get(lecturer.kode_dosen) ?? [], data, data.kopLines, tanggal, index, index > 0)
-    children.push(...letter)
-  })
 
   const doc = new Document({
     styles: {
@@ -472,14 +465,18 @@ export async function buildSuratDocx(data: LetterData & { lecturersToRender: Lec
         },
       ],
     },
-    sections: [
-      {
-        properties: { page: { size: PAGE, margin: MARGIN } },
-        headers: { default: buildHeader(data.kopLines) },
-        footers: { default: buildFooter() },
-        children,
-      },
-    ],
+    // One section per letter (each starts on a new page) with a different first
+    // page: the kop and footer banner sit only on a letter's first page, and a
+    // letter's second page is blank above and below. Only the first section
+    // defines them; later sections inherit, so the images are embedded once.
+    sections: letters.map((children, index) => ({
+      properties: { page: { size: PAGE, margin: MARGIN }, titlePage: true },
+      ...(index === 0 && {
+        headers: { first: buildHeader(data.kopLines), default: new Header({ children: [] }) },
+        footers: { first: buildFooter(), default: new Footer({ children: [] }) },
+      }),
+      children,
+    })),
   })
 
   return Packer.toArrayBuffer(doc).then((buf) => new Uint8Array(buf))
