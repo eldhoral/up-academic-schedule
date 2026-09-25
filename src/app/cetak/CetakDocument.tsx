@@ -109,8 +109,7 @@ const styles = StyleSheet.create({
 })
 
 export function CetakDocument({
-  schedules,
-  headerLines,
+  sheets,
   zoomId,
   zoomPasscode,
   keteranganLines,
@@ -120,8 +119,7 @@ export function CetakDocument({
   ukuranKertas,
   orientasi,
 }: {
-  schedules: ScheduleRow[]
-  headerLines: string[]
+  sheets: { name: string; headerLines: string[]; schedules: ScheduleRow[] }[]
   zoomId: string
   zoomPasscode: string
   keteranganLines: string[]
@@ -131,8 +129,6 @@ export function CetakDocument({
   ukuranKertas: string
   orientasi: string
 }) {
-  const kelasGroups = groupSchedulesByKelas(schedules)
-
   const size = (['A4', 'Letter', 'Legal'] as const).includes(ukuranKertas as 'A4' | 'Letter' | 'Legal')
     ? (ukuranKertas.toUpperCase() as 'A4' | 'LETTER' | 'LEGAL')
     : 'A4'
@@ -141,78 +137,88 @@ export function CetakDocument({
 
   return (
     <Document>
-      <Page size={size} orientation={orientation} style={styles.page} wrap>
-        <View style={styles.header}>
-          {headerLines.map((line, i) => (
-            <Text key={i} style={styles.headerLine}>
-              {line}
-            </Text>
-          ))}
-          <Text style={styles.headerLine}>
-            ID ZOOM : {zoomId}
-            {zoomPasscode ? `     PASSCODE : ${zoomPasscode}` : ''}
-          </Text>
-        </View>
-
-        {kelasGroups.length === 0 && <Text style={styles.empty}>Tidak ada data jadwal untuk pilihan ini.</Text>}
-
-        {kelasGroups.length > 0 && (
-          <View style={styles.table}>
-            <View style={styles.row} fixed>
-              {headerLabels.map((label, i) => (
-                <View key={label} style={[styles.headerCell, { width: `${PDF_COLUMN_WIDTH_PERCENT[i]}%` }]}>
-                  <Text style={styles.headerCellText}>{label}</Text>
-                </View>
+      {sheets.map(({ name, headerLines, schedules }) => {
+        const kelasGroups = groupSchedulesByKelas(schedules)
+        return (
+          <Page key={name} size={size} orientation={orientation} style={styles.page} wrap>
+            <View style={styles.header}>
+              {headerLines.map((line, i) => (
+                <Text key={i} style={styles.headerLine}>
+                  {line}
+                </Text>
               ))}
+              <Text style={styles.headerLine}>
+                ID ZOOM : {zoomId}
+                {zoomPasscode ? `     PASSCODE : ${zoomPasscode}` : ''}
+              </Text>
             </View>
 
-            {kelasGroups.map(([kelas, rows]) => (
-              <View key={kelas}>
-                <View style={styles.row} wrap={false}>
-                  <View style={[styles.kelasBanner, { width: '100%' }]}>
-                    <Text style={styles.kelasBannerText}>KELAS {kelas}</Text>
-                  </View>
+            {kelasGroups.length === 0 && <Text style={styles.empty}>Tidak ada data jadwal untuk pilihan ini.</Text>}
+
+            {kelasGroups.length > 0 && (
+              <View style={styles.table}>
+                <View style={styles.row} fixed>
+                  {headerLabels.map((label, i) => (
+                    <View key={label} style={[styles.headerCell, { width: `${PDF_COLUMN_WIDTH_PERCENT[i]}%` }]}>
+                      <Text style={styles.headerCellText}>{label}</Text>
+                    </View>
+                  ))}
                 </View>
-                {rows.map((r) => (
-                  <View key={r.id} style={styles.row} wrap={false}>
-                    {[r.kode_mk, r.mata_kuliah, r.sks, r.hari, r.jam, r.dosen, r.ruangan, r.zoom].map((value, i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.cell,
-                          { width: `${PDF_COLUMN_WIDTH_PERCENT[i]}%`, alignItems: COLUMN_ALIGN[i] === 'center' ? 'center' : 'flex-start' },
-                        ]}
-                      >
-                        <Text style={styles.cellText}>{value}</Text>
+
+                {kelasGroups.map(([kelas, rows]) => (
+                  <View key={kelas}>
+                    <View style={styles.row} wrap={false}>
+                      <View style={[styles.kelasBanner, { width: '100%' }]}>
+                        <Text style={styles.kelasBannerText}>KELAS {kelas}</Text>
+                      </View>
+                    </View>
+                    {rows.map((r) => (
+                      <View key={r.id} style={styles.row} wrap={false}>
+                        {[r.kode_mk, r.mata_kuliah, r.sks, r.hari, r.jam, r.dosen, r.ruangan, r.zoom].map(
+                          (value, i) => (
+                            <View
+                              key={i}
+                              style={[
+                                styles.cell,
+                                {
+                                  width: `${PDF_COLUMN_WIDTH_PERCENT[i]}%`,
+                                  alignItems: COLUMN_ALIGN[i] === 'center' ? 'center' : 'flex-start',
+                                },
+                              ]}
+                            >
+                              <Text style={styles.cellText}>{value}</Text>
+                            </View>
+                          ),
+                        )}
                       </View>
                     ))}
                   </View>
                 ))}
               </View>
-            ))}
-          </View>
-        )}
+            )}
 
-        <View style={styles.keterangan}>
-          <Text style={styles.keteranganTitle}>KETERANGAN:</Text>
-          {keteranganLines.map((line, i) => (
-            <Text key={i} style={styles.keteranganLine}>
-              {line}
-            </Text>
-          ))}
-        </View>
+            <View style={styles.keterangan}>
+              <Text style={styles.keteranganTitle}>KETERANGAN:</Text>
+              {keteranganLines.map((line, i) => (
+                <Text key={i} style={styles.keteranganLine}>
+                  {line}
+                </Text>
+              ))}
+            </View>
 
-        <View style={styles.signature} wrap={false}>
-          <Text style={styles.signatureLine}>{jabatanPenandatangan}</Text>
-          {gambarTandaTangan ? (
-            // eslint-disable-next-line jsx-a11y/alt-text
-            <Image src={gambarTandaTangan} style={styles.signatureImage} />
-          ) : (
-            <View style={styles.signatureSpacer} />
-          )}
-          <Text style={styles.signatureName}>{namaPenandatangan}</Text>
-        </View>
-      </Page>
+            <View style={styles.signature} wrap={false}>
+              <Text style={styles.signatureLine}>{jabatanPenandatangan}</Text>
+              {gambarTandaTangan ? (
+                // eslint-disable-next-line jsx-a11y/alt-text
+                <Image src={gambarTandaTangan} style={styles.signatureImage} />
+              ) : (
+                <View style={styles.signatureSpacer} />
+              )}
+              <Text style={styles.signatureName}>{namaPenandatangan}</Text>
+            </View>
+          </Page>
+        )
+      })}
     </Document>
   )
 }

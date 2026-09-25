@@ -16,7 +16,7 @@ export default async function CetakPage(props: PageProps<'/cetak'>) {
   const context = {
     academic_year_id: (searchParams.ay as string) || defaultYear,
     jenis_kelas: ((searchParams.jenis as string) === 'regsus' ? 'regsus' : 'reguler') as 'reguler' | 'regsus',
-    semester_ke: parseInt((searchParams.smt as string) || '1', 10) || 1,
+    semester_ke: searchParams.smt === 'all' ? ('all' as const) : parseInt((searchParams.smt as string) || '1', 10) || 1,
   }
 
   const schedules = await fetchSchedulesForContext(context)

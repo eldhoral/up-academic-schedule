@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   // exhausted, network hiccup, etc.) fall back to the hand-built renderer
   // rather than breaking the preview entirely.
   const converted =
-    data.schedules.length === 0
+    data.sheets.every((sheet) => sheet.schedules.length === 0)
       ? null
       : await buildXlsx(data)
           .then(convertXlsxToPdf)

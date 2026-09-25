@@ -42,9 +42,10 @@ function mergedText(
   return cell
 }
 
+type Sheet = { name: string; headerLines: string[]; schedules: ScheduleRow[] }
+
 export async function buildXlsx(props: {
-  schedules: ScheduleRow[]
-  headerLines: string[]
+  sheets: Sheet[]
   zoomId: string
   zoomPasscode: string
   keteranganLines: string[]
@@ -54,9 +55,18 @@ export async function buildXlsx(props: {
   orientasi: string
 }): Promise<Uint8Array<ArrayBuffer>> {
   const workbook = new ExcelJS.Workbook()
-  // exceljs paper-size codes: 5 = Legal, 9 = A4, undefined = Letter (its default)
+  // Each sheet prints as its own page run, so "Semua semester" converts to one PDF with every semester.
+  for (const sheet of props.sheets) addSheet(workbook, sheet, props)
+  return new Uint8Array(await workbook.xlsx.writeBuffer())
+}
+
+function addSheet(
+  workbook: ExcelJS.Workbook,
+  { name, headerLines, schedules }: Sheet,
+  props: Omit<Parameters<typeof buildXlsx>[0], 'sheets'>,
+) {  // exceljs paper-size codes: 5 = Legal, 9 = A4, undefined = Letter (its default)
   const paperSize = props.ukuranKertas === 'Legal' ? 5 : props.ukuranKertas === 'Letter' ? undefined : 9
-  const sheet = workbook.addWorksheet('Jadwal', {
+  const sheet = workbook.addWorksheet(name, {
     pageSetup: {
       paperSize,
       orientation: props.orientasi === 'landscape' ? 'landscape' : 'portrait',
@@ -71,7 +81,7 @@ export async function buildXlsx(props: {
   sheet.columns = COLUMN_WIDTHS.map((width) => ({ width }))
 
   let r = 1
-  for (const line of props.headerLines) {
+  for (const line of headerLines) {
     mergedText(sheet, r, line, { bold: true, size: 13, align: 'center' })
     r++
   }
@@ -82,7 +92,7 @@ export async function buildXlsx(props: {
   })
   r += 2
 
-  const kelasGroups = groupSchedulesByKelas(props.schedules)
+  const kelasGroups = groupSchedulesByKelas(schedules)
 
   const headerRowIndex = r
   const headerLabels = [...COLUMN_LABELS.slice(0, -1), `BOR ZOOM \n${props.zoomId}`]
@@ -145,6 +155,4 @@ export async function buildXlsx(props: {
 
   // Repeats the column header row on every printed page (Excel's "Print Titles").
   sheet.pageSetup.printTitlesRow = `${headerRowIndex}:${headerRowIndex}`
-
-  return new Uint8Array(await workbook.xlsx.writeBuffer())
 }

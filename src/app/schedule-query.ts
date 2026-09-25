@@ -7,15 +7,16 @@ const SCHEDULE_SELECT =
 export async function fetchSchedulesForContext(context: {
   academic_year_id: string
   jenis_kelas: string
-  semester_ke: number
+  semester_ke: number | 'all'
 }): Promise<ScheduleRow[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  let query = supabase
     .from('schedules')
     .select(SCHEDULE_SELECT)
     .eq('academic_year_id', context.academic_year_id)
     .eq('jenis_kelas', context.jenis_kelas)
-    .eq('semester_ke', context.semester_ke)
+  if (context.semester_ke !== 'all') query = query.eq('semester_ke', context.semester_ke)
+  const { data } = await query
   return (data as unknown as ScheduleRow[]) ?? []
 }
 

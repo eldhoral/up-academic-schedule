@@ -13,7 +13,7 @@ export function CetakClient({
   hasSchedules,
 }: {
   academicYears: AcademicYear[]
-  context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
+  context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number | 'all' }
   hasSchedules: boolean
 }) {
   const router = useRouter()
@@ -70,8 +70,11 @@ export function CetakClient({
         <Select
           id="ctx-smt"
           value={String(context.semester_ke)}
-          onValueChange={(v) => navigate({ semester_ke: parseInt(v, 10) })}
-          options={SEMESTERS.map((s) => ({ value: String(s), label: String(s) }))}
+          onValueChange={(v) => navigate({ semester_ke: v === 'all' ? 'all' : parseInt(v, 10) })}
+          options={[
+            { value: 'all', label: 'Semua semester' },
+            ...SEMESTERS.map((s) => ({ value: String(s), label: String(s) })),
+          ]}
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
         />
 
@@ -98,10 +101,11 @@ export function CetakClient({
       ) : (
         <EmptySheet
           title="Belum ada jadwal untuk dicetak"
-          detail={`Semester ${context.semester_ke} · ${context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'} · ${
+          detail={`${context.semester_ke === 'all' ? 'Semua semester' : `Semester ${context.semester_ke}`} · ${context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'} · ${
             academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? ''
           } belum memiliki jadwal.`}
-          actionHref={`/?${query}`}
+          // Penjadwalan works one semester at a time; "Semua semester" opens its default.
+          actionHref={`/?${context.semester_ke === 'all' ? new URLSearchParams({ ay: context.academic_year_id, jenis: context.jenis_kelas }) : query}`}
           actionLabel="Buka Penjadwalan"
         />
       )}
