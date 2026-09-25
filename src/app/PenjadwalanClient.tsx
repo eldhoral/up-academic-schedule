@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
-import { hariLabel } from '@/lib/hari'
+import { HARI_DB, hariLabel } from '@/lib/hari'
 import { ScheduleFormModal } from './ScheduleFormModal'
 import { ClashFindingsBar } from './ClashFindingsBar'
 import type { ClashFinding, ClashFindingSide } from './clash-actions'
@@ -42,6 +42,8 @@ export function PenjadwalanClient({
   const [schedules, setSchedules] = useState(initialSchedules)
   const [clashes, setClashes] = useState(initialClashes)
   const [context, setContext] = useState(initialContext)
+  const [query, setQuery] = useState('')
+  const [hariFilter, setHariFilter] = useState('semua')
 
   // router.refresh() (after add/edit save) re-renders the server page with fresh props — resync.
   // (React "adjusting state during render" pattern: avoids an effect + extra render pass.)
@@ -93,8 +95,21 @@ export function PenjadwalanClient({
     })
   }
 
+  const dosenText = (s: ScheduleRow) =>
+    s.schedule_lecturers.length === 0
+      ? 'MKWU'
+      : s.schedule_lecturers.map((sl) => (sl.lecturers ? lecturerDisplayName(sl.lecturers) : '')).join(' ')
+  const q = query.trim().toLowerCase()
+  const filtered = schedules.filter((s) => {
+    if (hariFilter !== 'semua' && s.hari !== hariFilter) return false
+    if (!q) return true
+    return [s.kode_mk, s.courses?.nama_mk, dosenText(s), s.rooms?.nama, s.zoom_id].some((v) =>
+      v?.toLowerCase().includes(q),
+    )
+  })
+
   const byKelas = new Map<string, ScheduleRow[]>()
-  for (const s of schedules) {
+  for (const s of filtered) {
     const list = byKelas.get(s.kelas) ?? []
     list.push(s)
     byKelas.set(s.kelas, list)
@@ -164,16 +179,41 @@ export function PenjadwalanClient({
               Pilih mata kuliah di sebelah kanan; tabel akan bertambah di bawah, dikelompokkan per kelas.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setModalOpen('new')}
-            className="px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
-          >
-            Tambah mata kuliah
-          </button>
+          <div className="flex items-center gap-[0.53rem] flex-wrap">
+            <input
+              type="search"
+              placeholder="Cari kode, mata kuliah, dosen, ruangan…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-[18rem] bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.5rem]"
+            />
+            <Select
+              ariaLabel="Filter hari"
+              value={hariFilter}
+              onValueChange={setHariFilter}
+              options={[
+                { value: 'semua', label: 'Semua hari' },
+                ...HARI_DB.map((h) => ({ value: h, label: hariLabel(h) })),
+              ]}
+              className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.5rem]"
+            />
+            <button
+              type="button"
+              onClick={() => setModalOpen('new')}
+              className="px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
+            >
+              Tambah mata kuliah
+            </button>
+          </div>
         </div>
 
-        {kelasGroups.length === 0 && (
+        {schedules.length > 0 && kelasGroups.length === 0 && (
+          <p className="text-[0.93rem] text-[var(--tinta-3)] py-[2rem] text-center">
+            Tidak ada jadwal yang cocok dengan pencarian.
+          </p>
+        )}
+
+        {schedules.length === 0 && (
           <p className="text-[0.93rem] text-[var(--tinta-3)] py-[2rem] text-center">
             Belum ada jadwal untuk semester ini &mdash; tambahkan mata kuliah pertama.
           </p>
