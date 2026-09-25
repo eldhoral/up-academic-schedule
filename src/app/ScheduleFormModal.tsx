@@ -318,18 +318,18 @@ export function ScheduleFormModal({
           </Field>
 
           <div className="flex gap-[0.8rem]">
-            <Field label="Ruangan" className="flex-1">
+            <Field label="Ruangan Luring" className="flex-1">
               <Select
                 name="room_id"
                 value={roomId}
                 onValueChange={setRoomId}
                 placeholder="—"
-                ariaLabel="Ruangan"
+                ariaLabel="Ruangan Luring"
                 options={rooms.map((r) => ({ value: r.id, label: r.nama }))}
                 className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
               />
             </Field>
-            <Field label="Zoom ID" className="flex-1">
+            <Field label="Ruangan Daring" className="flex-1">
               <input
                 name="zoom_id"
                 defaultValue={editing?.zoom_id ?? defaultZoomId}

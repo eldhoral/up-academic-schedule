@@ -296,8 +296,8 @@ function ScheduleDetailModal({ schedule: r, onClose }: { schedule: ScheduleRow; 
               {r.minggu !== 'setiap' && ` (minggu ${r.minggu})`}
             </DetailRow>
             <DetailRow label="Dosen">{dosen.map((d) => d.label).join(', ')}</DetailRow>
-            <DetailRow label="Ruangan">{r.rooms?.nama || '—'}</DetailRow>
-            <DetailRow label="Zoom">{r.zoom_id || '—'}</DetailRow>
+            <DetailRow label="Ruangan Luring">{r.rooms?.nama || '—'}</DetailRow>
+            <DetailRow label="Ruangan Daring">{r.zoom_id || '—'}</DetailRow>
             <DetailRow label="Jumlah mahasiswa">{r.jumlah_mhs}</DetailRow>
             {r.keterangan && <DetailRow label="Keterangan">{r.keterangan}</DetailRow>}
           </dl>

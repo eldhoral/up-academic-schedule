@@ -236,8 +236,8 @@ export function PenjadwalanClient({
                       <Th style={{ width: '7rem' }}>Hari</Th>
                       <Th style={{ width: '8rem' }}>Waktu</Th>
                       <Th style={{ width: '17rem' }}>Dosen</Th>
-                      <Th style={{ width: '5rem' }}>Ruangan</Th>
-                      <Th style={{ width: '6rem' }}>Zoom</Th>
+                      <Th style={{ width: '7rem' }}>Ruangan Luring</Th>
+                      <Th style={{ width: '7rem' }}>Ruangan Daring</Th>
                       <Th style={{ width: '3rem' }}>&nbsp;</Th>
                     </tr>
                   </thead>
