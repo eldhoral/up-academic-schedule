@@ -45,7 +45,8 @@ const BODY_TABS = [
   { type: TabStopType.LEFT, position: 6521 },
 ]
 const TABLE_WIDTH = 9453
-const TABLE_GRID = [608, 3458, 843, 1120, 1394, 989, 1041]
+// BOR ZOOM's width comes out of MATA KULIAH, SKS and HARI so the total stays TABLE_WIDTH.
+const TABLE_GRID = [608, 2321, 700, 1000, 1394, 989, 1041, 1400]
 const HYPERLINK_COLOR = '0563C1'
 // Fonts go on every run, as in the reference: QuickLook/Pages ignore docDefaults.
 // The kop's address lines use the theme's minorBidi font, which Word resolves to Times New Roman.
@@ -115,7 +116,7 @@ function buildTable(rows: ScheduleRow[]): Table {
   const thickEdges = { top: THIN_THICK, bottom: THICK_THIN }
   const header = new TableRow({
     height: { value: 580, rule: HeightRule.ATLEAST },
-    children: ['NO.', 'MATA KULIAH', 'SKS', 'HARI', 'JAM', 'KELAS', 'RUANG'].map((label, i) =>
+    children: ['NO.', 'MATA KULIAH', 'SKS', 'HARI', 'JAM', 'KELAS', 'RUANG', 'BOR ZOOM'].map((label, i) =>
       tableCell(label, { bold: true, center: true, width: TABLE_GRID[i], borders: thickEdges }),
     ),
   })
@@ -123,14 +124,14 @@ function buildTable(rows: ScheduleRow[]): Table {
   const section = (title: string, list: ScheduleRow[], first: boolean) => {
     const banner = new TableRow({
       height: { value: first ? 580 : 504, rule: HeightRule.ATLEAST },
-      children: [tableCell(title, { bold: true, span: 7, width: TABLE_WIDTH, borders: first ? thickEdges : undefined })],
+      children: [tableCell(title, { bold: true, span: TABLE_GRID.length, width: TABLE_WIDTH, borders: first ? thickEdges : undefined })],
     })
     if (list.length === 0) {
       return [
         banner,
         new TableRow({
           height: { value: 504, rule: HeightRule.ATLEAST },
-          children: [tableCell('—', { center: true, span: 7, width: TABLE_WIDTH })],
+          children: [tableCell('—', { center: true, span: TABLE_GRID.length, width: TABLE_WIDTH })],
         }),
       ]
     }
@@ -146,6 +147,7 @@ function buildTable(rows: ScheduleRow[]): Table {
             tableCell(`${r.jam_mulai.slice(0, 5)}-${r.jam_selesai.slice(0, 5)}`.replace(/:/g, '.'), { center: true, width: TABLE_GRID[4] }),
             tableCell(r.kelas, { center: true, width: TABLE_GRID[5] }),
             tableCell(r.rooms?.nama ?? '', { center: true, width: TABLE_GRID[6] }),
+            tableCell(r.zoom_id || '', { center: true, width: TABLE_GRID[7] }),
           ],
         }),
     )
