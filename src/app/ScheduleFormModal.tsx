@@ -18,7 +18,6 @@ export function ScheduleFormModal({
   rooms,
   sessions,
   kelasOptions,
-  defaultZoomId,
   maksMahasiswaPerKelas,
   minMahasiswaPilihan,
   editing,
@@ -31,7 +30,6 @@ export function ScheduleFormModal({
   rooms: Room[]
   sessions: SessionRow[]
   kelasOptions: string[]
-  defaultZoomId: string
   maksMahasiswaPerKelas: number
   minMahasiswaPilihan: number
   editing: ScheduleRow | null
@@ -332,7 +330,7 @@ export function ScheduleFormModal({
             <Field label="Ruangan Daring" className="flex-1">
               <input
                 name="zoom_id"
-                defaultValue={editing?.zoom_id ?? defaultZoomId}
+                defaultValue={editing?.zoom_id ?? ''}
                 className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mono"
               />
             </Field>

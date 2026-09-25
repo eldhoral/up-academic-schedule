@@ -55,7 +55,6 @@ export default async function DashboardPage(props: PageProps<'/'>) {
         schedules={schedules}
         clashes={clashes}
         kelasOptions={classLetters(settingText(settings, 'kelas_maksimal', 'Z'))}
-        defaultZoomId={settingText(settings, 'zoom_id', '')}
         maksMahasiswaPerKelas={settingInt(settings, 'maks_mahasiswa_per_kelas', 50)}
         minMahasiswaPilihan={settingInt(settings, 'min_mahasiswa_pilihan', 10)}
         context={context}

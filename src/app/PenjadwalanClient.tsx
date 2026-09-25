@@ -20,7 +20,6 @@ export function PenjadwalanClient({
   schedules: initialSchedules,
   clashes: initialClashes,
   kelasOptions,
-  defaultZoomId,
   maksMahasiswaPerKelas,
   minMahasiswaPilihan,
   context: initialContext,
@@ -33,7 +32,6 @@ export function PenjadwalanClient({
   schedules: ScheduleRow[]
   clashes: ClashFinding[]
   kelasOptions: string[]
-  defaultZoomId: string
   maksMahasiswaPerKelas: number
   minMahasiswaPilihan: number
   context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
@@ -317,7 +315,6 @@ export function PenjadwalanClient({
           rooms={rooms}
           sessions={sessions}
           kelasOptions={kelasOptions}
-          defaultZoomId={defaultZoomId}
           maksMahasiswaPerKelas={maksMahasiswaPerKelas}
           minMahasiswaPilihan={minMahasiswaPilihan}
           editing={modalOpen === 'new' ? null : modalOpen}
