@@ -1,7 +1,7 @@
-// Converts the generated .xlsx to PDF via Aspose Cells Cloud, so the preview
-// is a real render of the exact file instead of a hand-built approximation.
-// Free tier is only 150 calls/month -- callers should treat failures (quota
-// exhausted, network error) as recoverable and fall back to another renderer.
+// Converts the generated .xlsx (Aspose Cells Cloud) or .docx (Aspose Words Cloud)
+// to PDF, so the preview is a real render of the exact file instead of a
+// hand-built approximation. Free tier is only 150 calls/month -- callers should
+// treat failures (quota exhausted, network error) as recoverable and fall back.
 
 let cachedToken: { token: string; expiresAt: number } | null = null
 
@@ -24,18 +24,20 @@ async function getAccessToken(): Promise<string> {
   return cachedToken.token
 }
 
-export async function convertXlsxToPdf(xlsx: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
+async function convertToPdf(url: string, field: string, filename: string, file: Uint8Array<ArrayBuffer>) {
   const token = await getAccessToken()
 
   const form = new FormData()
-  form.append('File', new Blob([xlsx]), 'workbook.xlsx')
+  form.append(field, new Blob([file]), filename)
 
-  const res = await fetch('https://api.aspose.cloud/v4.0/cells/convert/spreadsheet?format=PDF', {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
-  })
+  const res = await fetch(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: form })
   if (!res.ok) throw new Error(`Aspose conversion failed: ${res.status} ${await res.text()}`)
 
   return new Uint8Array(await res.arrayBuffer())
 }
+
+export const convertXlsxToPdf = (xlsx: Uint8Array<ArrayBuffer>) =>
+  convertToPdf('https://api.aspose.cloud/v4.0/cells/convert/spreadsheet?format=PDF', 'File', 'workbook.xlsx', xlsx)
+
+export const convertDocxToPdf = (docx: Uint8Array<ArrayBuffer>) =>
+  convertToPdf('https://api.aspose.cloud/v4.0/words/convert?format=pdf', 'document', 'document.docx', docx)

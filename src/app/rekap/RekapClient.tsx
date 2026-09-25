@@ -30,6 +30,7 @@ export function RekapClient({
 
   const query = new URLSearchParams({ ay: academicYearId, dosen: selectedDosen }).toString()
   const docxUrl = `/rekap/docx?${query}`
+  const pdfUrl = `/rekap/pdf?${query}`
 
   return (
     <div className="flex flex-col flex-1">
@@ -67,9 +68,42 @@ export function RekapClient({
         </a>
       </div>
 
-      <DocxPreview key={docxUrl} url={docxUrl} />
+      <PdfPreview key={pdfUrl} url={pdfUrl} docxUrl={docxUrl} />
     </div>
   )
+}
+
+/** The docx converted to PDF by Aspose Words -- the same layout Word gives the downloaded file.
+ *  Falls back to the in-browser docx approximation when the conversion fails (e.g. quota). */
+function PdfPreview({ url, docxUrl }: { url: string; docxUrl: string }) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    let objectUrl: string | null = null
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`${res.status}`)
+        return res.blob()
+      })
+      .then((blob) => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setSrc(objectUrl)
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true)
+      })
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [url])
+
+  if (failed) return <DocxPreview url={docxUrl} />
+  if (!src) return <p className="text-center text-[0.93rem] text-[var(--tinta-3)] py-[2rem]">Memuat pratinjau…</p>
+  return <iframe src={src} title="Pratinjau Surat Penugasan" className="flex-1 w-full border-0" />
 }
 
 function DocxPreview({ url }: { url: string }) {
