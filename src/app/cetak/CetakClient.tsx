@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
+import { EmptySheet } from '@/components/EmptySheet'
 import type { AcademicYear } from '../penjadwalan-types'
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -9,9 +10,11 @@ const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
 export function CetakClient({
   academicYears,
   context,
+  hasSchedules,
 }: {
   academicYears: AcademicYear[]
   context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
+  hasSchedules: boolean
 }) {
   const router = useRouter()
 
@@ -72,15 +75,36 @@ export function CetakClient({
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
         />
 
-        <a
-          href={xlsxUrl}
-          className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
-        >
-          Unduh Excel
-        </a>
+        {hasSchedules ? (
+          <a
+            href={xlsxUrl}
+            className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
+          >
+            Unduh Excel
+          </a>
+        ) : (
+          <span
+            aria-disabled="true"
+            title="Belum ada jadwal untuk diunduh"
+            className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru-disabled)] text-white font-medium cursor-not-allowed text-[0.93rem]"
+          >
+            Unduh Excel
+          </span>
+        )}
       </div>
 
-      <iframe key={pdfUrl} src={pdfUrl} title="Pratinjau Jadwal" className="flex-1 w-full border-0" />
+      {hasSchedules ? (
+        <iframe key={pdfUrl} src={pdfUrl} title="Pratinjau Jadwal" className="flex-1 w-full border-0" />
+      ) : (
+        <EmptySheet
+          title="Belum ada jadwal untuk dicetak"
+          detail={`Semester ${context.semester_ke} · ${context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'} · ${
+            academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? ''
+          } belum memiliki jadwal.`}
+          actionHref={`/?${query}`}
+          actionLabel="Buka Penjadwalan"
+        />
+      )}
     </div>
   )
 }

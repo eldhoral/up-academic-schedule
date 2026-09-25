@@ -14,17 +14,21 @@ export async function GET(request: Request) {
   })
   const filename = `Jadwal Perkuliahan ${data.academicYearLabel.replace(/\//g, '-')}.pdf`
 
-  let buffer: Uint8Array<ArrayBuffer>
-  try {
-    const xlsx = await buildXlsx(data)
-    buffer = await convertXlsxToPdf(xlsx)
-  } catch (err) {
-    // Free-tier quota exhausted, network hiccup, etc. -- fall back to the
-    // hand-built renderer rather than breaking the preview entirely.
-    console.error('Aspose xlsx-to-PDF conversion failed, falling back to react-pdf:', err)
-    const pdfBuffer = await renderToBuffer(createElement(CetakDocument, data) as Parameters<typeof renderToBuffer>[0])
-    buffer = new Uint8Array(pdfBuffer)
-  }
+  // An empty jadwal isn't worth an Aspose call. On failure (free-tier quota
+  // exhausted, network hiccup, etc.) fall back to the hand-built renderer
+  // rather than breaking the preview entirely.
+  const converted =
+    data.schedules.length === 0
+      ? null
+      : await buildXlsx(data)
+          .then(convertXlsxToPdf)
+          .catch((err) => {
+            console.error('Aspose xlsx-to-PDF conversion failed, falling back to react-pdf:', err)
+            return null
+          })
+  const buffer =
+    converted ??
+    new Uint8Array(await renderToBuffer(createElement(CetakDocument, data) as Parameters<typeof renderToBuffer>[0]))
 
   return new Response(buffer, {
     headers: {

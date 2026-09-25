@@ -8,6 +8,9 @@ export async function GET(request: Request) {
     ay: searchParams.get('ay'),
     dosen: searchParams.get('dosen'),
   })
+  // Nothing to rekap -- don't spend an Aspose call converting an empty letter.
+  if (data.lecturersToRender.length === 0) return new Response('Tidak ada dosen untuk direkap', { status: 404 })
+
   const filename = `Surat Penugasan ${data.academicYearLabel.replace(/\//g, '-')}.pdf`
 
   try {

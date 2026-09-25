@@ -1,5 +1,6 @@
 import { AppHeader } from '@/components/AppHeader'
 import { createClient } from '@/lib/supabase/server'
+import { fetchSchedulesForContext } from '../schedule-query'
 import { CetakClient } from './CetakClient'
 import type { AcademicYear } from '../penjadwalan-types'
 
@@ -18,12 +19,14 @@ export default async function CetakPage(props: PageProps<'/cetak'>) {
     semester_ke: parseInt((searchParams.smt as string) || '1', 10) || 1,
   }
 
+  const schedules = await fetchSchedulesForContext(context)
+
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <div className="no-print">
         <AppHeader active="/cetak" />
       </div>
-      <CetakClient academicYears={years} context={context} />
+      <CetakClient academicYears={years} context={context} hasSchedules={schedules.length > 0} />
     </div>
   )
 }

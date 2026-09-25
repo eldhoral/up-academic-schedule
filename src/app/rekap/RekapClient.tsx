@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { renderAsync } from 'docx-preview'
 import { Select } from '@/components/Select'
+import { EmptySheet } from '@/components/EmptySheet'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import type { AcademicYear, Lecturer } from '../penjadwalan-types'
 
@@ -12,11 +13,13 @@ export function RekapClient({
   lecturers,
   academicYearId,
   selectedDosen,
+  hasLetters,
 }: {
   academicYears: AcademicYear[]
   lecturers: Lecturer[]
   academicYearId: string
   selectedDosen: string // kode_dosen, or 'all'
+  hasLetters: boolean
 }) {
   const router = useRouter()
 
@@ -31,6 +34,9 @@ export function RekapClient({
   const query = new URLSearchParams({ ay: academicYearId, dosen: selectedDosen }).toString()
   const docxUrl = `/rekap/docx?${query}`
   const pdfUrl = `/rekap/pdf?${query}`
+  const yearLabel = academicYears.find((ay) => ay.id === academicYearId)?.label ?? ''
+  const selectedLecturer = lecturers.find((l) => l.kode_dosen === selectedDosen)
+  const dosenLabel = selectedLecturer ? lecturerDisplayName(selectedLecturer) : 'Dosen ini'
 
   return (
     <div className="flex flex-col flex-1">
@@ -60,15 +66,41 @@ export function RekapClient({
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem] max-w-[18rem]"
         />
 
-        <a
-          href={docxUrl}
-          className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
-        >
-          Unduh Word
-        </a>
+        {hasLetters ? (
+          <a
+            href={docxUrl}
+            className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
+          >
+            Unduh Word
+          </a>
+        ) : (
+          <span
+            aria-disabled="true"
+            title="Belum ada jadwal untuk diunduh"
+            className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru-disabled)] text-white font-medium cursor-not-allowed text-[0.93rem]"
+          >
+            Unduh Word
+          </span>
+        )}
       </div>
 
-      <PdfPreview key={pdfUrl} url={pdfUrl} docxUrl={docxUrl} />
+      {hasLetters ? (
+        <PdfPreview key={pdfUrl} url={pdfUrl} docxUrl={docxUrl} />
+      ) : (
+        <EmptySheet
+          {...(selectedDosen === 'all'
+            ? {
+                title: 'Belum ada dosen untuk direkap',
+                detail: `Tahun akademik ${yearLabel} belum memiliki jadwal mengajar.`,
+              }
+            : {
+                title: 'Belum ada jadwal untuk direkap',
+                detail: `${dosenLabel} belum memiliki jadwal mengajar di tahun akademik ${yearLabel}.`,
+              })}
+          actionHref={`/?${new URLSearchParams({ ay: academicYearId }).toString()}`}
+          actionLabel="Buka Penjadwalan"
+        />
+      )}
     </div>
   )
 }
