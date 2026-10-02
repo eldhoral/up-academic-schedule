@@ -22,6 +22,11 @@ const UJIAN: Section = {
   ],
 }
 
+const SIDANG: Section = {
+  title: 'Jadwal Prasidang & Sidang',
+  tabs: [{ href: '/sidang', label: 'Jadwal Sidang' }],
+}
+
 const MASTER: Section = {
   title: 'Data Master',
   tabs: [
@@ -38,6 +43,7 @@ const MASTER: Section = {
 function sectionOf(active: string): Section | null {
   if (active.startsWith('/kuliah')) return KULIAH
   if (active.startsWith('/ujian')) return UJIAN
+  if (active.startsWith('/sidang')) return SIDANG
   if (MASTER.tabs.some((t) => t.href === active)) return MASTER
   if (active === '/pengguna') return { title: 'Manajemen Pengguna', tabs: [] }
   if (active === '/log-aktivitas') return { title: 'Audit Log', tabs: [] }

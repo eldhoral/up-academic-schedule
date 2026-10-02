@@ -21,6 +21,7 @@ export const TABLE_LABEL: Record<string, string> = {
   schedules: 'Jadwal',
   schedule_lecturers: 'Dosen Jadwal',
   exams: 'Jadwal Ujian',
+  defenses: 'Jadwal Sidang',
   settings: 'Pengaturan',
   profiles: 'Pengguna',
   auth: 'Autentikasi',

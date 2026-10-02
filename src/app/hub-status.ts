@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { romanSemester } from '@/lib/print'
 import { checkAllClashes } from './kuliah/clash-actions'
 import { checkAllExamClashes } from './ujian/actions'
+import { checkAllDefenseClashes } from './sidang/actions'
+import { tanggalSingkat } from './sidang/defense-types'
 
 export type ScheduleStatus = {
   summary: string
@@ -48,6 +50,32 @@ export async function getUjianStatus(academicYearId: string): Promise<ScheduleSt
     const bentrok = clashes.filter((c) => c.policy === 'blok').length
     return {
       summary: data.length === 0 ? 'Belum ada jadwal ujian' : `UTS ${count('uts')} · UAS ${count('uas')} terjadwal`,
+      bentrok,
+      peringatan: clashes.length - bentrok,
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Same for prasidang and sidang: counts per kind and the next date still ahead. Null when it can't be read. */
+export async function getSidangStatus(academicYearId: string): Promise<ScheduleStatus | null> {
+  try {
+    const supabase = await createClient()
+    const [{ data, error }, clashes] = await Promise.all([
+      supabase.from('defenses').select('jenis, tanggal').eq('academic_year_id', academicYearId),
+      checkAllDefenseClashes(academicYearId),
+    ])
+    if (error || !data) return null
+
+    const today = new Date().toISOString().slice(0, 10)
+    const next = data.map((r) => r.tanggal as string).filter((t) => t >= today).sort()[0]
+    const bentrok = clashes.filter((c) => c.policy === 'blok').length
+    return {
+      summary:
+        data.length === 0
+          ? 'Belum ada jadwal prasidang atau sidang'
+          : `Prasidang ${data.filter((r) => r.jenis === 'prasidang').length} · Sidang ${data.filter((r) => r.jenis === 'sidang').length}${next ? ` · berikutnya ${tanggalSingkat(next)}` : ''}`,
       bentrok,
       peringatan: clashes.length - bentrok,
     }

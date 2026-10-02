@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { AppHeader } from '@/components/AppHeader'
 import { getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
-import { getKuliahStatus, getUjianStatus, type ScheduleStatus } from './hub-status'
+import { getKuliahStatus, getSidangStatus, getUjianStatus, type ScheduleStatus } from './hub-status'
 import type { AcademicYear } from './kuliah/penjadwalan-types'
 
 export default async function MenuPage() {
@@ -14,7 +14,7 @@ export default async function MenuPage() {
 
   const years = (academicYears as AcademicYear[]) ?? []
   const year = years.find((y) => y.is_active) ?? years[0]
-  const [kuliah, ujian] = year ? await Promise.all([getKuliahStatus(year.id), getUjianStatus(year.id)]) : [null, null]
+  const [kuliah, ujian, sidang] = year ? await Promise.all([getKuliahStatus(year.id), getUjianStatus(year.id), getSidangStatus(year.id)]) : [null, null, null]
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
@@ -41,6 +41,14 @@ export default async function MenuPage() {
             printHref="/ujian/cetak"
             hasYear={Boolean(year)}
             status={ujian}
+          />
+          <Entry
+            folio="03"
+            name="Jadwal Prasidang & Sidang"
+            scope="Mahasiswa, penguji, ruang, bentrok"
+            href="/sidang"
+            hasYear={Boolean(year)}
+            status={sidang}
           />
         </section>
 

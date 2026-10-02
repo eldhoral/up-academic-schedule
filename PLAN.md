@@ -694,7 +694,9 @@ person, with the Kaprodi signature.
    PDF), `check:ujian`.
 4. **Ujian rekap — done.** `/ujian/rekap` (preview and Rekap Pengawas Excel, no
    PDF), pure `pengawas-rows.ts`, asserts in `check:ujian`.
-5. **Sidang data and board** — migration, `/sidang`, hub row.
+5. **Sidang data and board — done.** Migration `20261002000002_defenses.sql` (run it
+   in the Supabase SQL editor), `/sidang` day board with NPM prefill, clash checks,
+   hub row.
 6. **Sidang cetak** — `/sidang/cetak`, `check:sidang`.
 7. **Docs** — update `.interface-design/system.md` and this plan.
 

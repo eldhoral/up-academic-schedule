@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { findClashes, findSlotClashes, timeOverlapMinutes, weeksCollide, type ExistingScheduleForClash, type ScheduleCandidate } from '../src/lib/clash'
 import { examKeys, findExamClashes, type ExamClashInput } from '../src/app/ujian/exam-clash'
+import { defenseKeys, findDefenseClashes, findTeachingOverlaps, type DefenseClashInput } from '../src/app/sidang/defense-clash'
 
 // --- weeksCollide -----------------------------------------------------------
 assert.equal(weeksCollide('setiap', 'setiap'), true)
@@ -145,6 +146,44 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
 
   // Kelas A and B of one mata kuliah sit together: same room and proctor is fine.
   assert.equal(run([exam('m1', { kelas: 'A', room_id: 'r1', pengawas: [{ kode_dosen: 'D1' }] }), exam('m1', { id: 'm1b', kelas: 'B', room_id: 'r1', pengawas: [{ kode_dosen: 'D1' }] })]).length, 0)
+}
+
+// --- defense clashes ----------------------------------------------------------------------
+{
+  const d = (id: string, o: Partial<DefenseClashInput>): DefenseClashInput => ({
+    id, jenis: 'sidang', tanggal: '2026-02-03', jam_mulai: '08:00', jam_selesai: '10:00', room_id: 'r301', kelompok: null, npm: id, nama_mahasiswa: id,
+    pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal: 'Prof. Farida', ...o,
+  })
+  const names = new Map([['D1', 'Dr. Budi'], ['D3', 'Dr. Ani']])
+  const rooms = new Map([['r301', '301']])
+  const run = (rows: DefenseClashInput[]) => findDefenseClashes(rows, names, rooms)
+  const types = (rows: DefenseClashInput[]) => run(rows).map((c) => c.type).sort()
+
+  assert.deepEqual(defenseKeys(d('a', {})), ['dosen:D1', 'dosen:D2', 'nama:PROF. FARIDA', 'ruang:r301'])
+  assert.deepEqual(defenseKeys(d('a', { jenis: 'prasidang', room_id: null, kelompok: 2, penguji_eksternal: '' })), ['dosen:D1', 'dosen:D2', 'kelompok:2'])
+
+  // Same dosen in two rooms at once, and a different external examiner each time.
+  const dosen = run([d('a', { room_id: 'r301', penguji_eksternal: 'X' }), d('b', { room_id: 'r302', penguji_eksternal: 'Y', penguji_kode: 'D3' })])
+  assert.deepEqual(dosen.map((c) => c.type), ['dosen'])
+  assert.equal(dosen[0].detail, 'Dr. Budi')
+
+  assert.deepEqual(types([d('a', { pembimbing_kode: 'D1', penguji_kode: 'D2' }), d('b', { pembimbing_kode: 'D3', penguji_kode: 'D4', penguji_eksternal: 'Y' })]), ['ruangan'], 'same room, different people')
+  assert.deepEqual(types([d('a', { room_id: 'r301' }), d('b', { room_id: 'r302', pembimbing_kode: 'D3', penguji_kode: 'D4' })]), ['eksternal'], 'same external examiner in two rooms')
+  assert.equal(run([d('a', { penguji_eksternal: 'Prof.  FARIDA', room_id: 'r301' }), d('b', { room_id: 'r302', pembimbing_kode: 'D3', penguji_kode: 'D4', penguji_eksternal: 'prof. farida' })]).filter((c) => c.type === 'eksternal').length, 1, 'external names match ignoring case and spacing')
+  // A dosen cannot be at a prasidang and a sidang at the same time.
+  assert.ok(types([d('a', {}), d('b', { jenis: 'prasidang', room_id: null, kelompok: 1, penguji_eksternal: '' })]).includes('dosen'))
+  assert.equal(run([d('a', {}), d('b', { jam_mulai: '10:00', jam_selesai: '12:00' })]).length, 0, 'back-to-back does not clash')
+  assert.equal(run([d('a', {}), d('b', { tanggal: '2026-02-04' })]).length, 0, 'different dates do not clash')
+  assert.deepEqual(types([d('a', { jenis: 'prasidang', room_id: null, kelompok: 1, penguji_eksternal: '', pembimbing_kode: 'D1', penguji_kode: 'D2' }), d('b', { jenis: 'prasidang', room_id: null, kelompok: 1, penguji_eksternal: '', pembimbing_kode: 'D3', penguji_kode: 'D4' })]), ['ruangan'], 'same kelompok')
+
+  // Teaching: 27 Oct 2025 is a Monday.
+  const teach = [{ hari: 'SENIN', jam_mulai: '08:00', jam_selesai: '10:00', nama_mk: 'Psikologi Umum', kelas: 'A', dosenCodes: ['D1'] }]
+  const on = (o: Partial<DefenseClashInput>) => findTeachingOverlaps([d('a', { tanggal: '2025-10-27', jam_mulai: '09:00', jam_selesai: '11:00', ...o })], teach)
+  assert.equal(on({}).length, 1)
+  assert.equal(on({})[0].overlapMinutes, 60)
+  assert.equal(on({ tanggal: '2025-10-28' }).length, 0, 'a Tuesday')
+  assert.equal(on({ jam_mulai: '10:00', jam_selesai: '12:00' }).length, 0, 'after class')
+  assert.equal(on({ pembimbing_kode: 'D3' }).length, 0, 'the teaching dosen is not on this defense')
 }
 
 console.log('clash: all checks passed')
