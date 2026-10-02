@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { findClashes, timeOverlapMinutes, weeksCollide, type ExistingScheduleForClash, type ScheduleCandidate } from '../src/lib/clash'
+import { findClashes, findSlotClashes, timeOverlapMinutes, weeksCollide, type ExistingScheduleForClash, type ScheduleCandidate } from '../src/lib/clash'
+import { examKeys, findExamClashes, type ExamClashInput } from '../src/app/ujian/exam-clash'
 
 // --- weeksCollide -----------------------------------------------------------
 assert.equal(weeksCollide('setiap', 'setiap'), true)
@@ -103,6 +104,47 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
   const clashes = findClashes(candidate({ kelas: 'C', room_id: 'room-301', dosenCodes: ['D003'] }), existing)
   const types = clashes.map((c) => c.type).sort()
   assert.deepEqual(types, ['dosen', 'kelas', 'ruangan'])
+}
+
+// --- findSlotClashes (dated slots) ------------------------------------------------
+{
+  const slot = (id: string, tanggal: string | null, a: string | null, b: string | null, keys: string[]) => ({ id, tanggal, jam_mulai: a, jam_selesai: b, keys })
+  const one = findSlotClashes([slot('1', '2025-10-27', '08:00', '10:00', ['x']), slot('2', '2025-10-27', '09:00', '11:00', ['x'])])
+  assert.equal(one.length, 1)
+  assert.equal(one[0].overlapMinutes, 60)
+  assert.equal(findSlotClashes([slot('1', '2025-10-27', '08:00', '10:00', ['x']), slot('2', '2025-10-27', '10:00', '12:00', ['x'])]).length, 0, 'back-to-back does not clash')
+  assert.equal(findSlotClashes([slot('1', '2025-10-27', '08:00', '10:00', ['x']), slot('2', '2025-10-28', '08:00', '10:00', ['x'])]).length, 0, 'different dates never clash')
+  assert.equal(findSlotClashes([slot('1', '2025-10-27', '08:00', '10:00', ['x']), slot('2', '2025-10-27', '08:00', '10:00', ['y'])]).length, 0, 'no shared key, no clash')
+  assert.equal(findSlotClashes([slot('1', null, null, null, ['x']), slot('2', null, null, null, ['x'])]).length, 0, 'unscheduled rows are skipped')
+  assert.equal(findSlotClashes([slot('1', '2025-10-27', '08:00', '10:00', ['x', 'y']), slot('2', '2025-10-27', '09:00', '10:00', ['x', 'y'])]).length, 2, 'one clash per shared key')
+}
+
+// --- exam clashes -------------------------------------------------------------------
+{
+  const exam = (id: string, o: Partial<ExamClashInput>): ExamClashInput => ({
+    id, kode_mk: id, nama_mk: id, jenis_ujian: 'uts', jenis_kelas: 'reguler', semester_ke: 3, kelas: 'A',
+    tanggal: '2025-10-27', jam_mulai: '08:00', jam_selesai: '10:00', room_id: null, pengawas: [], keterangan_ujian: 'offline', ...o,
+  })
+  const kelasMap = new Map([['reguler/3', ['A', 'B']]])
+  const cadangan = new Set(['AKADEMIK'])
+  const run = (rows: ExamClashInput[]) => findExamClashes(rows, kelasMap, cadangan, new Map([['D1', 'Dr. Budi']]), new Map([['r1', '301']]))
+
+  const dosen = run([exam('m1', { pengawas: [{ kode_dosen: 'D1' }] }), exam('m2', { kelas: 'B', pengawas: [{ kode_dosen: 'D1' }] })])
+  assert.deepEqual(dosen.map((c) => c.type), ['pengawas'])
+  assert.equal(dosen[0].detail, 'Dr. Budi')
+
+  assert.equal(run([exam('m1', { kelas: 'A', pengawas: [{ nama: 'AKADEMIK' }] }), exam('m2', { kelas: 'B', pengawas: [{ nama: 'akademik' }] })]).length, 0, 'AKADEMIK is a team, never a clash')
+  assert.equal(run([exam('m1', { kelas: 'A', pengawas: [{ nama: 'Pak  Joko' }] }), exam('m2', { kelas: 'B', pengawas: [{ nama: 'PAK JOKO' }] })]).length, 1, 'free text matches ignoring case and spacing')
+  assert.equal(run([exam('m1', { pengawas: [{ kode_dosen: 'D1' }], keterangan_ujian: 'take_home' }), exam('m2', { kelas: 'B', pengawas: [{ kode_dosen: 'D1' }] })]).length, 0, 'take home occupies nothing')
+  assert.deepEqual(examKeys(exam('m', { keterangan_ujian: 'online', room_id: 'r1' }), kelasMap, cadangan), ['kelas:reguler/3/A'], 'online has no room')
+  assert.equal(run([exam('m1', { room_id: 'r1' }), exam('m2', { kelas: 'B', room_id: 'r1' })]).some((c) => c.type === 'ruangan'), true)
+
+  // GABUNGAN sits every kelas of the semester, so it clashes with a single-kelas exam.
+  const g = run([exam('m1', { kelas: 'GABUNGAN' }), exam('m2', { kelas: 'B' })])
+  assert.deepEqual(g.map((c) => c.type), ['kelas'])
+
+  // Kelas A and B of one mata kuliah sit together: same room and proctor is fine.
+  assert.equal(run([exam('m1', { kelas: 'A', room_id: 'r1', pengawas: [{ kode_dosen: 'D1' }] }), exam('m1', { id: 'm1b', kelas: 'B', room_id: 'r1', pengawas: [{ kode_dosen: 'D1' }] })]).length, 0)
 }
 
 console.log('clash: all checks passed')

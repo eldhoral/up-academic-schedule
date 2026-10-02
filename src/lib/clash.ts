@@ -126,3 +126,41 @@ export function findAllClashes(existing: ExistingScheduleForClash[]): ClashPairi
   }
   return pairings
 }
+
+// --- Dated slots (ujian, sidang) ----------------------------------------------
+// Kuliah repeats weekly (hari + minggu); an exam or sidang happens once, on a date.
+// Rows overlap when they share a date, overlap in time, and share a key -- a person,
+// room or kelas, as a "prefix:id" string the caller decides (and maps to a policy).
+
+export type SlotRow = {
+  id: string
+  tanggal: string | null // 'YYYY-MM-DD'; null (or missing times) = not scheduled yet, never clashes
+  jam_mulai: string | null
+  jam_selesai: string | null
+  keys: string[]
+}
+
+export type SlotClash<T extends SlotRow> = { a: T; b: T; key: string; overlapMinutes: number }
+
+/** Every pair of rows on the same date, overlapping in time, per shared key. */
+export function findSlotClashes<T extends SlotRow>(rows: T[]): SlotClash<T>[] {
+  const byDate = new Map<string, T[]>()
+  for (const r of rows) {
+    if (!r.tanggal || !r.jam_mulai || !r.jam_selesai) continue
+    byDate.set(r.tanggal, [...(byDate.get(r.tanggal) ?? []), r])
+  }
+
+  const clashes: SlotClash<T>[] = []
+  for (const day of byDate.values()) {
+    for (let i = 0; i < day.length; i++) {
+      for (let j = i + 1; j < day.length; j++) {
+        const a = day[i]
+        const b = day[j]
+        const overlapMinutes = timeOverlapMinutes(a.jam_mulai!, a.jam_selesai!, b.jam_mulai!, b.jam_selesai!)
+        if (overlapMinutes <= 0) continue
+        for (const key of new Set(a.keys.filter((k) => b.keys.includes(k)))) clashes.push({ a, b, key, overlapMinutes })
+      }
+    }
+  }
+  return clashes
+}

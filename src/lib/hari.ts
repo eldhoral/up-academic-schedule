@@ -15,3 +15,8 @@ const HARI_LABEL_ID: Record<HariDb, string> = {
 export function hariLabel(hari: string): string {
   return HARI_LABEL_ID[hari as HariDb] ?? hari
 }
+
+/** The hari (DB value, e.g. 'SENIN') an ISO date 'YYYY-MM-DD' falls on. UTC on purpose: a plain date has no timezone. */
+export function hariFromTanggal(iso: string): HariDb {
+  return HARI_DB[(new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7]
+}

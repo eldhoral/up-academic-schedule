@@ -21,13 +21,14 @@ export type SettingRow = {
   urutan: number
 }
 
-const GROUP_ORDER = ['waktu', 'kelas', 'bentrok', 'cetak', 'surat']
+const GROUP_ORDER = ['waktu', 'kelas', 'bentrok', 'cetak', 'surat', 'ujian']
 const GROUP_LABEL: Record<string, string> = {
   waktu: 'Waktu & Sesi',
   kelas: 'Kelas',
   bentrok: 'Bentrok',
   cetak: 'Cetak',
   surat: 'Surat Penugasan',
+  ujian: 'Jadwal Ujian',
 }
 
 const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {

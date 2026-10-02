@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { AppHeader } from '@/components/AppHeader'
 import { getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
-import { getKuliahStatus, type ScheduleStatus } from './hub-status'
+import { getKuliahStatus, getUjianStatus, type ScheduleStatus } from './hub-status'
 import type { AcademicYear } from './kuliah/penjadwalan-types'
 
 export default async function MenuPage() {
@@ -14,7 +14,7 @@ export default async function MenuPage() {
 
   const years = (academicYears as AcademicYear[]) ?? []
   const year = years.find((y) => y.is_active) ?? years[0]
-  const kuliah = year ? await getKuliahStatus(year.id) : null
+  const [kuliah, ujian] = year ? await Promise.all([getKuliahStatus(year.id), getUjianStatus(year.id)]) : [null, null]
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
@@ -32,7 +32,14 @@ export default async function MenuPage() {
             printHref="/kuliah/cetak"
             hasYear={Boolean(year)}
             status={kuliah}
-            summary={kuliah && `${kuliah.jadwal} jadwal${kuliah.semesters ? ` · smt ${kuliah.semesters}` : ''}`}
+          />
+          <Entry
+            folio="02"
+            name="Jadwal UTS & UAS"
+            scope="Tanggal, pengawas, ruangan, bentrok"
+            href="/ujian"
+            hasYear={Boolean(year)}
+            status={ujian}
           />
         </section>
 
@@ -57,16 +64,14 @@ function Entry({
   printHref,
   hasYear,
   status,
-  summary,
 }: {
   folio: string
   name: string
   scope: string
   href: string
-  printHref: string
+  printHref?: string // not every schedule has a print page yet
   hasYear: boolean
   status: ScheduleStatus | null
-  summary: string | null
 }) {
   return (
     <div className="relative flex items-center gap-x-[1.2rem] gap-y-[0.4rem] flex-wrap px-[1rem] py-[0.8rem] min-h-[5.2rem] border-b border-[var(--garis)] last:border-b-0 hover:bg-[var(--cekung)] focus-within:bg-[var(--cekung)] transition-colors">
@@ -81,14 +86,18 @@ function Entry({
       </div>
 
       <p className="mono m-0 flex-1 min-w-[10rem] text-[0.93rem] text-[var(--tinta-2)]">
-        {!hasYear ? <Link href="/tahun-akademik" className="relative z-10">Belum ada tahun akademik</Link> : (summary ?? '—')}
+        {!hasYear ? <Link href="/tahun-akademik" className="relative z-10">Belum ada tahun akademik</Link> : (status?.summary ?? '—')}
       </p>
 
       <Tally status={status} />
 
-      <Link href={printHref} className="relative z-10 w-[3.2rem] text-[0.87rem]">
-        Cetak
-      </Link>
+      {printHref ? (
+        <Link href={printHref} className="relative z-10 w-[3.2rem] text-[0.87rem]">
+          Cetak
+        </Link>
+      ) : (
+        <span className="w-[3.2rem]" aria-hidden="true" />
+      )}
     </div>
   )
 }

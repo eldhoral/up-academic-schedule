@@ -142,7 +142,7 @@ silently win over Tailwind utilities again.
   controlled-vs-uncontrolled semantics via Radix's hidden native-select form
   participation. Always reuse this for any new dropdown — never a raw
   `<select>` or a hand-rolled listbox.
-- **Findings bar** (`src/app/kuliah/ClashFindingsBar.tsx`) — the standing, always-
+- **Findings bar** (`src/components/FindingsBar.tsx`, shared with Ujian) — the standing, always-
   visible clash summary above the Penjadwalan table (the "Direction and
   feel" principle above, made real): a big `1.87rem` red count when clashes
   exist, or a quiet green one-liner when clean. Scoped to the whole academic

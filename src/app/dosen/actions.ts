@@ -45,6 +45,15 @@ export async function updateLecturerAction(_prev: FormState, formData: FormData)
 
 export async function deleteLecturerAction(kodeDosen: string): Promise<FormState> {
   const supabase = await createClient()
+
+  // Pengawas on an exam is a jsonb list with no foreign key, so the database won't stop this.
+  // An error here (e.g. the exams table not created yet) is not a reason to block the delete.
+  const { count, error: usedError } = await supabase
+    .from('exams')
+    .select('id', { count: 'exact', head: true })
+    .contains('pengawas', [{ kode_dosen: kodeDosen }])
+  if (!usedError && count) return { error: `Dosen ini masih menjadi pengawas di ${count} jadwal ujian. Ganti pengawasnya dulu.` }
+
   const { error } = await supabase.from('lecturers').delete().eq('kode_dosen', kodeDosen)
   if (error) return { error: humanDbError(error) }
 

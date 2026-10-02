@@ -20,6 +20,7 @@ export const TABLE_LABEL: Record<string, string> = {
   sessions: 'Sesi',
   schedules: 'Jadwal',
   schedule_lecturers: 'Dosen Jadwal',
+  exams: 'Jadwal Ujian',
   settings: 'Pengaturan',
   profiles: 'Pengguna',
   auth: 'Autentikasi',
@@ -69,5 +70,6 @@ export function formatValue(value: unknown): string {
     return value
   }
   if (typeof value === 'boolean') return value ? 'ya' : 'tidak'
+  if (typeof value === 'object') return JSON.stringify(value) // jsonb, e.g. a pengawas list
   return String(value)
 }

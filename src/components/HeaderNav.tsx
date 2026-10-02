@@ -13,6 +13,11 @@ const KULIAH: Section = {
   ],
 }
 
+const UJIAN: Section = {
+  title: 'Jadwal UTS & UAS',
+  tabs: [{ href: '/ujian', label: 'Jadwal Ujian' }],
+}
+
 const MASTER: Section = {
   title: 'Data Master',
   tabs: [
@@ -28,6 +33,7 @@ const MASTER: Section = {
 /** The section a page belongs to; null on the menu itself ("/"). */
 function sectionOf(active: string): Section | null {
   if (active.startsWith('/kuliah')) return KULIAH
+  if (active.startsWith('/ujian')) return UJIAN
   if (MASTER.tabs.some((t) => t.href === active)) return MASTER
   if (active === '/pengguna') return { title: 'Manajemen Pengguna', tabs: [] }
   if (active === '/log-aktivitas') return { title: 'Audit Log', tabs: [] }

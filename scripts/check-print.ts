@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { computeAngkatan, romanSemester, substituteTemplate } from '../src/lib/print'
+import { hariFromTanggal } from '../src/lib/hari'
 
 // Verified against PLAN.md §6b for AY 2026/2027 Gasal (id "20261").
 assert.equal(computeAngkatan('20261', 1), 2026)
@@ -18,5 +19,11 @@ assert.equal(
 )
 assert.equal(substituteTemplate('no placeholders here', {}), 'no placeholders here')
 assert.equal(substituteTemplate('{missing} stays literal', {}), '{missing} stays literal')
+
+// Dates the faculty sheets use: 27 Oct 2025 was a Monday, 3 Feb 2026 a Tuesday, 24 Nov 2025 a Monday.
+assert.equal(hariFromTanggal('2025-10-27'), 'SENIN')
+assert.equal(hariFromTanggal('2026-02-03'), 'SELASA')
+assert.equal(hariFromTanggal('2025-11-24'), 'SENIN')
+assert.equal(hariFromTanggal('2025-11-30'), 'MINGGU')
 
 console.log('print: all checks passed')

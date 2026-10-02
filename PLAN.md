@@ -686,8 +686,9 @@ person, with the Kaprodi signature.
 1. **Shell, no new data — done.** Kuliah moved under `/kuliah`, new hub, section
    header, redirects, proxy cleanup, Aspose client in `src/lib`, `canEdit` on
    Penjadwalan.
-2. **Ujian data and entry** — migration, `findSlotClashes`, `FindingsBar`,
-   `PersonField`, `/ujian`, audit labels, dosen delete guard, hub row.
+2. **Ujian data and entry — done.** Migration `20261002000001_exams.sql` (run it in
+   the Supabase SQL editor), `findSlotClashes`, `FindingsBar`, `PersonField`,
+   `/ujian`, audit labels, dosen delete guard, hub row.
 3. **Ujian cetak** — extract shared xlsx helpers to `src/lib/xlsx.ts`,
    `DownloadButtons`, `/ujian/cetak`, `check:ujian`.
 4. **Ujian rekap** — `/ujian/rekap`, Rekap Pengawas Excel.

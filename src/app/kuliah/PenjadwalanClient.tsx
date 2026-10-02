@@ -5,11 +5,17 @@ import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { HARI_DB, hariLabel } from '@/lib/hari'
 import { ScheduleFormModal } from './ScheduleFormModal'
-import { ClashFindingsBar } from './ClashFindingsBar'
+import { FindingsBar } from '@/components/FindingsBar'
 import type { ClashFinding, ClashFindingSide } from './clash-actions'
 import type { AcademicYear, Course, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
+
+const CLASH_REASON: Record<ClashFinding['type'], (detail: string) => string> = {
+  dosen: (detail) => `${detail} mengajar keduanya pada waktu yang sama`,
+  kelas: (detail) => `Kelas yang sama (${detail}) terjadwal ganda`,
+  ruangan: (detail) => `Ruangan ${detail} terjadwal ganda`,
+}
 
 export function PenjadwalanClient({
   academicYears,
@@ -164,9 +170,20 @@ export function PenjadwalanClient({
       </div>
 
       <div className="p-[1.07rem_1.3rem_1.3rem]">
-        <ClashFindingsBar
-          clashes={clashes}
-          academicYearLabel={academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? 'tahun ini'}
+        <FindingsBar
+          scopeLabel={academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? 'tahun ini'}
+          findings={clashes.map((c) => ({
+            policy: c.policy === 'blok' ? 'blok' : 'peringatan',
+            where: `Semester ${c.a.semester_ke} · Kelas ${c.a.kelas}`,
+            text: (
+              <>
+                <b className="font-semibold">{c.a.nama_mk}</b> dan <b className="font-semibold">{c.b.nama_mk}</b> berjalan pada waktu
+                yang sama di hari {hariLabel(c.a.hari)} &mdash; {CLASH_REASON[c.type](c.detail)}.
+              </>
+            ),
+            minutes: c.overlapMinutes,
+            target: c.a,
+          }))}
           onView={viewClashSide}
         />
 
