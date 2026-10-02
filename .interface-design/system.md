@@ -93,13 +93,45 @@ silently win over Tailwind utilities again.
   showed `No X match ""`). A page with zero rows and no search box (Sesi,
   Pengaturan, Rekap) still needs its own explicit empty message — Pengaturan
   was missing one entirely until phase 12.
-- **Print pages** (Cetak Jadwal, Rekap Dosen) — `@page` size/orientation
-  injected via a `<style>` tag built from the `ukuran_kertas`/`orientasi`
-  settings; `.no-print` (in `globals.css`) hides chrome; `.rekap-break`
-  (`page-break-before: always`) separates lecturers in "print all" mode.
-  Print pages show Indonesian day names straight from the DB — never call
-  `hariLabel()` here (see Language, below); this was a real bug (CetakClient
-  and RekapClient both printed English) fixed by removing the call.
+- **Preview pages** (Cetak Jadwal, Rekap Dosen) — the preview is the data
+  as app UI, not a picture of the file: server-rendered tables in the Bilah
+  ledger style, with the Excel/Word download as the file. Nothing on screen is
+  a PDF or docx render. The one exception is Cetak Jadwal's "Unduh PDF"
+  button: it fetches `/cetak/pdf`, which converts the xlsx with Aspose Cells
+  Cloud (150 calls/month free tier), so the button shows "Membuat PDF…" while
+  busy and an inline error when the conversion fails. The downloaded file stays
+  the source of truth for layout (page breaks, kop, one-page fit), which the
+  preview does not prove.
+  Shared pieces live in `src/components/preview.tsx`:
+  - `PreviewLayout` — main column plus a `19rem` side panel (below it under
+    `lg`); `1.3rem`/`1rem` page padding, `1.2rem` gap between sections.
+  - `PreviewTable` + `BandRow` + `cell()` — bordered `--lembar` container
+    (`--garis-kuat`, `--r-sedang`), `--cekung` header band with `0.73rem`
+    uppercase `--tinta-3` labels, body cells `.27rem .53rem`, rows `2.6rem`
+    (the Penjadwalan rhythm), `--garis` row dividers. `BandRow` is a
+    full-width `--cekung` group row (KELAS A, Kelas Reguler).
+  - `DocFacts` — the side panel: the settings-driven parts of the file that
+    are not rows (zoom, keterangan, signer, kop, nomor, tembusan), as a
+    `dl` with `0.73rem` uppercase labels and `0.87rem` values, plus an "Ubah
+    di Pengaturan" link. Empty values show "—".
+  - Section heading: `1.2rem`/600, `-0.01em` tracking, with a `0.87rem`
+    `--tinta-3` meta line beside it. Sticky on Cetak, where several semesters
+    stack.
+  - Codes, times and SKS use `.mono`.
+  - Cetak signature: the HARI cell shows once per run of rows in a kelas
+    (repeats are `sr-only`), and a day change gets a stronger `--garis-kuat`
+    divider, so the week reads down the table. Override rows tint
+    `--merah-lembut`, the same meaning as Penjadwalan.
+  - Rekap signature: the letter's TOTAL SKS is the focal number (`1.87rem`/600
+    mono, the findings-bar size). `dosen=all` is an index table of dosen with
+    jadwal count and SKS; picking a name opens that letter, with ‹ › steppers
+    (`2.4rem` square targets) and "N dari M". Row text for the letter comes
+    from `src/app/rekap/letter-rows.ts`, shared with the docx builder so the
+    preview and file cannot drift.
+  - Preview pages show Indonesian day names straight from the DB — never call
+    `hariLabel()` here (see Language, below); this was a real bug
+    (CetakClient and RekapClient both printed English) fixed by removing the
+    call.
 - **Select** (`src/components/Select.tsx`) — every `<select>` in the app was
   replaced with this, built on `@radix-ui/react-select`. Root cause: a
   native `<select>` popup is OS chrome (Safari repositions it to keep the
@@ -129,7 +161,7 @@ Nothing longer than ~160ms. `prefers-reduced-motion` handled globally in
 Admin UI shows English day names (`src/lib/hari.ts` — `hariLabel()`); the
 database stores and every printed document shows Indonesian (`SENIN` etc.),
 per PLAN.md §4. This is a real split, not a translation layer — never run
-`hariLabel()` before writing to the DB or rendering a print page.
+`hariLabel()` before writing to the DB or rendering a preview or print page.
 
 ## Kalender (week view)
 
