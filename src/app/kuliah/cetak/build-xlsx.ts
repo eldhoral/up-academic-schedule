@@ -1,46 +1,14 @@
 import ExcelJS from 'exceljs'
 import { groupSchedulesByKelas } from './schedule-rows'
 import { COLUMN_ALIGN, COLUMN_LABELS, COLUMN_WIDTHS, SIGNATURE_START_COLUMN } from './columns'
+import { BORDER_ALL, mergedText as sharedMergedText, setRowHeightForContent } from '@/lib/xlsx'
 import type { ScheduleRow } from '../penjadwalan-types'
 
 const COLUMN_COUNT = COLUMN_WIDTHS.length
 
-const THIN = { style: 'thin' as const, color: { argb: 'FF000000' } }
-const BORDER_ALL = { top: THIN, left: THIN, bottom: THIN, right: THIN }
-
-/**
- * Desktop Excel auto-fits row height for wrapped text when a file is opened,
- * but other viewers (and server-side converters) clip wrapped text to whatever
- * height is stored, so we estimate and bake in the height ourselves.
- * `0.85` is a deliberately conservative chars-per-line factor: overestimating
- * only wastes a little whitespace, underestimating clips real text.
- */
-function estimateLines(value: unknown, widthUnits: number): number {
-  const text = String(value ?? '')
-  if (!text) return 1
-  const charsPerLine = Math.max(6, Math.round(widthUnits * 0.85))
-  // A literal "\n" forces a break; each segment may still wrap further on its own.
-  return text.split('\n').reduce((sum, segment) => sum + Math.max(1, Math.ceil(segment.length / charsPerLine)), 0)
-}
-
-function setRowHeightForContent(sheet: ExcelJS.Worksheet, rowIndex: number, values: unknown[]) {
-  const lines = Math.max(...values.map((value, i) => estimateLines(value, COLUMN_WIDTHS[i])))
-  sheet.getRow(rowIndex).height = lines * 16
-}
-
-function mergedText(
-  sheet: ExcelJS.Worksheet,
-  row: number,
-  text: string,
-  opts: { bold?: boolean; size?: number; underline?: boolean; align?: 'left' | 'center' } = {},
-) {
-  sheet.mergeCells(row, 1, row, COLUMN_COUNT)
-  const cell = sheet.getCell(row, 1)
-  cell.value = text
-  cell.font = { bold: opts.bold ?? false, size: opts.size ?? 10, underline: opts.underline ?? false }
-  cell.alignment = { horizontal: opts.align ?? 'left' }
-  return cell
-}
+const heightFor = (sheet: ExcelJS.Worksheet, rowIndex: number, values: unknown[]) => setRowHeightForContent(sheet, rowIndex, values, COLUMN_WIDTHS)
+const mergedText = (sheet: ExcelJS.Worksheet, row: number, text: string, opts?: Parameters<typeof sharedMergedText>[4]) =>
+  sharedMergedText(sheet, row, COLUMN_COUNT, text, opts)
 
 type Sheet = { name: string; headerLines: string[]; schedules: ScheduleRow[] }
 
@@ -96,7 +64,7 @@ function addSheet(
 
   const headerRowIndex = r
   const headerLabels = [...COLUMN_LABELS.slice(0, -1), `BOR ZOOM \n${props.zoomId}`]
-  setRowHeightForContent(sheet, r, headerLabels)
+  heightFor(sheet, r, headerLabels)
   headerLabels.forEach((label, i) => {
     const cell = sheet.getCell(r, i + 1)
     cell.value = label
@@ -120,7 +88,7 @@ function addSheet(
 
     for (const row of rows) {
       const values = [row.kode_mk, row.mata_kuliah, row.sks, row.hari, row.jam, row.dosen, row.ruangan, row.zoom]
-      setRowHeightForContent(sheet, r, values)
+      heightFor(sheet, r, values)
       values.forEach((value, i) => {
         const cell = sheet.getCell(r, i + 1)
         cell.value = value

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
+import { DownloadButtons } from '@/components/DownloadButtons'
 import { EmptySheet } from '@/components/EmptySheet'
 import { CetakPreview, type CetakDoc, type PreviewSheet } from './CetakPreview'
 import type { AcademicYear } from '../penjadwalan-types'
@@ -23,7 +23,6 @@ export function CetakClient({
   doc: CetakDoc
 }) {
   const router = useRouter()
-  const [pdf, setPdf] = useState<'idle' | 'busy' | 'error'>('idle')
 
   function navigate(next: Partial<typeof context>) {
     const merged = { ...context, ...next }
@@ -41,25 +40,6 @@ export function CetakClient({
     smt: String(context.semester_ke),
   }).toString()
   const xlsxUrl = `/kuliah/cetak/xlsx?${query}`
-
-  // Aspose conversion takes a few seconds and can fail (free quota), so fetch it
-  // rather than navigate: the page stays put and can say what went wrong.
-  async function downloadPdf() {
-    setPdf('busy')
-    try {
-      const res = await fetch(`/kuliah/cetak/pdf?${query}`)
-      if (!res.ok) throw new Error(String(res.status))
-      const url = URL.createObjectURL(await res.blob())
-      const a = document.createElement('a')
-      a.href = url
-      a.download = /filename="(.+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'Jadwal Perkuliahan.pdf'
-      a.click()
-      URL.revokeObjectURL(url)
-      setPdf('idle')
-    } catch {
-      setPdf('error')
-    }
-  }
 
   return (
     <div className="flex flex-col flex-1">
@@ -103,39 +83,12 @@ export function CetakClient({
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
         />
 
-        <div className="ml-auto flex items-center gap-[0.53rem] flex-wrap justify-end">
-          {pdf === 'error' && (
-            <span role="alert" className="text-[0.8rem] text-[var(--merah-teks)]">
-              Gagal membuat PDF (kuota Aspose habis?). Coba lagi nanti.
-            </span>
-          )}
-          {hasSchedules ? (
-            <>
-              <button
-                type="button"
-                onClick={downloadPdf}
-                disabled={pdf === 'busy'}
-                className="inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] bg-[var(--cekung)] text-[var(--tinta)] font-medium cursor-pointer hover:bg-[var(--lembar)] active:scale-[0.97] transition-colors text-[0.93rem] disabled:cursor-wait disabled:opacity-60"
-              >
-                {pdf === 'busy' ? 'Membuat PDF…' : 'Unduh PDF'}
-              </button>
-              <a
-                href={xlsxUrl}
-                className="inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
-              >
-                Unduh Excel
-              </a>
-            </>
-          ) : (
-            <span
-              aria-disabled="true"
-              title="Belum ada jadwal untuk diunduh"
-              className="inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru-disabled)] text-white font-medium cursor-not-allowed text-[0.93rem]"
-            >
-              Unduh Excel
-            </span>
-          )}
-        </div>
+        <DownloadButtons
+          enabled={hasSchedules}
+          xlsxUrl={xlsxUrl}
+          pdfUrl={`/kuliah/cetak/pdf?${query}`}
+          pdfFallbackName="Jadwal Perkuliahan.pdf"
+        />
       </div>
 
       {hasSchedules ? (

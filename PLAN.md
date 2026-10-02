@@ -689,8 +689,9 @@ person, with the Kaprodi signature.
 2. **Ujian data and entry — done.** Migration `20261002000001_exams.sql` (run it in
    the Supabase SQL editor), `findSlotClashes`, `FindingsBar`, `PersonField`,
    `/ujian`, audit labels, dosen delete guard, hub row.
-3. **Ujian cetak** — extract shared xlsx helpers to `src/lib/xlsx.ts`,
-   `DownloadButtons`, `/ujian/cetak`, `check:ujian`.
+3. **Ujian cetak — done.** Shared xlsx helpers in `src/lib/xlsx.ts` (kuliah output
+   verified byte-identical), `DownloadButtons`, `/ujian/cetak` (preview, Excel,
+   PDF), `check:ujian`.
 4. **Ujian rekap** — `/ujian/rekap`, Rekap Pengawas Excel.
 5. **Sidang data and board** — migration, `/sidang`, hub row.
 6. **Sidang cetak** — `/sidang/cetak`, `check:sidang`.

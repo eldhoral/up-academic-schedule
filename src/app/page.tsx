@@ -38,6 +38,7 @@ export default async function MenuPage() {
             name="Jadwal UTS & UAS"
             scope="Tanggal, pengawas, ruangan, bentrok"
             href="/ujian"
+            printHref="/ujian/cetak"
             hasYear={Boolean(year)}
             status={ujian}
           />

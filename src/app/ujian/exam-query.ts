@@ -132,3 +132,43 @@ export async function loadClashWorld(academicYearId: string) {
     izinkanOverride: settingText(settings, 'izinkan_override', 'ya') === 'ya',
   }
 }
+
+/** Every exam of a program in one academic year, one semester or all, with dosen pengampu joined in. */
+export async function fetchExamsForPrint(c: Omit<ExamContext, 'semester_ke'> & { semester_ke: number | 'all' }): Promise<ExamView[]> {
+  const supabase = await createClient()
+  let examQuery = supabase
+    .from('exams')
+    .select(EXAM_SELECT)
+    .eq('academic_year_id', c.academic_year_id)
+    .eq('jenis_ujian', c.jenis_ujian)
+    .eq('jenis_kelas', c.jenis_kelas)
+  let scheduleQuery = supabase
+    .from('schedules')
+    .select('semester_ke, kode_mk, kelas, schedule_lecturers(urutan, lecturers(kode_dosen, nama, gelar_depan, gelar_belakang))')
+    .eq('academic_year_id', c.academic_year_id)
+    .eq('jenis_kelas', c.jenis_kelas)
+  if (c.semester_ke !== 'all') {
+    examQuery = examQuery.eq('semester_ke', c.semester_ke)
+    scheduleQuery = scheduleQuery.eq('semester_ke', c.semester_ke)
+  }
+  const [{ data: examData }, { data: scheduleData }] = await Promise.all([examQuery, scheduleQuery])
+
+  type Sched = { semester_ke: number; kode_mk: string; kelas: string; schedule_lecturers: { urutan: number; lecturers: Joined<Lecturer> }[] }
+  const byKey = new Map<string, string[]>() // "smt|kode_mk|kelas" -> dosen
+  const byMk = new Map<string, string[]>() // "smt|kode_mk" -> union over kelas, for GABUNGAN
+  for (const s of (scheduleData ?? []) as unknown as Sched[]) {
+    const dosen = [...s.schedule_lecturers]
+      .sort((a, b) => a.urutan - b.urutan)
+      .map((sl) => one(sl.lecturers))
+      .filter((l): l is Lecturer => !!l)
+      .map(lecturerDisplayName)
+    byKey.set(`${s.semester_ke}|${s.kode_mk}|${s.kelas}`, dosen)
+    const mk = `${s.semester_ke}|${s.kode_mk}`
+    byMk.set(mk, [...new Set([...(byMk.get(mk) ?? []), ...dosen])])
+  }
+
+  return ((examData ?? []) as unknown as RawExam[]).map(toExamRow).map((e) => {
+    const found = e.kelas === GABUNGAN ? byMk.get(`${e.semester_ke}|${e.kode_mk}`) : byKey.get(`${e.semester_ke}|${e.kode_mk}|${e.kelas}`)
+    return { ...e, dosen: found ?? [], inKuliah: found !== undefined }
+  })
+}

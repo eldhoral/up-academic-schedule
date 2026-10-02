@@ -18,6 +18,12 @@ export function computeAngkatan(academicYearId: string, semesterKe: number): num
   return startYear - Math.floor((semesterKe - 1) / 2)
 }
 
+/** The cohort's year range as the ujian sheets write it: "2025/2026". */
+export function angkatanTa(academicYearId: string, semesterKe: number): string {
+  const a = computeAngkatan(academicYearId, semesterKe)
+  return `${a}/${a + 1}`
+}
+
 /** Substitutes {placeholder} tokens in a settings template string. */
 export function substituteTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, key) => vars[key] ?? match)

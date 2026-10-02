@@ -15,7 +15,10 @@ const KULIAH: Section = {
 
 const UJIAN: Section = {
   title: 'Jadwal UTS & UAS',
-  tabs: [{ href: '/ujian', label: 'Jadwal Ujian' }],
+  tabs: [
+    { href: '/ujian', label: 'Jadwal Ujian' },
+    { href: '/ujian/cetak', label: 'Cetak' },
+  ],
 }
 
 const MASTER: Section = {
