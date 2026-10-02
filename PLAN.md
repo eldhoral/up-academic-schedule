@@ -335,14 +335,16 @@ permission to use it; text is correct until someone supplies both.
 
 ### Language
 
-Interface copy is English. Three things stay as they are:
+Interface copy is Indonesian (an earlier draft planned English; the shipped app
+uses Indonesian throughout). Three things stay as they are:
 
 - **Course and lecturer names** are data from the imports, not copy. Translating
   them would break the match with the printed sheet.
 - **`SKS`, `MKWU`, `Reguler`, `Reguler Khusus`** are identifiers that appear on
   the signed document.
-- **Days display in English but print in Indonesian** — the app shows "Friday",
-  the signed sheet says "JUMAT". A real split, not an oversight.
+- **Days display in title case but print in uppercase** — the entry screens show
+  "Jumat", the signed sheet says "JUMAT", and the database stores `JUMAT`.
+  Ujian and sidang store a date and derive the day from it.
 
 ## 5. Stack
 
@@ -699,7 +701,9 @@ person, with the Kaprodi signature.
    hub row.
 6. **Sidang cetak — done.** `/sidang/cetak` (preview, Excel, PDF; one block per
    date and room or kelompok), pure `defense-blocks.ts`, `check:sidang`.
-7. **Docs** — update `.interface-design/system.md` and this plan.
+7. **Docs — done.** `.interface-design/system.md` now covers the menu hub, section
+   nav, ujian, sidang, rekap pengawas, the shared components and the Excel rules,
+   and its Language section matches the app; the Language note above is fixed too.
 
 Risks: the Aspose quota is now shared by three documents; `exams` depends on the
 natural key to `schedules`, so renaming a kuliah kelas or MK orphans ujian rows
