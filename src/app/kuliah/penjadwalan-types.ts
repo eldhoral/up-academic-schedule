@@ -1,7 +1,7 @@
-import type { Course } from './mata-kuliah/MataKuliahClient'
-import type { Lecturer } from './dosen/DosenClient'
-import type { Room } from './ruangan/RuanganClient'
-import type { SessionRow } from './sesi/SesiClient'
+import type { Course } from '../mata-kuliah/MataKuliahClient'
+import type { Lecturer } from '../dosen/DosenClient'
+import type { Room } from '../ruangan/RuanganClient'
+import type { SessionRow } from '../sesi/SesiClient'
 
 export type AcademicYear = { id: string; label: string; is_active: boolean }
 

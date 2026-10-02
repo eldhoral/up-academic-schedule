@@ -43,7 +43,7 @@ const facts = (f: SuratFacts) => [
   { label: 'Tembusan', value: f.tembusanLines.map((l, i) => `${i + 1}. ${l}`) },
 ]
 
-const href = (ay: string, dosen: string) => `/rekap?${new URLSearchParams({ ay, dosen })}`
+const href = (ay: string, dosen: string) => `/kuliah/rekap?${new URLSearchParams({ ay, dosen })}`
 
 /** "Semua dosen": a roll-up of every dosen with a load; pick one to see their letter. */
 export function RekapIndex({ rows, ay, facts: f }: { rows: IndexRow[]; ay: string; facts: SuratFacts }) {

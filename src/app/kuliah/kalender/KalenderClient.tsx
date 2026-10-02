@@ -60,7 +60,7 @@ export function KalenderClient({
       smt: String(merged.semester_ke),
     })
     setContext(merged)
-    window.history.replaceState(null, '', `/kalender?${params.toString()}`)
+    window.history.replaceState(null, '', `/kuliah/kalender?${params.toString()}`)
     const res = await fetch(`/api/schedules?${params.toString()}`)
     setSchedules(await res.json())
   }
@@ -129,7 +129,7 @@ export function KalenderClient({
 
         {/* ponytail: same workbook as Cetak Jadwal's "Unduh Excel" -- same filters, same route */}
         <a
-          href={`/cetak/xlsx?${new URLSearchParams({
+          href={`/kuliah/cetak/xlsx?${new URLSearchParams({
             ay: context.academic_year_id,
             jenis: context.jenis_kelas,
             smt: String(context.semester_ke),

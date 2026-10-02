@@ -1,6 +1,6 @@
 import { buildCetakData } from '../cetak-data'
 import { buildXlsx } from '../build-xlsx'
-import { convertXlsxToPdf } from '../aspose'
+import { convertXlsxToPdf } from '@/lib/aspose'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)

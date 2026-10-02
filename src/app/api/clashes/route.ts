@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkAllClashes } from '@/app/clash-actions'
+import { checkAllClashes } from '@/app/kuliah/clash-actions'
 
 export async function GET(request: NextRequest) {
   const academicYearId = request.nextUrl.searchParams.get('ay') ?? ''

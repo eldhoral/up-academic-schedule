@@ -3,7 +3,7 @@ import { buildCetakData } from './cetak-data'
 import { CetakClient } from './CetakClient'
 import { groupSchedulesByKelas } from './schedule-rows'
 
-export default async function CetakPage(props: PageProps<'/cetak'>) {
+export default async function CetakPage(props: PageProps<'/kuliah/cetak'>) {
   const searchParams = await props.searchParams
   const data = await buildCetakData({
     ay: searchParams.ay as string | undefined,
@@ -14,7 +14,7 @@ export default async function CetakPage(props: PageProps<'/cetak'>) {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <div className="no-print">
-        <AppHeader active="/cetak" />
+        <AppHeader active="/kuliah/cetak" />
       </div>
       <CetakClient
         academicYears={data.academicYears}

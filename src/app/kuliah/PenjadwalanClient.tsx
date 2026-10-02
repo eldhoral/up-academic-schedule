@@ -23,6 +23,7 @@ export function PenjadwalanClient({
   maksMahasiswaPerKelas,
   minMahasiswaPilihan,
   context: initialContext,
+  canEdit,
 }: {
   academicYears: AcademicYear[]
   courses: Course[]
@@ -35,6 +36,7 @@ export function PenjadwalanClient({
   maksMahasiswaPerKelas: number
   minMahasiswaPilihan: number
   context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
+  canEdit: boolean // VIEWER (Pemantau) can read but not change; RLS enforces it, this just hides the controls
 }) {
   const [modalOpen, setModalOpen] = useState<'new' | ScheduleRow | null>(null)
   const [schedules, setSchedules] = useState(initialSchedules)
@@ -70,7 +72,7 @@ export function PenjadwalanClient({
     })
     const yearChanged = merged.academic_year_id !== context.academic_year_id
     setContext(merged)
-    window.history.replaceState(null, '', `/?${params.toString()}`)
+    window.history.replaceState(null, '', `/kuliah?${params.toString()}`)
 
     const schedulesPromise = fetch(`/api/schedules?${params.toString()}`).then((r) => r.json())
     // Clashes are scoped to the whole academic year, not the semester/kelas filter — only refetch when the year changes.
@@ -195,13 +197,15 @@ export function PenjadwalanClient({
               ]}
               className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.5rem]"
             />
-            <button
-              type="button"
-              onClick={() => setModalOpen('new')}
-              className="px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
-            >
-              Tambah mata kuliah
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setModalOpen('new')}
+                className="px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
+              >
+                Tambah mata kuliah
+              </button>
+            )}
           </div>
         </div>
 
@@ -289,13 +293,15 @@ export function PenjadwalanClient({
                             {r.zoom_id || '—'}
                           </Td>
                           <Td style={{ textAlign: 'right' }}>
-                            <button
-                              type="button"
-                              onClick={() => setModalOpen(r)}
-                              className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
-                            >
-                              Ubah
-                            </button>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => setModalOpen(r)}
+                                className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
+                              >
+                                Ubah
+                              </button>
+                            )}
                           </Td>
                         </tr>
                       ))}

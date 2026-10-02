@@ -148,7 +148,7 @@ export async function createScheduleAction(_prev: FormState, formData: FormData)
     if (lecturerError) return { error: humanDbError(lecturerError, 'Dosen ini pada jadwal') }
   }
 
-  revalidatePath('/')
+  revalidatePath('/kuliah')
   return { success: true }
 }
 
@@ -199,7 +199,7 @@ export async function updateScheduleAction(id: string, _prev: FormState, formDat
     if (lecturerError) return { error: humanDbError(lecturerError, 'Dosen ini pada jadwal') }
   }
 
-  revalidatePath('/')
+  revalidatePath('/kuliah')
   return { success: true }
 }
 
@@ -208,6 +208,6 @@ export async function deleteScheduleAction(id: string): Promise<FormState> {
   const { error } = await supabase.from('schedules').delete().eq('id', id)
   if (error) return { error: humanDbError(error) }
 
-  revalidatePath('/')
+  revalidatePath('/kuliah')
   return { success: true }
 }

@@ -557,3 +557,145 @@ notes.
 3. **Five real conflicts** sit in the 2026/2027 data (§7), three of them between
    two compulsory courses. They seed as accepted overrides so they are visible
    rather than silently imported.
+
+## 9. Roadmap: three schedules (UTS/UAS and Prasidang/Sidang)
+
+The product grows from one schedule to three, behind a menu shown after login:
+Jadwal Mata Kuliah & Dosen, Jadwal UTS & UAS, Jadwal Prasidang & Sidang, plus
+Data Master, Manajemen Pengguna and Audit Log. Sources are in `docs/`: the
+`KONSEP JADWAL ETS GASAL 25-26 + PENGAWAS.xlsx`, `Jadwal Prasidang Gasal
+2025-2026.xlsx` and `jadwal sidang master.xlsx` templates.
+
+### 9.1 What the templates say
+
+- **UTS/UAS** — one block per semester, titled by three merged rows ("JADWAL
+  EVALUASI TENGAH SEMESTER / SEMESTER I ANGKATAN 2025/2026 / SEMESTER GASAL
+  TAHUN AKADEMIK 2025/2026"). Eleven columns: KODE MK, MATA KULIAH, SKS, HARI,
+  TANGGAL, JAM, DOSEN PENGAMPU, KELAS, PENGAWAS, RUANGAN, KETERANGAN. One row per
+  mata kuliah × kelas, with the MK-level cells merged down the kelas rows. Reguler
+  and Reguler Khusus share the format; the program only shows in the title. Kelas
+  can be `GABUNGAN`. The ten MKWU rows collapse into one "UNIVERSITAS" cell.
+  Pengawas is one name per row: a dosen, or the free text `AKADEMIK`. Keterangan
+  seen: OFFLINE, ONLINE, TAKE HOME, PROJECT, OFFLINE UJIAN LISAN. UAS is the same
+  sheet with "EVALUASI AKHIR SEMESTER" in the title. The file has no rekap.
+- **Prasidang** — one block per date × kelompok, held on Zoom with one breakout
+  room per kelompok. Columns SESI, WAKTU, NPM, NAMA, JUDUL SKRIPSI, DOSEN
+  PEMBIMBING PENDAMPING, DOSEN PEMBAHAS. One-hour slots.
+- **Sidang** — one block per date × room. Columns SESI, WAKTU, NPM, NAMA, JUDUL
+  SKRIPSI, KETUA SIDANG, ANGGOTA PENGUJI I (penguji eksternal), ANGGOTA PENGUJI II
+  (dosen pembimbing). Two-hour slots. The same student appears in prasidang and
+  sidang with the same NPM and name but sometimes a different judul; external
+  examiners repeat and are not in the dosen master.
+
+### 9.2 Decisions (answered by the faculty, or the default taken)
+
+1. One UTS/UAS format for Reguler and Reguler Khusus; per semester like kuliah.
+2. The UTS/UAS rekap is a **Rekap Pengawas** Excel (who proctors what), not a
+   surat tugas. Rekap Dosen already covers dosen pengampu.
+3. Sidang is per mahasiswa per day. NPM, nama, judul skripsi and penguji eksternal
+   are fields on the sidang row, not a mahasiswa master: the judul changes between
+   prasidang and sidang and no other screen needs a mahasiswa. Ketua sidang and
+   Penguji II come from the dosen master.
+4. Pengawas is chosen from the dosen master or typed as free text (akademik
+   sometimes proctors). Keterangan: Offline, Online, Take Home, Project, Ujian
+   Lisan (Online added because the template uses it).
+5. Rekap Pengawas lists every assignment; the count only includes Offline and
+   Ujian Lisan; AKADEMIK is one group.
+6. "Semester IV ke atas non kelas" electives are entered under the semester they
+   are scheduled in with kelas `GABUNGAN`.
+7. No clash check between teaching and proctoring (kuliah stops in exam week).
+   Sidang against teaching is a warning.
+8. A sidang has one penguji eksternal; prasidang is online by kelompok.
+9. No bulk import of sidang or mahasiswa lists; manual entry with NPM prefill.
+
+### 9.3 Information architecture
+
+| Hub entry | Route |
+|---|---|
+| Hub | `/` |
+| Jadwal Mata Kuliah & Dosen | `/kuliah`, `/kuliah/kalender`, `/kuliah/cetak`, `/kuliah/rekap` |
+| Jadwal UTS & UAS | `/ujian`, `/ujian/cetak`, `/ujian/rekap` |
+| Jadwal Prasidang & Sidang | `/sidang`, `/sidang/cetak` |
+| Data Master | `/mata-kuliah`, `/dosen`, `/ruangan`, `/sesi`, `/tahun-akademik`, `/pengaturan` (URLs unchanged) |
+| Manajemen Pengguna | `/pengguna` (unchanged) |
+| Audit Log | `/log-aktivitas` (unchanged) |
+
+Old `/`, `/kalender`, `/cetak/*` and `/rekap/*` URLs redirect permanently to the
+new ones in `next.config.ts`. `src/proxy.ts` stays a session gate and exports a
+single `proxy` function (the `middleware` alias is deprecated). The header shows
+a `‹ Menu` link and the tabs of the current section instead of today's flat
+dropdowns. VIEWER sees no write controls and cannot open Pengguna; RLS stays the
+enforcement layer.
+
+### 9.4 Data model
+
+- `exams` — `academic_year_id`, `jenis_ujian` (uts/uas), `jenis_kelas`,
+  `semester_ke`, `kode_mk`, `kelas`, nullable `tanggal`, `jam_mulai`,
+  `jam_selesai`, `room_id`, `pengawas jsonb` (ordered list of
+  `{kode_dosen}` or `{nama}`), `keterangan_ujian`, override columns. Unique on
+  (year, jenis_ujian, jenis_kelas, semester, kode_mk, kelas). The dosen pengampu
+  is read from `schedules` on the same natural key, not stored again. Hari is
+  derived from `tanggal`. Does not reuse the `sessions` master: exam slots are
+  fixed windows kept as settings lists.
+- `defenses` — `academic_year_id`, `jenis` (prasidang/sidang), `tanggal`, `jam_*`,
+  `room_id` (sidang) or `kelompok` (prasidang), `npm`, `nama_mahasiswa`,
+  `judul_skripsi`, `pembimbing_kode`, `penguji_kode` (both reference `lecturers`),
+  `penguji_eksternal` text, override columns. Unique on (year, jenis, npm); a
+  dosen cannot hold both roles on one row.
+- Both tables get RLS (read: any authenticated; write: scheduler or above),
+  explicit grants, the `updated_at` trigger and the `audit_row()` trigger.
+  `audit-log.ts` gets table labels and prints jsonb values readably.
+- New Pengaturan groups `ujian` and `sidang`: header templates, slot lists,
+  `pengawas_cadangan` (AKADEMIK), prasidang Zoom ID/passcode, Wakil Dekan I.
+
+### 9.5 Clash rules
+
+One pure `findSlotClashes` in `src/lib/clash.ts` groups rows by date and reports
+overlapping rows that share a key. Ujian keys: pengawas, ruang (offline and
+ujian lisan only), kelas (a GABUNGAN row covers every kelas of the semester).
+Take Home and Project emit no keys; AKADEMIK is ignored. Sidang keys: pembimbing,
+penguji, normalised penguji eksternal, ruang or kelompok; teaching overlap is a
+warning. Policies reuse `bentrok_*` and `izinkan_override`. The findings bar
+becomes a shared `FindingsBar` component used by all three schedules.
+
+### 9.6 Screens
+
+- **Hub (`/`)** — a ledger register, not a card grid: three schedule rows (folio,
+  name and scope, live status for the active tahun akademik, a clash tally that is
+  the only colour on the page, a Cetak link) and a quiet admin strip (Data
+  Master, Manajemen Pengguna for SUPERADMIN, Audit Log).
+- **Ujian** — a ledger where MK-level cells span the kelas rows like the faculty
+  sheet; an edit modal per mata kuliah (date, slot chips, keterangan, per-kelas
+  pengawas and ruangan); "Isi dari jadwal kuliah" seeds rows; free-text pengawas
+  show as a dashed chip.
+- **Sidang** — a day board: time slots as rows, rooms (or kelompok) as columns;
+  empty slots are open seats, a clashing dosen turns the cell red; NPM lookup
+  prefills nama, judul and pembimbing from the prasidang.
+- Previews follow the existing pattern (server-rendered `PreviewTable`, not PDF).
+
+### 9.7 Print and export
+
+Excel files match the templates (A4 landscape, Arial, merged cells as in the
+sheets), built with exceljs from the same pure row builders the previews use.
+PDF goes through the existing Aspose path (150 calls/month shared by all
+documents). Rekap Pengawas is Excel only: summary table, then the detail list per
+person, with the Kaprodi signature.
+
+### 9.8 Phases (each ships on its own)
+
+1. **Shell, no new data — done.** Kuliah moved under `/kuliah`, new hub, section
+   header, redirects, proxy cleanup, Aspose client in `src/lib`, `canEdit` on
+   Penjadwalan.
+2. **Ujian data and entry** — migration, `findSlotClashes`, `FindingsBar`,
+   `PersonField`, `/ujian`, audit labels, dosen delete guard, hub row.
+3. **Ujian cetak** — extract shared xlsx helpers to `src/lib/xlsx.ts`,
+   `DownloadButtons`, `/ujian/cetak`, `check:ujian`.
+4. **Ujian rekap** — `/ujian/rekap`, Rekap Pengawas Excel.
+5. **Sidang data and board** — migration, `/sidang`, hub row.
+6. **Sidang cetak** — `/sidang/cetak`, `check:sidang`.
+7. **Docs** — update `.interface-design/system.md` and this plan.
+
+Risks: the Aspose quota is now shared by three documents; `exams` depends on the
+natural key to `schedules`, so renaming a kuliah kelas or MK orphans ujian rows
+(shown as a note, not hidden); free-text pengawas matching is normalised string
+equality.

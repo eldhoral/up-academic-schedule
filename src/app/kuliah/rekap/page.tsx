@@ -6,7 +6,7 @@ import { letterSections, sumSks } from './letter-rows'
 import { RekapClient } from './RekapClient'
 import type { AcademicYear, Lecturer } from '../penjadwalan-types'
 
-export default async function RekapPage(props: PageProps<'/rekap'>) {
+export default async function RekapPage(props: PageProps<'/kuliah/rekap'>) {
   const searchParams = await props.searchParams
   const supabase = await createClient()
 
@@ -43,7 +43,7 @@ export default async function RekapPage(props: PageProps<'/rekap'>) {
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/rekap" />
+      <AppHeader active="/kuliah/rekap" />
       <RekapClient
         academicYears={years}
         lecturers={(lecturers as Lecturer[]) ?? []}

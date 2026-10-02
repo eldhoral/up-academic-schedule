@@ -33,11 +33,11 @@ export function RekapClient({
       ay: next.ay ?? academicYearId,
       dosen: next.dosen ?? selectedDosen,
     })
-    router.push(`/rekap?${params.toString()}`)
+    router.push(`/kuliah/rekap?${params.toString()}`)
   }
 
   const query = new URLSearchParams({ ay: academicYearId, dosen: selectedDosen }).toString()
-  const docxUrl = `/rekap/docx?${query}`
+  const docxUrl = `/kuliah/rekap/docx?${query}`
   const yearLabel = academicYears.find((ay) => ay.id === academicYearId)?.label ?? ''
   const selectedLecturer = lecturers.find((l) => l.kode_dosen === selectedDosen)
   const dosenLabel = selectedLecturer ? lecturerDisplayName(selectedLecturer) : 'Dosen ini'
@@ -105,7 +105,7 @@ export function RekapClient({
                 title: 'Belum ada jadwal untuk direkap',
                 detail: `${dosenLabel} belum memiliki jadwal mengajar di tahun akademik ${yearLabel}.`,
               })}
-          actionHref={`/?${new URLSearchParams({ ay: academicYearId }).toString()}`}
+          actionHref={`/kuliah?${new URLSearchParams({ ay: academicYearId }).toString()}`}
           actionLabel="Buka Penjadwalan"
         />
       )}

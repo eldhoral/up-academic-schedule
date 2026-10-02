@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { signOutAction } from '@/app/actions/auth'
 import { getCurrentUser } from '@/lib/roles'
 import { TextSizeController } from './TextSizeController'
@@ -10,7 +11,7 @@ export async function AppHeader({ active }: { active: string }) {
   return (
     <header className="sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--header)] border-b border-[var(--garis-kuat)] flex-wrap">
       <div className="flex items-center gap-x-[1.5rem] gap-y-[0.4rem]">
-        <div className="flex items-center gap-[0.6rem]">
+        <Link href="/" className="flex items-center gap-[0.6rem]">
           <Image
             src="/images/logo-universitas-pancasila.png"
             alt="Universitas Pancasila"
@@ -26,9 +27,9 @@ export async function AppHeader({ active }: { active: string }) {
             height={64}
             className="h-[2.13rem] w-auto"
           />
-          <span className="sr-only">Penjadwalan Perkuliahan</span>
-        </div>
-        <HeaderNav active={active} isSuperadmin={user?.role === 'SUPERADMIN'} />
+          <span className="sr-only">Menu utama</span>
+        </Link>
+        <HeaderNav active={active} />
       </div>
 
       {/* ml-auto (not the parent's justify-between) so this group stays flush right even

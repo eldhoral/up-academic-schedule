@@ -32,7 +32,7 @@ export function CetakClient({
       jenis: merged.jenis_kelas,
       smt: String(merged.semester_ke),
     })
-    router.push(`/cetak?${params.toString()}`)
+    router.push(`/kuliah/cetak?${params.toString()}`)
   }
 
   const query = new URLSearchParams({
@@ -40,14 +40,14 @@ export function CetakClient({
     jenis: context.jenis_kelas,
     smt: String(context.semester_ke),
   }).toString()
-  const xlsxUrl = `/cetak/xlsx?${query}`
+  const xlsxUrl = `/kuliah/cetak/xlsx?${query}`
 
   // Aspose conversion takes a few seconds and can fail (free quota), so fetch it
   // rather than navigate: the page stays put and can say what went wrong.
   async function downloadPdf() {
     setPdf('busy')
     try {
-      const res = await fetch(`/cetak/pdf?${query}`)
+      const res = await fetch(`/kuliah/cetak/pdf?${query}`)
       if (!res.ok) throw new Error(String(res.status))
       const url = URL.createObjectURL(await res.blob())
       const a = document.createElement('a')
@@ -147,7 +147,7 @@ export function CetakClient({
             academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? ''
           } belum memiliki jadwal.`}
           // Penjadwalan works one semester at a time; "Semua semester" opens its default.
-          actionHref={`/?${context.semester_ke === 'all' ? new URLSearchParams({ ay: context.academic_year_id, jenis: context.jenis_kelas }) : query}`}
+          actionHref={`/kuliah?${context.semester_ke === 'all' ? new URLSearchParams({ ay: context.academic_year_id, jenis: context.jenis_kelas }) : query}`}
           actionLabel="Buka Penjadwalan"
         />
       )}

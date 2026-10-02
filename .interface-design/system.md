@@ -97,7 +97,7 @@ silently win over Tailwind utilities again.
   as app UI, not a picture of the file: server-rendered tables in the Bilah
   ledger style, with the Excel/Word download as the file. Nothing on screen is
   a PDF or docx render. The one exception is Cetak Jadwal's "Unduh PDF"
-  button: it fetches `/cetak/pdf`, which converts the xlsx with Aspose Cells
+  button: it fetches `/kuliah/cetak/pdf`, which converts the xlsx with Aspose Cells
   Cloud (150 calls/month free tier), so the button shows "Membuat PDF…" while
   busy and an inline error when the conversion fails. The downloaded file stays
   the source of truth for layout (page breaks, kop, one-page fit), which the
@@ -126,7 +126,7 @@ silently win over Tailwind utilities again.
     mono, the findings-bar size). `dosen=all` is an index table of dosen with
     jadwal count and SKS; picking a name opens that letter, with ‹ › steppers
     (`2.4rem` square targets) and "N dari M". Row text for the letter comes
-    from `src/app/rekap/letter-rows.ts`, shared with the docx builder so the
+    from `src/app/kuliah/rekap/letter-rows.ts`, shared with the docx builder so the
     preview and file cannot drift.
   - Preview pages show Indonesian day names straight from the DB — never call
     `hariLabel()` here (see Language, below); this was a real bug
@@ -142,11 +142,11 @@ silently win over Tailwind utilities again.
   controlled-vs-uncontrolled semantics via Radix's hidden native-select form
   participation. Always reuse this for any new dropdown — never a raw
   `<select>` or a hand-rolled listbox.
-- **Findings bar** (`src/app/ClashFindingsBar.tsx`) — the standing, always-
+- **Findings bar** (`src/app/kuliah/ClashFindingsBar.tsx`) — the standing, always-
   visible clash summary above the Penjadwalan table (the "Direction and
   feel" principle above, made real): a big `1.87rem` red count when clashes
   exist, or a quiet green one-liner when clean. Scoped to the whole academic
-  year via `checkAllClashes()` (`app/clash-actions.ts`), not the
+  year via `checkAllClashes()` (`app/kuliah/clash-actions.ts`), not the
   semester/kelas filter, since a lecturer or room clashing across two
   different semesters still matters — only refetched when the year changes.
 
@@ -165,7 +165,7 @@ per PLAN.md §4. This is a real split, not a translation layer — never run
 
 ## Kalender (week view)
 
-`src/app/kalender/` — a read-only Google-Calendar-style week grid (Senin–
+`src/app/kuliah/kalender/` — a read-only Google-Calendar-style week grid (Senin–
 Sabtu × time-of-day) for a kaprodi to review a semester at a glance. No
 add/edit/delete anywhere on the page. Decisions held to this system rather
 than inventing new ones for the new surface:

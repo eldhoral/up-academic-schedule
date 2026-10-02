@@ -4,7 +4,7 @@ import { fetchSchedulesForContext } from '../schedule-query'
 import { KalenderClient } from './KalenderClient'
 import type { AcademicYear } from '../penjadwalan-types'
 
-export default async function KalenderPage(props: PageProps<'/kalender'>) {
+export default async function KalenderPage(props: PageProps<'/kuliah/kalender'>) {
   const searchParams = await props.searchParams
   const supabase = await createClient()
 
@@ -22,7 +22,7 @@ export default async function KalenderPage(props: PageProps<'/kalender'>) {
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/kalender" />
+      <AppHeader active="/kuliah/kalender" />
       <KalenderClient academicYears={years} schedules={schedules} context={context} />
     </div>
   )

@@ -1,28 +1,38 @@
-'use client'
-
 import Link from 'next/link'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 
-const PRIMARY_NAV = [
-  { href: '/', label: 'Penjadwalan' },
-  { href: '/kalender', label: 'Kalender' },
-]
+type Tab = { href: string; label: string }
+type Section = { title: string; tabs: Tab[] }
 
-const DATA_NAV = [
-  { href: '/mata-kuliah', label: 'Mata Kuliah' },
-  { href: '/dosen', label: 'Dosen' },
-  { href: '/ruangan', label: 'Ruangan' },
-  { href: '/sesi', label: 'Sesi' },
-  { href: '/tahun-akademik', label: 'Tahun Akademik' },
-  { href: '/pengaturan', label: 'Pengaturan' },
-]
+const KULIAH: Section = {
+  title: 'Jadwal Mata Kuliah & Dosen',
+  tabs: [
+    { href: '/kuliah', label: 'Penjadwalan' },
+    { href: '/kuliah/kalender', label: 'Kalender' },
+    { href: '/kuliah/cetak', label: 'Cetak Jadwal' },
+    { href: '/kuliah/rekap', label: 'Rekap Dosen' },
+  ],
+}
 
-const SUPERADMIN_NAV = [{ href: '/pengguna', label: 'Pengguna' }]
+const MASTER: Section = {
+  title: 'Data Master',
+  tabs: [
+    { href: '/mata-kuliah', label: 'Mata Kuliah' },
+    { href: '/dosen', label: 'Dosen' },
+    { href: '/ruangan', label: 'Ruangan' },
+    { href: '/sesi', label: 'Sesi' },
+    { href: '/tahun-akademik', label: 'Tahun Akademik' },
+    { href: '/pengaturan', label: 'Pengaturan' },
+  ],
+}
 
-const CETAK_NAV = [
-  { href: '/cetak', label: 'Cetak Jadwal' },
-  { href: '/rekap', label: 'Rekap Dosen' },
-]
+/** The section a page belongs to; null on the menu itself ("/"). */
+function sectionOf(active: string): Section | null {
+  if (active.startsWith('/kuliah')) return KULIAH
+  if (MASTER.tabs.some((t) => t.href === active)) return MASTER
+  if (active === '/pengguna') return { title: 'Manajemen Pengguna', tabs: [] }
+  if (active === '/log-aktivitas') return { title: 'Audit Log', tabs: [] }
+  return null
+}
 
 const linkClass = (isActive: boolean) =>
   `block px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.93rem] transition-colors ${
@@ -31,82 +41,27 @@ const linkClass = (isActive: boolean) =>
       : 'text-[var(--tinta)] hover:bg-[var(--cekung)]'
   }`
 
-export function HeaderNav({ active, isSuperadmin }: { active: string; isSuperadmin?: boolean }) {
+/** Back to the menu, the section's name, and its tabs. Nothing on the menu itself. */
+export function HeaderNav({ active }: { active: string }) {
+  const section = sectionOf(active)
+  if (!section) return null
+
   return (
-    <nav className="flex items-center gap-[0.13rem]" aria-label="Navigasi utama">
-      {PRIMARY_NAV.map((item) => (
+    <nav className="flex items-center gap-[0.13rem] flex-wrap" aria-label="Navigasi bagian">
+      <Link href="/" className={`${linkClass(false)} text-[var(--tinta-2)]`}>
+        ‹ Menu
+      </Link>
+      <span className="px-[0.6rem] text-[0.93rem] font-semibold text-[var(--tinta)]">{section.title}</span>
+      {section.tabs.map((tab) => (
         <Link
-          key={item.href}
-          href={item.href}
-          aria-current={item.href === active ? 'page' : undefined}
-          className={linkClass(item.href === active)}
+          key={tab.href}
+          href={tab.href}
+          aria-current={tab.href === active ? 'page' : undefined}
+          className={linkClass(tab.href === active)}
         >
-          {item.label}
+          {tab.label}
         </Link>
       ))}
-
-      <NavGroup label="Data Master" items={isSuperadmin ? [...DATA_NAV, ...SUPERADMIN_NAV] : DATA_NAV} active={active} />
-      <NavGroup label="Cetak & Rekap" items={CETAK_NAV} active={active} />
-
-      <Link
-        href="/log-aktivitas"
-        aria-current={active === '/log-aktivitas' ? 'page' : undefined}
-        className={linkClass(active === '/log-aktivitas')}
-      >
-        Log Aktivitas
-      </Link>
     </nav>
-  )
-}
-
-function NavGroup({
-  label,
-  items,
-  active,
-}: {
-  label: string
-  items: { href: string; label: string }[]
-  active: string
-}) {
-  const isGroupActive = items.some((item) => item.href === active)
-
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger className={`inline-flex items-center gap-[0.27rem] cursor-pointer ${linkClass(isGroupActive)}`}>
-        {label}
-        <ChevronDown />
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="start"
-          sideOffset={4}
-          className="z-[60] min-w-[11rem] p-[0.27rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)]"
-        >
-          {items.map((item) => (
-            <DropdownMenu.Item key={item.href} asChild>
-              <Link
-                href={item.href}
-                aria-current={item.href === active ? 'page' : undefined}
-                className={`block px-[0.6rem] py-[0.33rem] rounded-[var(--r-kecil)] text-[0.93rem] outline-none cursor-pointer transition-colors ${
-                  item.href === active
-                    ? 'bg-[var(--biru-lembut)] text-[var(--biru)] font-medium'
-                    : 'text-[var(--tinta-2)] data-[highlighted]:bg-[var(--cekung)] data-[highlighted]:text-[var(--tinta)]'
-                }`}
-              >
-                {item.label}
-              </Link>
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  )
-}
-
-function ChevronDown() {
-  return (
-    <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-      <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   )
 }
