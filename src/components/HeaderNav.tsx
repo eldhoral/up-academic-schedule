@@ -24,7 +24,10 @@ const UJIAN: Section = {
 
 const SIDANG: Section = {
   title: 'Jadwal Prasidang & Sidang',
-  tabs: [{ href: '/sidang', label: 'Jadwal Sidang' }],
+  tabs: [
+    { href: '/sidang', label: 'Jadwal Sidang' },
+    { href: '/sidang/cetak', label: 'Cetak' },
+  ],
 }
 
 const MASTER: Section = {

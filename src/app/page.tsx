@@ -47,6 +47,7 @@ export default async function MenuPage() {
             name="Jadwal Prasidang & Sidang"
             scope="Mahasiswa, penguji, ruang, bentrok"
             href="/sidang"
+            printHref="/sidang/cetak"
             hasYear={Boolean(year)}
             status={sidang}
           />

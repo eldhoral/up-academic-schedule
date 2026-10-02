@@ -697,7 +697,8 @@ person, with the Kaprodi signature.
 5. **Sidang data and board — done.** Migration `20261002000002_defenses.sql` (run it
    in the Supabase SQL editor), `/sidang` day board with NPM prefill, clash checks,
    hub row.
-6. **Sidang cetak** — `/sidang/cetak`, `check:sidang`.
+6. **Sidang cetak — done.** `/sidang/cetak` (preview, Excel, PDF; one block per
+   date and room or kelompok), pure `defense-blocks.ts`, `check:sidang`.
 7. **Docs** — update `.interface-design/system.md` and this plan.
 
 Risks: the Aspose quota is now shared by three documents; `exams` depends on the

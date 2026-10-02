@@ -12,7 +12,8 @@
     "check:print": "tsx scripts/check-print.ts",
     "check:calendar": "tsx scripts/check-calendar-layout.ts",
     "check:surat": "tsx scripts/check-surat-fit.ts",
-    "check:ujian": "tsx scripts/check-exam-rows.ts"
+    "check:ujian": "tsx scripts/check-exam-rows.ts",
+    "check:sidang": "tsx scripts/check-defense-blocks.ts"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.7",

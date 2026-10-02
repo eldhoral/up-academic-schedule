@@ -20,3 +20,9 @@ export function hariLabel(hari: string): string {
 export function hariFromTanggal(iso: string): HariDb {
   return HARI_DB[(new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7]
 }
+
+/** 'SELASA, 3 FEBRUARI 2026' -- the date line of the sidang sheets; `upper: false` gives 'Selasa, 3 Februari 2026'. */
+export function tanggalPanjang(iso: string, upper = true): string {
+  const text = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`))
+  return upper ? text.toUpperCase() : text
+}
