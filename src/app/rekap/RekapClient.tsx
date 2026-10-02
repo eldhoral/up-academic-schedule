@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { renderAsync } from 'docx-preview'
 import { Select } from '@/components/Select'
 import { EmptySheet } from '@/components/EmptySheet'
+import { RekapIndex, RekapLetter, type IndexRow, type LetterView, type SuratFacts } from './RekapPreview'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import type { AcademicYear, Lecturer } from '../penjadwalan-types'
 
@@ -14,12 +13,18 @@ export function RekapClient({
   academicYearId,
   selectedDosen,
   hasLetters,
+  index,
+  letter,
+  facts,
 }: {
   academicYears: AcademicYear[]
   lecturers: Lecturer[]
   academicYearId: string
   selectedDosen: string // kode_dosen, or 'all'
   hasLetters: boolean
+  index: IndexRow[]
+  letter: LetterView | null // null = "Semua dosen" overview
+  facts: SuratFacts
 }) {
   const router = useRouter()
 
@@ -33,7 +38,6 @@ export function RekapClient({
 
   const query = new URLSearchParams({ ay: academicYearId, dosen: selectedDosen }).toString()
   const docxUrl = `/rekap/docx?${query}`
-  const pdfUrl = `/rekap/pdf?${query}`
   const yearLabel = academicYears.find((ay) => ay.id === academicYearId)?.label ?? ''
   const selectedLecturer = lecturers.find((l) => l.kode_dosen === selectedDosen)
   const dosenLabel = selectedLecturer ? lecturerDisplayName(selectedLecturer) : 'Dosen ini'
@@ -85,7 +89,11 @@ export function RekapClient({
       </div>
 
       {hasLetters ? (
-        <PdfPreview key={pdfUrl} url={pdfUrl} docxUrl={docxUrl} />
+        letter ? (
+          <RekapLetter letter={letter} ay={academicYearId} facts={facts} />
+        ) : (
+          <RekapIndex rows={index} ay={academicYearId} facts={facts} />
+        )
       ) : (
         <EmptySheet
           {...(selectedDosen === 'all'
@@ -102,84 +110,5 @@ export function RekapClient({
         />
       )}
     </div>
-  )
-}
-
-/** The docx converted to PDF by Aspose Words -- the same layout Word gives the downloaded file.
- *  Falls back to the in-browser docx approximation when the conversion fails (e.g. quota). */
-function PdfPreview({ url, docxUrl }: { url: string; docxUrl: string }) {
-  const [src, setSrc] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    let objectUrl: string | null = null
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error(`${res.status}`)
-        return res.blob()
-      })
-      .then((blob) => {
-        if (cancelled) return
-        objectUrl = URL.createObjectURL(blob)
-        setSrc(objectUrl)
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true)
-      })
-    return () => {
-      cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [url])
-
-  if (failed) return <DocxPreview url={docxUrl} />
-  if (!src) return <p className="text-center text-[0.93rem] text-[var(--tinta-3)] py-[2rem]">Memuat pratinjau…</p>
-  return <iframe src={src} title="Pratinjau Surat Penugasan" className="flex-1 w-full border-0" />
-}
-
-function DocxPreview({ url }: { url: string }) {
-  const previewRef = useRef<HTMLDivElement>(null)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
-
-  useEffect(() => {
-    let cancelled = false
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error(`${res.status}`)
-        return res.blob()
-      })
-      .then((blob) => {
-        if (cancelled || !previewRef.current) return
-        // experimental: computes tab stops, which the Nomor/date line relies on.
-        return renderAsync(blob, previewRef.current, undefined, { experimental: true })
-      })
-      .then(() => {
-        // docx-preview's floating-image support is rough; patch the kop logo to sit
-        // where Word puts it: top-aligned (a baseline 0x0 inline-block stretches the
-        // line), offset from the column rather than the indented text start, and
-        // behind the text (multiply lets black text show through).
-        previewRef.current?.querySelectorAll<HTMLElement>('header div[style*="position: relative"]').forEach((el) => {
-          const indent = el.closest('p')?.style.textIndent || '0px'
-          el.style.verticalAlign = 'top'
-          el.style.left = `calc(${el.style.left || '0px'} - ${indent})`
-          el.style.mixBlendMode = 'multiply'
-        })
-        if (!cancelled) setStatus('ready')
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('error')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [url])
-
-  return (
-    <>
-      <p className="text-center text-[0.8rem] text-[var(--tinta-3)] pt-[0.53rem] bg-[var(--kertas)]">Pratinjau (perkiraan)</p>
-      {status === 'error' &&<p className="text-center text-[0.93rem] text-[var(--merah)] py-[2rem]">Gagal memuat pratinjau.</p>}
-      <div ref={previewRef} className="flex-1 overflow-auto bg-[var(--kertas)] py-[1rem]" />
-    </>
   )
 }

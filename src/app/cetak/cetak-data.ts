@@ -41,6 +41,8 @@ export async function buildCetakData(params: { ay?: string | null; jenis?: strin
     }
     return {
       name: `Semester ${semesterKe}`,
+      semester: templateVars.semester,
+      angkatan: templateVars.angkatan,
       headerLines: headerTemplate.map((line) => substituteTemplate(line, templateVars)).filter(Boolean),
       schedules: schedules.filter((s) => s.semester_ke === semesterKe),
     }
@@ -48,6 +50,8 @@ export async function buildCetakData(params: { ay?: string | null; jenis?: strin
   const keteranganLines = settingText(settings, 'keterangan_cetak', '').split('\n').filter(Boolean)
 
   return {
+    academicYears: years,
+    context,
     academicYearLabel: label,
     sheets,
     zoomId: settingText(settings, 'zoom_id', ''),

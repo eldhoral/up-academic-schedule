@@ -10,8 +10,8 @@ const BORDER_ALL = { top: THIN, left: THIN, bottom: THIN, right: THIN }
 
 /**
  * Desktop Excel auto-fits row height for wrapped text when a file is opened,
- * but Aspose's server-side PDF conversion doesn't -- it clips wrapped text to
- * whatever height is stored, so we estimate and bake in the height ourselves.
+ * but other viewers (and server-side converters) clip wrapped text to whatever
+ * height is stored, so we estimate and bake in the height ourselves.
  * `0.85` is a deliberately conservative chars-per-line factor: overestimating
  * only wastes a little whitespace, underestimating clips real text.
  */

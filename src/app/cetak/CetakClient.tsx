@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { EmptySheet } from '@/components/EmptySheet'
+import { CetakPreview, type CetakDoc, type PreviewSheet } from './CetakPreview'
 import type { AcademicYear } from '../penjadwalan-types'
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -11,10 +12,14 @@ export function CetakClient({
   academicYears,
   context,
   hasSchedules,
+  sheets,
+  doc,
 }: {
   academicYears: AcademicYear[]
   context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number | 'all' }
   hasSchedules: boolean
+  sheets: PreviewSheet[]
+  doc: CetakDoc
 }) {
   const router = useRouter()
 
@@ -34,7 +39,6 @@ export function CetakClient({
     smt: String(context.semester_ke),
   }).toString()
   const xlsxUrl = `/cetak/xlsx?${query}`
-  const pdfUrl = `/cetak/pdf?${query}`
 
   return (
     <div className="flex flex-col flex-1">
@@ -97,7 +101,7 @@ export function CetakClient({
       </div>
 
       {hasSchedules ? (
-        <iframe key={pdfUrl} src={pdfUrl} title="Pratinjau Jadwal" className="flex-1 w-full border-0" />
+        <CetakPreview sheets={sheets} doc={doc} />
       ) : (
         <EmptySheet
           title="Belum ada jadwal untuk dicetak"

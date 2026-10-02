@@ -25,9 +25,9 @@ import {
   type IRunOptions,
 } from 'docx'
 import { lecturerDisplayName } from '@/lib/import/tables'
-import { HARI_DB } from '@/lib/hari'
 import { LOGO_UP_PNG_BASE64 } from './logo-up'
 import { FOOTER_BANNER_PNG_BASE64 } from './footer-banner'
+import { TABLE_HEADER, rowTexts, sortByHariJam, sumSks, titleCase } from './letter-rows'
 import type { ScheduleRow, Lecturer } from '../penjadwalan-types'
 
 // Every measurement below is copied from the faculty's reference,
@@ -48,7 +48,6 @@ const BODY_TABS = [
 const TEXT_WIDTH = PAGE.width - MARGIN.left - MARGIN.right
 const TABLE_GRID = [608, 1994, 700, 1000, 1394, 989, 1041, 1300]
 const TABLE_WIDTH = TEXT_WIDTH
-const TABLE_HEADER = ['NO.', 'MATA KULIAH', 'SKS', 'HARI', 'JAM', 'KELAS', 'RUANG', 'BOR ZOOM']
 const HYPERLINK_COLOR = '0563C1'
 // Fonts go on every run, as in the reference: QuickLook/Pages ignore docDefaults.
 // The kop's address lines use the theme's minorBidi font, which Word resolves to Times New Roman.
@@ -57,7 +56,6 @@ const KOP_GAP = 360
 
 const run = (o: string | IRunOptions) => new TextRun({ font: 'Arial', ...(typeof o === 'string' ? { text: o } : o) })
 
-const hariIndex = (h: string) => (HARI_DB as readonly string[]).indexOf(h)
 const SINGLE = { style: BorderStyle.SINGLE, size: 4, color: 'auto' }
 const THIN_THICK = { style: BorderStyle.THIN_THICK_SMALL_GAP, size: 24, color: 'auto' }
 const THICK_THIN = { style: BorderStyle.THICK_THIN_SMALL_GAP, size: 24, color: 'auto' }
@@ -71,18 +69,6 @@ function parseImageDataUri(dataUri: string): { type: 'png' | 'jpg' | 'gif' | 'bm
   const type = DOCX_IMAGE_TYPES[match[1].toLowerCase()]
   if (!type) return null
   return { type, data: Buffer.from(match[2], 'base64') }
-}
-
-/** "PENGEMBANGAN DIRI DAN KARIER" -> "Pengembangan Diri Dan Karier", keeping roman numerals ("STATISTIKA II" -> "Statistika II"). */
-function titleCase(text: string): string {
-  return text
-    .split(/(\s+)/)
-    .map((w) => (/^[IVXLC]+$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
-    .join('')
-}
-
-function sortByHariJam(rows: ScheduleRow[]): ScheduleRow[] {
-  return [...rows].sort((a, b) => hariIndex(a.hari) - hariIndex(b.hari) || a.jam_mulai.localeCompare(b.jam_mulai))
 }
 
 function bodyParagraph(
@@ -118,21 +104,6 @@ function tableCell(text: string, opts: { bold?: boolean; center?: boolean; span?
 
 type Section = { title: string; rows: ScheduleRow[] }
 type TotalRow = { label: string; sks: number }
-
-const sumSks = (rows: ScheduleRow[]) => rows.reduce((sum, r) => sum + (r.courses?.sks ?? 0), 0)
-
-function rowTexts(r: ScheduleRow, i: number): string[] {
-  return [
-    `${i + 1}.`,
-    titleCase(r.courses?.nama_mk ?? r.kode_mk),
-    String(r.courses?.sks ?? ''),
-    titleCase(r.hari),
-    `${r.jam_mulai.slice(0, 5)}-${r.jam_selesai.slice(0, 5)}`.replace(/:/g, '.'),
-    r.kelas,
-    r.rooms?.nama ?? '',
-    r.zoom_id || '',
-  ]
-}
 
 function buildTable(sections: Section[], totals: TotalRow[]): Table {
   const thickEdges = { top: THIN_THICK, bottom: THICK_THIN }

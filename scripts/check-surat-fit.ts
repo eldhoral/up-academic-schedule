@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import JSZip from 'jszip'
 import { buildSuratDocx } from '../src/app/rekap/build-surat-docx'
 
-// Calibrated against Aspose Words renders on A4 with the faculty's 5-line kop and 3 tembusan
+// Calibrated against Word renders on A4 with the faculty's 5-line kop and 3 tembusan
 // lines: 4 classes (with 2-line zoom cells) overflow by one line, so the estimate splits from 4.
 const lecturer = { kode_dosen: 'D1', nama: 'Budi Santoso', gelar_depan: 'Dr.', gelar_belakang: 'M.Kom' }
 const schedule = (i: number, jenis: 'reguler' | 'regsus') => ({

@@ -1,32 +1,43 @@
 import { AppHeader } from '@/components/AppHeader'
-import { createClient } from '@/lib/supabase/server'
-import { fetchSchedulesForContext } from '../schedule-query'
+import { buildCetakData } from './cetak-data'
 import { CetakClient } from './CetakClient'
-import type { AcademicYear } from '../penjadwalan-types'
+import { groupSchedulesByKelas } from './schedule-rows'
 
 export default async function CetakPage(props: PageProps<'/cetak'>) {
   const searchParams = await props.searchParams
-  const supabase = await createClient()
-
-  const { data: academicYears } = await supabase.from('academic_years').select('*').order('id', { ascending: false })
-
-  const years = (academicYears as AcademicYear[]) ?? []
-  const defaultYear = years.find((y) => y.is_active)?.id ?? years[0]?.id ?? ''
-
-  const context = {
-    academic_year_id: (searchParams.ay as string) || defaultYear,
-    jenis_kelas: ((searchParams.jenis as string) === 'regsus' ? 'regsus' : 'reguler') as 'reguler' | 'regsus',
-    semester_ke: parseInt((searchParams.smt as string) ?? '', 10) || ('all' as const), // no or non-numeric smt = Semua semester
-  }
-
-  const schedules = await fetchSchedulesForContext(context)
+  const data = await buildCetakData({
+    ay: searchParams.ay as string | undefined,
+    jenis: searchParams.jenis as string | undefined,
+    smt: searchParams.smt as string | undefined,
+  })
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <div className="no-print">
         <AppHeader active="/cetak" />
       </div>
-      <CetakClient academicYears={years} context={context} hasSchedules={schedules.length > 0} />
+      <CetakClient
+        academicYears={data.academicYears}
+        context={data.context}
+        hasSchedules={data.sheets.some((s) => s.schedules.length > 0)}
+        sheets={data.sheets.map(({ name, semester, angkatan, headerLines, schedules }) => ({
+          name,
+          semester,
+          angkatan,
+          headerLines,
+          groups: groupSchedulesByKelas(schedules),
+        }))}
+        doc={{
+          zoomId: data.zoomId,
+          zoomPasscode: data.zoomPasscode,
+          keteranganLines: data.keteranganLines,
+          namaPenandatangan: data.namaPenandatangan,
+          jabatanPenandatangan: data.jabatanPenandatangan,
+          hasTandaTangan: Boolean(data.gambarTandaTangan),
+          ukuranKertas: data.ukuranKertas,
+          orientasi: data.orientasi,
+        }}
+      />
     </div>
   )
 }

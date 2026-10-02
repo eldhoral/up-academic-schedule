@@ -45,6 +45,7 @@ export async function buildRekapData(params: { ay?: string | null; dosen?: strin
     tahun,
     term,
     lecturersToRender,
+    lecturersWithLoad,
     byDosen,
     namaFakultas: settingText(settings, 'nama_fakultas', ''),
     kota: settingText(settings, 'kota', ''),

@@ -14,6 +14,7 @@ export type PrintRow = {
   dosen: string
   ruangan: string
   zoom: string
+  override: boolean
 }
 
 /** Groups schedules by kelas (sorted A, B, C...), each group's rows sorted by weekday then start time. */
@@ -50,6 +51,7 @@ export function groupSchedulesByKelas(schedules: ScheduleRow[]): [string, PrintR
             dosen,
             ruangan: r.rooms?.nama ?? '',
             zoom: r.zoom_id || '',
+            override: r.is_override,
           }
         }),
     ])
