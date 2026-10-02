@@ -18,6 +18,7 @@ const UJIAN: Section = {
   tabs: [
     { href: '/ujian', label: 'Jadwal Ujian' },
     { href: '/ujian/cetak', label: 'Cetak' },
+    { href: '/ujian/rekap', label: 'Rekap Pengawas' },
   ],
 }
 

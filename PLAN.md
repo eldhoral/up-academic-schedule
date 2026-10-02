@@ -692,7 +692,8 @@ person, with the Kaprodi signature.
 3. **Ujian cetak — done.** Shared xlsx helpers in `src/lib/xlsx.ts` (kuliah output
    verified byte-identical), `DownloadButtons`, `/ujian/cetak` (preview, Excel,
    PDF), `check:ujian`.
-4. **Ujian rekap** — `/ujian/rekap`, Rekap Pengawas Excel.
+4. **Ujian rekap — done.** `/ujian/rekap` (preview and Rekap Pengawas Excel, no
+   PDF), pure `pengawas-rows.ts`, asserts in `check:ujian`.
 5. **Sidang data and board** — migration, `/sidang`, hub row.
 6. **Sidang cetak** — `/sidang/cetak`, `check:sidang`.
 7. **Docs** — update `.interface-design/system.md` and this plan.

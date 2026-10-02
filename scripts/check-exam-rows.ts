@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import JSZip from 'jszip'
 import { buildExamRows, EXAM_COLUMNS, type PrintExam, type TableRow } from '../src/app/ujian/exam-rows'
 import { buildUjianXlsx } from '../src/app/ujian/cetak/build-ujian-xlsx'
+import { buildPengawasRekap } from '../src/app/ujian/pengawas-rows'
+import { buildRekapPengawasXlsx } from '../src/app/ujian/rekap/build-rekap-pengawas-xlsx'
+import type { ExamRow } from '../src/app/ujian/exam-types'
 
 const exam = (o: Partial<PrintExam>): PrintExam => ({
   kode_mk: 'M1', nama_mk: 'Psikologi Umum', sks: 3, kelas: 'A', tanggal: '2025-10-27', jam_mulai: '08:00', jam_selesai: '10:00',
@@ -97,6 +100,39 @@ function assertGrid(rows: TableRow[]) {
   assert.equal(rows[5].cells[5]?.rowSpan, 1)
 }
 
+// --- Rekap Pengawas -----------------------------------------------------------------------
+const row = (o: Partial<ExamRow>): ExamRow => ({
+  id: 'x', jenis_ujian: 'uts', jenis_kelas: 'reguler', semester_ke: 3, kode_mk: 'M1', kelas: 'A', tanggal: '2025-10-27', jam_mulai: '08:00:00', jam_selesai: '10:00:00',
+  room_id: 'r1', pengawas: [], keterangan_ujian: 'offline', is_override: false, override_reason: '', courses: { nama_mk: 'Psikologi Umum', sks: 3 }, rooms: { nama: '301' }, ...o,
+})
+const names = new Map([['D1', 'Dr. Budi'], ['D2', 'Ani']])
+const rekap = buildPengawasRekap(
+  [
+    row({ kelas: 'A', pengawas: [{ kode_dosen: 'D1' }, { nama: 'AKADEMIK' }] }),
+    row({ kelas: 'B', pengawas: [{ kode_dosen: 'D1' }] }), // same exam, same slot and room: one duty for D1
+    row({ kode_mk: 'M2', tanggal: '2025-10-28', keterangan_ujian: 'take_home', room_id: null, rooms: null, pengawas: [{ kode_dosen: 'D1' }, { nama: 'pak  joko' }] }),
+    row({ kode_mk: 'M3', tanggal: null, jam_mulai: null, jam_selesai: null, pengawas: [{ kode_dosen: 'D2' }] }),
+    row({ kode_mk: 'M4', jenis_kelas: 'regsus', pengawas: [{ kode_dosen: 'D2' }, { kode_dosen: 'D1' }], room_id: 'r2', jam_mulai: '13:00:00', jam_selesai: '15:00:00' }),
+  ],
+  names,
+  new Set(['AKADEMIK']),
+)
+assert.deepEqual(rekap.map((g) => g.nama), ['Ani', 'Dr. Budi', 'PAK JOKO', 'AKADEMIK'], 'dosen by name, then other free text, then the fixed team last')
+assert.deepEqual(rekap.map((g) => g.kind), ['dosen', 'dosen', 'manual', 'cadangan'])
+const budi = rekap[1]
+assert.equal(budi.rows.length, 3, 'A and B sat together count once')
+assert.equal(budi.rows[0].kelas, 'A, B')
+assert.equal(budi.jumlah, 2, 'take home is listed but not counted')
+assert.deepEqual(budi.rows.map((r) => r.counted), [true, true, false])
+assert.deepEqual(budi.rows.map((r) => r.kode_mk), ['M1', 'M4', 'M2'], 'sorted by date then time')
+assert.equal(budi.rows[0].hari, 'SENIN')
+assert.equal(budi.rows[0].program, 'Reguler')
+assert.equal(budi.rows[1].program, 'Reguler Khusus')
+assert.equal(budi.rows[2].ruangan, '', 'no room printed for take home')
+const ani = rekap[0]
+assert.equal(ani.rows.at(-1)?.tanggal, '', 'unscheduled duties come last')
+assert.equal(ani.jumlah, 2)
+
 // --- the Excel file merges exactly what the rows say ------------------------------------------
 async function main() {
   const rows = buildExamRows([exam({ kelas: 'A' }), exam({ kelas: 'B' }), exam({ kode_mk: 'U1', dosen: [], pengawas: [], ruangan: '', mkwu: true, tanggal: '2025-10-28' })])
@@ -112,6 +148,17 @@ async function main() {
   assert.ok(xml.includes('landscape'), 'A4 landscape')
   // exceljs keeps cell text in sharedStrings, not in the sheet XML
   assert.ok((await zip.file('xl/sharedStrings.xml')!.async('string')).includes('Tidak ada data jadwal'), 'an empty semester says so')
+  const rx = await JSZip.loadAsync(
+    await buildRekapPengawasXlsx({ headerLines: ['REKAP', 'TA'], groups: rekap, totalTugas: rekap.reduce((n, g) => n + g.jumlah, 0), namaPenandatangan: 'Nama', jabatanPenandatangan: 'Kaprodi' }),
+  )
+  const rekapXml = await rx.file('xl/worksheets/sheet1.xml')!.async('string')
+  const rekapMerges = [...rekapXml.matchAll(/<mergeCell ref="([^"]+)"/g)].map((m) => m[1])
+  // 2 title + TOTAL(A:C) + note + 2 signature + NO/NAMA merged for Budi (3 rows) and Ani (2) and AKADEMIK/Joko have 1-2 rows each
+  const multi = rekap.filter((g) => g.rows.length > 1).length
+  assert.equal(rekapMerges.length, 2 + 1 + 1 + 2 + multi * 2, rekapMerges.join(' '))
+  assert.ok((await rx.file('xl/sharedStrings.xml')!.async('string')).includes('DR. BUDI'), 'names are printed upper case')
+  const empty = await JSZip.loadAsync(await buildRekapPengawasXlsx({ headerLines: ['REKAP'], groups: [], totalTugas: 0, namaPenandatangan: '', jabatanPenandatangan: '' }))
+  assert.ok((await empty.file('xl/sharedStrings.xml')!.async('string')).includes('Belum ada pengawas'), 'an empty rekap says so')
   console.log('exam rows: all checks passed')
 }
 main()

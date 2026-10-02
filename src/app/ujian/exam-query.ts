@@ -172,3 +172,10 @@ export async function fetchExamsForPrint(c: Omit<ExamContext, 'semester_ke'> & {
     return { ...e, dosen: found ?? [], inKuliah: found !== undefined }
   })
 }
+
+/** Every exam of one kind in an academic year, both programs and all semesters (for the pengawas rekap). */
+export async function fetchExamsForRekap(academicYearId: string, jenisUjian: 'uts' | 'uas'): Promise<ExamRow[]> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('exams').select(EXAM_SELECT).eq('academic_year_id', academicYearId).eq('jenis_ujian', jenisUjian)
+  return ((data ?? []) as unknown as RawExam[]).map(toExamRow)
+}
