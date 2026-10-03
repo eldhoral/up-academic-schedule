@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { layoutOverlapping } from '../src/lib/calendar-layout'
+import { addDays, dayLabel, defaultWeek, eventWeeks, mondayOf, weekDays, weekLabel } from '../src/lib/week'
 
 type Ev = { id: string; jam_mulai: string; jam_selesai: string }
 
@@ -67,5 +68,19 @@ type Ev = { id: string; jam_mulai: string; jam_selesai: string }
   assert.equal(byId.get('a')!.cols, 2)
   assert.equal(byId.get('c')!.col, byId.get('a')!.col, 'c reuses a\'s freed column')
 }
+
+// --- week helpers (dated calendars) ------------------------------------------------------
+assert.equal(mondayOf('2025-10-29'), '2025-10-27', 'a Wednesday belongs to the Monday before')
+assert.equal(mondayOf('2025-10-27'), '2025-10-27')
+assert.equal(mondayOf('2025-11-02'), '2025-10-27', 'Sunday closes the week, it does not open one')
+assert.equal(addDays('2026-01-30', 3), '2026-02-02', 'month rollover')
+assert.deepEqual(weekDays('2025-10-27'), ['2025-10-27', '2025-10-28', '2025-10-29', '2025-10-30', '2025-10-31', '2025-11-01'])
+assert.equal(weekDays('2025-10-27', true).length, 7)
+assert.deepEqual(eventWeeks(['2026-02-03', '2025-10-29', '2025-10-27', '2025-11-25']), ['2025-10-27', '2025-11-24', '2026-02-02'])
+assert.equal(defaultWeek(['2025-10-27', '2026-02-03'], '2025-12-01'), '2026-02-02', 'the next week with events')
+assert.equal(defaultWeek(['2025-10-27'], '2026-03-01'), '2025-10-27', 'all past: the last week with events')
+assert.equal(defaultWeek([], '2026-10-03'), '2026-09-28', 'nothing yet: this week')
+assert.equal(weekLabel('2025-10-27'), '27 Okt – 1 Nov 2025')
+assert.equal(dayLabel('2026-02-03'), 'Selasa 3 Feb')
 
 console.log('calendar-layout: all checks passed')

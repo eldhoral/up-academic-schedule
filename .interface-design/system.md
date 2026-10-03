@@ -234,6 +234,30 @@ than inventing new ones for the new surface:
   `KalenderClient.tsx`) rather than fixed `px`, so it rescales with the
   root text-size lever like everything else in the app.
 
+### Dated calendars (Ujian, Sidang)
+
+`/ujian/kalender` and `/sidang/kalender` are the same read-only week grid as
+Kuliah's (`src/components/TimeGrid.tsx`, shared by all three, with
+`DetailModal` for the click-through), but by real dates instead of hari:
+
+- Columns are the days of one week (Senin–Sabtu, Minggu only when something falls
+  on it), headed "Senin 27 Okt" with a count. Today gets the `--biru-lembut` column.
+- **WeekNav** (`src/components/WeekNav.tsx`): ‹ › jump to the previous/next week
+  *that has events* and a picker lists every such week with its count — exam
+  week and defense days are a few weeks in a long year, so stepping one empty week
+  at a time would be useless. Opens on this week or the next with events; the
+  chosen week is kept in the URL (`minggu=`).
+- Ujian: one card per mata kuliah's sitting (its kelas together), badge = kelas
+  (with the semester as a bare roman numeral when "Semua semester" is shown),
+  sub-line = rooms or the keterangan; colour per course, as on Kuliah's calendar.
+  Undated exams aren't on the grid; a `--kuning` "N belum dijadwalkan" link in the
+  context bar says so.
+- Sidang: one card per mahasiswa, badge = room or `K1`, prasidang and sidang each
+  keep one colour; both kinds show together by default because a dosen sits on
+  both.
+- Week arithmetic lives in `src/lib/week.ts` (UTC dates), covered by
+  `check:calendar`.
+
 ## Menu hub and sections
 
 `/` is a menu, not a dashboard. Same Bilah ledger, no card grid:

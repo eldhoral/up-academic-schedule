@@ -17,6 +17,7 @@ const UJIAN: Section = {
   title: 'Jadwal UTS & UAS',
   tabs: [
     { href: '/ujian', label: 'Jadwal Ujian' },
+    { href: '/ujian/kalender', label: 'Kalender' },
     { href: '/ujian/cetak', label: 'Cetak' },
     { href: '/ujian/rekap', label: 'Rekap Pengawas' },
   ],
@@ -26,6 +27,7 @@ const SIDANG: Section = {
   title: 'Jadwal Prasidang & Sidang',
   tabs: [
     { href: '/sidang', label: 'Jadwal Sidang' },
+    { href: '/sidang/kalender', label: 'Kalender' },
     { href: '/sidang/cetak', label: 'Cetak' },
   ],
 }
