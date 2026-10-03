@@ -4,6 +4,7 @@ import { checkAllClashes } from './kuliah/clash-actions'
 import { checkAllExamClashes } from './ujian/actions'
 import { checkAllDefenseClashes } from './sidang/actions'
 import { tanggalSingkat } from './sidang/defense-types'
+import { FOTO_LOGIN_BUCKET, FOTO_LOGIN_FALLBACK, FOTO_LOGIN_PREFIX } from '@/lib/foto-login'
 
 /** One menu row's status: a lead figure with its label, quieter detail, and the tally inputs. */
 export type ScheduleStatus = {
@@ -98,5 +99,20 @@ export async function getSidangStatus(academicYearId: string): Promise<ScheduleS
     }
   } catch {
     return null
+  }
+}
+
+/** The first campus photo from Pengaturan (the same one the login page opens on), or the bundled one. */
+export async function getCampusPhoto(): Promise<string> {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.storage
+      .from(FOTO_LOGIN_BUCKET)
+      .list(FOTO_LOGIN_PREFIX, { sortBy: { column: 'created_at', order: 'asc' } })
+    const first = (data ?? []).find((f) => f.name && !f.name.endsWith('/'))
+    if (error || !first) return FOTO_LOGIN_FALLBACK
+    return supabase.storage.from(FOTO_LOGIN_BUCKET).getPublicUrl(`${FOTO_LOGIN_PREFIX}/${first.name}`).data.publicUrl
+  } catch {
+    return FOTO_LOGIN_FALLBACK
   }
 }

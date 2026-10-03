@@ -5,10 +5,8 @@ import { useSearchParams } from 'next/navigation'
 import { TextSizeController } from '@/components/TextSizeController'
 import { signInAction, resetPasswordAction, type AuthState } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
+import { FOTO_LOGIN_BUCKET, FOTO_LOGIN_FALLBACK, FOTO_LOGIN_PREFIX } from '@/lib/foto-login'
 
-const FOTO_LOGIN_BUCKET = 'up_kiprat'
-const FOTO_LOGIN_PREFIX = 'login'
-const FOTO_LOGIN_FALLBACK = '/images/fakultas-psikologi.jpg'
 const CAROUSEL_INTERVAL_MS = 7000
 
 /** Login carousel photos come from Supabase Storage so kaprodi can swap them via Pengaturan,

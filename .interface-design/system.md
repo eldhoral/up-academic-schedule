@@ -238,6 +238,15 @@ than inventing new ones for the new surface:
 
 `/` is a menu, not a dashboard. Same Bilah ledger, no card grid:
 
+- **Campus band** — the same campus photo as the login page (the first photo from
+  Pengaturan's login photos, or `public/images/fakultas-psikologi.jpg`), as a
+  `9rem` band (`6.5rem` on a phone) above the year heading: `--r-sedang`, no
+  border (a dark frame on a photo reads as harsh), cropped `object-[center_18%]`
+  so the building's sign shows, a left-to-right `--tinta` gradient only for the
+  caption's legibility, caption "UNIVERSITAS PANCASILA / Fakultas Psikologi" as on
+  login. It sets the place; it is not a hero, never rotates, and the register
+  stays the focus.
+
 - **Register** — one `--lembar` container (`--garis-kuat`, `--r-sedang`), `62rem`
   wide, a row per schedule at least `5.2rem` tall, separated by `--garis`. From `md`
   up each row is one ledger line on a fixed grid (`1.6rem | 1fr | 18rem | 10.5rem |

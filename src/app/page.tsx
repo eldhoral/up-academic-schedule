@@ -2,14 +2,15 @@ import Link from 'next/link'
 import { AppHeader } from '@/components/AppHeader'
 import { getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
-import { getKuliahStatus, getSidangStatus, getUjianStatus, type ScheduleStatus } from './hub-status'
+import { getCampusPhoto, getKuliahStatus, getSidangStatus, getUjianStatus, type ScheduleStatus } from './hub-status'
 import type { AcademicYear } from './kuliah/penjadwalan-types'
 
 export default async function MenuPage() {
   const supabase = await createClient()
-  const [{ data: academicYears }, role] = await Promise.all([
+  const [{ data: academicYears }, role, photo] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     getCurrentRole(),
+    getCampusPhoto(),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []
@@ -20,6 +21,18 @@ export default async function MenuPage() {
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <AppHeader active="/" />
       <main className="flex-1 w-full max-w-[62rem] mx-auto px-[1.3rem] py-[1.6rem]">
+        {/* The campus, as on the login page: a quiet band, not a hero. It sets the place;
+            the register below stays the focus. */}
+        <figure className="relative m-0 mb-[1.2rem] h-[6.5rem] sm:h-[9rem] overflow-hidden rounded-[var(--r-sedang)] bg-[var(--tinta)]">
+          {/* eslint-disable-next-line @next/next/no-img-element -- the photo may come from Supabase Storage */}
+          <img src={photo} alt="Gedung Fakultas Psikologi, Universitas Pancasila" className="absolute inset-0 w-full h-full object-cover object-[center_18%]" />
+          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[var(--tinta)]/80 via-[var(--tinta)]/35 to-transparent" />
+          <figcaption className="absolute inset-y-0 left-0 flex flex-col justify-end p-[1rem] sm:p-[1.3rem]">
+            <span className="text-[0.73rem] font-medium tracking-[0.04em] uppercase text-white/75">Universitas Pancasila</span>
+            <span className="text-[1.2rem] font-semibold leading-[1.3] tracking-[-0.01em] text-white">Fakultas Psikologi</span>
+          </figcaption>
+        </figure>
+
         <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.02em] text-balance">{year?.label ?? 'Belum ada tahun akademik'}</h1>
         <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">Tahun akademik aktif · S1 Psikologi</p>
 
