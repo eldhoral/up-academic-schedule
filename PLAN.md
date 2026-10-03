@@ -705,6 +705,18 @@ person, with the Kaprodi signature.
    nav, ujian, sidang, rekap pengawas, the shared components and the Excel rules,
    and its Language section matches the app; the Language note above is fixed too.
 
+### 9.9 Seed data (2025/2026 Gasal)
+
+The three example files are real 2025/2026 Gasal data, so they are seeded into a new,
+inactive year `20251`, never into the active 2026/2027: `20261002000003_seed_ujian_2025_2026_gasal.sql`
+(67 UTS rows) and `20261002000004_seed_sidang_2025_2026_gasal.sql` (15 prasidang, 12 sidang).
+Run them after the two table migrations, then pick "2025/2026 Gasal" in the year selector.
+Dosen are matched to the dosen master by name when the seed runs; an unmatched dosen leaves a
+defense role empty (a pengawas falls back to free text). The UTS rows have no dosen pengampu
+until a 2025/2026 kuliah schedule exists, and the ten university-run courses are seeded without
+a date because the sheet gives no hour for them. Both migrations were run against an in-memory
+Postgres together with every earlier migration, and are safe to run twice.
+
 Risks: the Aspose quota is now shared by three documents; `exams` depends on the
 natural key to `schedules`, so renaming a kuliah kelas or MK orphans ujian rows
 (shown as a note, not hidden); free-text pengawas matching is normalised string
