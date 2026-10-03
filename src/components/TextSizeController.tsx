@@ -34,11 +34,12 @@ export function TextSizeController() {
   }
 
   return (
-    <div className="flex items-center gap-[0.4rem] text-[0.8rem] text-[var(--tinta)]">
-      <span>Text size</span>
+    <div className="flex shrink-0 items-center gap-[0.4rem] text-[0.8rem] text-[var(--tinta)]">
+      {/* The label is the first thing to go on a phone: the three sizes explain themselves. */}
+      <span className="hidden sm:inline whitespace-nowrap">Ukuran teks</span>
       <div
         role="group"
-        aria-label="Text size"
+        aria-label="Ukuran teks"
         className="flex border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] overflow-hidden bg-[var(--lembar)]"
       >
         <button
@@ -51,7 +52,7 @@ export function TextSizeController() {
               : 'hover:bg-[var(--cekung)]'
           }`}
           style={{ fontSize: '0.87rem' }}
-          title="Small text size (15px)"
+          title="Teks kecil (15px)"
         >
           A
         </button>
@@ -65,7 +66,7 @@ export function TextSizeController() {
               : 'hover:bg-[var(--cekung)]'
           }`}
           style={{ fontSize: '1.07rem' }}
-          title="Medium text size (17px)"
+          title="Teks sedang (17px)"
         >
           A
         </button>
@@ -79,7 +80,7 @@ export function TextSizeController() {
               : 'hover:bg-[var(--cekung)]'
           }`}
           style={{ fontSize: '1.27rem' }}
-          title="Large text size (19px)"
+          title="Teks besar (19px)"
         >
           A
         </button>

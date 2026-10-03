@@ -35,14 +35,16 @@ export async function AppHeader({ active }: { active: string }) {
       {/* ml-auto (not the parent's justify-between) so this group stays flush right even
           when it wraps onto its own line — an auto margin still applies on a lone wrapped
           flex item, unlike justify-content, which needs 2+ items on the line to do anything. */}
-      <div className="flex items-center gap-[1.2rem] ml-auto">
+      <div className="flex min-w-0 items-center gap-[0.8rem] sm:gap-[1.2rem] ml-auto">
         <TextSizeController />
-        <div className="flex items-center gap-[0.8rem] pl-[0.8rem] border-l border-[var(--garis-kuat)] text-[0.87rem]">
-          <span className="text-[var(--tinta)] truncate max-w-[12rem]">{user?.email || 'Admin'}</span>
-          <form action={signOutAction}>
+        <div className="flex min-w-0 items-center gap-[0.8rem] pl-[0.8rem] border-l border-[var(--garis-kuat)] text-[0.87rem]">
+          {/* On a phone the email gives way so Keluar always fits; it stays in Keluar's tooltip. */}
+          <span className="hidden sm:block text-[var(--tinta)] truncate max-w-[12rem]">{user?.email || 'Admin'}</span>
+          <form action={signOutAction} className="shrink-0">
             <button
               type="submit"
-              className="px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--cekung)] cursor-pointer text-[0.87rem]"
+              title={user?.email ? `Keluar dari ${user.email}` : 'Keluar'}
+              className="min-h-[2.4rem] px-[0.7rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--cekung)] cursor-pointer text-[0.87rem] whitespace-nowrap"
             >
               Keluar
             </button>

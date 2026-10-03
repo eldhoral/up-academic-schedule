@@ -19,46 +19,27 @@ export default async function MenuPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <AppHeader active="/" />
-      <main className="flex-1 w-full max-w-[72rem] mx-auto px-[1.3rem] py-[1.6rem]">
+      <main className="flex-1 w-full max-w-[62rem] mx-auto px-[1.3rem] py-[1.6rem]">
         <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.02em] text-balance">{year?.label ?? 'Belum ada tahun akademik'}</h1>
         <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">Tahun akademik aktif · S1 Psikologi</p>
 
         <section aria-label="Jadwal" className="bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)]">
-          <Entry
-            folio="01"
-            name="Jadwal Mata Kuliah & Dosen"
-            scope="Kelas, dosen, ruangan, jam, bentrok"
-            href="/kuliah"
-            printHref="/kuliah/cetak"
-            hasYear={Boolean(year)}
-            status={kuliah}
-          />
-          <Entry
-            folio="02"
-            name="Jadwal UTS & UAS"
-            scope="Tanggal, pengawas, ruangan, bentrok"
-            href="/ujian"
-            printHref="/ujian/cetak"
-            hasYear={Boolean(year)}
-            status={ujian}
-          />
-          <Entry
-            folio="03"
-            name="Jadwal Prasidang & Sidang"
-            scope="Mahasiswa, penguji, ruang, bentrok"
-            href="/sidang"
-            printHref="/sidang/cetak"
-            hasYear={Boolean(year)}
-            status={sidang}
-          />
+          <Entry folio="01" name="Jadwal Mata Kuliah & Dosen" scope="Kelas, dosen, ruangan, jam, bentrok" href="/kuliah" printHref="/kuliah/cetak" hasYear={Boolean(year)} status={kuliah} />
+          <Entry folio="02" name="Jadwal UTS & UAS" scope="Tanggal, pengawas, ruangan, bentrok" href="/ujian" printHref="/ujian/cetak" hasYear={Boolean(year)} status={ujian} />
+          <Entry folio="03" name="Jadwal Prasidang & Sidang" scope="Mahasiswa, penguji, ruang, bentrok" href="/sidang" printHref="/sidang/cetak" hasYear={Boolean(year)} status={sidang} />
         </section>
 
-        <nav
-          aria-label="Lainnya"
-          className="mt-[1rem] min-h-[2.6rem] flex items-center flex-wrap bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] text-[0.93rem]"
-        >
+        {/* Secondary on purpose: a quiet line of links, not a fourth row competing with the schedules. */}
+        <nav aria-label="Lainnya" className="mt-[1rem] flex flex-wrap items-center gap-x-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
+          <span className="mr-[0.27rem]">Lainnya:</span>
           <AdminLink href="/mata-kuliah">Data Master</AdminLink>
-          {role === 'SUPERADMIN' && <AdminLink href="/pengguna">Manajemen Pengguna</AdminLink>}
+          {role === 'SUPERADMIN' && (
+            <>
+              <span aria-hidden="true">·</span>
+              <AdminLink href="/pengguna">Manajemen Pengguna</AdminLink>
+            </>
+          )}
+          <span aria-hidden="true">·</span>
           <AdminLink href="/log-aktivitas">Audit Log</AdminLink>
         </nav>
       </main>
@@ -79,58 +60,98 @@ function Entry({
   name: string
   scope: string
   href: string
-  printHref?: string // not every schedule has a print page yet
+  printHref: string
   hasYear: boolean
   status: ScheduleStatus | null
 }) {
+  const muted = 'm-0 text-[0.93rem] text-[var(--tinta-3)]'
   return (
-    <div className="relative flex items-center gap-x-[1.2rem] gap-y-[0.4rem] flex-wrap px-[1rem] py-[0.8rem] min-h-[5.2rem] border-b border-[var(--garis)] last:border-b-0 hover:bg-[var(--cekung)] focus-within:bg-[var(--cekung)] transition-colors">
-      <span className="mono w-[1.6rem] text-[0.8rem] text-[var(--tinta-3)]">{folio}</span>
+    // Phone: folio | name, with status and tally + Cetak on rows below. md+: one ledger line,
+    // folio | name | status | tally | Cetak, in fixed columns so every row lines up.
+    <div className="group relative grid grid-cols-[1.6rem_minmax(0,1fr)_auto] md:grid-cols-[1.6rem_minmax(0,1fr)_18rem_10.5rem_3rem] items-center gap-x-[1rem] gap-y-[0.33rem] px-[1rem] py-[0.8rem] min-h-[5.2rem] border-b border-[var(--garis)] last:border-b-0 hover:bg-[var(--cekung)] focus-within:bg-[var(--cekung)] transition-colors">
+      <span className="mono self-start md:self-center pt-[0.27rem] md:pt-0 text-[0.8rem] text-[var(--tinta-3)]">{folio}</span>
 
-      <div className="flex-1 min-w-[14rem]">
+      <div className="col-span-2 md:col-span-1 min-w-0">
         {/* The stretched link: its pseudo-element makes the whole row the click target. */}
-        <Link href={href} className="text-[1.2rem] font-semibold tracking-[-0.01em] text-[var(--tinta)] no-underline after:absolute after:inset-0">
-          {name}
+        <Link href={href} className="text-[1.2rem] font-semibold tracking-[-0.01em] text-[var(--tinta)] no-underline text-balance after:absolute after:inset-0">
+          {name.slice(0, name.lastIndexOf(' ') + 1)}
+          {/* The last word and the chevron travel together, so the chevron never wraps alone. */}
+          <span className="whitespace-nowrap">
+            {name.slice(name.lastIndexOf(' ') + 1)}
+            <span aria-hidden="true" className="inline-block ml-[0.4rem] text-[var(--tinta-3)] transition-transform duration-150 group-hover:translate-x-[2px] group-hover:text-[var(--tinta)]">
+              ›
+            </span>
+          </span>
         </Link>
         <p className="m-0 text-[0.87rem] text-[var(--tinta-3)]">{scope}</p>
       </div>
 
-      <p className="mono m-0 flex-1 min-w-[10rem] text-[0.93rem] text-[var(--tinta-2)]">
-        {!hasYear ? <Link href="/tahun-akademik" className="relative z-10">Belum ada tahun akademik</Link> : (status?.summary ?? '—')}
-      </p>
-
-      <Tally status={status} />
-
-      {printHref ? (
-        <Link href={printHref} className="relative z-10 w-[3.2rem] text-[0.87rem]">
-          Cetak
-        </Link>
+      {!hasYear ? (
+        <p className={`${muted} col-start-2 col-span-2 md:col-start-auto md:col-span-2`}>
+          <Link href="/tahun-akademik" className="relative z-10">
+            Belum ada tahun akademik
+          </Link>
+        </p>
+      ) : !status ? (
+        <p className={`${muted} col-start-2 col-span-2 md:col-start-auto md:col-span-2`}>Status belum bisa dibaca</p>
+      ) : status.empty ? (
+        <p className={`${muted} col-start-2 col-span-2 md:col-start-auto md:col-span-2`}>Belum ada jadwal</p>
       ) : (
-        <span className="w-[3.2rem]" aria-hidden="true" />
+        <>
+          <p className={`${muted} col-start-2 col-span-2 md:col-start-auto md:col-span-1`}>
+            {/* Each fact stays on one line; a wrap happens between facts. */}
+            <span className="whitespace-nowrap">
+              <span className="font-semibold text-[var(--tinta)]">{status.figure}</span> {status.label}
+            </span>
+            {status.detail.map((d) => (
+              // The space sits outside the span: a line breaks between facts, never inside one.
+              <span key={d}>
+                {' '}
+                <span className="whitespace-nowrap">· {d}</span>
+              </span>
+            ))}
+          </p>
+          <Tally status={status} />
+        </>
       )}
+
+      <Link
+        href={printHref}
+        className="relative z-10 col-start-3 md:col-start-auto justify-self-end text-[0.87rem] text-[var(--tinta-2)] no-underline hover:text-[var(--biru)] hover:underline"
+      >
+        Cetak
+      </Link>
     </div>
   )
 }
 
-/** The one colour on the page: blocking clashes lead, then warnings, then a quiet "bersih". */
-function Tally({ status }: { status: ScheduleStatus | null }) {
-  const box = 'w-[7rem] text-right'
-  if (!status) return <span className={`${box} text-[var(--tinta-3)]`}>—</span>
+/** The one colour on the page: blocking clashes lead, then warnings and gaps, then a quiet "bersih". */
+function Tally({ status }: { status: ScheduleStatus }) {
+  const cell = 'col-start-2 md:col-start-auto justify-self-start md:justify-self-end text-left md:text-right'
   if (status.bentrok > 0)
     return (
-      <span className={box}>
+      <span className={cell}>
         <span className="mono block text-[1.87rem] leading-none font-semibold tracking-[-0.025em] text-[var(--merah)]">{status.bentrok}</span>
         <span className="text-[0.73rem] font-semibold uppercase tracking-[0.04em] text-[var(--merah)]">bentrok</span>
       </span>
     )
-  if (status.peringatan > 0)
-    return <span className={`${box} text-[0.93rem] font-medium text-[var(--kuning)]`}>{status.peringatan} peringatan</span>
-  return <span className={`${box} text-[0.93rem] font-medium text-[var(--hijau)]`}>✓ bersih</span>
+  const notes = [status.peringatan > 0 && `${status.peringatan} peringatan`, status.gaps && `${status.gaps.n} ${status.gaps.label}`].filter(Boolean)
+  if (notes.length > 0)
+    return (
+      <span className={`${cell} text-[0.87rem] font-medium text-[var(--kuning)]`}>
+        {notes.map((n) => (
+          <span key={n as string} className="block">
+            {n}
+          </span>
+        ))}
+      </span>
+    )
+  return <span className={`${cell} text-[0.93rem] font-medium text-[var(--hijau)]`}>✓ bersih</span>
 }
 
 function AdminLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="px-[1rem] py-[0.53rem] border-r border-[var(--garis)] last:border-r-0 text-[var(--tinta-2)] no-underline hover:text-[var(--tinta)] hover:underline">
+    <Link href={href} className="inline-block py-[0.4rem] text-[var(--tinta-2)] no-underline hover:text-[var(--tinta)] hover:underline">
       {children}
     </Link>
   )

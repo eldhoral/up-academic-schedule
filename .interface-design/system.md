@@ -87,6 +87,10 @@ silently win over Tailwind utilities again.
   the section nav (`HeaderNav`, below), text-size control, sign-out. It takes
   the page's own path as `active`; the section is derived from that, so no page
   passes anything else.
+  On a phone the header must never push the page wider than the screen: the
+  "Ukuran teks" label and the email hide below `sm` (the email stays in Keluar's
+  tooltip), and the right-hand group is `min-w-0` so Keluar always fits. Checked at
+  390px with a long university email.
 - **Modals** — `fixed inset-0 z-50 flex items-center justify-center bg-black/40`,
   card is `border border-[var(--garis-kuat)] rounded-[var(--r-sedang)]`, no
   shadow. Field wrapper is a plain `<div>` (not `<label>`) whenever a field
@@ -234,21 +238,30 @@ than inventing new ones for the new surface:
 
 `/` is a menu, not a dashboard. Same Bilah ledger, no card grid:
 
-- **Register** — one `--lembar` container (`--garis-kuat`, `--r-sedang`) with a
-  row per schedule, each at least `5.2rem` tall, separated by `--garis`:
-  folio (`01`/`02`/`03`, `mono`, `--tinta-3`) · name (`1.2rem`/600, `-0.01em`)
-  with a `0.87rem` scope line · live status for the active tahun akademik
-  (`mono`, `.93rem`) · the clash **tally** · "Cetak" link. The whole row is the
-  link (a stretched `after:absolute after:inset-0`; the status and Cetak links
-  sit above it with `relative z-10`). Hover and focus-within tint `--cekung`.
+- **Register** — one `--lembar` container (`--garis-kuat`, `--r-sedang`), `62rem`
+  wide, a row per schedule at least `5.2rem` tall, separated by `--garis`. From `md`
+  up each row is one ledger line on a fixed grid (`1.6rem | 1fr | 18rem | 10.5rem |
+  3rem`: folio · name · status · tally · Cetak) so the rows line up; on a phone the
+  status and the tally + Cetak drop to their own lines under the name.
+  - Folio `01`/`02`/`03` (`mono`, `--tinta-3`).
+  - Name `1.2rem`/600 with a `›` (`--tinta-3`, nudges 2px and darkens on hover)
+    kept on the same line as the last word; a `0.87rem` scope line under it. The
+    name is a stretched link (`after:absolute after:inset-0`), so the whole row
+    opens the schedule; Cetak sits above it (`relative z-10`) in `--tinta-2` —
+    the secondary action never looks more clickable than the row.
+  - Status is data, not a sentence: one lead figure in `--tinta`/600 (`97` jadwal,
+    `3/68` UTS terjadwal, `Sab 3 Okt` berikutnya) and quieter facts in `--tinta-3`,
+    sans, never `mono`. Each fact is `nowrap`; lines break between facts.
+  - Hover and focus-within tint `--cekung`.
 - **Tally** — the only colour on the page and the focal element: blocking
   clashes as a `1.87rem` red `mono` count with "BENTROK" under it; otherwise
-  warnings as a `--kuning` line; otherwise a quiet `--hijau` "✓ bersih". If a
-  status can't be read (table not created yet) the cell shows "—", never an
-  error page.
-- **Admin strip** — Data Master, Manajemen Pengguna (SUPERADMIN only) and
-  Audit Log as one `--cekung` row of plain links at `2.6rem`: visibly secondary
-  to the three schedules.
+  `--kuning` lines for warnings **and gaps** (rows that are not clashes but not
+  done: undated exams, a defense missing an examiner); only then a `--hijau`
+  "✓ bersih". A schedule with no rows gets "Belum ada jadwal" and no tally;
+  a status that can't be read gets "Status belum bisa dibaca" — never a bare "—".
+- **Admin links** — "Lainnya: Data Master · Manajemen Pengguna (SUPERADMIN only) ·
+  Audit Log" as a plain `--tinta-3` line under the register: secondary to the
+  three schedules, not a fourth row.
 - **Section nav** — `HeaderNav` shows nothing on the menu; elsewhere it shows
   "‹ Menu", the section's name (`.93rem`/600) and that section's tabs (nav-active
   look for the current one). Sections: kuliah (Penjadwalan, Kalender, Cetak
