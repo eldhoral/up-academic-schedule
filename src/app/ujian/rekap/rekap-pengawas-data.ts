@@ -7,7 +7,7 @@ import { buildPengawasRekap } from '../pengawas-rows'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 
 /** Everything the pengawas rekap (preview and Excel) needs, resolved from raw query-string values. */
-export async function buildRekapPengawasData(params: { ay?: string | null; ujian?: string | null }) {
+export async function buildRekapPengawasData(params: { ay?: string | null; ujian?: string | null; pengawas?: string | null }) {
   const supabase = await createClient()
   const [{ data: academicYears }, { data: lecturers }, settings] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
@@ -21,7 +21,9 @@ export async function buildRekapPengawasData(params: { ay?: string | null; ujian
 
   const exams = await fetchExamsForRekap(context.academic_year_id, context.jenis_ujian)
   const names = new Map((lecturers ?? []).map((l) => [l.kode_dosen as string, lecturerDisplayName(l)]))
-  const groups = buildPengawasRekap(exams, names, new Set(settingList(settings, 'pengawas_cadangan').map(normalizeName)))
+  const all = buildPengawasRekap(exams, names, new Set(settingList(settings, 'pengawas_cadangan').map(normalizeName)))
+  // Per pengawas: one group's key (e.g. 'dosen:D01') narrows the file to that person.
+  const groups = params.pengawas ? all.filter((g) => g.key === params.pengawas) : all
 
   const label = years.find((y) => y.id === context.academic_year_id)?.label ?? ''
   const space = label.indexOf(' ')

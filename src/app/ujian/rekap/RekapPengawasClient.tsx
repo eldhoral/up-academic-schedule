@@ -118,7 +118,7 @@ export function RekapPengawasClient({
 
               <PreviewTable label={`Penugasan pengawas ${ujian}`} columns={COLUMNS}>
                 {groups.map((g) => (
-                  <GroupRows key={g.key} group={g} />
+                  <GroupRows key={g.key} group={g} xlsxUrl={`/ujian/rekap/xlsx?${query}&${new URLSearchParams({ pengawas: g.key })}`} />
                 ))}
               </PreviewTable>
             </section>
@@ -139,7 +139,7 @@ export function RekapPengawasClient({
   )
 }
 
-function GroupRows({ group }: { group: PengawasGroup }) {
+function GroupRows({ group, xlsxUrl }: { group: PengawasGroup; xlsxUrl: string }) {
   return (
     <>
       <BandRow span={COLUMNS.length}>
@@ -152,6 +152,9 @@ function GroupRows({ group }: { group: PengawasGroup }) {
             <span className="text-[0.8rem] font-normal px-[0.47rem] py-[0.07rem] rounded-full border border-dashed border-[var(--garis-kuat)] text-[var(--tinta-2)]">Non-dosen</span>
           )}
           <span className="ml-auto mono font-medium">{group.jumlah} tugas</span>
+          <a href={xlsxUrl} aria-label={`Unduh Excel ${group.nama}`} className="text-[0.87rem] font-normal text-[var(--biru)] hover:underline">
+            Unduh Excel
+          </a>
         </span>
       </BandRow>
       {group.rows.map((r, i) => {
