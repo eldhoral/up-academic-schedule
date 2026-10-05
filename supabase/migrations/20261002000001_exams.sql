@@ -6,6 +6,7 @@
 -- of truth for who teaches what. Pengawas is an ordered jsonb list of
 -- {"kode_dosen": "..."} or {"nama": "AKADEMIK"} (free text, for staff who
 -- proctor when a dosen is unavailable). Tanggal/jam are null until scheduled.
+-- Keterangan ujian is per kelas: kelas A may sit offline while kelas B is online.
 -- ==============================================================================
 
 create table if not exists exams (
