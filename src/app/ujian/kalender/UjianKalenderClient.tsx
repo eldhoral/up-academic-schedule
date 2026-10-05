@@ -84,15 +84,16 @@ export function UjianKalenderClient({
         const nama = h.courses?.nama_mk ?? h.kode_mk
         const kelas = b.rows.map((r) => r.kelas).join(', ')
         const rooms = [...new Set(b.rows.map((r) => (needsRoom(r.keterangan_ujian) ? r.rooms?.nama : null)).filter(Boolean))].join(', ')
+        const ket = keteranganOf(b.rows)
         return {
           id: b.key,
           jam_mulai: h.jam_mulai!,
           jam_selesai: h.jam_selesai!,
-          title: `${nama} — Kelas ${kelas} — ${h.jam_mulai!.slice(0, 5)}–${h.jam_selesai!.slice(0, 5)} — ${KETERANGAN_LABEL[h.keterangan_ujian]}${rooms ? ` — ${rooms}` : ''}`,
+          title: `${nama} — Kelas ${kelas} — ${h.jam_mulai!.slice(0, 5)}–${h.jam_selesai!.slice(0, 5)} — ${ket}${rooms ? ` — ${rooms}` : ''}`,
           // Semester as a bare roman numeral: the column is narrow when exams share a slot.
           badge: allSemesters ? `${romanSemester(h.semester_ke)} · ${kelas}` : kelas,
           name: nama,
-          sub: rooms || KETERANGAN_LABEL[h.keterangan_ujian],
+          sub: rooms || ket,
           colorKey: h.kode_mk,
           danger: b.rows.some((r) => r.is_override),
           onClick: () => setSelected(b),
@@ -183,7 +184,7 @@ export function UjianKalenderClient({
           }
           rows={[
             ['Hari & jam', `${hariLabel(hariFromTanggal(selected.rows[0].tanggal!))} ${shortDate(selected.rows[0].tanggal!)}, ${selected.rows[0].jam_mulai!.slice(0, 5)}–${selected.rows[0].jam_selesai!.slice(0, 5)}`],
-            ['Keterangan', KETERANGAN_LABEL[selected.rows[0].keterangan_ujian]],
+            ['Keterangan', keteranganOf(selected.rows)],
             ['Dosen pengampu', [...new Set(selected.rows.flatMap((r) => r.dosen))].join(', ') || (selected.rows[0].inKuliah ? 'MKWU' : '—')],
             ...selected.rows.map(
               (r): [string, React.ReactNode] => [
@@ -201,3 +202,6 @@ export function UjianKalenderClient({
     </div>
   )
 }
+
+/** Each kelas has its own keterangan; a block shows the distinct ones. */
+const keteranganOf = (rows: ExamView[]) => [...new Set(rows.map((r) => KETERANGAN_LABEL[r.keterangan_ujian]))].join(', ')

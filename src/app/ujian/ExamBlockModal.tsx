@@ -17,7 +17,7 @@ import {
 import { GABUNGAN, KETERANGAN_LABEL, KETERANGAN_UJIAN, needsRoom, shortDate, type ExamContext, type ExamView, type KeteranganUjian } from './exam-types'
 
 type Option = { value: string; label: string }
-type RowState = { kelas: string; room_id: string; pengawas: PersonValue[] }
+type RowState = { kelas: string; room_id: string; pengawas: PersonValue[]; keterangan_ujian: KeteranganUjian }
 
 const CONTROL = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]'
 const NO_ROOM = '__none__'
@@ -25,7 +25,7 @@ const CLASH_LABEL = { pengawas: 'Pengawas', ruangan: 'Ruangan', kelas: 'Kelas' }
 const UJIAN_LABEL = { uts: 'UTS', uas: 'UAS' }
 const dot = (t: string) => t.replace(':', '.')
 
-const toRowState = (r: ExamView): RowState => ({ kelas: r.kelas, room_id: r.room_id ?? '', pengawas: r.pengawas })
+const toRowState = (r: ExamView): RowState => ({ kelas: r.kelas, room_id: r.room_id ?? '', pengawas: r.pengawas, keterangan_ujian: r.keterangan_ujian })
 
 export function ExamBlockModal({
   context,
@@ -57,7 +57,6 @@ export function ExamBlockModal({
   const [tanggal, setTanggal] = useState(head.tanggal ?? '')
   const [jamMulai, setJamMulai] = useState(head.jam_mulai?.slice(0, 5) ?? '')
   const [jamSelesai, setJamSelesai] = useState(head.jam_selesai?.slice(0, 5) ?? '')
-  const [keterangan, setKeterangan] = useState<KeteranganUjian>(head.keterangan_ujian)
   const [rowState, setRowState] = useState<RowState[]>(rows.map(toRowState))
 
   const [live, setLive] = useState<ExamClashResult | null>(null)
@@ -69,7 +68,6 @@ export function ExamBlockModal({
   const [overrideReason, setOverrideReason] = useState('')
 
   const gabungan = rowState.length === 1 && rowState[0].kelas === GABUNGAN
-  const room = needsRoom(keterangan)
   const complete = !!(tanggal && jamMulai && jamSelesai)
 
   function buildInput(): ExamBlockInput {
@@ -79,10 +77,10 @@ export function ExamBlockModal({
       tanggal,
       jam_mulai: jamMulai,
       jam_selesai: jamSelesai,
-      keterangan_ujian: keterangan,
       rows: rowState.map((r) => ({
         kelas: r.kelas,
         room_id: r.room_id || null,
+        keterangan_ujian: r.keterangan_ujian,
         pengawas: r.pengawas.filter((p): p is NonNullable<PersonValue> => !!p && ('kode_dosen' in p ? !!p.kode_dosen : !!p.nama.trim())),
       })),
       confirmOverride: overrideConfirmed,
@@ -95,7 +93,7 @@ export function ExamBlockModal({
     const t = setTimeout(() => startCheck(async () => setLive(await checkExamBlockClashes(buildInput()))), 300)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [complete, tanggal, jamMulai, jamSelesai, keterangan, JSON.stringify(rowState)])
+  }, [complete, tanggal, jamMulai, jamSelesai, JSON.stringify(rowState)])
 
   function patchRow(i: number, patch: Partial<RowState>) {
     setRowState((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)))
@@ -103,11 +101,11 @@ export function ExamBlockModal({
 
   function toggleGabungan(on: boolean) {
     const first = rowState[0]
-    if (on) return setRowState([{ kelas: GABUNGAN, room_id: first.room_id, pengawas: first.pengawas }])
+    if (on) return setRowState([{ ...first, kelas: GABUNGAN }])
     setRowState(
       kelasChoices.map((k, i) => {
         const was = rows.find((r) => r.kelas === k)
-        return was ? toRowState(was) : { kelas: k, room_id: i === 0 ? first.room_id : '', pengawas: i === 0 ? first.pengawas : [] }
+        return was ? toRowState(was) : { kelas: k, room_id: i === 0 ? first.room_id : '', pengawas: i === 0 ? first.pengawas : [], keterangan_ujian: first.keterangan_ujian }
       }),
     )
   }
@@ -151,21 +149,10 @@ export function ExamBlockModal({
           }}
           className="space-y-[1rem]"
         >
-          <div className="grid gap-[1rem] sm:grid-cols-2">
-            <Field label="Tanggal">
-              <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className={`${CONTROL} mono`} />
-              {tanggal && <p className="m-0 mt-[0.2rem] text-[0.8rem] text-[var(--tinta-3)]">{hariLabel(hariFromTanggal(tanggal))}</p>}
-            </Field>
-            <Field label="Keterangan">
-              <Select
-                value={keterangan}
-                onValueChange={(v) => setKeterangan(v as KeteranganUjian)}
-                ariaLabel="Keterangan ujian"
-                options={KETERANGAN_UJIAN.map((k) => ({ value: k, label: KETERANGAN_LABEL[k] }))}
-                className={CONTROL}
-              />
-            </Field>
-          </div>
+          <Field label="Tanggal">
+            <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className={`${CONTROL} mono`} />
+            {tanggal && <p className="m-0 mt-[0.2rem] text-[0.8rem] text-[var(--tinta-3)]">{hariLabel(hariFromTanggal(tanggal))}</p>}
+          </Field>
 
           <Field label="Jam">
             {sesi.length > 0 && (
@@ -224,6 +211,16 @@ export function ExamBlockModal({
                   </p>
                 )}
 
+                <Field label="Keterangan">
+                  <Select
+                    value={r.keterangan_ujian}
+                    onValueChange={(v) => patchRow(i, { keterangan_ujian: v as KeteranganUjian })}
+                    ariaLabel={`Keterangan ujian kelas ${r.kelas}`}
+                    options={KETERANGAN_UJIAN.map((k) => ({ value: k, label: KETERANGAN_LABEL[k] }))}
+                    className={CONTROL}
+                  />
+                </Field>
+
                 <Field label="Pengawas">
                   <div className="space-y-[0.4rem]">
                     {r.pengawas.map((p, j) => (
@@ -257,7 +254,7 @@ export function ExamBlockModal({
                   </div>
                 </Field>
 
-                {room && (
+                {needsRoom(r.keterangan_ujian) && (
                   <Field label="Ruangan">
                     <Select
                       value={r.room_id || ''}

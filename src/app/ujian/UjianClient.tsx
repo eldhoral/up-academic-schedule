@@ -416,19 +416,13 @@ function BlockRows({
             )}
           </td>
           <td className={`${cell('center')} mono`}>{needsRoom(r.keterangan_ujian) ? (r.rooms?.nama ?? <span className={muted}>—</span>) : <span className={muted}>—</span>}</td>
-          {i === 0 && (
-            <>
-              <td rowSpan={span} className={`${cell('center')} whitespace-nowrap`}>
-                {KETERANGAN_LABEL[head.keterangan_ujian]}
-              </td>
-              {canEdit && (
-                <td rowSpan={span} className={cell('center')}>
-                  <button type="button" onClick={onEdit} className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]">
-                    Ubah
-                  </button>
-                </td>
-              )}
-            </>
+          <td className={`${cell('center')} whitespace-nowrap`}>{KETERANGAN_LABEL[r.keterangan_ujian]}</td>
+          {i === 0 && canEdit && (
+            <td rowSpan={span} className={cell('center')}>
+              <button type="button" onClick={onEdit} className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]">
+                Ubah
+              </button>
+            </td>
           )}
         </tr>
       ))}

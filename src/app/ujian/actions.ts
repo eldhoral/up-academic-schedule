@@ -34,9 +34,8 @@ export type ExamBlockInput = {
   tanggal: string // '' = not scheduled yet
   jam_mulai: string
   jam_selesai: string
-  keterangan_ujian: KeteranganUjian
   // One entry per kelas row of this mata kuliah, or one with kelas GABUNGAN.
-  rows: { kelas: string; room_id: string | null; pengawas: PengawasItem[] }[]
+  rows: { kelas: string; room_id: string | null; pengawas: PengawasItem[]; keterangan_ujian: KeteranganUjian }[]
   confirmOverride: boolean
   overrideReason: string
 }
@@ -55,9 +54,9 @@ function candidatesOf(input: ExamBlockInput, nama_mk: string): ExamClashInput[] 
     tanggal: input.tanggal || null,
     jam_mulai: input.jam_mulai || null,
     jam_selesai: input.jam_selesai || null,
-    room_id: needsRoom(input.keterangan_ujian) ? r.room_id : null,
+    room_id: needsRoom(r.keterangan_ujian) ? r.room_id : null,
     pengawas: r.pengawas,
-    keterangan_ujian: input.keterangan_ujian,
+    keterangan_ujian: r.keterangan_ujian,
   }))
 }
 
@@ -148,7 +147,7 @@ function validate(input: ExamBlockInput): string | null {
   if (c.jenis_ujian !== 'uts' && c.jenis_ujian !== 'uas') return 'Pilih jenis ujian.'
   if (c.jenis_kelas !== 'reguler' && c.jenis_kelas !== 'regsus') return 'Pilih jenis kelas.'
   if (!input.kode_mk) return 'Mata kuliah wajib diisi.'
-  if (!KETERANGAN_UJIAN.includes(input.keterangan_ujian)) return 'Pilih keterangan ujian.'
+  if (input.rows.some((r) => !KETERANGAN_UJIAN.includes(r.keterangan_ujian))) return 'Pilih keterangan ujian.'
   if (input.rows.length === 0) return 'Tidak ada kelas untuk disimpan.'
   if (new Set(input.rows.map((r) => r.kelas)).size !== input.rows.length) return 'Kelas tidak boleh ganda.'
   if (input.rows.some((r) => !r.kelas)) return 'Kelas wajib diisi.'
@@ -195,9 +194,9 @@ export async function saveExamBlockAction(input: ExamBlockInput): Promise<NonNul
     tanggal: input.tanggal || null,
     jam_mulai: input.jam_mulai || null,
     jam_selesai: input.jam_selesai || null,
-    room_id: needsRoom(input.keterangan_ujian) ? r.room_id || null : null,
+    room_id: needsRoom(r.keterangan_ujian) ? r.room_id || null : null,
     pengawas: r.pengawas.map((p) => ('kode_dosen' in p ? { kode_dosen: p.kode_dosen } : { nama: normalizeName(p.nama) })),
-    keterangan_ujian: input.keterangan_ujian,
+    keterangan_ujian: r.keterangan_ujian,
     is_override: blocked.has(i),
     override_reason: blocked.has(i) ? input.overrideReason.trim() : '',
     override_by: blocked.has(i) ? overrideBy : null,
