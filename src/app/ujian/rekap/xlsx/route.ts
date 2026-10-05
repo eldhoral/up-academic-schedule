@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const data = await buildRekapPengawasData({ ay: searchParams.get('ay'), ujian: searchParams.get('ujian'), pengawas: searchParams.get('pengawas') })
 
   const buffer = await buildRekapPengawasXlsx(data)
-  const who = searchParams.get('pengawas') && data.groups[0] ? ` ${data.groups[0].nama.replace(/[\\/:*?"<>|]/g, '')}` : ''
+  const who = data.pengawas ? ` ${data.groups[0].nama.replace(/[\\/:*?"<>|]/g, '')}` : ''
   const filename = `Rekap Pengawas ${data.context.jenis_ujian.toUpperCase()} ${data.academicYearLabel.replace(/\//g, '-')}${who}.xlsx`
 
   return new Response(buffer, {

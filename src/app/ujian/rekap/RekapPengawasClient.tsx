@@ -20,30 +20,36 @@ const COLUMNS = [
   { label: 'Keterangan', align: 'center' as const },
 ]
 const MONO = new Set([1, 2, 3, 5]) // TANGGAL, JAM, KODE MK, KELAS
+const ALL_PENGAWAS = '__all__'
+
+type Context = { academic_year_id: string; jenis_ujian: 'uts' | 'uas'; pengawas: string } // pengawas: group key, '' = semua
 
 export function RekapPengawasClient({
   academicYears,
   context,
+  pengawasOptions,
   groups,
   totalTugas,
   headerLines,
   doc,
 }: {
   academicYears: AcademicYear[]
-  context: { academic_year_id: string; jenis_ujian: 'uts' | 'uas' }
+  context: Context
+  pengawasOptions: { value: string; label: string }[]
   groups: PengawasGroup[]
   totalTugas: number
   headerLines: string[]
   doc: { namaPenandatangan: string; jabatanPenandatangan: string }
 }) {
   const router = useRouter()
-  const query = new URLSearchParams({ ay: context.academic_year_id, ujian: context.jenis_ujian }).toString()
+  const queryOf = (c: Context) =>
+    new URLSearchParams({ ay: c.academic_year_id, ujian: c.jenis_ujian, ...(c.pengawas ? { pengawas: c.pengawas } : {}) }).toString()
+  const query = queryOf(context)
   const yearLabel = academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? ''
   const ujian = context.jenis_ujian.toUpperCase()
 
-  function navigate(next: Partial<typeof context>) {
-    const m = { ...context, ...next }
-    router.push(`/ujian/rekap?${new URLSearchParams({ ay: m.academic_year_id, ujian: m.jenis_ujian })}`)
+  function navigate(next: Partial<Context>) {
+    router.push(`/ujian/rekap?${queryOf({ ...context, ...next })}`)
   }
 
   return (
@@ -71,6 +77,17 @@ export function RekapPengawasClient({
             { value: 'uts', label: 'UTS' },
             { value: 'uas', label: 'UAS' },
           ]}
+          className={CONTROL}
+        />
+
+        <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-pengawas">
+          Pengawas
+        </label>
+        <Select
+          id="ctx-pengawas"
+          value={context.pengawas || ALL_PENGAWAS}
+          onValueChange={(v) => navigate({ pengawas: v === ALL_PENGAWAS ? '' : v })}
+          options={[{ value: ALL_PENGAWAS, label: 'Semua pengawas' }, ...pengawasOptions]}
           className={CONTROL}
         />
 
@@ -118,7 +135,7 @@ export function RekapPengawasClient({
 
               <PreviewTable label={`Penugasan pengawas ${ujian}`} columns={COLUMNS}>
                 {groups.map((g) => (
-                  <GroupRows key={g.key} group={g} xlsxUrl={`/ujian/rekap/xlsx?${query}&${new URLSearchParams({ pengawas: g.key })}`} />
+                  <GroupRows key={g.key} group={g} />
                 ))}
               </PreviewTable>
             </section>
@@ -139,7 +156,7 @@ export function RekapPengawasClient({
   )
 }
 
-function GroupRows({ group, xlsxUrl }: { group: PengawasGroup; xlsxUrl: string }) {
+function GroupRows({ group }: { group: PengawasGroup }) {
   return (
     <>
       <BandRow span={COLUMNS.length}>
@@ -152,9 +169,6 @@ function GroupRows({ group, xlsxUrl }: { group: PengawasGroup; xlsxUrl: string }
             <span className="text-[0.8rem] font-normal px-[0.47rem] py-[0.07rem] rounded-full border border-dashed border-[var(--garis-kuat)] text-[var(--tinta-2)]">Non-dosen</span>
           )}
           <span className="ml-auto mono font-medium">{group.jumlah} tugas</span>
-          <a href={xlsxUrl} aria-label={`Unduh Excel ${group.nama}`} className="text-[0.87rem] font-normal text-[var(--biru)] hover:underline">
-            Unduh Excel
-          </a>
         </span>
       </BandRow>
       {group.rows.map((r, i) => {

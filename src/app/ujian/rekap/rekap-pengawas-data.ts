@@ -22,14 +22,18 @@ export async function buildRekapPengawasData(params: { ay?: string | null; ujian
   const exams = await fetchExamsForRekap(context.academic_year_id, context.jenis_ujian)
   const names = new Map((lecturers ?? []).map((l) => [l.kode_dosen as string, lecturerDisplayName(l)]))
   const all = buildPengawasRekap(exams, names, new Set(settingList(settings, 'pengawas_cadangan').map(normalizeName)))
-  // Per pengawas: one group's key (e.g. 'dosen:D01') narrows the file to that person.
-  const groups = params.pengawas ? all.filter((g) => g.key === params.pengawas) : all
+  // Per pengawas: one group's key (e.g. 'dosen:D01') narrows the rekap to that person. A key
+  // not in this year/ujian (left over after switching) falls back to everyone.
+  const picked = all.filter((g) => g.key === params.pengawas)
+  const groups = picked.length > 0 ? picked : all
 
   const label = years.find((y) => y.id === context.academic_year_id)?.label ?? ''
   const space = label.indexOf(' ')
   return {
     academicYears: years,
     context,
+    pengawas: picked.length > 0 ? params.pengawas! : '',
+    pengawasOptions: all.map((g) => ({ value: g.key, label: g.nama })),
     academicYearLabel: label,
     headerLines: [
       `REKAP PENGAWAS EVALUASI ${context.jenis_ujian === 'uts' ? 'TENGAH' : 'AKHIR'} SEMESTER`,
