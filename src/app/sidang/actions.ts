@@ -204,22 +204,32 @@ export type MahasiswaLookup = {
   from: string // "prasidang 24 Nov 2025", for the "diisi dari" note
 }
 
-/** The student's latest earlier defense, in any year, so a sidang starts from their prasidang. */
+/**
+ * What the form fills from an NPM: nama and judul from the Mahasiswa master, else from the
+ * student's latest earlier defense (any year); the pembimbing always from that defense, so a
+ * sidang starts from their prasidang.
+ */
 export async function lookupMahasiswaAction(npm: string): Promise<MahasiswaLookup | null> {
   if (!/^\d+$/.test(npm.trim())) return null
   const supabase = await createClient()
-  const { data } = await supabase
-    .from('defenses')
-    .select('nama_mahasiswa, judul_skripsi, pembimbing_kode, jenis, tanggal')
-    .eq('npm', npm.trim())
-    .order('tanggal', { ascending: false })
-    .limit(1)
+  const [{ data: master }, { data }] = await Promise.all([
+    supabase.from('students').select('nama, judul_skripsi').eq('npm', npm.trim()).maybeSingle(),
+    supabase
+      .from('defenses')
+      .select('nama_mahasiswa, judul_skripsi, pembimbing_kode, jenis, tanggal')
+      .eq('npm', npm.trim())
+      .order('tanggal', { ascending: false })
+      .limit(1),
+  ])
   const d = data?.[0]
-  if (!d) return null
+  if (!master && !d) return null
+  const fromDefense = d
+    ? `${d.jenis} ${new Date(`${d.tanggal}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`
+    : ''
   return {
-    nama_mahasiswa: d.nama_mahasiswa,
-    judul_skripsi: d.judul_skripsi,
-    pembimbing_kode: d.pembimbing_kode,
-    from: `${d.jenis} ${new Date(`${d.tanggal}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`,
+    nama_mahasiswa: master?.nama ?? d!.nama_mahasiswa,
+    judul_skripsi: master ? master.judul_skripsi || (d?.judul_skripsi ?? '') : d!.judul_skripsi,
+    pembimbing_kode: d?.pembimbing_kode ?? null,
+    from: [master && 'data master Mahasiswa', fromDefense].filter(Boolean).join(' dan '),
   }
 }

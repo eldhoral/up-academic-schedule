@@ -17,6 +17,7 @@ export const TABLE_LABEL: Record<string, string> = {
   courses: 'Mata Kuliah',
   lecturers: 'Dosen',
   rooms: 'Ruangan',
+  students: 'Mahasiswa',
   sessions: 'Sesi',
   schedules: 'Jadwal',
   schedule_lecturers: 'Dosen Jadwal',

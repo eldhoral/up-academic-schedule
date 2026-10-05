@@ -188,10 +188,41 @@ export const roomsTable: ImportTableDef<RoomRow> = {
   },
 }
 
+// ---------------------------------------------------------------------------
+// Mahasiswa — npm, nama, judul_skripsi (the export's own columns, so it re-imports)
+// ---------------------------------------------------------------------------
+
+export type StudentRow = {
+  npm: string
+  nama: string
+  judul_skripsi: string
+}
+
+export const studentsTable: ImportTableDef<StudentRow> = {
+  slug: 'students',
+  label: 'Mahasiswa',
+  headers: ['npm', 'nama', 'judul_skripsi'],
+  exampleRow: { npm: '6021210017', nama: 'Alfia Rizkyani', judul_skripsi: 'Peran Problematic Online Game Use Terhadap Kualitas Tidur' },
+  keyField: 'npm',
+  equal: (a, b) => a.nama === b.nama && a.judul_skripsi === b.judul_skripsi,
+  parseRow(raw) {
+    const npm = str(raw, 'npm') || str(raw, 'NPM')
+    if (!npm) return { reason: 'npm wajib diisi.' }
+    if (!/^\d+$/.test(npm)) return { reason: `Baris ${npm}: npm hanya boleh berisi angka.` }
+
+    const nama = str(raw, 'nama') || str(raw, 'Nama')
+    if (!nama) return { reason: `Baris ${npm}: nama wajib diisi.` }
+
+    const judul_skripsi = str(raw, 'judul_skripsi') || str(raw, 'Judul Skripsi')
+    return { key: npm, notes: [], data: { npm, nama, judul_skripsi } }
+  },
+}
+
 export const importTables = {
   courses: coursesTable,
   lecturers: lecturersTable,
   rooms: roomsTable,
+  students: studentsTable,
 } as const
 
 export type ImportTableSlug = keyof typeof importTables

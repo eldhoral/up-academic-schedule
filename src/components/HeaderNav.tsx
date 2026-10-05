@@ -38,6 +38,7 @@ const MASTER: Section = {
     { href: '/mata-kuliah', label: 'Mata Kuliah' },
     { href: '/dosen', label: 'Dosen' },
     { href: '/ruangan', label: 'Ruangan' },
+    { href: '/mahasiswa', label: 'Mahasiswa' },
     { href: '/sesi', label: 'Sesi' },
     { href: '/tahun-akademik', label: 'Tahun Akademik' },
     { href: '/pengaturan', label: 'Pengaturan' },

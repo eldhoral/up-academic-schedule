@@ -67,7 +67,7 @@ After that, manage accounts from **Manajemen Pengguna** (`/pengguna`).
 
 ## Using it
 
-1. In **Data Master**, set up Mata Kuliah, Dosen and Ruangan. Each can be imported from Excel: download the template, fill it in, upload it, check the dry-run preview, then commit.
+1. In **Data Master**, set up Mata Kuliah, Dosen, Ruangan and Mahasiswa (for prasidang and sidang). Each can be imported from Excel: download the template, or export the current data, fill it in, upload it, check the dry-run preview, then commit.
 2. Set the active academic year in **Tahun Akademik**. Generate the time slots in **Sesi**, and adjust the clash policies, print header and signatories in **Pengaturan**.
 3. Build the kuliah schedule in `/kuliah`.
 4. In `/ujian`, copy the kuliah classes in as exam rows. Kelas taught only on Zoom start as Online. Then fill in the date, time, ruangan and pengawas.
@@ -103,7 +103,7 @@ src/
     kuliah/             Class schedule: list, kalender, cetak, rekap (Surat Penugasan)
     ujian/              UTS/UAS: list, kalender, cetak, rekap pengawas
     sidang/             Prasidang/sidang: list, kalender, cetak
-    mata-kuliah/ dosen/ ruangan/ sesi/ tahun-akademik/ pengaturan/   Data Master
+    mata-kuliah/ dosen/ ruangan/ mahasiswa/ sesi/ tahun-akademik/ pengaturan/   Data Master
     pengguna/           User management (SUPERADMIN)
     log-aktivitas/      Audit log
     masuk/              Login
