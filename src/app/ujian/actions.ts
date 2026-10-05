@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { findExamClashes, normalizeName, type ExamClashInput, type ExamClashType } from './exam-clash'
 import { loadClashWorld } from './exam-query'
-import { GABUNGAN, KETERANGAN_UJIAN, needsRoom, type ExamContext, type KeteranganUjian, type PengawasItem } from './exam-types'
+import { GABUNGAN, KETERANGAN_UJIAN, keteranganFromKuliah, needsRoom, type ExamContext, type KeteranganUjian, type PengawasItem } from './exam-types'
 import type { ClashPolicy } from '../kuliah/clash-actions'
 
 export type ExamClashSummary = {
@@ -243,6 +243,14 @@ export async function deleteExamBlockAction(c: ExamContext, kode_mk: string): Pr
 /** One unscheduled row for a kuliah class that has none yet. */
 export async function addExamRowAction(c: ExamContext, kode_mk: string, kelas: string): Promise<NonNullable<ExamFormState>> {
   const supabase = await createClient()
+  const { data: schedules } = await supabase
+    .from('schedules')
+    .select('room_id, zoom_id')
+    .eq('academic_year_id', c.academic_year_id)
+    .eq('jenis_kelas', c.jenis_kelas)
+    .eq('semester_ke', c.semester_ke)
+    .eq('kode_mk', kode_mk)
+    .eq('kelas', kelas)
   const { error } = await supabase.from('exams').insert({
     academic_year_id: c.academic_year_id,
     jenis_ujian: c.jenis_ujian,
@@ -250,6 +258,7 @@ export async function addExamRowAction(c: ExamContext, kode_mk: string, kelas: s
     semester_ke: c.semester_ke,
     kode_mk,
     kelas,
+    keterangan_ujian: keteranganFromKuliah(schedules ?? []),
   })
   if (error) return { error: humanDbError(error, 'Jadwal ujian ini') }
 
@@ -261,15 +270,24 @@ export async function addExamRowAction(c: ExamContext, kode_mk: string, kelas: s
 export async function seedExamsFromKuliahAction(c: Omit<ExamContext, 'semester_ke'>): Promise<NonNullable<ExamFormState>> {
   const supabase = await createClient()
   const [{ data: schedules, error }, { data: existing }] = await Promise.all([
-    supabase.from('schedules').select('semester_ke, kode_mk, kelas').eq('academic_year_id', c.academic_year_id).eq('jenis_kelas', c.jenis_kelas),
+    supabase.from('schedules').select('semester_ke, kode_mk, kelas, room_id, zoom_id').eq('academic_year_id', c.academic_year_id).eq('jenis_kelas', c.jenis_kelas),
     supabase.from('exams').select('semester_ke, kode_mk, kelas').eq('academic_year_id', c.academic_year_id).eq('jenis_ujian', c.jenis_ujian).eq('jenis_kelas', c.jenis_kelas),
   ])
   if (error) return { error: humanDbError(error) }
 
   const gabungan = new Set((existing ?? []).filter((e) => e.kelas === GABUNGAN).map((e) => `${e.semester_ke}|${e.kode_mk}`))
-  const rows = (schedules ?? [])
+  // A kelas may meet more than once a week; it is online only if every meeting is.
+  const byKelas = Map.groupBy(schedules ?? [], (s) => `${s.semester_ke}|${s.kode_mk}|${s.kelas}`)
+  const rows = [...byKelas.values()]
+    .map((ss) => ss[0])
     .filter((s) => !gabungan.has(`${s.semester_ke}|${s.kode_mk}`))
-    .map((s) => ({ ...c, semester_ke: s.semester_ke, kode_mk: s.kode_mk, kelas: s.kelas }))
+    .map((s) => ({
+      ...c,
+      semester_ke: s.semester_ke,
+      kode_mk: s.kode_mk,
+      kelas: s.kelas,
+      keterangan_ujian: keteranganFromKuliah(byKelas.get(`${s.semester_ke}|${s.kode_mk}|${s.kelas}`)!),
+    }))
   if (rows.length === 0) return { success: true, message: 'Tidak ada jadwal kuliah untuk disalin.' }
 
   const { data: added, error: insertError } = await supabase

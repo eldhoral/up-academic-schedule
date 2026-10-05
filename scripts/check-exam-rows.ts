@@ -4,7 +4,7 @@ import { buildExamRows, EXAM_COLUMNS, type PrintExam, type TableRow } from '../s
 import { buildUjianXlsx } from '../src/app/ujian/cetak/build-ujian-xlsx'
 import { buildPengawasRekap } from '../src/app/ujian/pengawas-rows'
 import { buildRekapPengawasXlsx } from '../src/app/ujian/rekap/build-rekap-pengawas-xlsx'
-import type { ExamRow } from '../src/app/ujian/exam-types'
+import { keteranganFromKuliah, type ExamRow } from '../src/app/ujian/exam-types'
 
 const exam = (o: Partial<PrintExam>): PrintExam => ({
   kode_mk: 'M1', nama_mk: 'Psikologi Umum', sks: 3, kelas: 'A', tanggal: '2025-10-27', jam_mulai: '08:00', jam_selesai: '10:00',
@@ -162,3 +162,11 @@ async function main() {
   console.log('exam rows: all checks passed')
 }
 main()
+
+// Default keterangan from the kuliah class: online only when every meeting is Zoom-only.
+{
+  assert.equal(keteranganFromKuliah([{ room_id: null, zoom_id: '560 278 1304' }]), 'online')
+  assert.equal(keteranganFromKuliah([{ room_id: null, zoom_id: '1' }, { room_id: 'r1', zoom_id: '1' }]), 'offline', 'one meeting in a room keeps it offline')
+  assert.equal(keteranganFromKuliah([{ room_id: null, zoom_id: ' ' }]), 'offline', 'no zoom is not online')
+  assert.equal(keteranganFromKuliah([]), 'offline')
+}

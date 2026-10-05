@@ -12,6 +12,10 @@ export const KETERANGAN_LABEL: Record<KeteranganUjian, string> = {
 /** Only a sit-down exam in a room needs a ruangan; online/take home/project have none. */
 export const needsRoom = (k: KeteranganUjian) => k === 'offline' || k === 'ujian_lisan'
 
+/** Default for a new exam row: a kuliah class held only on Zoom (ruangan daring, no ruangan luring) sits its exam online. */
+export const keteranganFromKuliah = (schedules: { room_id: string | null; zoom_id: string }[]): KeteranganUjian =>
+  schedules.length > 0 && schedules.every((s) => !s.room_id && !!s.zoom_id.trim()) ? 'online' : 'offline'
+
 /** Pengawas: a dosen from the master, or free text (e.g. AKADEMIK). */
 export type PengawasItem = { kode_dosen: string } | { nama: string }
 
