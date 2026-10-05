@@ -11,6 +11,9 @@
 -- 5. Seeds the real 2026/2027 Gasal data: all 71 courses, 21 lecturers, 4 rooms,
 --    and the 96 real schedule rows (see that section's own header comment below
 --    for sourcing notes and known limitations — synthetic lecturer codes, etc.)
+-- 6. Adds the login-photos bucket, user roles (profiles) and the audit log
+-- 7. Creates the UTS/UAS (exams) and prasidang/sidang (defenses) tables, and seeds
+--    the 2025/2026 Gasal UTS and defense schedules
 --
 -- Keep this file in sync with migrations/ — if you add a migration, append it
 -- here too, or this "fastest" path silently falls behind the CLI path.
@@ -1218,3 +1221,406 @@ select cron.schedule('purge_old_audit_log', '0 3 * * *', 'select purge_old_audit
 -- ==============================================================================
 
 grant select, insert on audit_log to service_role;
+
+-- ==============================================================================
+-- Migration: 20261002000001_exams.sql
+-- Description: UTS/UAS (ujian tengah/akhir semester) schedule. One row per
+-- mata kuliah x kelas (or kelas 'GABUNGAN'). The dosen pengampu is NOT stored:
+-- it is read from `schedules` on the same natural key, so there is one source
+-- of truth for who teaches what. Pengawas is an ordered jsonb list of
+-- {"kode_dosen": "..."} or {"nama": "AKADEMIK"} (free text, for staff who
+-- proctor when a dosen is unavailable). Tanggal/jam are null until scheduled.
+-- ==============================================================================
+
+create table if not exists exams (
+    id uuid primary key default gen_random_uuid(),
+    academic_year_id varchar(20) not null references academic_years(id) on delete cascade,
+    jenis_ujian varchar(3) not null check (jenis_ujian in ('uts', 'uas')),
+    jenis_kelas varchar(20) not null check (jenis_kelas in ('reguler', 'regsus')),
+    semester_ke integer not null check (semester_ke between 1 and 8),
+    kode_mk varchar(20) not null references courses(kode_mk) on delete restrict,
+    kelas varchar(10) not null, -- 'A', 'B'... or 'GABUNGAN'
+    tanggal date,
+    jam_mulai time,
+    jam_selesai time,
+    room_id uuid references rooms(id) on delete set null,
+    pengawas jsonb not null default '[]'::jsonb check (jsonb_typeof(pengawas) = 'array'),
+    keterangan_ujian varchar(12) not null default 'offline'
+        check (keterangan_ujian in ('offline', 'online', 'take_home', 'project', 'ujian_lisan')),
+    is_override boolean not null default false,
+    override_reason text not null default '',
+    override_by uuid references auth.users(id) on delete set null,
+    created_at timestamptz not null default timezone('utc'::text, now()),
+    updated_at timestamptz not null default timezone('utc'::text, now()),
+    constraint chk_exams_scheduled check ((tanggal is null) = (jam_mulai is null) and (jam_mulai is null) = (jam_selesai is null)),
+    constraint chk_exams_jam check (jam_selesai > jam_mulai),
+    constraint uq_exams unique (academic_year_id, jenis_ujian, jenis_kelas, semester_ke, kode_mk, kelas)
+);
+
+create index if not exists idx_exams_lookup on exams (academic_year_id, jenis_ujian, jenis_kelas, semester_ke);
+create index if not exists idx_exams_tanggal on exams (academic_year_id, tanggal) where tanggal is not null;
+
+drop trigger if exists update_exams_updated_at on exams;
+create trigger update_exams_updated_at
+    before update on exams
+    for each row execute function update_updated_at_column();
+
+-- Same access tier as every data table: any authenticated user reads, only
+-- SUPERADMIN/SCHEDULER writes (see 20260924000003_user_roles.sql).
+alter table exams enable row level security;
+
+drop policy if exists exams_select on exams;
+create policy exams_select on exams for select to authenticated using (true);
+drop policy if exists exams_insert on exams;
+create policy exams_insert on exams for insert to authenticated with check (is_scheduler_or_above());
+drop policy if exists exams_update on exams;
+create policy exams_update on exams for update to authenticated using (is_scheduler_or_above()) with check (is_scheduler_or_above());
+drop policy if exists exams_delete on exams;
+create policy exams_delete on exams for delete to authenticated using (is_scheduler_or_above());
+
+grant select, insert, update, delete on exams to authenticated;
+
+drop trigger if exists audit_exams on exams;
+create trigger audit_exams
+    after insert or update or delete on exams
+    for each row execute function audit_row();
+
+-- Settings for the ujian pages (group 'ujian' in Pengaturan).
+insert into settings (key, value, type, "group", label, help, urutan)
+values
+    ('sesi_ujian_reguler', '08:00-10:00,11:00-13:00,14:00-16:00', 'text', 'ujian', 'Sesi Ujian Reguler', 'Jam ujian yang jadi pilihan cepat untuk kelas reguler, format 08:00-10:00, dipisah koma', 1),
+    ('sesi_ujian_regsus', '08:00-10:00,10:30-12:30,13:00-15:00,15:30-17:30,18:00-20:00', 'text', 'ujian', 'Sesi Ujian Reguler Khusus', 'Jam ujian yang jadi pilihan cepat untuk kelas reguler khusus, format 08:00-10:00, dipisah koma', 2),
+    ('pengawas_cadangan', 'AKADEMIK', 'text', 'ujian', 'Pengawas Non-Dosen', 'Nama pengawas non-dosen yang jadi pilihan (mis. AKADEMIK), dipisah koma. Tidak dicek bentrok karena mewakili tim, bukan satu orang.', 3),
+    ('ujian_header_baris', E'JADWAL EVALUASI {ujian} SEMESTER\nSEMESTER {semester}{program} ANGKATAN {angkatan_ta}\nSEMESTER {term} TAHUN AKADEMIK {tahun}', 'text', 'ujian', 'Judul Jadwal Ujian', 'Baris judul pada hasil cetak. {ujian}=TENGAH/AKHIR, {semester}, {program}, {angkatan_ta}, {term}, {tahun}', 4)
+on conflict (key) do nothing;
+
+-- ==============================================================================
+-- Migration: 20261002000002_defenses.sql
+-- Description: Prasidang and sidang (skripsi pre-defense and defense) schedule.
+-- One row per mahasiswa per defense. NPM, nama, judul and the external examiner
+-- live on the row itself, not in a mahasiswa master: the judul changes between
+-- prasidang and sidang, each NPM appears at most twice, and nothing else needs a
+-- mahasiswa. The two dosen roles read differently per jenis:
+--   prasidang: pembimbing_kode = Dosen Pembimbing Pendamping, penguji_kode = Dosen Pembahas
+--   sidang:    pembimbing_kode = Anggota Penguji II (pembimbing), penguji_kode = Ketua Sidang
+-- Prasidang is held on Zoom in numbered breakout rooms (kelompok), sidang in a room.
+-- ==============================================================================
+
+create table if not exists defenses (
+    id uuid primary key default gen_random_uuid(),
+    academic_year_id varchar(20) not null references academic_years(id) on delete cascade,
+    jenis varchar(10) not null check (jenis in ('prasidang', 'sidang')),
+    tanggal date not null,
+    jam_mulai time not null,
+    jam_selesai time not null,
+    room_id uuid references rooms(id) on delete set null, -- sidang
+    kelompok smallint check (kelompok > 0), -- prasidang
+    npm varchar(20) not null check (npm ~ '^[0-9]+$'),
+    nama_mahasiswa text not null,
+    judul_skripsi text not null default '',
+    pembimbing_kode varchar(30) references lecturers(kode_dosen) on update cascade on delete restrict,
+    penguji_kode varchar(30) references lecturers(kode_dosen) on update cascade on delete restrict,
+    penguji_eksternal text not null default '', -- sidang: Anggota Penguji I
+    is_override boolean not null default false,
+    override_reason text not null default '',
+    override_by uuid references auth.users(id) on delete set null,
+    created_at timestamptz not null default timezone('utc'::text, now()),
+    updated_at timestamptz not null default timezone('utc'::text, now()),
+    constraint chk_defenses_jam check (jam_selesai > jam_mulai),
+    constraint chk_defenses_place check (
+        (jenis = 'sidang' and kelompok is null)
+        or (jenis = 'prasidang' and room_id is null and kelompok is not null and penguji_eksternal = '')
+    ),
+    constraint chk_defenses_distinct check (pembimbing_kode is null or penguji_kode is null or pembimbing_kode <> penguji_kode),
+    constraint uq_defenses_npm unique (academic_year_id, jenis, npm)
+);
+
+create index if not exists idx_defenses_lookup on defenses (academic_year_id, jenis, tanggal);
+create index if not exists idx_defenses_npm on defenses (npm);
+
+drop trigger if exists update_defenses_updated_at on defenses;
+create trigger update_defenses_updated_at
+    before update on defenses
+    for each row execute function update_updated_at_column();
+
+-- Same access tier as every data table: any authenticated user reads, only
+-- SUPERADMIN/SCHEDULER writes (see 20260924000003_user_roles.sql).
+alter table defenses enable row level security;
+
+drop policy if exists defenses_select on defenses;
+create policy defenses_select on defenses for select to authenticated using (true);
+drop policy if exists defenses_insert on defenses;
+create policy defenses_insert on defenses for insert to authenticated with check (is_scheduler_or_above());
+drop policy if exists defenses_update on defenses;
+create policy defenses_update on defenses for update to authenticated using (is_scheduler_or_above()) with check (is_scheduler_or_above());
+drop policy if exists defenses_delete on defenses;
+create policy defenses_delete on defenses for delete to authenticated using (is_scheduler_or_above());
+
+grant select, insert, update, delete on defenses to authenticated;
+
+drop trigger if exists audit_defenses on defenses;
+create trigger audit_defenses
+    after insert or update or delete on defenses
+    for each row execute function audit_row();
+
+-- Settings for the sidang pages (group 'sidang' in Pengaturan). The header
+-- templates and signers are used by the print pages.
+insert into settings (key, value, type, "group", label, help, urutan)
+values
+    ('sesi_prasidang', '08:00-09:00,09:00-10:00,10:30-11:30,13:00-14:00,14:30-15:30', 'text', 'sidang', 'Sesi Prasidang', 'Jam prasidang yang jadi baris papan jadwal, format 08:00-09:00, dipisah koma', 1),
+    ('sesi_sidang', '08:00-10:00,10:00-12:00,13:00-15:00,15:00-17:00', 'text', 'sidang', 'Sesi Sidang', 'Jam sidang yang jadi baris papan jadwal, format 08:00-10:00, dipisah koma', 2),
+    ('prasidang_zoom_id', '', 'text', 'sidang', 'ID Zoom Prasidang', 'ID Zoom yang dicetak pada jadwal prasidang', 3),
+    ('prasidang_zoom_passcode', '', 'text', 'sidang', 'Passcode Zoom Prasidang', 'Passcode Zoom yang dicetak pada jadwal prasidang', 4),
+    ('nama_wakil_dekan', 'DR. VINAYA, M.SI', 'text', 'sidang', 'Nama Wakil Dekan I', 'Penandatangan "Mengetahui" pada jadwal prasidang dan sidang', 5),
+    ('jabatan_wakil_dekan', 'WAKIL DEKAN I', 'text', 'sidang', 'Jabatan Wakil Dekan I', 'Jabatan penandatangan "Mengetahui"', 6),
+    ('prasidang_header_baris', E'JADWAL PRASIDANG SKRIPSI SEMESTER {term} TAHUN AKADEMIK {tahun}\n{tanggal}\nKELOMPOK {kelompok}', 'text', 'sidang', 'Judul Jadwal Prasidang', 'Baris judul tiap halaman. {term}, {tahun}, {tanggal}, {kelompok}', 7),
+    ('sidang_header_baris', E'JADWAL SIDANG SKRIPSI SEMESTER {term} TAHUN AKADEMIK {tahun}\n{tanggal}\nRUANG {ruang}\nFAKULTAS PSIKOLOGI UNIVERSITAS PANCASILA', 'text', 'sidang', 'Judul Jadwal Sidang', 'Baris judul tiap halaman. {term}, {tahun}, {tanggal}, {ruang}', 8)
+on conflict (key) do nothing;
+
+-- ==============================================================================
+-- Migration: 20261002000003_seed_ujian_2025_2026_gasal.sql
+-- Description: Seed the UTS (ETS) schedule of 2025/2026 Gasal, Reguler.
+--
+-- Source: docs/KONSEP JADWAL ETS GASAL 25-26 + PENGAWAS.xlsx, sheet "Reguler" (semesters
+-- I, III and V). Requires 20261002000001_exams.sql. 67 rows. Idempotent: rows that
+-- already exist (same year, UTS, program, semester, mata kuliah and kelas) are left alone.
+--
+-- Generated by a one-off Node script (not checked in) that parsed the sheet, mapped every course to its
+-- 2026 kode_mk (PLAN.md §7b; semester I by name) and matched dosen by name. Decisions, on purpose:
+--
+-- 1. The year 2025/2026 Gasal (20251) is created, NOT active; the app's active year stays 2026/2027.
+--    There is no 2025/2026 kuliah schedule, so the DOSEN PENGAMPU column of these exams prints blank
+--    and each row shows the "tidak ada lagi di jadwal kuliah" mark until one is entered.
+-- 2. The 10 university-run (MKWU) courses have the date 21/10/2025 in the sheet but "UNIVERSITAS"
+--    instead of an hour, and an exam is dated only together with its hour, so they are seeded without
+--    a date (they list under "Belum dijadwalkan") as one GABUNGAN row each.
+-- 3. DASAR-DASAR PSIKOTERAPI (60421011, "semester IV ke atas non kelas") is not in the 2026 course
+--    catalog, so it is not seeded. Rows whose course is missing from the live catalog are skipped.
+-- 4. Rooms 201 and 202 are added (the sheet uses them; the catalog had 301, 302, 303 and Lab. Kom).
+-- 5. A pengawas is the matched dosen, else the name as free text; AKADEMIK stays free text. Dosen who
+--    are not in the dosen master as of seeding (JUNI ARATIKA) are free text. Biopsikologi kelas B has no
+--    pengawas in the sheet.
+-- 6. One keterangan per mata kuliah: the first one the sheet gives (Psikologi Sosial is OFFLINE UJIAN
+--    LISAN for both kelas; the sheet leaves kelas B's blank).
+-- 7. The hidden sheet "GABUNGAN" (2022/2023 Reguler Khusus, an older concept) is not seeded.
+-- The sheet has no clashes between pengawas, rooms or kelas (checked with the app's own rules).
+-- ==============================================================================
+
+INSERT INTO academic_years (id, label, is_active)
+VALUES ('20251', '2025/2026 Gasal', false)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rooms (nama, kapasitas) VALUES ('201', 0), ('202', 0)
+ON CONFLICT (nama) DO NOTHING;
+
+-- Match each source dosen to the dosen master by name tokens. A key resolves only when exactly one
+-- lecturer matches; otherwise it stays NULL (a defense role is left empty, a pengawas falls back to
+-- the name as free text). Temp tables, dropped at the end.
+CREATE TEMP TABLE _dosen_src (src text PRIMARY KEY, t1 text NOT NULL, t2 text NOT NULL);
+INSERT INTO _dosen_src (src, t1, t2) VALUES
+    ('aisyah', 'aisyah', 'aisyah'),
+    ('akhyar', 'akhyar', 'akhyar'),
+    ('anindya', 'anindya', 'anindya'),
+    ('dharma', 'dharma', 'dharma'),
+    ('evanytha', 'evanytha', 'evanytha'),
+    ('farida_aini', 'farida', 'aini'),
+    ('grashinta', 'grashinta', 'grashinta'),
+    ('kistyanti', 'kistyanti', 'kistyanti'),
+    ('maharani', 'maharani', 'maharani'),
+    ('rahmani', 'rahmani', 'rahmani'),
+    ('ramadhana', 'ramadhana', 'ramadhana'),
+    ('septilla', 'septilla', 'septilla'),
+    ('seta', 'seta', 'wicaksana'),
+    ('vinaya', 'vinaya', 'vinaya'),
+    ('wiroko', 'wiroko', 'wiroko');
+
+CREATE TEMP TABLE _dosen AS
+SELECT s.src, CASE WHEN count(l.kode_dosen) = 1 THEN min(l.kode_dosen) END AS kode
+FROM _dosen_src s
+LEFT JOIN lecturers l ON lower(l.nama) LIKE '%' || s.t1 || '%' AND lower(l.nama) LIKE '%' || s.t2 || '%'
+GROUP BY s.src;
+
+INSERT INTO exams (academic_year_id, jenis_ujian, jenis_kelas, semester_ke, kode_mk, kelas, tanggal, jam_mulai, jam_selesai, room_id, pengawas, keterangan_ujian)
+SELECT
+    '20251', 'uts', 'reguler', v.smt, v.kode, v.kelas, v.tanggal::date, v.mulai::time, v.selesai::time,
+    (SELECT r.id FROM rooms r WHERE r.nama = v.room),
+    (SELECT COALESCE(jsonb_agg(
+                CASE WHEN d.kode IS NOT NULL THEN jsonb_build_object('kode_dosen', d.kode) ELSE jsonb_build_object('nama', t.e ->> 'n') END
+                ORDER BY t.o), '[]'::jsonb)
+       FROM jsonb_array_elements(v.pengawas::jsonb) WITH ORDINALITY AS t(e, o)
+       LEFT JOIN _dosen d ON d.src = t.e ->> 'k'),
+    v.ket
+FROM (VALUES
+    (1, '10012001', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '10012003', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '10012004', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '10012005', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '10012006', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '10012007', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '10012008', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '10012009', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '10012010', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '10012002', 'GABUNGAN', NULL, NULL, NULL, NULL, '[]', 'offline'),
+    (1, '15113002', 'A', '2025-10-27', '08:00', '10:00', '201', '[{"k":"evanytha","n":"DR. EVANYTHA, M.SI., PSIKOLOG"}]', 'offline'),
+    (1, '15113002', 'B', '2025-10-27', '08:00', '10:00', '202', '[{"k":"anindya","n":"ANINDYA DEWI PARAMITA, M.PSI., PSIKOLOG"}]', 'offline'),
+    (1, '15123004', 'A', '2025-10-29', '08:00', '10:00', '201', '[{"k":"maharani","n":"MAHARANI ARDI PUTRI, M.SI., PSIKOLOG"}]', 'offline'),
+    (1, '15123004', 'B', '2025-10-29', '08:00', '10:00', '202', '[{"k":"anindya","n":"ANINDYA DEWI PARAMITA, M.PSI., PSIKOLOG"}]', 'offline'),
+    (1, '15123003', 'A', '2025-10-29', '11:00', '13:00', '301', '[{"k":"aisyah","n":"AISYAH, M.SI"}]', 'offline'),
+    (1, '15123003', 'B', '2025-10-29', '11:00', '13:00', '302', '[]', 'offline'),
+    (1, '15112004', 'A', '2025-10-30', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (1, '15112004', 'B', '2025-10-30', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (1, '15113005', 'A', '2025-10-31', '08:00', '10:00', '201', '[{"k":"dharma","n":"ANDRI SETIA DHARMA, M.PSI., PSIKOLOG"}]', 'offline'),
+    (1, '15113005', 'B', '2025-10-31', '08:00', '10:00', '202', '[{"k":"kistyanti","n":"NI MADE RAI KISTYANTI, M.PSI., PSIKOLOG"}]', 'offline'),
+    (3, '15132006', 'A', '2025-10-27', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (3, '15132006', 'B', '2025-10-27', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (3, '15142001', 'A', '2025-10-27', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (3, '15142001', 'B', '2025-10-27', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (3, '15123006', 'A', '2025-10-28', '08:00', '10:00', '201', '[{"k":"farida_aini","n":"FARIDA AINI, M.PSI., PSIKOLOG"}]', 'offline'),
+    (3, '15123006', 'B', '2025-10-28', '08:00', '10:00', '202', '[{"k":"grashinta","n":"AULLY GRASHINTA, M.SI., PSIKOLOG"}]', 'offline'),
+    (3, '15152009', 'A', '2025-10-28', '11:00', '13:00', '201', '[{"k":"kistyanti","n":"NI MADE RAI KISTYANTI, M.PSI., PSIKOLOG"}]', 'offline'),
+    (3, '15152009', 'B', '2025-10-28', '11:00', '13:00', '202', '[{"k":"ramadhana","n":"M. RAMADHANA, M.SI"}]', 'offline'),
+    (3, '15133004', 'A', '2025-10-29', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'online'),
+    (3, '15133004', 'B', '2025-10-29', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'online'),
+    (3, '15152014', 'A', '2025-10-29', '14:00', '16:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (3, '15152014', 'B', '2025-10-29', '14:00', '16:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (3, '15132005', 'A', '2025-10-30', '08:00', '10:00', '201', '[{"k":"evanytha","n":"DR. EVANYTHA, M.SI., PSIKOLOG"}]', 'offline'),
+    (3, '15132005', 'B', '2025-10-30', '08:00', '10:00', '202', '[{"k":"kistyanti","n":"NI MADE RAI KISTYANTI, M.PSI., PSIKOLOG"}]', 'offline'),
+    (3, '15162010', 'GABUNGAN', '2025-10-30', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (3, '15133008', 'A', '2025-10-31', '08:00', '10:00', '302', '[{"k":"akhyar","n":"MUHAMMAD AKHYAR, M.SI"}]', 'ujian_lisan'),
+    (3, '15133008', 'B', '2025-10-31', '08:00', '10:00', '303', '[{"k":"vinaya","n":"DR. VINAYA, M.SI"}]', 'ujian_lisan'),
+    (3, '15143007', 'A', '2025-10-31', '13:00', '15:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (3, '15143007', 'B', '2025-10-31', '13:00', '15:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (5, '15152002', 'A', '2025-10-27', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (5, '15152002', 'B', '2025-10-27', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (5, '15152002', 'C', '2025-10-27', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (5, '15152010', 'GABUNGAN', '2025-10-27', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'online'),
+    (5, '15152012', 'GABUNGAN', '2025-10-27', '14:00', '16:00', NULL, '[{"n":"AKADEMIK"}]', 'take_home'),
+    (5, '15143005', 'A', '2025-10-28', '08:00', '10:00', '301', '[{"k":"anindya","n":"ANINDYA DEWI PARAMITA, M.PSI., PSIKOLOG"}]', 'offline'),
+    (5, '15143005', 'B', '2025-10-28', '08:00', '10:00', '302', '[{"k":"wiroko","n":"ENDRO PUSPO WIROKO, M.PSI., PSIKOLOG"}]', 'offline'),
+    (5, '15143005', 'C', '2025-10-28', '08:00', '10:00', '303', '[{"k":"kistyanti","n":"NI MADE RAI KISTYANTI, M.PSI., PSIKOLOG"}]', 'offline'),
+    (5, '15152007', 'A', '2025-10-28', '11:00', '13:00', '301', '[{"n":"JUNI ARATIKA"}]', 'offline'),
+    (5, '15152007', 'B', '2025-10-28', '11:00', '13:00', '302', '[{"k":"septilla","n":"A. EKA SEPTILLA, M.PSI., PSIKOLOG"}]', 'offline'),
+    (5, '15152007', 'C', '2025-10-28', '11:00', '13:00', '303', '[{"k":"rahmani","n":"SOFI FITRIA RAHMANI, M.PD"}]', 'offline'),
+    (5, '15152003', 'A', '2025-10-29', '08:00', '10:00', '301', '[{"k":"vinaya","n":"DR. VINAYA, M.SI"}]', 'offline'),
+    (5, '15152003', 'B', '2025-10-29', '08:00', '10:00', '302', '[{"k":"ramadhana","n":"M. RAMADHANA, M.SI"}]', 'offline'),
+    (5, '15152003', 'C', '2025-10-29', '08:00', '10:00', '303', '[{"k":"seta","n":"DR. SETA A. WICAKSANA, M.PSI., PSIKOLOG"}]', 'offline'),
+    (5, '15152008', 'A', '2025-10-29', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'project'),
+    (5, '15152008', 'B', '2025-10-29', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'project'),
+    (5, '15152008', 'C', '2025-10-29', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'project'),
+    (5, '15143009', 'A', '2025-10-30', '08:00', '10:00', '301', '[{"k":"anindya","n":"ANINDYA DEWI PARAMITA, M.PSI., PSIKOLOG"}]', 'offline'),
+    (5, '15143009', 'B', '2025-10-30', '08:00', '10:00', '302', '[{"k":"anindya","n":"ANINDYA DEWI PARAMITA, M.PSI., PSIKOLOG"}]', 'offline'),
+    (5, '15143009', 'C', '2025-10-30', '08:00', '10:00', '303', '[{"k":"farida_aini","n":"FARIDA AINI, M.PSI., PSIKOLOG"}]', 'offline'),
+    (5, '15162002', 'A', '2025-10-30', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'online'),
+    (5, '15162002', 'B', '2025-10-30', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'online'),
+    (5, '15162002', 'C', '2025-10-30', '11:00', '13:00', NULL, '[{"n":"AKADEMIK"}]', 'online'),
+    (5, '15153001', 'A', '2025-10-31', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'project'),
+    (5, '15153001', 'B', '2025-10-31', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'project'),
+    (5, '15153001', 'C', '2025-10-31', '08:00', '10:00', NULL, '[{"n":"AKADEMIK"}]', 'project'),
+    (5, '15152011', 'A', '2025-10-31', '13:00', '15:00', NULL, '[{"n":"AKADEMIK"}]', 'project'),
+    (5, '15152011', 'B', '2025-10-31', '13:00', '15:00', NULL, '[{"n":"AKADEMIK"}]', 'project')
+) AS v(smt, kode, kelas, tanggal, mulai, selesai, room, pengawas, ket)
+WHERE EXISTS (SELECT 1 FROM courses c WHERE c.kode_mk = v.kode)
+ON CONFLICT ON CONSTRAINT uq_exams DO NOTHING;
+
+DROP TABLE _dosen;
+DROP TABLE _dosen_src;
+
+-- ==============================================================================
+-- Migration: 20261002000004_seed_sidang_2025_2026_gasal.sql
+-- Description: Seed the prasidang and sidang schedule of 2025/2026 Gasal.
+--
+-- Sources: docs/Jadwal Prasidang Gasal 2025-2026.xlsx (15 mahasiswa, 24-25 Nov 2025, kelompok 1-3)
+-- and docs/jadwal sidang master.xlsx (12 mahasiswa, 3 Feb 2026, ruang 301-303). Requires
+-- 20261002000002_defenses.sql. Idempotent: a mahasiswa already scheduled for that jenis in that year
+-- (same NPM) is left alone.
+--
+-- Generated by a one-off Node script (not checked in) that parsed both sheets and matched dosen by name.
+-- Decisions, on purpose:
+--
+-- 1. The year 2025/2026 Gasal (20251) is created, NOT active (the sidang of 3 Feb 2026 is titled Gasal in
+--    its source). Empty slots in the sheets (no mahasiswa) are not seeded.
+-- 2. Dosen are matched to the dosen master by name when this runs. A role whose dosen is not in the master
+--    (or matches more than one) is left empty instead of guessed; fill it in on /sidang after adding the
+--    dosen. Against the dosen seeded by 20260922000002, every dosen in these sheets resolves.
+-- 3. The external examiner (sidang Penguji I) is free text, as typed in the sheet: Prof. Farida Kurniawati,
+--    Dr. Ade Iva Murty, Dr. Eva Septiana, Dr. Lucia RM Royanto and Prof. Dr. Awaluddin Tjalla. It stays
+--    text even for a name that is also in the dosen master (Awaluddin Tjalla is), as the field always is.
+-- 4. Names and titles are kept as typed in the sheets (the printed sheets use title case).
+-- 5. The sheets have no clashes between dosen, external examiners or rooms (checked with the app's rules).
+-- ==============================================================================
+
+INSERT INTO academic_years (id, label, is_active)
+VALUES ('20251', '2025/2026 Gasal', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Match each source dosen to the dosen master by name tokens. A key resolves only when exactly one
+-- lecturer matches; otherwise it stays NULL (a defense role is left empty, a pengawas falls back to
+-- the name as free text). Temp tables, dropped at the end.
+CREATE TEMP TABLE _dosen_src (src text PRIMARY KEY, t1 text NOT NULL, t2 text NOT NULL);
+INSERT INTO _dosen_src (src, t1, t2) VALUES
+    ('aisyah', 'aisyah', 'aisyah'),
+    ('akhyar', 'akhyar', 'akhyar'),
+    ('anindya', 'anindya', 'anindya'),
+    ('bimo', 'bimo', 'wikant'),
+    ('dharma', 'dharma', 'dharma'),
+    ('evanytha', 'evanytha', 'evanytha'),
+    ('farida_aini', 'farida', 'aini'),
+    ('grashinta', 'grashinta', 'grashinta'),
+    ('kistyanti', 'kistyanti', 'kistyanti'),
+    ('maharani', 'maharani', 'maharani'),
+    ('nindyati', 'nindyati', 'nindyati'),
+    ('ramadhana', 'ramadhana', 'ramadhana'),
+    ('septilla', 'septilla', 'septilla'),
+    ('seta', 'seta', 'wicaksana'),
+    ('silverius', 'silverius', 'soeharso'),
+    ('suwandi', 'suwandi', 'suwandi'),
+    ('vinaya', 'vinaya', 'vinaya'),
+    ('wiroko', 'wiroko', 'wiroko');
+
+CREATE TEMP TABLE _dosen AS
+SELECT s.src, CASE WHEN count(l.kode_dosen) = 1 THEN min(l.kode_dosen) END AS kode
+FROM _dosen_src s
+LEFT JOIN lecturers l ON lower(l.nama) LIKE '%' || s.t1 || '%' AND lower(l.nama) LIKE '%' || s.t2 || '%'
+GROUP BY s.src;
+
+INSERT INTO defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, room_id, kelompok, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode, penguji_eksternal)
+SELECT
+    '20251', v.jenis, v.tanggal::date, v.mulai::time, v.selesai::time,
+    (SELECT r.id FROM rooms r WHERE r.nama = v.ruang),
+    v.kelompok::smallint, v.npm, v.nama, v.judul,
+    (SELECT d.kode FROM _dosen d WHERE d.src = v.pb),
+    (SELECT d.kode FROM _dosen d WHERE d.src = v.pj),
+    v.eksternal
+FROM (VALUES
+    ('prasidang', '2025-11-24', 1, NULL, '10:30', '11:30', '6021210068', 'Fadhlan Wibisono H', 'Hubungan Antara Future Anxiety Dengan Quality Of Life Pada Generasi Z Di Indonesia', 'dharma', 'maharani', ''),
+    ('prasidang', '2025-11-24', 1, NULL, '13:00', '14:00', '6022210039', 'Jihan Shabrina Feby Amelia', 'Peran Help Seeking Behavior Melalui (Website Beranibersuara.Id) Terhadap Online Sexual Harassment', 'aisyah', 'anindya', ''),
+    ('prasidang', '2025-11-24', 1, NULL, '14:30', '15:30', '6022210059', 'Najwa Prajna Phalita Kurniawan', 'Peran Social Comparison Dan Social Media Rumination Dalam Memprediksi Social Media Addiction Pada Remaja', 'anindya', 'evanytha', ''),
+    ('prasidang', '2025-11-24', 2, NULL, '09:00', '10:00', '6021210064', 'Saniy Saffanah T', 'Pengaruh Social Support Dan Social Comparison Terhadap Career Anxiety Pada Fresh Graduate Emerging Adult', 'evanytha', 'silverius', ''),
+    ('prasidang', '2025-11-24', 2, NULL, '10:30', '11:30', '6021210087', 'Wardah Yasmine Shakila Mahdar', 'Hubungan Self Regulation Dan Academic Buoyancy Pada Mahasiswa Gen Z Dengan Problematic Social Media Use', 'suwandi', 'silverius', ''),
+    ('prasidang', '2025-11-24', 2, NULL, '13:00', '14:00', '6020210070', 'Muchammad Haikal Bichaq', 'Hubungan Antara Self Discrepancy Dengan Perilaku Impulsive Buying Pada Cosplayer Dewasa Muda', 'ramadhana', 'evanytha', ''),
+    ('prasidang', '2025-11-25', 1, NULL, '09:00', '10:00', '6020210088', 'Injie Zahwa Aulia', 'Peran Pemberdayaan Psikologis Terhadap OCB (Organizational Citizenship Behavior) Pada Karyawan Kopi Kina', 'wiroko', 'seta', ''),
+    ('prasidang', '2025-11-25', 1, NULL, '10:30', '11:30', '6019210059', 'Ichlasun Naas Ibrahiem', 'Peran Kepribadian Proaktif Terhadap Self-Perceived Employability Pada Pekerja Industri Manufaktur', 'wiroko', 'nindyati', ''),
+    ('prasidang', '2025-11-25', 1, NULL, '13:00', '14:00', '6022210038', 'Ramdan Malik Prawira', 'Gambaran Burnout Pada Pegawai Dinas Kependudukan Dan Pencatatan Sipil (Dukcapil) Kota Depok', 'bimo', 'nindyati', ''),
+    ('prasidang', '2025-11-25', 2, NULL, '08:00', '09:00', '6021210017', 'Alfia Rizkyani', 'Hubungan Problematic Online Game Use (Pogu) Dengan Kualitas Tidur Pada Gen Z Pemain Game Roblox', 'aisyah', 'grashinta', ''),
+    ('prasidang', '2025-11-25', 2, NULL, '10:30', '11:30', '6022210071', 'Larashaty Putri Prameswari', 'Pengaruh Adverse Childhood Experiences Dan Social Media Rumination Terhadap Social Media Addiction Pada Remaja', 'anindya', 'aisyah', ''),
+    ('prasidang', '2025-11-25', 2, NULL, '13:00', '14:00', '6019210047', 'Ulva Andini', 'Hubungan Antara Romantic Love Myth Dengan Cyber Dating Violence Pada Emerging Adults Korban Kekerasan Dalam Pacaran', 'akhyar', 'maharani', ''),
+    ('prasidang', '2025-11-25', 2, NULL, '14:30', '15:30', '6020210081', 'Fildza Wafiq Ghasani', 'Hubungan Self Esteem Dengan Komitmen Pernikahan Pada Dewasa Yang Berselingkuh', 'septilla', 'aisyah', ''),
+    ('prasidang', '2025-11-25', 3, NULL, '13:00', '14:00', '6021210051', 'Aurelia Bilbina', 'Pengaruh Dukungan Sosial dan Kebersyukuran terhadap Resiliensi Pada Penderita Lupus Fase Emerging Adulthood', 'evanytha', 'seta', ''),
+    ('prasidang', '2025-11-25', 3, NULL, '14:30', '15:30', '6022210067', 'Aisyah Kenia Fadyah', 'Peran Self-Esteem Dan Self-Disclosure Terhadap Tingkat Intimacy Dalam Hubungan Romantis Melalui Dating Apps Pada Emerging Adulthood', 'kistyanti', 'anindya', ''),
+    ('sidang', '2026-02-03', NULL, '301', '08:00', '10:00', '6019210059', 'Ichlasun Naas Ibrahiem', 'Peran Kepribadian Proaktif Terhadap Self-Perceived Employability Pada Pekerja Industri Manufaktur', 'wiroko', 'anindya', 'Dr. Eva Septiana, M.Si., Psikolog'),
+    ('sidang', '2026-02-03', NULL, '301', '11:00', '13:00', '6020210121', 'Tiara Pragati Wira Anggini', 'Pengaruh Environmental Knowledge dengan Green Cosmetics Purchase Intention pada Perempuan Emerging Adulthood di Jabodetabek', 'dharma', 'nindyati', 'Dr. Ade Iva Murty, M.Si'),
+    ('sidang', '2026-02-03', NULL, '301', '13:00', '15:00', '6019210044', 'Indah Safitri Ningrum', 'Peran Self Esteem Terhadap Romantic Jealousy Pada Individu Early Adulthood Yang Menikah', 'maharani', 'aisyah', 'Dr. Ade Iva Murty, M.Si'),
+    ('sidang', '2026-02-03', NULL, '301', '15:00', '17:00', '6019210097', 'Feni Setianingsih', 'Hubungan Attachment Style dengan Fear of Commitment pada Generasi Z yang Memilih Hubungan Tanpa Status (Situationships)', 'maharani', 'evanytha', 'Prof. Farida Kurniawati, M.Sp.Ed., Ph.D'),
+    ('sidang', '2026-02-03', NULL, '302', '08:00', '10:00', '6019210047', 'Ulva Andini', 'Hubungan Antara Romantic Love Myth Dengan Dating Violence Pada Emerging Adults Korban Kekerasan Dalam Pacaran', 'vinaya', 'maharani', 'Prof. Dr. Awaluddin Tjalla, M.Pd'),
+    ('sidang', '2026-02-03', NULL, '302', '10:00', '12:00', '6020210093', 'Salma Novita Rachma Danty', 'Gambaran Stage Of Grief Pada Istri Pasca Kematian Pasangan Hidup Akibat Kanker Paru-Paru', 'septilla', 'seta', 'Prof. Dr. Awaluddin Tjalla, M.Pd'),
+    ('sidang', '2026-02-03', NULL, '302', '13:00', '15:00', '6021210058', 'Savitri Nurhalizah', 'Hubungan Loneliness dan Perilaku Agresi Pada Emerging Adulthood Yang Menjalani Long Distance Relationship', 'kistyanti', 'wiroko', 'Prof. Farida Kurniawati, M.Sp.Ed., Ph.D'),
+    ('sidang', '2026-02-03', NULL, '302', '15:00', '17:00', '6021210017', 'Alfia Rizkyani', 'Peran Problematic Online Game Use (Pogu) Terhadap Kualitas Tidur Pada Gen Z Pemain Game Roblox', 'aisyah', 'vinaya', 'Dr. Ade Iva Murty, M.Si'),
+    ('sidang', '2026-02-03', NULL, '303', '08:00', '10:00', '6021210010', 'Nicolas Immanuel Wong', 'Hubungan Fear of Missing Out dengan Intensitas Keinginan Melakukan Aktivitas Olahraga pada Remaja Akhir di Kabupaten Bogor', 'seta', 'evanytha', 'Prof. Farida Kurniawati, M.Sp.Ed., Ph.D'),
+    ('sidang', '2026-02-03', NULL, '303', '10:00', '12:00', '6021210005', 'Ezra Raistan Koral', 'Hubungan Dukungan Sosial dan Burnout Pada Shadow Teacher Pendamping Anak Autis Di Sekolah Inklusi', 'farida_aini', 'grashinta', 'Prof. Farida Kurniawati, M.Sp.Ed., Ph.D'),
+    ('sidang', '2026-02-03', NULL, '303', '13:00', '15:00', '6021210080', 'Moch. Rafi Rachman', 'Hubungan Intolerance Of Uncertainty Terhadap Academic Stress Pada Mahasiswa Semester Akhir', 'farida_aini', 'grashinta', 'Dr. Lucia RM Royanto, M.Si, Sp.Ed., Psikolog'),
+    ('sidang', '2026-02-03', NULL, '303', '15:00', '17:00', '6021210087', 'Wardah Yasmine Shakila Mahdar', 'Hubungan Self Regulation dan Academic Buoyancy Pada Mahasiswa Gen Z Dengan Problematic Social Media Use', 'grashinta', 'silverius', 'Prof. Dr. Awaluddin Tjalla, M.Pd')
+) AS v(jenis, tanggal, kelompok, ruang, mulai, selesai, npm, nama, judul, pb, pj, eksternal)
+ON CONFLICT (academic_year_id, jenis, npm) DO NOTHING;
+
+DROP TABLE _dosen;
+DROP TABLE _dosen_src;

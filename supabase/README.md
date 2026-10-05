@@ -6,7 +6,7 @@ This directory contains the database schema, security policies, and initial seed
 
 ## Directory Structure
 
-- **`all_in_one_setup.sql`**: Consolidated script containing all tables, indexes, triggers, RLS policies, and seed data. Perfect for running in the Supabase Dashboard SQL Editor in one go.
+- **`all_in_one_setup.sql`**: Every migration in `migrations/`, joined in order (tables, RLS, roles, audit log, exams, defenses, seed data). Perfect for running in the Supabase Dashboard SQL Editor in one go.
 - **`migrations/20260921000001_create_krs_schema.sql`**: Table definitions, check constraints, foreign keys, and indexes.
 - **`migrations/20260921000002_enable_rls_policies.sql`**: Row Level Security (RLS) configuration ensuring only authenticated users can read/write.
 - **`migrations/20260921000003_seed_initial_data.sql`**: Initial seed data for the active academic year (`20261` = "2026/2027 Gasal") and all 22 system settings.
