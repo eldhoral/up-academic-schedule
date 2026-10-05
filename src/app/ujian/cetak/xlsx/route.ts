@@ -8,10 +8,11 @@ export async function GET(request: Request) {
     ujian: searchParams.get('ujian'),
     jenis: searchParams.get('jenis'),
     smt: searchParams.get('smt'),
+    dosen: searchParams.get('dosen'),
   })
 
   const buffer = await buildUjianXlsx(data)
-  const filename = `Jadwal ${data.context.jenis_ujian.toUpperCase()} ${data.academicYearLabel.replace(/\//g, '-')} ${data.context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'}.xlsx`
+  const filename = `Jadwal ${data.context.jenis_ujian.toUpperCase()} ${data.academicYearLabel.replace(/\//g, '-')} ${data.context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'}${data.dosen ? ` ${data.dosen.label.replace(/[\\/:*?"<>|]/g, '')}` : ''}.xlsx`
 
   return new Response(buffer, {
     headers: {

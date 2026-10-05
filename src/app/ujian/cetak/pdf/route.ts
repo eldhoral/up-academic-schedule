@@ -9,11 +9,12 @@ export async function GET(request: Request) {
     ujian: searchParams.get('ujian'),
     jenis: searchParams.get('jenis'),
     smt: searchParams.get('smt'),
+    dosen: searchParams.get('dosen'),
   })
   // An empty jadwal isn't worth an Aspose call.
   if (data.sheets.every((sheet) => sheet.rows.length === 0)) return new Response('Tidak ada jadwal untuk dicetak', { status: 404 })
 
-  const filename = `Jadwal ${data.context.jenis_ujian.toUpperCase()} ${data.academicYearLabel.replace(/\//g, '-')} ${data.context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'}.pdf`
+  const filename = `Jadwal ${data.context.jenis_ujian.toUpperCase()} ${data.academicYearLabel.replace(/\//g, '-')} ${data.context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'}${data.dosen ? ` ${data.dosen.label.replace(/[\\/:*?"<>|]/g, '')}` : ''}.pdf`
 
   try {
     const pdf = await convertXlsxToPdf(await buildUjianXlsx(data))

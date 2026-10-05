@@ -9,6 +9,7 @@ export default async function UjianCetakPage(props: PageProps<'/ujian/cetak'>) {
     ujian: searchParams.ujian as string | undefined,
     jenis: searchParams.jenis as string | undefined,
     smt: searchParams.smt as string | undefined,
+    dosen: searchParams.dosen as string | undefined,
   })
 
   return (
@@ -16,7 +17,8 @@ export default async function UjianCetakPage(props: PageProps<'/ujian/cetak'>) {
       <AppHeader active="/ujian/cetak" />
       <UjianCetakClient
         academicYears={data.academicYears}
-        context={data.context}
+        context={{ ...data.context, dosen: data.dosen?.value ?? '' }}
+        dosenOptions={data.dosenOptions}
         sheets={data.sheets}
         doc={{ namaPenandatangan: data.namaPenandatangan, jabatanPenandatangan: data.jabatanPenandatangan }}
       />

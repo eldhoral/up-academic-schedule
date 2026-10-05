@@ -17,7 +17,7 @@ export type UjianSheet = {
 }
 
 /** Everything a UTS/UAS print (preview, Excel, PDF) needs, resolved from raw query-string values. */
-export async function buildUjianCetakData(params: { ay?: string | null; ujian?: string | null; jenis?: string | null; smt?: string | null }) {
+export async function buildUjianCetakData(params: { ay?: string | null; ujian?: string | null; jenis?: string | null; smt?: string | null; dosen?: string | null }) {
   const supabase = await createClient()
   const [{ data: academicYears }, { data: lecturers }, settings] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
@@ -34,8 +34,18 @@ export async function buildUjianCetakData(params: { ay?: string | null; ujian?: 
     semester_ke: parseInt(params.smt ?? '', 10) || ('all' as const), // no or non-numeric smt = Semua semester
   }
 
-  const exams = await fetchExamsForPrint(context)
+  const allExams = await fetchExamsForPrint(context)
   const names = new Map((lecturers ?? []).map((l) => [l.kode_dosen as string, lecturerDisplayName(l)]))
+
+  // Per dosen: the exams a dosen teaches (pengampu, matched by display name) or proctors (pengawas).
+  const involves = (e: (typeof allExams)[number], kode: string) =>
+    e.pengawas.some((p) => 'kode_dosen' in p && p.kode_dosen === kode) || e.dosen.includes(names.get(kode) ?? '')
+  const dosenOptions = [...names.entries()]
+    .filter(([kode]) => allExams.some((e) => involves(e, kode)))
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+  const dosen = dosenOptions.find((d) => d.value === params.dosen) ?? null
+  const exams = dosen ? allExams.filter((e) => involves(e, dosen.value)) : allExams
 
   const label = years.find((y) => y.id === context.academic_year_id)?.label ?? ''
   const space = label.indexOf(' ')
@@ -73,7 +83,7 @@ export async function buildUjianCetakData(params: { ay?: string | null; ujian?: 
       name: `Semester ${semesterKe}`,
       semester: vars.semester,
       angkatan: vars.angkatan_ta,
-      headerLines: headerTemplate.map((line) => substituteTemplate(line, vars)).filter(Boolean),
+      headerLines: [...headerTemplate.map((line) => substituteTemplate(line, vars)).filter(Boolean), ...(dosen ? [`DOSEN: ${dosen.label.toUpperCase()}`] : [])],
       rows: buildExamRows(printExams),
       mataKuliah: new Set(printExams.map((e) => e.kode_mk)).size,
     }
@@ -82,6 +92,8 @@ export async function buildUjianCetakData(params: { ay?: string | null; ujian?: 
   return {
     academicYears: years,
     context,
+    dosen,
+    dosenOptions,
     academicYearLabel: label,
     sheets,
     namaPenandatangan: settingText(settings, 'nama_penandatangan', ''),

@@ -9,18 +9,21 @@ import type { UjianSheet } from './ujian-cetak-data'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
+const ALL_DOSEN = '__all__'
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
 
-type Context = { academic_year_id: string; jenis_ujian: 'uts' | 'uas'; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number | 'all' }
+type Context = { academic_year_id: string; jenis_ujian: 'uts' | 'uas'; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number | 'all'; dosen: string } // dosen: kode_dosen, '' = semua
 
 export function UjianCetakClient({
   academicYears,
   context,
+  dosenOptions,
   sheets,
   doc,
 }: {
   academicYears: AcademicYear[]
   context: Context
+  dosenOptions: { value: string; label: string }[]
   sheets: UjianSheet[]
   doc: { namaPenandatangan: string; jabatanPenandatangan: string }
 }) {
@@ -28,7 +31,7 @@ export function UjianCetakClient({
   const hasRows = sheets.some((s) => s.rows.length > 0)
 
   const queryOf = (c: Context) =>
-    new URLSearchParams({ ay: c.academic_year_id, ujian: c.jenis_ujian, jenis: c.jenis_kelas, smt: String(c.semester_ke) }).toString()
+    new URLSearchParams({ ay: c.academic_year_id, ujian: c.jenis_ujian, jenis: c.jenis_kelas, smt: String(c.semester_ke), ...(c.dosen ? { dosen: c.dosen } : {}) }).toString()
   const query = queryOf(context)
 
   function navigate(next: Partial<Context>) {
@@ -90,6 +93,17 @@ export function UjianCetakClient({
           className={CONTROL}
         />
 
+        <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-dosen">
+          Dosen
+        </label>
+        <Select
+          id="ctx-dosen"
+          value={context.dosen || ALL_DOSEN}
+          onValueChange={(v) => navigate({ dosen: v === ALL_DOSEN ? '' : v })}
+          options={[{ value: ALL_DOSEN, label: 'Semua dosen' }, ...dosenOptions]}
+          className={CONTROL}
+        />
+
         <DownloadButtons
           enabled={hasRows}
           xlsxUrl={`/ujian/cetak/xlsx?${query}`}
@@ -104,6 +118,8 @@ export function UjianCetakClient({
         <EmptySheet
           title="Belum ada jadwal ujian untuk dicetak"
           detail={`${context.jenis_ujian.toUpperCase()} · ${context.semester_ke === 'all' ? 'Semua semester' : `Semester ${context.semester_ke}`} · ${program} · ${
+            context.dosen ? `${dosenOptions.find((d) => d.value === context.dosen)?.label ?? context.dosen} · ` : ''
+          }${
             academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? ''
           } belum memiliki jadwal ujian.`}
           // Ujian entry works one semester at a time; "Semua semester" opens its default.
