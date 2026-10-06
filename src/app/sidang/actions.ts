@@ -151,9 +151,12 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
   if (invalid) return { error: invalid }
 
   const supabase = await createClient()
-  // Nama and judul always come from the master: the form only picks the student.
-  const { data: student } = await supabase.from('students').select('nama, judul_skripsi').eq('npm', input.npm.trim()).maybeSingle()
-  if (!student) return { error: 'NPM ini belum ada di Data Master Mahasiswa. Tambahkan dulu di sana.' }
+  // Nama and judul come from the master when the student is picked, then stay as scheduled: a
+  // saved entry keeps them (history), a changed judul is a new prasidang.
+  const { data: existing } = input.id ? await supabase.from('defenses').select('npm').eq('id', input.id).maybeSingle() : { data: null }
+  const kept = existing?.npm === input.npm.trim()
+  const { data: student } = kept ? { data: null } : await supabase.from('students').select('nama, judul_skripsi').eq('npm', input.npm.trim()).maybeSingle()
+  if (!kept && !student) return { error: 'NPM ini belum ada di Data Master Mahasiswa. Tambahkan dulu di sana.' }
 
   const check = await checkDefenseClashes(input)
   let overridden = false
@@ -174,8 +177,7 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
     room_id: sidang ? input.room_id : null,
     kelompok: sidang ? null : input.kelompok,
     npm: input.npm.trim(),
-    nama_mahasiswa: student.nama,
-    judul_skripsi: student.judul_skripsi,
+    ...(student && { nama_mahasiswa: student.nama, judul_skripsi: student.judul_skripsi }),
     pembimbing_kode: input.pembimbing_kode || null,
     penguji_kode: input.penguji_kode || null,
     penguji_eksternal: sidang ? input.penguji_eksternal.trim() : '',

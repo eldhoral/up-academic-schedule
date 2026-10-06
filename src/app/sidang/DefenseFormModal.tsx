@@ -64,10 +64,11 @@ export function DefenseFormModal({
   const [kelompok, setKelompok] = useState<number | null>(draft.kelompok)
   const [npm, setNpm] = useState(row?.npm ?? '')
   const [cari, setCari] = useState('')
-  // The master owns the student's identity; the row's own copy shows only if the master lost it.
+  // A saved entry keeps the nama and judul it was scheduled with (history); a new pick shows the master's.
   const student = students.find((s) => s.npm === npm)
-  const nama = student?.nama ?? (npm === row?.npm ? row.nama_mahasiswa : '')
-  const judul = student?.judul_skripsi ?? (npm === row?.npm ? row.judul_skripsi : '')
+  const kept = row && npm === row.npm
+  const nama = kept ? row.nama_mahasiswa : (student?.nama ?? '')
+  const judul = kept ? row.judul_skripsi : (student?.judul_skripsi ?? '')
   const [pembimbing, setPembimbing] = useState(row?.pembimbing_kode ?? '')
   const [penguji, setPenguji] = useState(row?.penguji_kode ?? '')
   const [eksternal, setEksternal] = useState(row?.penguji_eksternal ?? '')
@@ -247,7 +248,8 @@ export function DefenseFormModal({
             <textarea readOnly tabIndex={-1} value={judul} rows={2} className={`${CONTROL} ${READ_ONLY} resize-none`} />
           </Field>
           <p className="m-0 -mt-[0.5rem] text-[0.8rem] text-[var(--tinta-3)]">
-            {npm && !student && 'NPM ini belum ada di Data Master Mahasiswa. '}
+            {npm && !student && !kept && 'NPM ini belum ada di Data Master Mahasiswa. '}
+            {kept && 'Nama dan judul tetap seperti saat dijadwalkan. '}
             Data mahasiswa diubah di{' '}
             <Link href="/mahasiswa" className="underline">
               Data Master Mahasiswa
