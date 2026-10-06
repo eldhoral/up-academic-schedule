@@ -133,7 +133,7 @@ export function DefenseFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={`${row ? 'Ubah' : 'Tambah'} ${JENIS_LABEL[context.jenis]}`}>
-      <div className="w-full max-w-[38rem] my-[2rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
+      <div className="w-full max-w-[52rem] my-auto bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.2rem]">
         <h3 className="m-0 mb-[1rem] text-[1.1rem] font-semibold">
           {row ? 'Ubah' : 'Tambah'} {JENIS_LABEL[context.jenis]}
         </h3>
@@ -149,12 +149,11 @@ export function DefenseFormModal({
             e.preventDefault()
             save()
           }}
-          className="space-y-[1rem]"
+          className="space-y-[0.8rem]"
         >
-          <div className="grid gap-[1rem] sm:grid-cols-2">
-            <Field label="Tanggal">
+          <div className="grid gap-[0.8rem] sm:grid-cols-2">
+            <Field label={tanggal ? `Tanggal · ${hariLabel(hariFromTanggal(tanggal))}` : 'Tanggal'}>
               <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className={`${CONTROL} mono`} />
-              {tanggal && <p className="m-0 mt-[0.2rem] text-[0.8rem] text-[var(--tinta-3)]">{hariLabel(hariFromTanggal(tanggal))}</p>}
             </Field>
             {sidang ? (
               <Field label="Ruang">
@@ -174,37 +173,39 @@ export function DefenseFormModal({
           </div>
 
           <Field label="Waktu">
-            {sesi.length > 0 && (
-              <div className="flex flex-wrap gap-[0.4rem] mb-[0.4rem]">
-                {sesi.map((s) => {
-                  const active = s.mulai === jamMulai && s.selesai === jamSelesai
-                  return (
-                    <button
-                      key={`${s.mulai}-${s.selesai}`}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => {
-                        setJamMulai(s.mulai)
-                        setJamSelesai(s.selesai)
-                      }}
-                      className={`mono px-[0.6rem] py-[0.27rem] min-h-[2.2rem] rounded-[var(--r-kecil)] border text-[0.87rem] cursor-pointer transition-colors ${
-                        active ? 'bg-[var(--biru-lembut)] border-[var(--biru)] text-[var(--biru)] font-medium' : 'bg-[var(--cekung)] border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--lembar)]'
-                      }`}
-                    >
-                      {dot(s.mulai)}–{dot(s.selesai)}
-                    </button>
-                  )
-                })}
+            <div className="sm:flex sm:items-center sm:gap-[0.8rem]">
+              {sesi.length > 0 && (
+                <div className="flex flex-wrap gap-[0.4rem] mb-[0.4rem] sm:mb-0 sm:flex-1">
+                  {sesi.map((s) => {
+                    const active = s.mulai === jamMulai && s.selesai === jamSelesai
+                    return (
+                      <button
+                        key={`${s.mulai}-${s.selesai}`}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          setJamMulai(s.mulai)
+                          setJamSelesai(s.selesai)
+                        }}
+                        className={`mono px-[0.6rem] py-[0.27rem] min-h-[2.2rem] rounded-[var(--r-kecil)] border text-[0.87rem] cursor-pointer transition-colors ${
+                          active ? 'bg-[var(--biru-lembut)] border-[var(--biru)] text-[var(--biru)] font-medium' : 'bg-[var(--cekung)] border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--lembar)]'
+                        }`}
+                      >
+                        {dot(s.mulai)}–{dot(s.selesai)}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <div className="flex items-center gap-[0.53rem] sm:w-[17rem] sm:shrink-0">
+                <input type="time" aria-label="Jam mulai" value={jamMulai} onChange={(e) => setJamMulai(e.target.value)} className={`${CONTROL} mono`} />
+                <span aria-hidden="true">–</span>
+                <input type="time" aria-label="Jam selesai" value={jamSelesai} onChange={(e) => setJamSelesai(e.target.value)} className={`${CONTROL} mono`} />
               </div>
-            )}
-            <div className="flex items-center gap-[0.53rem]">
-              <input type="time" aria-label="Jam mulai" value={jamMulai} onChange={(e) => setJamMulai(e.target.value)} className={`${CONTROL} mono`} />
-              <span aria-hidden="true">–</span>
-              <input type="time" aria-label="Jam selesai" value={jamSelesai} onChange={(e) => setJamSelesai(e.target.value)} className={`${CONTROL} mono`} />
             </div>
           </Field>
 
-          <div className="grid gap-[1rem] sm:grid-cols-[10rem_1fr]">
+          <div className="grid gap-[0.8rem] sm:grid-cols-[10rem_1fr]">
             <Field label="NPM">
               <input
                 type="text"
@@ -222,11 +223,11 @@ export function DefenseFormModal({
           {filledFrom && <p className="m-0 -mt-[0.5rem] text-[0.8rem] text-[var(--tinta-3)]">Diisi dari {filledFrom}.</p>}
 
           <Field label="Judul skripsi">
-            <textarea value={judul} onChange={(e) => setJudul(e.target.value)} rows={3} className={`${CONTROL} resize-y`} />
+            <textarea value={judul} onChange={(e) => setJudul(e.target.value)} rows={2} className={`${CONTROL} resize-y`} />
           </Field>
 
           {sidang ? (
-            <>
+            <div className="grid gap-[0.8rem] sm:grid-cols-3 items-end">
               <Field label="Ketua sidang">
                 <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Ketua sidang" options={dosenOptions} className={CONTROL} />
               </Field>
@@ -242,16 +243,16 @@ export function DefenseFormModal({
               <Field label="Anggota penguji II (dosen pembimbing)">
                 <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Anggota penguji II" options={dosenOptions} className={CONTROL} />
               </Field>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="grid gap-[0.8rem] sm:grid-cols-2 items-end">
               <Field label="Dosen pembimbing pendamping">
                 <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Dosen pembimbing pendamping" options={dosenOptions} className={CONTROL} />
               </Field>
               <Field label="Dosen pembahas">
                 <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Dosen pembahas" options={dosenOptions} className={CONTROL} />
               </Field>
-            </>
+            </div>
           )}
 
           {visibleClashes.length > 0 && <ClashList clashes={visibleClashes} />}
