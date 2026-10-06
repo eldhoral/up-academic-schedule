@@ -54,7 +54,7 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
 }
 
-const TEXTAREA_KEYS = new Set(['header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'tembusan'])
+const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'tembusan'])
 
 export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
   const [state, formAction, isPending] = useActionState<FormState, FormData>(saveSettingsAction, null)
