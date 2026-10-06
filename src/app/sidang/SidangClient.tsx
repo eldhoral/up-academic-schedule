@@ -6,7 +6,7 @@ import { FindingsBar } from '@/components/FindingsBar'
 import { Select } from '@/components/Select'
 import type { DefenseFinding, DefenseSide } from './actions'
 import { DefenseFormModal, type DefenseDraft } from './DefenseFormModal'
-import { JENIS_LABEL, slotLabel, tanggalSingkat, type DefenseContext, type DefenseRow } from './defense-types'
+import { JENIS_LABEL, slotLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import type { AcademicYear } from '../kuliah/penjadwalan-types'
 
 type Option = { value: string; label: string }
@@ -23,6 +23,7 @@ export function SidangClient({
   rooms,
   sesi,
   externalNames,
+  students,
   initialTanggal,
   canEdit,
 }: {
@@ -34,6 +35,7 @@ export function SidangClient({
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
   externalNames: string[]
+  students: Student[]
   initialTanggal: string | null
   canEdit: boolean
 }) {
@@ -316,6 +318,7 @@ export function SidangClient({
           rooms={rooms}
           sesi={sesi}
           externalNames={externalNames}
+          students={students}
           onClose={() => setDraft(null)}
         />
       )}

@@ -5,6 +5,7 @@ export type DefenseJenis = 'prasidang' | 'sidang'
 export const JENIS_LABEL: Record<DefenseJenis, string> = { prasidang: 'Prasidang', sidang: 'Sidang' }
 
 export type DefenseContext = { academic_year_id: string; jenis: DefenseJenis }
+export type Student = { npm: string; nama: string; judul_skripsi: string }
 
 export type DefenseRow = {
   id: string

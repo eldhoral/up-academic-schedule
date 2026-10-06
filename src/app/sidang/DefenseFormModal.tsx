@@ -14,7 +14,7 @@ import {
   type DefenseClashSummary,
   type DefenseInput,
 } from './actions'
-import { JENIS_LABEL, tanggalSingkat, type DefenseContext, type DefenseRow } from './defense-types'
+import { JENIS_LABEL, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 
 type Option = { value: string; label: string }
 export type DefenseDraft = {
@@ -38,6 +38,7 @@ export function DefenseFormModal({
   rooms,
   sesi,
   externalNames,
+  students,
   onClose,
 }: {
   context: DefenseContext
@@ -46,6 +47,7 @@ export function DefenseFormModal({
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
   externalNames: string[]
+  students: Student[]
   onClose: () => void
 }) {
   const router = useRouter()
@@ -104,14 +106,22 @@ export function DefenseFormModal({
   }, [complete, tanggal, jamMulai, jamSelesai, roomId, kelompok, pembimbing, penguji, eksternal])
 
   // A sidang starts from the student's prasidang: fill what is still blank.
-  async function lookup() {
-    if (row || !npm.trim()) return
-    const found = await lookupMahasiswaAction(npm)
+  async function lookup(n = npm) {
+    if (row || !n.trim()) return
+    const found = await lookupMahasiswaAction(n)
     if (!found) return setFilledFrom(null)
     if (!nama.trim()) setNama(found.nama_mahasiswa)
     if (!judul.trim()) setJudul(found.judul_skripsi)
     if (!pembimbing && found.pembimbing_kode) setPembimbing(found.pembimbing_kode)
     setFilledFrom(found.from)
+  }
+
+  // Picking a student from the master list fills the identity outright.
+  function pick(s: Student) {
+    setNpm(s.npm)
+    setNama(s.nama)
+    setJudul(s.judul_skripsi)
+    lookup(s.npm)
   }
 
   function save() {
@@ -210,14 +220,41 @@ export function DefenseFormModal({
               <input
                 type="text"
                 inputMode="numeric"
+                list="mahasiswa-npm"
                 value={npm}
-                onChange={(e) => setNpm(e.target.value.replace(/\D/g, ''))}
-                onBlur={lookup}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '')
+                  const s = students.find((x) => x.npm === v)
+                  if (s && v !== npm) pick(s)
+                  else setNpm(v)
+                }}
+                onBlur={() => lookup()}
                 className={`${CONTROL} mono`}
               />
+              <datalist id="mahasiswa-npm">
+                {students.map((s) => (
+                  <option key={s.npm} value={s.npm} label={s.nama} />
+                ))}
+              </datalist>
             </Field>
             <Field label="Nama mahasiswa">
-              <input type="text" value={nama} onChange={(e) => setNama(e.target.value)} className={CONTROL} />
+              <input
+                type="text"
+                list="mahasiswa-nama"
+                value={nama}
+                onChange={(e) => {
+                  const v = e.target.value
+                  const s = students.find((x) => x.nama === v)
+                  if (s && v !== nama) pick(s)
+                  else setNama(v)
+                }}
+                className={CONTROL}
+              />
+              <datalist id="mahasiswa-nama">
+                {students.map((s) => (
+                  <option key={s.npm} value={s.nama} label={s.npm} />
+                ))}
+              </datalist>
             </Field>
           </div>
           {filledFrom && <p className="m-0 -mt-[0.5rem] text-[0.8rem] text-[var(--tinta-3)]">Diisi dari {filledFrom}.</p>}
