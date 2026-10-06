@@ -252,10 +252,10 @@ export function SidangClient({
             )}
             <div className="overflow-x-auto bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)]">
               <div className="grid min-w-max" style={{ gridTemplateColumns: `7.5rem repeat(${Math.max(colIds.length, 1)}, minmax(15rem, 1fr))` }}>
-                <div className="px-[0.53rem] py-[0.4rem] bg-[var(--cekung)] text-[0.73rem] font-semibold uppercase tracking-[0.04em] text-[var(--tinta-3)]">Waktu</div>
+                <div className="px-[0.53rem] py-[0.4rem] bg-[var(--cekung)] text-[0.73rem] font-bold text-center uppercase tracking-[0.04em] text-[var(--tinta-2)]">Waktu</div>
                 {colIds.length === 0 && <div className="bg-[var(--cekung)]" />}
                 {colIds.map((c) => (
-                  <div key={c} className="px-[0.53rem] py-[0.4rem] bg-[var(--cekung)] border-l border-[var(--garis)] text-[0.73rem] font-semibold uppercase tracking-[0.04em] text-[var(--tinta-3)]">
+                  <div key={c} className="px-[0.53rem] py-[0.4rem] bg-[var(--cekung)] border-l border-[var(--garis)] text-[0.73rem] font-bold text-center uppercase tracking-[0.04em] text-[var(--tinta-2)]">
                     {colLabel(c)}
                   </div>
                 ))}
