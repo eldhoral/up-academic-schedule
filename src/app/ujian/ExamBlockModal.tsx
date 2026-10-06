@@ -127,7 +127,7 @@ export function ExamBlockModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={`Ubah jadwal ${nama_mk}`}>
-      <div className="w-full max-w-[40rem] my-[2rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
+      <div className="w-full max-w-[56rem] my-auto bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.2rem]">
         <h3 className="m-0 text-[1.1rem] font-semibold">
           {UJIAN_LABEL[context.jenis_ujian]} &middot; {nama_mk}
         </h3>
@@ -147,43 +147,46 @@ export function ExamBlockModal({
             e.preventDefault()
             save()
           }}
-          className="space-y-[1rem]"
+          className="space-y-[0.8rem]"
         >
-          <Field label="Tanggal">
-            <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className={`${CONTROL} mono`} />
-            {tanggal && <p className="m-0 mt-[0.2rem] text-[0.8rem] text-[var(--tinta-3)]">{hariLabel(hariFromTanggal(tanggal))}</p>}
-          </Field>
+          <div className="grid gap-[0.8rem] sm:grid-cols-[12rem_1fr]">
+            <Field label={tanggal ? `Tanggal · ${hariLabel(hariFromTanggal(tanggal))}` : 'Tanggal'}>
+              <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className={`${CONTROL} mono`} />
+            </Field>
 
-          <Field label="Jam">
-            {sesi.length > 0 && (
-              <div className="flex flex-wrap gap-[0.4rem] mb-[0.4rem]">
-                {sesi.map((s) => {
-                  const active = s.mulai === jamMulai && s.selesai === jamSelesai
-                  return (
-                    <button
-                      key={`${s.mulai}-${s.selesai}`}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => {
-                        setJamMulai(s.mulai)
-                        setJamSelesai(s.selesai)
-                      }}
-                      className={`mono px-[0.6rem] py-[0.27rem] min-h-[2.2rem] rounded-[var(--r-kecil)] border text-[0.87rem] cursor-pointer transition-colors ${
-                        active ? 'bg-[var(--biru-lembut)] border-[var(--biru)] text-[var(--biru)] font-medium' : 'bg-[var(--cekung)] border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--lembar)]'
-                      }`}
-                    >
-                      {dot(s.mulai)}–{dot(s.selesai)}
-                    </button>
-                  )
-                })}
+            <Field label="Jam">
+              <div className="flex flex-wrap items-center gap-[0.4rem]">
+                {sesi.length > 0 && (
+                  <>
+                    {sesi.map((s) => {
+                      const active = s.mulai === jamMulai && s.selesai === jamSelesai
+                      return (
+                        <button
+                          key={`${s.mulai}-${s.selesai}`}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => {
+                            setJamMulai(s.mulai)
+                            setJamSelesai(s.selesai)
+                          }}
+                          className={`mono px-[0.6rem] py-[0.27rem] min-h-[2.2rem] rounded-[var(--r-kecil)] border text-[0.87rem] cursor-pointer transition-colors ${
+                            active ? 'bg-[var(--biru-lembut)] border-[var(--biru)] text-[var(--biru)] font-medium' : 'bg-[var(--cekung)] border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--lembar)]'
+                          }`}
+                        >
+                          {dot(s.mulai)}–{dot(s.selesai)}
+                        </button>
+                      )
+                    })}
+                  </>
+                )}
+                <div className="flex items-center gap-[0.53rem] w-full sm:w-[17rem]">
+                  <input type="time" aria-label="Jam mulai" value={jamMulai} onChange={(e) => setJamMulai(e.target.value)} className={`${CONTROL} mono`} />
+                  <span aria-hidden="true">–</span>
+                  <input type="time" aria-label="Jam selesai" value={jamSelesai} onChange={(e) => setJamSelesai(e.target.value)} className={`${CONTROL} mono`} />
+                </div>
               </div>
-            )}
-            <div className="flex items-center gap-[0.53rem]">
-              <input type="time" aria-label="Jam mulai" value={jamMulai} onChange={(e) => setJamMulai(e.target.value)} className={`${CONTROL} mono`} />
-              <span aria-hidden="true">–</span>
-              <input type="time" aria-label="Jam selesai" value={jamSelesai} onChange={(e) => setJamSelesai(e.target.value)} className={`${CONTROL} mono`} />
-            </div>
-          </Field>
+            </Field>
+          </div>
 
           {(kelasChoices.length > 1 || gabungan) && (
             <label className="flex items-center gap-[0.4rem] text-[0.87rem] text-[var(--tinta-2)]">
@@ -201,15 +204,16 @@ export function ExamBlockModal({
           {rowState.map((r, i) => {
             const dosen = rows.find((x) => x.kelas === r.kelas)?.dosen
             return (
-              <fieldset key={r.kelas} className="m-0 border border-[var(--garis)] rounded-[var(--r-kecil)] p-[0.8rem] space-y-[0.67rem]">
+              <fieldset key={r.kelas} className="m-0 border border-[var(--garis)] rounded-[var(--r-kecil)] px-[0.8rem] pt-[0.2rem] pb-[0.8rem] grid gap-[0.8rem] sm:grid-cols-[9rem_9rem_1fr] items-start">
                 <legend className="px-[0.4rem] text-[0.87rem] font-semibold">
                   {r.kelas === GABUNGAN ? 'Kelas GABUNGAN' : `Kelas ${r.kelas}`}
+                  {dosen && (
+                    <span className="font-normal text-[var(--tinta-3)]">
+                      {' '}
+                      · Dosen pengampu: <span className="text-[var(--tinta-2)]">{dosen.length > 0 ? dosen.join(', ') : 'MKWU'}</span>
+                    </span>
+                  )}
                 </legend>
-                {dosen && (
-                  <p className="m-0 text-[0.87rem] text-[var(--tinta-3)]">
-                    Dosen pengampu: <span className="text-[var(--tinta-2)]">{dosen.length > 0 ? dosen.join(', ') : 'MKWU'}</span>
-                  </p>
-                )}
 
                 <Field label="Keterangan">
                   <Select
@@ -221,7 +225,7 @@ export function ExamBlockModal({
                   />
                 </Field>
 
-                <Field label="Pengawas">
+                <Field label="Pengawas" className="sm:col-start-3 sm:row-start-1">
                   <div className="space-y-[0.4rem]">
                     {r.pengawas.map((p, j) => (
                       <div key={j} className="flex items-start gap-[0.4rem]">
@@ -341,9 +345,9 @@ function ClashList({ clashes }: { clashes: ExamClashSummary[] }) {
 }
 
 // A plain div, not <label>: pengawas holds several controls, and a <label> may wrap only one.
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, className = '', children }: { label: string; className?: string; children: React.ReactNode }) {
   return (
-    <div className="block">
+    <div className={`block ${className}`}>
       <span className="block text-[0.8rem] font-medium text-[var(--tinta-2)] mb-[0.25rem]">{label}</span>
       {children}
     </div>
