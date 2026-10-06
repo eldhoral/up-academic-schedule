@@ -139,8 +139,7 @@ function validate(i: DefenseInput): string | null {
   if (!i.tanggal) return 'Tanggal wajib diisi.'
   if (!i.jam_mulai || !i.jam_selesai) return 'Jam mulai dan jam selesai wajib diisi.'
   if (i.jam_selesai <= i.jam_mulai) return 'Jam selesai harus setelah jam mulai.'
-  if (!/^\d+$/.test(i.npm.trim())) return 'NPM harus berupa angka.'
-  if (!i.nama_mahasiswa.trim()) return 'Nama mahasiswa wajib diisi.'
+  if (!/^\d+$/.test(i.npm.trim())) return 'Pilih mahasiswa dari Data Master Mahasiswa.'
   if (i.jenis === 'sidang' && !i.room_id) return 'Pilih ruang sidang.'
   if (i.jenis === 'prasidang' && !(i.kelompok && i.kelompok > 0)) return 'Kelompok prasidang wajib diisi.'
   if (i.pembimbing_kode && i.pembimbing_kode === i.penguji_kode) return 'Satu dosen tidak boleh memegang dua peran pada mahasiswa yang sama.'
@@ -152,6 +151,10 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
   if (invalid) return { error: invalid }
 
   const supabase = await createClient()
+  // Nama and judul always come from the master: the form only picks the student.
+  const { data: student } = await supabase.from('students').select('nama, judul_skripsi').eq('npm', input.npm.trim()).maybeSingle()
+  if (!student) return { error: 'NPM ini belum ada di Data Master Mahasiswa. Tambahkan dulu di sana.' }
+
   const check = await checkDefenseClashes(input)
   let overridden = false
   if (check.blocking) {
@@ -171,8 +174,8 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
     room_id: sidang ? input.room_id : null,
     kelompok: sidang ? null : input.kelompok,
     npm: input.npm.trim(),
-    nama_mahasiswa: input.nama_mahasiswa.trim(),
-    judul_skripsi: input.judul_skripsi.trim(),
+    nama_mahasiswa: student.nama,
+    judul_skripsi: student.judul_skripsi,
     pembimbing_kode: input.pembimbing_kode || null,
     penguji_kode: input.penguji_kode || null,
     penguji_eksternal: sidang ? input.penguji_eksternal.trim() : '',
@@ -197,39 +200,19 @@ export async function deleteDefenseAction(id: string): Promise<DefenseFormState>
   return { success: true }
 }
 
-export type MahasiswaLookup = {
-  nama_mahasiswa: string
-  judul_skripsi: string
-  pembimbing_kode: string | null
-  from: string // "prasidang 24 Nov 2025", for the "diisi dari" note
-}
-
-/**
- * What the form fills from an NPM: nama and judul from the Mahasiswa master, else from the
- * student's latest earlier defense (any year); the pembimbing always from that defense, so a
- * sidang starts from their prasidang.
- */
-export async function lookupMahasiswaAction(npm: string): Promise<MahasiswaLookup | null> {
+/** The pembimbing from the student's latest earlier defense (any year), so a sidang starts from their prasidang. */
+export async function lookupPembimbingAction(npm: string): Promise<{ pembimbing_kode: string; from: string } | null> {
   if (!/^\d+$/.test(npm.trim())) return null
   const supabase = await createClient()
-  const [{ data: master }, { data }] = await Promise.all([
-    supabase.from('students').select('nama, judul_skripsi').eq('npm', npm.trim()).maybeSingle(),
-    supabase
-      .from('defenses')
-      .select('nama_mahasiswa, judul_skripsi, pembimbing_kode, jenis, tanggal')
-      .eq('npm', npm.trim())
-      .order('tanggal', { ascending: false })
-      .limit(1),
-  ])
+  const { data } = await supabase
+    .from('defenses')
+    .select('pembimbing_kode, jenis, tanggal')
+    .eq('npm', npm.trim())
+    .not('pembimbing_kode', 'is', null)
+    .order('tanggal', { ascending: false })
+    .limit(1)
   const d = data?.[0]
-  if (!master && !d) return null
-  const fromDefense = d
-    ? `${d.jenis} ${new Date(`${d.tanggal}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`
-    : ''
-  return {
-    nama_mahasiswa: master?.nama ?? d!.nama_mahasiswa,
-    judul_skripsi: master ? master.judul_skripsi || (d?.judul_skripsi ?? '') : d!.judul_skripsi,
-    pembimbing_kode: d?.pembimbing_kode ?? null,
-    from: [master && 'data master Mahasiswa', fromDefense].filter(Boolean).join(' dan '),
-  }
+  if (!d) return null
+  const tanggal = new Date(`${d.tanggal}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  return { pembimbing_kode: d.pembimbing_kode, from: `${d.jenis} ${tanggal}` }
 }

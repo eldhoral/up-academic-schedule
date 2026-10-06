@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { Select } from '@/components/Select'
@@ -8,7 +9,7 @@ import { hariFromTanggal, hariLabel } from '@/lib/hari'
 import {
   checkDefenseClashes,
   deleteDefenseAction,
-  lookupMahasiswaAction,
+  lookupPembimbingAction,
   saveDefenseAction,
   type DefenseClashResult,
   type DefenseClashSummary,
@@ -30,6 +31,8 @@ const CONTROL = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rou
 const NONE = '__none__'
 const CLASH_LABEL = { dosen: 'Dosen', eksternal: 'Penguji eksternal', ruangan: 'Ruang', mengajar: 'Jadwal mengajar' }
 const dot = (t: string) => t.replace(':', '.')
+const READ_ONLY = 'text-[var(--tinta-2)] cursor-default focus:outline-none'
+const studentLabel = (s: Student) => `${s.npm} — ${s.nama}`
 
 export function DefenseFormModal({
   context,
@@ -60,8 +63,11 @@ export function DefenseFormModal({
   const [roomId, setRoomId] = useState(draft.room_id)
   const [kelompok, setKelompok] = useState<number | null>(draft.kelompok)
   const [npm, setNpm] = useState(row?.npm ?? '')
-  const [nama, setNama] = useState(row?.nama_mahasiswa ?? '')
-  const [judul, setJudul] = useState(row?.judul_skripsi ?? '')
+  const [cari, setCari] = useState('')
+  // The master owns the student's identity; the row's own copy shows only if the master lost it.
+  const student = students.find((s) => s.npm === npm)
+  const nama = student?.nama ?? (npm === row?.npm ? row.nama_mahasiswa : '')
+  const judul = student?.judul_skripsi ?? (npm === row?.npm ? row.judul_skripsi : '')
   const [pembimbing, setPembimbing] = useState(row?.pembimbing_kode ?? '')
   const [penguji, setPenguji] = useState(row?.penguji_kode ?? '')
   const [eksternal, setEksternal] = useState(row?.penguji_eksternal ?? '')
@@ -105,23 +111,17 @@ export function DefenseFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [complete, tanggal, jamMulai, jamSelesai, roomId, kelompok, pembimbing, penguji, eksternal])
 
-  // A sidang starts from the student's prasidang: fill what is still blank.
-  async function lookup(n = npm) {
-    if (row || !n.trim()) return
-    const found = await lookupMahasiswaAction(n)
-    if (!found) return setFilledFrom(null)
-    if (!nama.trim()) setNama(found.nama_mahasiswa)
-    if (!judul.trim()) setJudul(found.judul_skripsi)
-    if (!pembimbing && found.pembimbing_kode) setPembimbing(found.pembimbing_kode)
-    setFilledFrom(found.from)
-  }
-
-  // Picking a student from the master list fills the identity outright.
-  function pick(s: Student) {
+  // A sidang starts from the student's prasidang: the pembimbing comes from there if still blank.
+  async function pick(s: Student) {
     setNpm(s.npm)
-    setNama(s.nama)
-    setJudul(s.judul_skripsi)
-    lookup(s.npm)
+    setCari('')
+    setFilledFrom(null)
+    if (filledFrom) setPembimbing('') // the previous pick's, not a choice
+    else if (row || pembimbing) return
+    const found = await lookupPembimbingAction(s.npm)
+    if (!found) return
+    setPembimbing(found.pembimbing_kode)
+    setFilledFrom(found.from)
   }
 
   function save() {
@@ -215,53 +215,45 @@ export function DefenseFormModal({
             </div>
           </Field>
 
+          <Field label="Mahasiswa">
+            <input
+              type="search"
+              list="mahasiswa-pilihan"
+              value={cari}
+              placeholder={npm ? 'Ganti mahasiswa — cari NPM atau nama…' : 'Cari NPM atau nama…'}
+              onChange={(e) => {
+                const s = students.find((x) => studentLabel(x) === e.target.value)
+                if (s) pick(s)
+                else setCari(e.target.value)
+              }}
+              className={CONTROL}
+            />
+            <datalist id="mahasiswa-pilihan">
+              {students.map((s) => (
+                <option key={s.npm} value={studentLabel(s)} />
+              ))}
+            </datalist>
+          </Field>
+
           <div className="grid gap-[0.8rem] sm:grid-cols-[10rem_1fr]">
             <Field label="NPM">
-              <input
-                type="text"
-                inputMode="numeric"
-                list="mahasiswa-npm"
-                value={npm}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, '')
-                  const s = students.find((x) => x.npm === v)
-                  if (s && v !== npm) pick(s)
-                  else setNpm(v)
-                }}
-                onBlur={() => lookup()}
-                className={`${CONTROL} mono`}
-              />
-              <datalist id="mahasiswa-npm">
-                {students.map((s) => (
-                  <option key={s.npm} value={s.npm} label={s.nama} />
-                ))}
-              </datalist>
+              <input type="text" readOnly tabIndex={-1} value={npm} className={`${CONTROL} ${READ_ONLY} mono`} />
             </Field>
             <Field label="Nama mahasiswa">
-              <input
-                type="text"
-                list="mahasiswa-nama"
-                value={nama}
-                onChange={(e) => {
-                  const v = e.target.value
-                  const s = students.find((x) => x.nama === v)
-                  if (s && v !== nama) pick(s)
-                  else setNama(v)
-                }}
-                className={CONTROL}
-              />
-              <datalist id="mahasiswa-nama">
-                {students.map((s) => (
-                  <option key={s.npm} value={s.nama} label={s.npm} />
-                ))}
-              </datalist>
+              <input type="text" readOnly tabIndex={-1} value={nama} className={`${CONTROL} ${READ_ONLY}`} />
             </Field>
           </div>
-          {filledFrom && <p className="m-0 -mt-[0.5rem] text-[0.8rem] text-[var(--tinta-3)]">Diisi dari {filledFrom}.</p>}
-
           <Field label="Judul skripsi">
-            <textarea value={judul} onChange={(e) => setJudul(e.target.value)} rows={2} className={`${CONTROL} resize-y`} />
+            <textarea readOnly tabIndex={-1} value={judul} rows={2} className={`${CONTROL} ${READ_ONLY} resize-none`} />
           </Field>
+          <p className="m-0 -mt-[0.5rem] text-[0.8rem] text-[var(--tinta-3)]">
+            {npm && !student && 'NPM ini belum ada di Data Master Mahasiswa. '}
+            Data mahasiswa diubah di{' '}
+            <Link href="/mahasiswa" className="underline">
+              Data Master Mahasiswa
+            </Link>
+            .{filledFrom && ` Pembimbing diisi dari ${filledFrom}.`}
+          </p>
 
           {sidang ? (
             <div className="grid gap-[0.8rem] sm:grid-cols-3 items-end">
