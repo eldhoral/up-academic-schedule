@@ -1,4 +1,5 @@
 import { AppHeader } from '@/components/AppHeader'
+import { clampSemester, parseJenisKelas } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
 import { lecturerDisplayName } from '@/lib/import/tables'
@@ -18,10 +19,11 @@ export default async function UjianKalenderPage(props: PageProps<'/[prodi]/ujian
   const years = (academicYears as AcademicYear[]) ?? []
   const defaultYear = years.find((y) => y.is_active)?.id ?? years[0]?.id ?? ''
   const context = {
+    prodi,
     academic_year_id: (searchParams.ay as string) || defaultYear,
     jenis_ujian: ((searchParams.ujian as string) === 'uas' ? 'uas' : 'uts') as 'uts' | 'uas',
-    jenis_kelas: ((searchParams.jenis as string) === 'regsus' ? 'regsus' : 'reguler') as 'reguler' | 'regsus',
-    semester_ke: parseInt((searchParams.smt as string) ?? '', 10) || ('all' as const), // no smt = Semua semester
+    jenis_kelas: parseJenisKelas(prodi, searchParams.jenis),
+    semester_ke: parseInt(String(searchParams.smt ?? ''), 10) ? clampSemester(prodi, searchParams.smt) : ('all' as const), // no smt = Semua semester
   }
   const minggu = /^\d{4}-\d{2}-\d{2}$/.test((searchParams.minggu as string) ?? '') ? (searchParams.minggu as string) : null
 

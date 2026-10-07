@@ -102,7 +102,8 @@ function assertGrid(rows: TableRow[]) {
 
 // --- Rekap Pengawas -----------------------------------------------------------------------
 const row = (o: Partial<ExamRow>): ExamRow => ({
-  id: 'x', jenis_ujian: 'uts', jenis_kelas: 'reguler', semester_ke: 3, kode_mk: 'M1', kelas: 'A', tanggal: '2025-10-27', jam_mulai: '08:00:00', jam_selesai: '10:00:00',
+  id: 'x',
+    prodi: 's1', jenis_ujian: 'uts', jenis_kelas: 'reguler', semester_ke: 3, kode_mk: 'M1', kelas: 'A', tanggal: '2025-10-27', jam_mulai: '08:00:00', jam_selesai: '10:00:00',
   room_id: 'r1', pengawas: [], keterangan_ujian: 'offline', is_override: false, override_reason: '', courses: { nama_mk: 'Psikologi Umum', sks: 3 }, rooms: { nama: '301' }, ...o,
 })
 const names = new Map([['D1', 'Dr. Budi'], ['D2', 'Ani']])

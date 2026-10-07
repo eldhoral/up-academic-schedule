@@ -20,9 +20,8 @@ import {
 } from './exam-types'
 import type { AddableExam } from './exam-query'
 import type { AcademicYear } from '../kuliah/penjadwalan-types'
-import { useProdi } from '@/lib/use-prodi'
+import { PRODI_CONFIG, semesterList, type JenisKelas } from '@/lib/prodi'
 
-const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
 const UJIAN_LABEL = { uts: 'UTS', uas: 'UAS' }
 const PROGRAM_LABEL = { reguler: 'Reguler', regsus: 'Reguler Khusus' }
@@ -55,13 +54,14 @@ export function UjianClient({
   fixedNames: string[]
   canEdit: boolean
 }) {
-  const prodi = useProdi()
+  const { prodi } = context
   const router = useRouter()
   const [editing, setEditing] = useState<Block | null>(null)
   const [query, setQuery] = useState('')
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  const programText = PRODI_CONFIG[prodi].jenisKelas.length > 1 ? ` · ${PROGRAM_LABEL[context.jenis_kelas]}` : ''
   const lecturerNames = useMemo(() => Object.fromEntries(lecturers.map((l) => [l.value, l.label])), [lecturers])
 
   function go(next: Partial<ExamContext>) {
@@ -128,7 +128,7 @@ export function UjianClient({
   function seed() {
     setMessage(null)
     startTransition(async () => {
-      const res = await seedExamsFromKuliahAction({ academic_year_id: context.academic_year_id, jenis_ujian: context.jenis_ujian, jenis_kelas: context.jenis_kelas })
+      const res = await seedExamsFromKuliahAction({ prodi, academic_year_id: context.academic_year_id, jenis_ujian: context.jenis_ujian, jenis_kelas: context.jenis_kelas })
       if ('error' in res) setMessage({ ok: false, text: res.error })
       else {
         setMessage({ ok: true, text: ('message' in res && res.message) || 'Selesai.' })
@@ -175,19 +175,23 @@ export function UjianClient({
           className={CONTROL}
         />
 
-        <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
-          Program
-        </label>
-        <Select
-          id="ctx-jenis"
-          value={context.jenis_kelas}
-          onValueChange={(v) => go({ jenis_kelas: v as 'reguler' | 'regsus' })}
-          options={[
-            { value: 'reguler', label: 'Reguler' },
-            { value: 'regsus', label: 'Reguler Khusus' },
-          ]}
-          className={CONTROL}
-        />
+        {PRODI_CONFIG[prodi].jenisKelas.length > 1 && (
+          <>
+            <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
+              Program
+            </label>
+            <Select
+              id="ctx-jenis"
+              value={context.jenis_kelas}
+              onValueChange={(v) => go({ jenis_kelas: v as JenisKelas })}
+              options={[
+                { value: 'reguler', label: 'Reguler' },
+                { value: 'regsus', label: 'Reguler Khusus' },
+              ]}
+              className={CONTROL}
+            />
+          </>
+        )}
 
         <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-smt">
           Semester
@@ -196,7 +200,7 @@ export function UjianClient({
           id="ctx-smt"
           value={String(context.semester_ke)}
           onValueChange={(v) => go({ semester_ke: parseInt(v, 10) })}
-          options={SEMESTERS.map((s) => ({ value: String(s), label: String(s) }))}
+          options={semesterList(prodi).map((s) => ({ value: String(s), label: String(s) }))}
           className={CONTROL}
         />
 
@@ -228,7 +232,7 @@ export function UjianClient({
         <div className="flex items-end justify-between gap-[1rem] mb-[1rem] flex-wrap">
           <div>
             <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.015em]">
-              {UJIAN_LABEL[context.jenis_ujian]} &middot; Semester {context.semester_ke} &middot; {PROGRAM_LABEL[context.jenis_kelas]}
+              {UJIAN_LABEL[context.jenis_ujian]} &middot; Semester {context.semester_ke}{programText}
             </h1>
             <p className="mt-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
               Satu blok per mata kuliah; ubah blok untuk mengatur tanggal, jam, pengawas, dan ruangan semua kelasnya.
@@ -276,12 +280,12 @@ export function UjianClient({
           <div className="flex justify-center py-[2rem]">
             <div className="w-full max-w-[26rem] flex flex-col items-center gap-[0.4rem] text-center bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.6rem]">
               <h2 className="m-0 text-[1.07rem] font-semibold text-balance">
-                Belum ada jadwal {UJIAN_LABEL[context.jenis_ujian]} untuk Semester {context.semester_ke} &middot; {PROGRAM_LABEL[context.jenis_kelas]}
+                Belum ada jadwal {UJIAN_LABEL[context.jenis_ujian]} untuk Semester {context.semester_ke}{programText}
               </h2>
               <p className="m-0 text-[0.87rem] text-[var(--tinta-3)] text-pretty">
                 {addable.length > 0
                   ? 'Jadwal kuliah semester ini sudah ada. Salin kelasnya, lalu atur tanggal dan pengawas.'
-                  : `Belum ada jadwal kuliah untuk Semester ${context.semester_ke} · ${PROGRAM_LABEL[context.jenis_kelas]}, jadi belum ada kelas yang bisa diujikan.`}
+                  : `Belum ada jadwal kuliah untuk Semester ${context.semester_ke}${programText}, jadi belum ada kelas yang bisa diujikan.`}
               </p>
               {addable.length > 0 && canEdit ? (
                 <button

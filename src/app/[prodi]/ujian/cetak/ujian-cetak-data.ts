@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Prodi } from '@/lib/prodi'
+import { parseJenisKelas, type Prodi } from '@/lib/prodi'
 import { getSettings, settingText } from '@/lib/settings'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { angkatanTa, romanSemester, substituteTemplate } from '@/lib/print'
@@ -29,9 +29,10 @@ export async function buildUjianCetakData(prodi: Prodi, params: { ay?: string | 
   const years = (academicYears as AcademicYear[]) ?? []
   const defaultYear = years.find((y) => y.is_active)?.id ?? years[0]?.id ?? ''
   const context = {
+    prodi,
     academic_year_id: params.ay || defaultYear,
     jenis_ujian: (params.ujian === 'uas' ? 'uas' : 'uts') as 'uts' | 'uas',
-    jenis_kelas: (params.jenis === 'regsus' ? 'regsus' : 'reguler') as 'reguler' | 'regsus',
+    jenis_kelas: parseJenisKelas(prodi, params.jenis),
     semester_ke: parseInt(params.smt ?? '', 10) || ('all' as const), // no or non-numeric smt = Semua semester
   }
 

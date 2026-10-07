@@ -4,6 +4,7 @@ import { canWrite, getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { getSettings, settingList, settingText } from '@/lib/settings'
 import { lecturerDisplayName } from '@/lib/import/tables'
+import { clampSemester, parseJenisKelas } from '@/lib/prodi'
 import { checkAllExamClashes } from './actions'
 import { fetchExamPage } from './exam-query'
 import { normalizeName } from './exam-clash'
@@ -27,13 +28,14 @@ export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
   const years = (academicYears as AcademicYear[]) ?? []
   const defaultYear = years.find((y) => y.is_active)?.id ?? years[0]?.id ?? ''
   const context: ExamContext = {
+    prodi,
     academic_year_id: (searchParams.ay as string) || defaultYear,
     jenis_ujian: (searchParams.ujian as string) === 'uas' ? 'uas' : 'uts',
-    jenis_kelas: (searchParams.jenis as string) === 'regsus' ? 'regsus' : 'reguler',
-    semester_ke: Math.min(8, Math.max(1, parseInt((searchParams.smt as string) || '1', 10) || 1)),
+    jenis_kelas: parseJenisKelas(prodi, searchParams.jenis),
+    semester_ke: clampSemester(prodi, searchParams.smt),
   }
 
-  const [{ exams, addable, kelasByMk }, findings] = await Promise.all([fetchExamPage(context), checkAllExamClashes(context.academic_year_id)])
+  const [{ exams, addable, kelasByMk }, findings] = await Promise.all([fetchExamPage(context), checkAllExamClashes(context.academic_year_id, prodi)])
   const lecturerList = (lecturers as Lecturer[]) ?? []
 
   return (

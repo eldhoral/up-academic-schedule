@@ -1,3 +1,5 @@
+import type { JenisKelas, Prodi } from '@/lib/prodi'
+
 export const KETERANGAN_UJIAN = ['offline', 'online', 'take_home', 'project', 'ujian_lisan'] as const
 export type KeteranganUjian = (typeof KETERANGAN_UJIAN)[number]
 
@@ -20,14 +22,16 @@ export const keteranganFromKuliah = (schedules: { room_id: string | null; zoom_i
 export type PengawasItem = { kode_dosen: string } | { nama: string }
 
 export type ExamContext = {
+  prodi: Prodi
   academic_year_id: string
   jenis_ujian: 'uts' | 'uas'
-  jenis_kelas: 'reguler' | 'regsus'
+  jenis_kelas: JenisKelas
   semester_ke: number
 }
 
 export type ExamRow = {
   id: string
+  prodi: Prodi
   jenis_ujian: 'uts' | 'uas'
   jenis_kelas: 'reguler' | 'regsus'
   semester_ke: number

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Prodi } from '@/lib/prodi'
 import { getSettings, settingList, settingText } from '@/lib/settings'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { normalizeName, type ExamClashInput, type KelasMap } from './exam-clash'
@@ -34,6 +35,7 @@ export async function fetchExamPage(ctx: ExamContext) {
     supabase
       .from('exams')
       .select(EXAM_SELECT)
+      .eq('prodi', ctx.prodi)
       .eq('academic_year_id', ctx.academic_year_id)
       .eq('jenis_ujian', ctx.jenis_ujian)
       .eq('jenis_kelas', ctx.jenis_kelas)
@@ -41,6 +43,7 @@ export async function fetchExamPage(ctx: ExamContext) {
     supabase
       .from('schedules')
       .select('kode_mk, kelas, courses(nama_mk), schedule_lecturers(urutan, lecturers(kode_dosen, nama, gelar_depan, gelar_belakang))')
+      .eq('prodi', ctx.prodi)
       .eq('academic_year_id', ctx.academic_year_id)
       .eq('jenis_kelas', ctx.jenis_kelas)
       .eq('semester_ke', ctx.semester_ke),
@@ -80,19 +83,20 @@ export async function fetchExamPage(ctx: ExamContext) {
   return { exams, addable, kelasByMk }
 }
 
-/** Everything a clash check needs for a whole academic year (both programs, UTS and UAS). */
-export async function loadClashWorld(academicYearId: string) {
+/** Everything a clash check needs for a whole academic year (both prodi, both programs, UTS and UAS: a pengawas or room in the other prodi is still taken). `prodi` only picks which settings to read. */
+export async function loadClashWorld(academicYearId: string, prodi: Prodi) {
   const supabase = await createClient()
   const [{ data: examData }, { data: scheduleData }, { data: lecturerData }, { data: roomData }, settings] = await Promise.all([
     supabase.from('exams').select(EXAM_SELECT).eq('academic_year_id', academicYearId),
-    supabase.from('schedules').select('jenis_kelas, semester_ke, kelas').eq('academic_year_id', academicYearId),
+    supabase.from('schedules').select('prodi, jenis_kelas, semester_ke, kelas').eq('academic_year_id', academicYearId),
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     supabase.from('rooms').select('id, nama'),
-    getSettings('s1'), // ponytail: s1 until Task 7 threads prodi here
+    getSettings(prodi),
   ])
 
   const exams: ExamClashInput[] = ((examData ?? []) as unknown as RawExam[]).map(toExamRow).map((e) => ({
     id: e.id,
+    prodi: e.prodi,
     kode_mk: e.kode_mk,
     nama_mk: e.courses?.nama_mk ?? e.kode_mk,
     jenis_ujian: e.jenis_ujian,
@@ -108,13 +112,13 @@ export async function loadClashWorld(academicYearId: string) {
   }))
 
   const kelasMap: KelasMap = new Map()
-  const addKelas = (jenis: string, smt: number, kelas: string) => {
+  const addKelas = (prodi: Prodi, jenis: string, smt: number, kelas: string) => {
     if (kelas === GABUNGAN) return
-    const key = `${jenis}/${smt}`
+    const key = `${prodi}/${jenis}/${smt}`
     kelasMap.set(key, [...new Set([...(kelasMap.get(key) ?? []), kelas])])
   }
-  for (const s of scheduleData ?? []) addKelas(s.jenis_kelas, s.semester_ke, s.kelas)
-  for (const e of exams) addKelas(e.jenis_kelas, e.semester_ke, e.kelas)
+  for (const s of scheduleData ?? []) addKelas(s.prodi as Prodi, s.jenis_kelas, s.semester_ke, s.kelas)
+  for (const e of exams) addKelas(e.prodi, e.jenis_kelas, e.semester_ke, e.kelas)
 
   const policies: Record<'pengawas' | 'ruangan' | 'kelas', ClashPolicy> = {
     pengawas: settingText(settings, 'bentrok_dosen', 'blok') as ClashPolicy,
@@ -139,12 +143,14 @@ export async function fetchExamsForPrint(c: Omit<ExamContext, 'semester_ke'> & {
   let examQuery = supabase
     .from('exams')
     .select(EXAM_SELECT)
+    .eq('prodi', c.prodi)
     .eq('academic_year_id', c.academic_year_id)
     .eq('jenis_ujian', c.jenis_ujian)
     .eq('jenis_kelas', c.jenis_kelas)
   let scheduleQuery = supabase
     .from('schedules')
     .select('semester_ke, kode_mk, kelas, schedule_lecturers(urutan, lecturers(kode_dosen, nama, gelar_depan, gelar_belakang))')
+    .eq('prodi', c.prodi)
     .eq('academic_year_id', c.academic_year_id)
     .eq('jenis_kelas', c.jenis_kelas)
   if (c.semester_ke !== 'all') {
@@ -174,8 +180,8 @@ export async function fetchExamsForPrint(c: Omit<ExamContext, 'semester_ke'> & {
 }
 
 /** Every exam of one kind in an academic year, both programs and all semesters (for the pengawas rekap). */
-export async function fetchExamsForRekap(academicYearId: string, jenisUjian: 'uts' | 'uas'): Promise<ExamRow[]> {
+export async function fetchExamsForRekap(academicYearId: string, jenisUjian: 'uts' | 'uas', prodi: Prodi): Promise<ExamRow[]> {
   const supabase = await createClient()
-  const { data } = await supabase.from('exams').select(EXAM_SELECT).eq('academic_year_id', academicYearId).eq('jenis_ujian', jenisUjian)
+  const { data } = await supabase.from('exams').select(EXAM_SELECT).eq('prodi', prodi).eq('academic_year_id', academicYearId).eq('jenis_ujian', jenisUjian)
   return ((data ?? []) as unknown as RawExam[]).map(toExamRow)
 }

@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
+import { orientFinding } from '@/lib/clash'
+import { parseProdi, prodiTag, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
+import { writableProdi } from '@/lib/prodi-server'
 import { findExamClashes, normalizeName, type ExamClashInput, type ExamClashType } from './exam-clash'
 import { loadClashWorld } from './exam-query'
 import { GABUNGAN, KETERANGAN_UJIAN, keteranganFromKuliah, needsRoom, type ExamContext, type KeteranganUjian, type PengawasItem } from './exam-types'
@@ -45,6 +48,7 @@ const CONFLICT = 'academic_year_id,jenis_ujian,jenis_kelas,semester_ke,kode_mk,k
 function candidatesOf(input: ExamBlockInput, nama_mk: string): ExamClashInput[] {
   return input.rows.map((r, i) => ({
     id: `cand-${i}`,
+    prodi: input.context.prodi,
     kode_mk: input.kode_mk,
     nama_mk,
     jenis_ujian: input.context.jenis_ujian,
@@ -65,10 +69,10 @@ export async function checkExamBlockClashes(input: ExamBlockInput): Promise<Exam
   const none = { clashes: [], blocking: false, blockedRows: [] }
   if (!input.tanggal || !input.jam_mulai || !input.jam_selesai) return none
 
-  const world = await loadClashWorld(input.context.academic_year_id)
   const { context: c } = input
+  const world = await loadClashWorld(c.academic_year_id, c.prodi)
   const sameBlock = (e: ExamClashInput) =>
-    e.kode_mk === input.kode_mk && e.jenis_ujian === c.jenis_ujian && e.jenis_kelas === c.jenis_kelas && e.semester_ke === c.semester_ke
+    e.prodi === c.prodi && e.kode_mk === input.kode_mk && e.jenis_ujian === c.jenis_ujian && e.jenis_kelas === c.jenis_kelas && e.semester_ke === c.semester_ke
   const others = world.exams.filter((e) => !sameBlock(e))
   const nama = world.exams.find(sameBlock)?.nama_mk ?? input.kode_mk
   const candidates = candidatesOf(input, nama)
@@ -87,7 +91,7 @@ export async function checkExamBlockClashes(input: ExamBlockInput): Promise<Exam
       type: x.type,
       policy,
       detail: x.detail,
-      nama_mk: other.nama_mk,
+      nama_mk: prodiTag(c.prodi, other.prodi) + other.nama_mk,
       kelas: other.kelas,
       tanggal: other.tanggal!,
       jam_mulai: other.jam_mulai!,
@@ -99,6 +103,7 @@ export async function checkExamBlockClashes(input: ExamBlockInput): Promise<Exam
 }
 
 export type ExamSide = {
+  prodi: Prodi
   kode_mk: string
   nama_mk: string
   kelas: string
@@ -120,6 +125,7 @@ export type ExamFinding = {
 }
 
 const sideOf = (e: ExamClashInput): ExamSide => ({
+  prodi: e.prodi,
   kode_mk: e.kode_mk,
   nama_mk: e.nama_mk,
   kelas: e.kelas,
@@ -131,13 +137,15 @@ const sideOf = (e: ExamClashInput): ExamSide => ({
   jam_selesai: e.jam_selesai!,
 })
 
-/** The standing findings-bar view: every clash among the saved exams of the academic year. */
-export async function checkAllExamClashes(academicYearId: string): Promise<ExamFinding[]> {
+/** The standing findings-bar view for one prodi: clashes touching its exams, its own row first, the other prodi tagged. */
+export async function checkAllExamClashes(academicYearId: string, prodi: Prodi): Promise<ExamFinding[]> {
   if (!academicYearId) return []
-  const world = await loadClashWorld(academicYearId)
+  const world = await loadClashWorld(academicYearId, prodi)
   return findExamClashes(world.exams, world.kelasMap, world.cadangan, world.names, world.roomNames)
     .filter((x) => world.policies[x.type] !== 'abaikan')
-    .map((x) => ({ type: x.type, policy: world.policies[x.type], detail: x.detail, overlapMinutes: x.overlapMinutes, a: sideOf(x.a), b: sideOf(x.b) }))
+    .map((x) => orientFinding(prodi, { type: x.type, policy: world.policies[x.type], detail: x.detail, overlapMinutes: x.overlapMinutes, a: sideOf(x.a), b: sideOf(x.b) }))
+    .filter((f): f is ExamFinding => f !== null)
+    .map((f) => ({ ...f, b: { ...f.b, nama_mk: prodiTag(prodi, f.b.prodi) + f.b.nama_mk } }))
     .sort((a, b) => a.a.tanggal.localeCompare(b.a.tanggal) || a.a.jam_mulai.localeCompare(b.a.jam_mulai))
 }
 
@@ -145,7 +153,9 @@ function validate(input: ExamBlockInput): string | null {
   const { context: c } = input
   if (!c.academic_year_id) return 'Pilih tahun akademik.'
   if (c.jenis_ujian !== 'uts' && c.jenis_ujian !== 'uas') return 'Pilih jenis ujian.'
-  if (c.jenis_kelas !== 'reguler' && c.jenis_kelas !== 'regsus') return 'Pilih jenis kelas.'
+  if (!parseProdi(c.prodi)) return 'Prodi tidak dikenali.'
+  if (!PRODI_CONFIG[c.prodi].jenisKelas.includes(c.jenis_kelas)) return 'Pilih jenis kelas.'
+  if (c.semester_ke < 1 || c.semester_ke > PRODI_CONFIG[c.prodi].semesters) return `Semester harus antara 1 dan ${PRODI_CONFIG[c.prodi].semesters}.`
   if (!input.kode_mk) return 'Mata kuliah wajib diisi.'
   if (input.rows.some((r) => !KETERANGAN_UJIAN.includes(r.keterangan_ujian))) return 'Pilih keterangan ujian.'
   if (input.rows.length === 0) return 'Tidak ada kelas untuk disimpan.'
@@ -158,11 +168,13 @@ function validate(input: ExamBlockInput): string | null {
 }
 
 export async function saveExamBlockAction(input: ExamBlockInput): Promise<NonNullable<ExamFormState>> {
+  const { context: c } = input
   const invalid = validate(input)
   if (invalid) return { error: invalid }
+  const gate = await writableProdi(c.prodi)
+  if ('error' in gate) return { error: gate.error }
 
   const supabase = await createClient()
-  const { context: c } = input
 
   // Pengawas is a jsonb list with no foreign key, so check the dosen codes here.
   const codes = [...new Set(input.rows.flatMap((r) => r.pengawas.flatMap((p) => ('kode_dosen' in p ? [p.kode_dosen] : []))))]
@@ -178,13 +190,14 @@ export async function saveExamBlockAction(input: ExamBlockInput): Promise<NonNul
   let overrideBy: string | null = null
   if (check.blocking) {
     if (!(input.confirmOverride && input.overrideReason.trim())) return { needsOverride: true, clashes: check.clashes }
-    const world = await loadClashWorld(c.academic_year_id)
+    const world = await loadClashWorld(c.academic_year_id, c.prodi)
     if (!world.izinkanOverride) return { error: 'Ujian ini bentrok dan fitur terobos bentrok sedang dinonaktifkan di Pengaturan.' }
     blocked = new Set(check.blockedRows)
     overrideBy = (await supabase.auth.getUser()).data.user?.id ?? null
   }
 
   const rows = input.rows.map((r, i) => ({
+    prodi: c.prodi,
     academic_year_id: c.academic_year_id,
     jenis_ujian: c.jenis_ujian,
     jenis_kelas: c.jenis_kelas,
@@ -211,6 +224,7 @@ export async function saveExamBlockAction(input: ExamBlockInput): Promise<NonNul
   const { error: staleError } = await supabase
     .from('exams')
     .delete()
+    .eq('prodi', c.prodi)
     .eq('academic_year_id', c.academic_year_id)
     .eq('jenis_ujian', c.jenis_ujian)
     .eq('jenis_kelas', c.jenis_kelas)
@@ -224,10 +238,13 @@ export async function saveExamBlockAction(input: ExamBlockInput): Promise<NonNul
 }
 
 export async function deleteExamBlockAction(c: ExamContext, kode_mk: string): Promise<NonNullable<ExamFormState>> {
+  const gate = await writableProdi(c.prodi)
+  if ('error' in gate) return { error: gate.error }
   const supabase = await createClient()
   const { error } = await supabase
     .from('exams')
     .delete()
+    .eq('prodi', c.prodi)
     .eq('academic_year_id', c.academic_year_id)
     .eq('jenis_ujian', c.jenis_ujian)
     .eq('jenis_kelas', c.jenis_kelas)
@@ -241,16 +258,20 @@ export async function deleteExamBlockAction(c: ExamContext, kode_mk: string): Pr
 
 /** One unscheduled row for a kuliah class that has none yet. */
 export async function addExamRowAction(c: ExamContext, kode_mk: string, kelas: string): Promise<NonNullable<ExamFormState>> {
+  const gate = await writableProdi(c.prodi)
+  if ('error' in gate) return { error: gate.error }
   const supabase = await createClient()
   const { data: schedules } = await supabase
     .from('schedules')
     .select('room_id, zoom_id')
+    .eq('prodi', c.prodi)
     .eq('academic_year_id', c.academic_year_id)
     .eq('jenis_kelas', c.jenis_kelas)
     .eq('semester_ke', c.semester_ke)
     .eq('kode_mk', kode_mk)
     .eq('kelas', kelas)
   const { error } = await supabase.from('exams').insert({
+    prodi: c.prodi,
     academic_year_id: c.academic_year_id,
     jenis_ujian: c.jenis_ujian,
     jenis_kelas: c.jenis_kelas,
@@ -267,10 +288,12 @@ export async function addExamRowAction(c: ExamContext, kode_mk: string, kelas: s
 
 /** One unscheduled row per kuliah class of the program, every semester; rows that already exist are left alone. */
 export async function seedExamsFromKuliahAction(c: Omit<ExamContext, 'semester_ke'>): Promise<NonNullable<ExamFormState>> {
+  const gate = await writableProdi(c.prodi)
+  if ('error' in gate) return { error: gate.error }
   const supabase = await createClient()
   const [{ data: schedules, error }, { data: existing }] = await Promise.all([
-    supabase.from('schedules').select('semester_ke, kode_mk, kelas, room_id, zoom_id').eq('academic_year_id', c.academic_year_id).eq('jenis_kelas', c.jenis_kelas),
-    supabase.from('exams').select('semester_ke, kode_mk, kelas').eq('academic_year_id', c.academic_year_id).eq('jenis_ujian', c.jenis_ujian).eq('jenis_kelas', c.jenis_kelas),
+    supabase.from('schedules').select('semester_ke, kode_mk, kelas, room_id, zoom_id').eq('prodi', c.prodi).eq('academic_year_id', c.academic_year_id).eq('jenis_kelas', c.jenis_kelas),
+    supabase.from('exams').select('semester_ke, kode_mk, kelas').eq('prodi', c.prodi).eq('academic_year_id', c.academic_year_id).eq('jenis_ujian', c.jenis_ujian).eq('jenis_kelas', c.jenis_kelas),
   ])
   if (error) return { error: humanDbError(error) }
 

@@ -7,13 +7,12 @@ import { Select } from '@/components/Select'
 import { UjianCetakPreview } from './UjianCetakPreview'
 import type { UjianSheet } from './ujian-cetak-data'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
-import { useProdi } from '@/lib/use-prodi'
+import { PRODI_CONFIG, semesterList, type JenisKelas, type Prodi } from '@/lib/prodi'
 
-const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
 const ALL_DOSEN = '__all__'
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
 
-type Context = { academic_year_id: string; jenis_ujian: 'uts' | 'uas'; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number | 'all'; dosen: string } // dosen: kode_dosen, '' = semua
+type Context = { prodi: Prodi; academic_year_id: string; jenis_ujian: 'uts' | 'uas'; jenis_kelas: JenisKelas; semester_ke: number | 'all'; dosen: string } // dosen: kode_dosen, '' = semua
 
 export function UjianCetakClient({
   academicYears,
@@ -28,7 +27,7 @@ export function UjianCetakClient({
   sheets: UjianSheet[]
   doc: { namaPenandatangan: string; jabatanPenandatangan: string }
 }) {
-  const prodi = useProdi()
+  const { prodi } = context
   const router = useRouter()
   const hasRows = sheets.some((s) => s.rows.length > 0)
 
@@ -40,7 +39,7 @@ export function UjianCetakClient({
     router.push(`/${prodi}/ujian/cetak?${queryOf({ ...context, ...next })}`)
   }
 
-  const program = context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'
+  const program = PRODI_CONFIG[prodi].jenisKelas.length > 1 ? `${context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'} · ` : ''
 
   return (
     <div className="flex flex-col flex-1">
@@ -70,19 +69,23 @@ export function UjianCetakClient({
           className={CONTROL}
         />
 
-        <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
-          Program
-        </label>
-        <Select
-          id="ctx-jenis"
-          value={context.jenis_kelas}
-          onValueChange={(v) => navigate({ jenis_kelas: v as 'reguler' | 'regsus' })}
-          options={[
-            { value: 'reguler', label: 'Reguler' },
-            { value: 'regsus', label: 'Reguler Khusus' },
-          ]}
-          className={CONTROL}
-        />
+        {PRODI_CONFIG[prodi].jenisKelas.length > 1 && (
+          <>
+            <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
+              Program
+            </label>
+            <Select
+              id="ctx-jenis"
+              value={context.jenis_kelas}
+              onValueChange={(v) => navigate({ jenis_kelas: v as JenisKelas })}
+              options={[
+                { value: 'reguler', label: 'Reguler' },
+                { value: 'regsus', label: 'Reguler Khusus' },
+              ]}
+              className={CONTROL}
+            />
+          </>
+        )}
 
         <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-smt">
           Semester
@@ -91,7 +94,7 @@ export function UjianCetakClient({
           id="ctx-smt"
           value={String(context.semester_ke)}
           onValueChange={(v) => navigate({ semester_ke: v === 'all' ? 'all' : parseInt(v, 10) })}
-          options={[{ value: 'all', label: 'Semua semester' }, ...SEMESTERS.map((s) => ({ value: String(s), label: String(s) }))]}
+          options={[{ value: 'all', label: 'Semua semester' }, ...semesterList(prodi).map((s) => ({ value: String(s), label: String(s) }))]}
           className={CONTROL}
         />
 
@@ -119,7 +122,7 @@ export function UjianCetakClient({
       ) : (
         <EmptySheet
           title="Belum ada jadwal ujian untuk dicetak"
-          detail={`${context.jenis_ujian.toUpperCase()} · ${context.semester_ke === 'all' ? 'Semua semester' : `Semester ${context.semester_ke}`} · ${program} · ${
+          detail={`${context.jenis_ujian.toUpperCase()} · ${context.semester_ke === 'all' ? 'Semua semester' : `Semester ${context.semester_ke}`} · ${program}${
             context.dosen ? `${dosenOptions.find((d) => d.value === context.dosen)?.label ?? context.dosen} · ` : ''
           }${
             academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? ''

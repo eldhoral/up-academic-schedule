@@ -11,13 +11,12 @@ import { romanSemester } from '@/lib/print'
 import { dayLabel, defaultWeek, eventWeeks, mondayOf, weekDays } from '@/lib/week'
 import { GABUNGAN, KETERANGAN_LABEL, needsRoom, shortDate, type ExamView } from '../exam-types'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
-import { useProdi } from '@/lib/use-prodi'
+import { PRODI_CONFIG, semesterList, type JenisKelas, type Prodi } from '@/lib/prodi'
 
-const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
 const UJIAN_LABEL = { uts: 'UTS', uas: 'UAS' }
 
-type Context = { academic_year_id: string; jenis_ujian: 'uts' | 'uas'; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number | 'all' }
+type Context = { prodi: Prodi; academic_year_id: string; jenis_ujian: 'uts' | 'uas'; jenis_kelas: JenisKelas; semester_ke: number | 'all' }
 
 /** One exam on the grid: a mata kuliah's kelas that sit together (same semester, same slot). */
 type Block = { key: string; rows: ExamView[] }
@@ -35,7 +34,7 @@ export function UjianKalenderClient({
   names: Record<string, string>
   initialWeek: string | null
 }) {
-  const prodi = useProdi()
+  const { prodi } = context
   const router = useRouter()
   const today = new Date().toISOString().slice(0, 10)
   const dated = useMemo(() => exams.filter((e) => e.tanggal && e.jam_mulai && e.jam_selesai), [exams])
@@ -129,19 +128,23 @@ export function UjianKalenderClient({
           className={CONTROL}
         />
 
-        <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
-          Program
-        </label>
-        <Select
-          id="ctx-jenis"
-          value={context.jenis_kelas}
-          onValueChange={(v) => navigate({ jenis_kelas: v as 'reguler' | 'regsus' })}
-          options={[
-            { value: 'reguler', label: 'Reguler' },
-            { value: 'regsus', label: 'Reguler Khusus' },
-          ]}
-          className={CONTROL}
-        />
+        {PRODI_CONFIG[prodi].jenisKelas.length > 1 && (
+          <>
+            <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
+              Program
+            </label>
+            <Select
+              id="ctx-jenis"
+              value={context.jenis_kelas}
+              onValueChange={(v) => navigate({ jenis_kelas: v as JenisKelas })}
+              options={[
+                { value: 'reguler', label: 'Reguler' },
+                { value: 'regsus', label: 'Reguler Khusus' },
+              ]}
+              className={CONTROL}
+            />
+          </>
+        )}
 
         <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-smt">
           Semester
@@ -150,7 +153,7 @@ export function UjianKalenderClient({
           id="ctx-smt"
           value={String(context.semester_ke)}
           onValueChange={(v) => navigate({ semester_ke: v === 'all' ? 'all' : parseInt(v, 10) })}
-          options={[{ value: 'all', label: 'Semua semester' }, ...SEMESTERS.map((s) => ({ value: String(s), label: String(s) }))]}
+          options={[{ value: 'all', label: 'Semua semester' }, ...semesterList(prodi).map((s) => ({ value: String(s), label: String(s) }))]}
           className={CONTROL}
         />
 

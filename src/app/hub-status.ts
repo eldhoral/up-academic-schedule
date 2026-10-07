@@ -46,12 +46,12 @@ export async function getKuliahStatus(academicYearId: string, prodi: Prodi): Pro
 }
 
 /** Same for UTS/UAS. Undated exams are gaps: the schedule is not clean until they have a slot. */
-export async function getUjianStatus(academicYearId: string): Promise<ScheduleStatus | null> {
+export async function getUjianStatus(academicYearId: string, prodi: Prodi): Promise<ScheduleStatus | null> {
   try {
     const supabase = await createClient()
     const [{ data, error }, clashes] = await Promise.all([
-      supabase.from('exams').select('jenis_ujian, tanggal').eq('academic_year_id', academicYearId),
-      checkAllExamClashes(academicYearId),
+      supabase.from('exams').select('jenis_ujian, tanggal').eq('academic_year_id', academicYearId).eq('prodi', prodi),
+      checkAllExamClashes(academicYearId, prodi),
     ])
     if (error || !data) return null
 

@@ -20,7 +20,7 @@ export async function buildRekapPengawasData(prodi: Prodi, params: { ay?: string
   const defaultYear = years.find((y) => y.is_active)?.id ?? years[0]?.id ?? ''
   const context = { academic_year_id: params.ay || defaultYear, jenis_ujian: (params.ujian === 'uas' ? 'uas' : 'uts') as 'uts' | 'uas' }
 
-  const exams = await fetchExamsForRekap(context.academic_year_id, context.jenis_ujian)
+  const exams = await fetchExamsForRekap(context.academic_year_id, context.jenis_ujian, prodi)
   const names = new Map((lecturers ?? []).map((l) => [l.kode_dosen as string, lecturerDisplayName(l)]))
   const all = buildPengawasRekap(exams, names, new Set(settingList(settings, 'pengawas_cadangan').map(normalizeName)))
   // Per pengawas: one group's key (e.g. 'dosen:D01') narrows the rekap to that person. A key
