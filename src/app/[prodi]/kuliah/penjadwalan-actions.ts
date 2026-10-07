@@ -224,7 +224,7 @@ export async function deleteScheduleAction(prodi: Prodi, id: string): Promise<Fo
   if ('error' in gate) return { error: gate.error }
 
   const supabase = await createClient()
-  const { error } = await supabase.from('schedules').delete().eq('id', id)
+  const { error } = await supabase.from('schedules').delete().eq('id', id).eq('prodi', gate.prodi)
   if (error) return { error: humanDbError(error) }
 
   revalidatePath('/[prodi]/kuliah', 'page')

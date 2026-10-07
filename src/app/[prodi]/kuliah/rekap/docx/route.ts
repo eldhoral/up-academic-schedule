@@ -1,4 +1,5 @@
 import { prodiParam } from '@/lib/prodi-server'
+import { PRODI_CONFIG } from '@/lib/prodi'
 import { buildRekapData } from '../rekap-data'
 import { buildSuratDocx } from '../build-surat-docx'
 
@@ -11,7 +12,7 @@ export async function GET(request: Request, ctx: RouteContext<'/[prodi]/kuliah/r
   })
 
   const buffer = await buildSuratDocx(data)
-  const filename = `Surat Penugasan ${data.academicYearLabel.replace(/\//g, '-')}.docx`
+  const filename = `${PRODI_CONFIG[prodi].short} Surat Penugasan ${data.academicYearLabel.replace(/\//g, '-')}.docx`
 
   return new Response(buffer, {
     headers: {

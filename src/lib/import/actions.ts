@@ -57,7 +57,7 @@ export async function previewImportAction(
     // classifyRows keeps one outcome per parsed row, in order, so index i is spreadsheet row i + 2.
     preview.rows = preview.rows.map((r, i) =>
       r.status !== 'rejected' && Number((r.data as { smt?: number }).smt) > max
-        ? { status: 'rejected' as const, key: r.key, reason: `Baris ${r.key}: smt harus antara 1 dan ${max}.`, rowNumber: i + 2 }
+        ? { status: 'rejected' as const, key: r.key, reason: `${r.key}: smt harus antara 1 dan ${max}.`, rowNumber: i + 2 }
         : r,
     )
     preview.counts = { new: 0, changed: 0, unchanged: 0, rejected: 0 }

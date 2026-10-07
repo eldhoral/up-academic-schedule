@@ -18,7 +18,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: 'Penjadwalan Perkuliahan — Universitas Pancasila',
-  description: 'Sistem Penjadwalan Perkuliahan S1 Psikologi Universitas Pancasila',
+  description: 'Sistem Penjadwalan Perkuliahan Psikologi Universitas Pancasila',
 }
 
 export default function RootLayout({

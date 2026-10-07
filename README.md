@@ -2,9 +2,9 @@
 
 An internal admin tool for building the study program's three schedules each academic year, catching clashes before they happen, and printing the official documents:
 
-1. **Jadwal Mata Kuliah & Dosen** (`/kuliah`) — weekly classes per semester and kelas, for Reguler and Reguler Khusus. Prints the schedule sheet and the per-dosen recap / Surat Penugasan.
-2. **Jadwal UTS & UAS** (`/ujian`) — exam date, time, ruangan, pengawas and keterangan (Offline, Online, Take Home, Project, Ujian Lisan) per mata kuliah. Prints the exam schedule and the pengawas recap.
-3. **Jadwal Prasidang & Sidang** (`/sidang`) — thesis defenses with students, penguji and rooms. Prints the defense schedule.
+1. **Jadwal Mata Kuliah & Dosen** (`/s1/kuliah`, `/s2/kuliah`) — weekly classes per semester and kelas, for Reguler and Reguler Khusus. Prints the schedule sheet and the per-dosen recap / Surat Penugasan.
+2. **Jadwal UTS & UAS** (`/s1/ujian`, `/s2/ujian`) — exam date, time, ruangan, pengawas and keterangan (Offline, Online, Take Home, Project, Ujian Lisan) per mata kuliah. Prints the exam schedule and the pengawas recap.
+3. **Jadwal Prasidang & Sidang** (`/s1/sidang`, `/s2/sidang`) — thesis defenses with students, penguji and rooms. Prints the defense schedule.
 
 S1 and S2 each have the three schedules, under `/s1/...` and `/s2/...` (S2's third is Jadwal Seminar Proposal & Tesis). Dosen, Ruangan and Tahun Akademik are shared. A dosen or room booked in both prodi at the same hour is a clash on both sides.
 
@@ -49,7 +49,7 @@ npx supabase db push
 
 The migrations create the schema, RLS policies, roles and settings, and seed data: the 2026 curriculum, the 2026/2027 Gasal schedule, and the 2025/2026 Gasal UTS and sidang.
 
-Without the CLI, paste `supabase/all_in_one_setup.sql` into the Supabase SQL editor and run it. It is every migration joined into one file, so whenever you add a migration, append it there too.
+Without the CLI, paste `supabase/all_in_one_setup.sql` into the Supabase SQL editor and run it. It is every migration joined into one file, so whenever you add a migration, append it there too. It is for a fresh database only: an existing project applies just the new migration file, `supabase/migrations/20261007000001_prodi.sql`.
 
 ### First account
 
@@ -77,25 +77,25 @@ Every account also has an **Akses Prodi** (S1, S2 or Semua; Super Admin is alway
 | S2 | S2 menu; S2 data only |
 | Semua | Both prodi |
 
-Shared Pengaturan (clash policies, university/faculty/dekan) needs Semua.
+Akses Prodi is set per account in **Manajemen Pengguna**. Shared data (Dosen, Ruangan, Tahun Akademik) is editable by any Penjadwal, whatever the Akses Prodi. Shared Pengaturan (clash policies, university/faculty/dekan) needs Semua.
 
 ## Using it
 
-1. In **Data Master**, set up Mata Kuliah, Dosen, Ruangan and Mahasiswa (for prasidang and sidang). Each can be imported from Excel: download the template, or export the current data, fill it in, upload it, check the dry-run preview, then commit.
-2. Set the active academic year in **Tahun Akademik**. Generate the time slots in **Sesi**, and adjust the clash policies, print header and signatories in **Pengaturan**.
-3. Build the kuliah schedule in `/kuliah`.
-4. In `/ujian`, copy the kuliah classes in as exam rows. Kelas taught only on Zoom start as Online. Then fill in the date, time, ruangan and pengawas.
+1. In **Data Master**, set up each prodi's Mata Kuliah, Mahasiswa (for prasidang/sidang or seminar/tesis), Sesi and Pengaturan (clash policies, print header, signatories), and the shared Data Bersama: Dosen, Ruangan and Tahun Akademik. Mata Kuliah, Dosen, Ruangan and Mahasiswa can be imported from Excel: download the template, or export the current data, fill it in, upload it, check the dry-run preview, then commit.
+2. Set the active academic year in **Tahun Akademik** and generate the time slots in **Sesi**.
+3. Build the kuliah schedule in `/s1/kuliah` or `/s2/kuliah`.
+4. In `/s1/ujian` or `/s2/ujian`, copy the kuliah classes in as exam rows. Kelas taught only on Zoom start as Online. Then fill in the date, time, ruangan and pengawas.
 5. Print from each section's **Cetak** tab. Changes are recorded in the **Audit Log**.
 
 ## Scripts
 
 ```bash
-npm run dev       # development server
-npm run build     # production build
-npm run lint      # eslint
-npx tsc --noEmit  # type check
-npm run check:prodi  # prodi config and access rules
-npm run check:db     # needs Docker: applies every migration to a throwaway Postgres, checks the prodi schema and RLS
+npm run dev           # development server
+npm run build         # production build
+npm run lint          # eslint
+npx tsc --noEmit      # type check
+npm run check:prodi   # prodi config and access rules
+npm run check:db      # needs Docker: applies every migration to a throwaway Postgres, checks the prodi schema and RLS
 ```
 
 The logic that matters (session generator, clash detection, print layout, calendar layout, letter fitting, exam and defense rows) has small assert-based checks. Each prints a line when it passes:

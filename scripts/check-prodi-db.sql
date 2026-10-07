@@ -74,7 +74,7 @@ insert into schedule_lecturers (schedule_id, kode_dosen)
 values ((select id from schedules where kode_mk = 'S2TEST01'), (select kode_dosen from lecturers order by kode_dosen limit 1));
 
 do $$
-declare n int;
+declare n int; s1_schedule schedules.id%type;
 begin
     begin
         insert into courses (kode_mk, nama_mk, sks, smt, jenis_mk, prodi) values ('S1TEST01', 'X', 2, 1, 'A', 's1');
@@ -90,11 +90,15 @@ begin
     update settings set value = value where key = 'nama_prodi' and prodi = 's2';
     get diagnostics n = row_count;
     assert n = 1, 'S2 user changes S2 settings';
+    select id into s1_schedule from schedules where prodi = 's1' limit 1;
     begin
         insert into schedule_lecturers (schedule_id, kode_dosen)
-        values ((select id from schedules where prodi = 's1' limit 1), (select kode_dosen from lecturers order by kode_dosen desc limit 1));
+        values (s1_schedule, (select kode_dosen from lecturers l
+                              where not exists (select 1 from schedule_lecturers sl
+                                                where sl.schedule_id = s1_schedule and sl.kode_dosen = l.kode_dosen)
+                              limit 1));
         raise exception 'FAIL: S2 user added a dosen to an S1 schedule';
-    exception when insufficient_privilege or unique_violation then null;
+    exception when insufficient_privilege then null;
     end;
     assert (select count(*) from schedules where prodi = 's1') > 0, 'S2 user still reads S1 schedules (clash detail needs them)';
 end $$;
