@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import JSZip from 'jszip'
 import { tanggalPanjang } from '../src/lib/hari'
-import { buildDefenseBlocks, sheetName, type DefenseBlock } from '../src/app/sidang/defense-blocks'
-import { buildSidangXlsx } from '../src/app/sidang/cetak/build-sidang-xlsx'
-import type { DefenseRow } from '../src/app/sidang/defense-types'
+import { buildDefenseBlocks, sheetName, type DefenseBlock } from '../src/app/[prodi]/sidang/defense-blocks'
+import { buildSidangXlsx } from '../src/app/[prodi]/sidang/cetak/build-sidang-xlsx'
+import type { DefenseRow } from '../src/app/[prodi]/sidang/defense-types'
 
 const row = (o: Partial<DefenseRow>): DefenseRow => ({
   id: 'x', academic_year_id: '20252', jenis: 'sidang', tanggal: '2026-02-03', jam_mulai: '08:00', jam_selesai: '10:00', room_id: 'r301', room_nama: '301', kelompok: null,

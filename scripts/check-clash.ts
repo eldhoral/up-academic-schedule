@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { findClashes, findSlotClashes, orientFinding, timeOverlapMinutes, weeksCollide, type ExistingScheduleForClash, type ScheduleCandidate } from '../src/lib/clash'
-import { examKeys, findExamClashes, type ExamClashInput } from '../src/app/ujian/exam-clash'
-import { defenseKeys, findDefenseClashes, findTeachingOverlaps, type DefenseClashInput } from '../src/app/sidang/defense-clash'
+import { examKeys, findExamClashes, type ExamClashInput } from '../src/app/[prodi]/ujian/exam-clash'
+import { defenseKeys, findDefenseClashes, findTeachingOverlaps, type DefenseClashInput } from '../src/app/[prodi]/sidang/defense-clash'
 
 // --- weeksCollide -----------------------------------------------------------
 assert.equal(weeksCollide('setiap', 'setiap'), true)

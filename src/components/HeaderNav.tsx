@@ -1,56 +1,54 @@
 import Link from 'next/link'
+import { PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 
 type Tab = { href: string; label: string }
 type Section = { title: string; tabs: Tab[] }
 
-const KULIAH: Section = {
-  title: 'Jadwal Mata Kuliah & Dosen',
-  tabs: [
-    { href: '/kuliah', label: 'Penjadwalan' },
-    { href: '/kuliah/kalender', label: 'Kalender' },
-    { href: '/kuliah/cetak', label: 'Cetak Jadwal' },
-    { href: '/kuliah/rekap', label: 'Rekap Dosen' },
-  ],
-}
+// Tab hrefs are prodi-less; a prodi page prefixes them with /s1 or /s2.
+const KULIAH: Tab[] = [
+  { href: '/kuliah', label: 'Penjadwalan' },
+  { href: '/kuliah/kalender', label: 'Kalender' },
+  { href: '/kuliah/cetak', label: 'Cetak Jadwal' },
+  { href: '/kuliah/rekap', label: 'Rekap Dosen' },
+]
 
-const UJIAN: Section = {
-  title: 'Jadwal UTS & UAS',
-  tabs: [
-    { href: '/ujian', label: 'Jadwal Ujian' },
-    { href: '/ujian/kalender', label: 'Kalender' },
-    { href: '/ujian/cetak', label: 'Cetak' },
-    { href: '/ujian/rekap', label: 'Rekap Pengawas' },
-  ],
-}
+const UJIAN: Tab[] = [
+  { href: '/ujian', label: 'Jadwal Ujian' },
+  { href: '/ujian/kalender', label: 'Kalender' },
+  { href: '/ujian/cetak', label: 'Cetak' },
+  { href: '/ujian/rekap', label: 'Rekap Pengawas' },
+]
 
-const SIDANG: Section = {
-  title: 'Jadwal Prasidang & Sidang',
-  tabs: [
-    { href: '/sidang', label: 'Jadwal Sidang' },
-    { href: '/sidang/kalender', label: 'Kalender' },
-    { href: '/sidang/cetak', label: 'Cetak' },
-  ],
-}
+const SIDANG: Tab[] = [
+  { href: '/sidang', label: 'Jadwal Sidang' },
+  { href: '/sidang/kalender', label: 'Kalender' },
+  { href: '/sidang/cetak', label: 'Cetak' },
+]
 
-const MASTER: Section = {
-  title: 'Data Master',
-  tabs: [
-    { href: '/mata-kuliah', label: 'Mata Kuliah' },
-    { href: '/dosen', label: 'Dosen' },
-    { href: '/ruangan', label: 'Ruangan' },
-    { href: '/mahasiswa', label: 'Mahasiswa' },
-    { href: '/sesi', label: 'Sesi' },
-    { href: '/tahun-akademik', label: 'Tahun Akademik' },
-    { href: '/pengaturan', label: 'Pengaturan' },
-  ],
-}
+const MASTER_PRODI: Tab[] = [
+  { href: '/mata-kuliah', label: 'Mata Kuliah' },
+  { href: '/mahasiswa', label: 'Mahasiswa' },
+  { href: '/sesi', label: 'Sesi' },
+  { href: '/pengaturan', label: 'Pengaturan' },
+]
+
+const MASTER_SHARED: Tab[] = [
+  { href: '/dosen', label: 'Dosen' },
+  { href: '/ruangan', label: 'Ruangan' },
+  { href: '/tahun-akademik', label: 'Tahun Akademik' },
+]
 
 /** The section a page belongs to; null on the menu itself ("/"). */
-function sectionOf(active: string): Section | null {
-  if (active.startsWith('/kuliah')) return KULIAH
-  if (active.startsWith('/ujian')) return UJIAN
-  if (active.startsWith('/sidang')) return SIDANG
-  if (MASTER.tabs.some((t) => t.href === active)) return MASTER
+function sectionOf(active: string, prodi: Prodi | undefined): Section | null {
+  if (prodi) {
+    const c = PRODI_CONFIG[prodi]
+    const own = (title: string, tabs: Tab[]) => ({ title: `${c.short} · ${title}`, tabs: tabs.map((t) => ({ ...t, href: `/${prodi}${t.href}` })) })
+    if (active.startsWith('/kuliah')) return own('Jadwal Mata Kuliah & Dosen', KULIAH)
+    if (active.startsWith('/ujian')) return own('Jadwal UTS & UAS', UJIAN)
+    if (active.startsWith('/sidang')) return own(`Jadwal ${c.defense.section}`, SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t)))
+    if (MASTER_PRODI.some((t) => t.href === active)) return own('Data Master', MASTER_PRODI)
+  }
+  if (MASTER_SHARED.some((t) => t.href === active)) return { title: 'Data Bersama', tabs: MASTER_SHARED }
   if (active === '/pengguna') return { title: 'Manajemen Pengguna', tabs: [] }
   if (active === '/log-aktivitas') return { title: 'Audit Log', tabs: [] }
   return null
@@ -64,9 +62,10 @@ const linkClass = (isActive: boolean) =>
   }`
 
 /** Back to the menu, the section's name, and its tabs. Nothing on the menu itself. */
-export function HeaderNav({ active }: { active: string }) {
-  const section = sectionOf(active)
+export function HeaderNav({ active, prodi }: { active: string; prodi?: Prodi }) {
+  const section = sectionOf(active, prodi)
   if (!section) return null
+  const current = prodi ? `/${prodi}${active}` : active
 
   return (
     <nav className="flex items-center gap-[0.13rem] flex-wrap" aria-label="Navigasi bagian">
@@ -78,8 +77,8 @@ export function HeaderNav({ active }: { active: string }) {
         <Link
           key={tab.href}
           href={tab.href}
-          aria-current={tab.href === active ? 'page' : undefined}
-          className={linkClass(tab.href === active)}
+          aria-current={tab.href === current ? 'page' : undefined}
+          className={linkClass(tab.href === current)}
         >
           {tab.label}
         </Link>

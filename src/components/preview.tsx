@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import type { Prodi } from '@/lib/prodi'
 
 // Shared pieces of the on-screen previews (Cetak Jadwal, Rekap Dosen): the
 // ledger table, the section band, and the "what else goes in the file" panel.
@@ -60,7 +61,7 @@ export function PreviewLayout({ main, panel }: { main: ReactNode; panel: ReactNo
 }
 
 /** The settings-driven parts of the file that aren't rows (zoom, keterangan, signer...). */
-export function DocFacts({ title, items }: { title: string; items: { label: string; value: string | string[] }[] }) {
+export function DocFacts({ title, items, prodi }: { title: string; items: { label: string; value: string | string[] }[]; prodi: Prodi }) {
   return (
     <aside
       aria-label={title}
@@ -80,7 +81,7 @@ export function DocFacts({ title, items }: { title: string; items: { label: stri
           )
         })}
       </dl>
-      <Link href="/pengaturan" className="text-[0.87rem]">
+      <Link href={`/${prodi}/pengaturan`} className="text-[0.87rem]">
         Ubah di Pengaturan
       </Link>
     </aside>

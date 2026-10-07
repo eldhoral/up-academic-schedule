@@ -2,10 +2,11 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { signOutAction } from '@/app/actions/auth'
 import { getCurrentUser } from '@/lib/roles'
+import type { Prodi } from '@/lib/prodi'
 import { TextSizeController } from './TextSizeController'
 import { HeaderNav } from './HeaderNav'
 
-export async function AppHeader({ active }: { active: string }) {
+export async function AppHeader({ active, prodi }: { active: string; prodi?: Prodi }) {
   const user = await getCurrentUser()
 
   return (
@@ -29,7 +30,7 @@ export async function AppHeader({ active }: { active: string }) {
           />
           <span className="sr-only">Menu utama</span>
         </Link>
-        <HeaderNav active={active} />
+        <HeaderNav active={active} prodi={prodi} />
       </div>
 
       {/* ml-auto (not the parent's justify-between) so this group stays flush right even

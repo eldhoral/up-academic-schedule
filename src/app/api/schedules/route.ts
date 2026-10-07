@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchSchedulesForContext } from '@/app/kuliah/schedule-query'
+import { fetchSchedulesForContext } from '@/app/[prodi]/kuliah/schedule-query'
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams

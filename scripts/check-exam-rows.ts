@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import JSZip from 'jszip'
-import { buildExamRows, EXAM_COLUMNS, type PrintExam, type TableRow } from '../src/app/ujian/exam-rows'
-import { buildUjianXlsx } from '../src/app/ujian/cetak/build-ujian-xlsx'
-import { buildPengawasRekap } from '../src/app/ujian/pengawas-rows'
-import { buildRekapPengawasXlsx } from '../src/app/ujian/rekap/build-rekap-pengawas-xlsx'
-import { keteranganFromKuliah, type ExamRow } from '../src/app/ujian/exam-types'
+import { buildExamRows, EXAM_COLUMNS, type PrintExam, type TableRow } from '../src/app/[prodi]/ujian/exam-rows'
+import { buildUjianXlsx } from '../src/app/[prodi]/ujian/cetak/build-ujian-xlsx'
+import { buildPengawasRekap } from '../src/app/[prodi]/ujian/pengawas-rows'
+import { buildRekapPengawasXlsx } from '../src/app/[prodi]/ujian/rekap/build-rekap-pengawas-xlsx'
+import { keteranganFromKuliah, type ExamRow } from '../src/app/[prodi]/ujian/exam-types'
 
 const exam = (o: Partial<PrintExam>): PrintExam => ({
   kode_mk: 'M1', nama_mk: 'Psikologi Umum', sks: 3, kelas: 'A', tanggal: '2025-10-27', jam_mulai: '08:00', jam_selesai: '10:00',

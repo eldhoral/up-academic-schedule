@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import JSZip from 'jszip'
-import { buildSuratDocx } from '../src/app/kuliah/rekap/build-surat-docx'
+import { buildSuratDocx } from '../src/app/[prodi]/kuliah/rekap/build-surat-docx'
 
 // Calibrated against Word renders on A4 with the faculty's 5-line kop and 3 tembusan
 // lines: 4 classes (with 2-line zoom cells) overflow by one line, so the estimate splits from 4.

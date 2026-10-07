@@ -3,7 +3,7 @@ import { AppHeader } from '@/components/AppHeader'
 import { getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { getCampusPhoto, getKuliahStatus, getSidangStatus, getUjianStatus, type ScheduleStatus } from './hub-status'
-import type { AcademicYear } from './kuliah/penjadwalan-types'
+import type { AcademicYear } from './[prodi]/kuliah/penjadwalan-types'
 
 export default async function MenuPage() {
   const supabase = await createClient()
@@ -37,15 +37,15 @@ export default async function MenuPage() {
         <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">Tahun akademik aktif · S1 Psikologi</p>
 
         <section aria-label="Jadwal" className="bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)]">
-          <Entry folio="01" name="Jadwal Mata Kuliah & Dosen" scope="Kelas, dosen, ruangan, jam, bentrok" href="/kuliah" printHref="/kuliah/cetak" hasYear={Boolean(year)} status={kuliah} />
-          <Entry folio="02" name="Jadwal UTS & UAS" scope="Tanggal, pengawas, ruangan, bentrok" href="/ujian" printHref="/ujian/cetak" hasYear={Boolean(year)} status={ujian} />
-          <Entry folio="03" name="Jadwal Prasidang & Sidang" scope="Mahasiswa, penguji, ruang, bentrok" href="/sidang" printHref="/sidang/cetak" hasYear={Boolean(year)} status={sidang} />
+          <Entry folio="01" name="Jadwal Mata Kuliah & Dosen" scope="Kelas, dosen, ruangan, jam, bentrok" href="/s1/kuliah" printHref="/s1/kuliah/cetak" hasYear={Boolean(year)} status={kuliah} />
+          <Entry folio="02" name="Jadwal UTS & UAS" scope="Tanggal, pengawas, ruangan, bentrok" href="/s1/ujian" printHref="/s1/ujian/cetak" hasYear={Boolean(year)} status={ujian} />
+          <Entry folio="03" name="Jadwal Prasidang & Sidang" scope="Mahasiswa, penguji, ruang, bentrok" href="/s1/sidang" printHref="/s1/sidang/cetak" hasYear={Boolean(year)} status={sidang} />
         </section>
 
         {/* Secondary on purpose: a quiet line of links, not a fourth row competing with the schedules. */}
         <nav aria-label="Lainnya" className="mt-[1rem] flex flex-wrap items-center gap-x-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
           <span className="mr-[0.27rem]">Lainnya:</span>
-          <AdminLink href="/mata-kuliah">Data Master</AdminLink>
+          <AdminLink href="/s1/mata-kuliah">Data Master</AdminLink>
           {role === 'SUPERADMIN' && (
             <>
               <span aria-hidden="true">·</span>

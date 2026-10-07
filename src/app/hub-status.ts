@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { romanSemester } from '@/lib/print'
-import { checkAllClashes } from './kuliah/clash-actions'
-import { checkAllExamClashes } from './ujian/actions'
-import { checkAllDefenseClashes } from './sidang/actions'
-import { tanggalSingkat } from './sidang/defense-types'
+import { checkAllClashes } from './[prodi]/kuliah/clash-actions'
+import { checkAllExamClashes } from './[prodi]/ujian/actions'
+import { checkAllDefenseClashes } from './[prodi]/sidang/actions'
+import { tanggalSingkat } from './[prodi]/sidang/defense-types'
 import { FOTO_LOGIN_BUCKET, FOTO_LOGIN_FALLBACK, FOTO_LOGIN_PREFIX } from '@/lib/foto-login'
 
 /** One menu row's status: a lead figure with its label, quieter detail, and the tally inputs. */
