@@ -24,7 +24,7 @@ export default async function DashboardPage(props: PageProps<'/[prodi]/kuliah'>)
 
   const [{ data: academicYears }, settings] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
-    getSettings(),
+    getSettings(prodi),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []

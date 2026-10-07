@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Prodi } from '@/lib/prodi'
 import { getSettings, settingText } from '@/lib/settings'
 import { computeAngkatan, romanSemester, substituteTemplate } from '@/lib/print'
 import { fetchSchedulesForContext } from '../schedule-query'
 import type { AcademicYear } from '../penjadwalan-types'
 
 /** Same data/settings a Cetak Jadwal export needs, resolved from raw query-string values. */
-export async function buildCetakData(params: { ay?: string | null; jenis?: string | null; smt?: string | null }) {
+export async function buildCetakData(prodi: Prodi, params: { ay?: string | null; jenis?: string | null; smt?: string | null }) {
   const supabase = await createClient()
   const { data: academicYears } = await supabase.from('academic_years').select('*').order('id', { ascending: false })
 
@@ -18,7 +19,7 @@ export async function buildCetakData(params: { ay?: string | null; jenis?: strin
     semester_ke: parseInt(params.smt ?? '', 10) || ('all' as const), // no or non-numeric smt = Semua semester
   }
 
-  const [settings, schedules] = await Promise.all([getSettings(), fetchSchedulesForContext(context)])
+  const [settings, schedules] = await Promise.all([getSettings(prodi), fetchSchedulesForContext(context)])
 
   const year = years.find((y) => y.id === context.academic_year_id)
   const label = year?.label ?? ''

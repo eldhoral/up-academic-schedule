@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Prodi } from '@/lib/prodi'
 import { getSettings, settingText } from '@/lib/settings'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { angkatanTa, romanSemester, substituteTemplate } from '@/lib/print'
@@ -17,12 +18,12 @@ export type UjianSheet = {
 }
 
 /** Everything a UTS/UAS print (preview, Excel, PDF) needs, resolved from raw query-string values. */
-export async function buildUjianCetakData(params: { ay?: string | null; ujian?: string | null; jenis?: string | null; smt?: string | null; dosen?: string | null }) {
+export async function buildUjianCetakData(prodi: Prodi, params: { ay?: string | null; ujian?: string | null; jenis?: string | null; smt?: string | null; dosen?: string | null }) {
   const supabase = await createClient()
   const [{ data: academicYears }, { data: lecturers }, settings] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
-    getSettings(),
+    getSettings(prodi),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []

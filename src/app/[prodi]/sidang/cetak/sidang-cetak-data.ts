@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Prodi } from '@/lib/prodi'
 import { getSettings, settingText } from '@/lib/settings'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { tanggalPanjang } from '@/lib/hari'
@@ -14,12 +15,12 @@ export type SidangSheet = DefenseBlock & {
 }
 
 /** Everything a prasidang/sidang print (preview, Excel, PDF) needs, resolved from raw query-string values. */
-export async function buildSidangCetakData(params: { ay?: string | null; jenis?: string | null; tanggal?: string | null }) {
+export async function buildSidangCetakData(prodi: Prodi, params: { ay?: string | null; jenis?: string | null; tanggal?: string | null }) {
   const supabase = await createClient()
   const [{ data: academicYears }, { data: lecturers }, settings] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
-    getSettings(),
+    getSettings(prodi),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []

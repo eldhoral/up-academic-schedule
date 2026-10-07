@@ -1,9 +1,11 @@
+import { prodiParam } from '@/lib/prodi-server'
 import { buildCetakData } from '../cetak-data'
 import { buildXlsx } from '../build-xlsx'
 
-export async function GET(request: Request) {
+export async function GET(request: Request, ctx: RouteContext<'/[prodi]/kuliah/cetak/xlsx'>) {
+  const prodi = await prodiParam(ctx.params)
   const { searchParams } = new URL(request.url)
-  const data = await buildCetakData({
+  const data = await buildCetakData(prodi, {
     ay: searchParams.get('ay'),
     jenis: searchParams.get('jenis'),
     smt: searchParams.get('smt'),

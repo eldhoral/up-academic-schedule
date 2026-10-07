@@ -21,7 +21,7 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
     supabase.from('lecturers').select('*').order('nama'),
     supabase.from('rooms').select('*').eq('active', true).order('nama'),
     supabase.from('students').select('npm, nama, judul_skripsi').order('npm'),
-    getSettings(),
+    getSettings(prodi),
     getCurrentRole(),
     fetchExternalNames(),
   ])

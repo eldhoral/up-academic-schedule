@@ -1,15 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Prodi } from '@/lib/prodi'
 import { getSettings, settingText } from '@/lib/settings'
 import { fetchSchedulesForYear } from '../schedule-query'
 import type { AcademicYear, Lecturer } from '../penjadwalan-types'
 
 /** Same data/settings a Rekap Dosen (Surat Penugasan) export needs, resolved from raw query-string values. */
-export async function buildRekapData(params: { ay?: string | null; dosen?: string | null }) {
+export async function buildRekapData(prodi: Prodi, params: { ay?: string | null; dosen?: string | null }) {
   const supabase = await createClient()
   const [{ data: academicYears }, { data: lecturers }, settings] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select('*').order('nama'),
-    getSettings(),
+    getSettings(prodi),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []

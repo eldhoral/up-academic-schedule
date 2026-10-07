@@ -1,10 +1,12 @@
+import { prodiParam } from '@/lib/prodi-server'
 import { convertXlsxToPdf } from '@/lib/aspose'
 import { buildSidangCetakData } from '../sidang-cetak-data'
 import { buildSidangXlsx } from '../build-sidang-xlsx'
 
-export async function GET(request: Request) {
+export async function GET(request: Request, ctx: RouteContext<'/[prodi]/sidang/cetak/pdf'>) {
+  const prodi = await prodiParam(ctx.params)
   const { searchParams } = new URL(request.url)
-  const data = await buildSidangCetakData({ ay: searchParams.get('ay'), jenis: searchParams.get('jenis'), tanggal: searchParams.get('tanggal') })
+  const data = await buildSidangCetakData(prodi, { ay: searchParams.get('ay'), jenis: searchParams.get('jenis'), tanggal: searchParams.get('tanggal') })
   // An empty jadwal isn't worth an Aspose call.
   if (data.sheets.length === 0) return new Response('Tidak ada jadwal untuk dicetak', { status: 404 })
 

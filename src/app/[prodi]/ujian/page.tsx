@@ -20,7 +20,7 @@ export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select('*').order('nama'),
     supabase.from('rooms').select('*').eq('active', true).order('nama'),
-    getSettings(),
+    getSettings(prodi),
     getCurrentRole(),
   ])
 

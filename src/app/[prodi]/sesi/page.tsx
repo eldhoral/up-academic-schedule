@@ -9,7 +9,7 @@ export default async function SesiPage(props: PageProps<'/[prodi]/sesi'>) {
   const supabase = await createClient()
   const [{ data: sessions }, settings] = await Promise.all([
     supabase.from('sessions').select('*').order('hari').order('sesi_ke'),
-    getSettings(),
+    getSettings(prodi),
   ])
 
   return (

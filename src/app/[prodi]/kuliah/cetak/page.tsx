@@ -7,7 +7,7 @@ import { groupSchedulesByKelas } from './schedule-rows'
 export default async function CetakPage(props: PageProps<'/[prodi]/kuliah/cetak'>) {
   const prodi = await prodiParam(props.params)
   const searchParams = await props.searchParams
-  const data = await buildCetakData({
+  const data = await buildCetakData(prodi, {
     ay: searchParams.ay as string | undefined,
     jenis: searchParams.jenis as string | undefined,
     smt: searchParams.smt as string | undefined,

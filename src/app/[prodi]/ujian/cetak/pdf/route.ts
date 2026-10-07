@@ -1,10 +1,12 @@
+import { prodiParam } from '@/lib/prodi-server'
 import { convertXlsxToPdf } from '@/lib/aspose'
 import { buildUjianCetakData } from '../ujian-cetak-data'
 import { buildUjianXlsx } from '../build-ujian-xlsx'
 
-export async function GET(request: Request) {
+export async function GET(request: Request, ctx: RouteContext<'/[prodi]/ujian/cetak/pdf'>) {
+  const prodi = await prodiParam(ctx.params)
   const { searchParams } = new URL(request.url)
-  const data = await buildUjianCetakData({
+  const data = await buildUjianCetakData(prodi, {
     ay: searchParams.get('ay'),
     ujian: searchParams.get('ujian'),
     jenis: searchParams.get('jenis'),

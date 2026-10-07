@@ -6,7 +6,7 @@ import { SidangCetakClient } from './SidangCetakClient'
 export default async function SidangCetakPage(props: PageProps<'/[prodi]/sidang/cetak'>) {
   const prodi = await prodiParam(props.params)
   const searchParams = await props.searchParams
-  const data = await buildSidangCetakData({
+  const data = await buildSidangCetakData(prodi, {
     ay: searchParams.ay as string | undefined,
     jenis: searchParams.jenis as string | undefined,
     tanggal: searchParams.tanggal as string | undefined,

@@ -22,7 +22,7 @@ export default async function RekapPage(props: PageProps<'/[prodi]/kuliah/rekap'
   const academicYearId = (searchParams.ay as string) || defaultYear
   const selectedDosen = (searchParams.dosen as string) || 'all'
   // Same resolution the letter itself uses, so "nothing to rekap" never disagrees with the document.
-  const data = await buildRekapData({ ay: academicYearId, dosen: selectedDosen })
+  const data = await buildRekapData(prodi, { ay: academicYearId, dosen: selectedDosen })
 
   const index = data.lecturersWithLoad.map((l) => {
     const rows = data.byDosen.get(l.kode_dosen) ?? []

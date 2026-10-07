@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { getSettings, settingText } from '@/lib/settings'
+import type { Prodi } from '@/lib/prodi'
 import { findAllClashes, findClashes, type Clash, type ClashPairing, type ExistingScheduleForClash, type ScheduleCandidate } from '@/lib/clash'
 import { lecturerDisplayName } from '@/lib/import/tables'
 
@@ -76,8 +77,8 @@ function mapClashRows(data: SupabaseRow[]): ExistingScheduleForClash[] {
   })
 }
 
-async function getClashPolicies(): Promise<Record<Clash['type'], ClashPolicy>> {
-  const settings = await getSettings()
+async function getClashPolicies(prodi: Prodi): Promise<Record<Clash['type'], ClashPolicy>> {
+  const settings = await getSettings(prodi)
   return {
     dosen: settingText(settings, 'bentrok_dosen', 'blok') as ClashPolicy,
     kelas: settingText(settings, 'bentrok_kelas', 'blok') as ClashPolicy,
@@ -94,7 +95,7 @@ export async function checkScheduleClashes(
   }
 
   const supabase = await createClient()
-  const policies = await getClashPolicies()
+  const policies = await getClashPolicies('s1') // ponytail: s1 until Task 6 threads prodi here
 
   const { data, error } = await supabase
     .from('schedules')
@@ -168,7 +169,7 @@ export async function checkAllClashes(academicYearId: string): Promise<ClashFind
   if (!academicYearId) return []
 
   const supabase = await createClient()
-  const policies = await getClashPolicies()
+  const policies = await getClashPolicies('s1') // ponytail: s1 until Task 6 threads prodi here
 
   const { data, error } = await supabase.from('schedules').select(CLASH_SELECT).eq('academic_year_id', academicYearId)
   if (error || !data) return []

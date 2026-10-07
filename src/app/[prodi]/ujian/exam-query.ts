@@ -88,7 +88,7 @@ export async function loadClashWorld(academicYearId: string) {
     supabase.from('schedules').select('jenis_kelas, semester_ke, kelas').eq('academic_year_id', academicYearId),
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     supabase.from('rooms').select('id, nama'),
-    getSettings(),
+    getSettings('s1'), // ponytail: s1 until Task 7 threads prodi here
   ])
 
   const exams: ExamClashInput[] = ((examData ?? []) as unknown as RawExam[]).map(toExamRow).map((e) => ({

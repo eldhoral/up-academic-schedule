@@ -29,7 +29,7 @@ export async function previewGeneratedSessions(input: GeneratorInput): Promise<G
     .filter((n) => Number.isFinite(n) && n > 0)
   if (pattern.length === 0) return { ok: false, error: 'Pola SKS butuh minimal satu angka positif, mis. "2,2,3".' }
 
-  const settings = await getSettings()
+  const settings = await getSettings('s1') // ponytail: s1 until Task 8 threads prodi here
   const menitPerSks = settingInt(settings, 'menit_per_sks', 50)
   const istirahatMulai = settingText(settings, 'jam_istirahat_mulai', '12:10')
   const istirahatSelesai = settingText(settings, 'jam_istirahat_selesai', '13:00')

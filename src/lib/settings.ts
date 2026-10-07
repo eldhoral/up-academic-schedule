@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Prodi } from '@/lib/prodi'
 
 export type SettingsMap = Record<string, string>
 
-/** Reads every setting once per request; casts happen at the call site. */
-export async function getSettings(): Promise<SettingsMap> {
+/** Reads a prodi's settings plus the shared ('all') ones, once per request; casts happen at the call site. */
+export async function getSettings(prodi: Prodi): Promise<SettingsMap> {
   const supabase = await createClient()
-  const { data } = await supabase.from('settings').select('key, value')
+  const { data } = await supabase.from('settings').select('key, value').in('prodi', [prodi, 'all'])
   const map: SettingsMap = {}
   for (const row of data ?? []) map[row.key as string] = (row.value as string) ?? ''
   return map

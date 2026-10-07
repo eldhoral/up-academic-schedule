@@ -5,6 +5,8 @@ import { Select } from '@/components/Select'
 import { HARI_DB as HARI } from '@/lib/hari'
 import { createClient } from '@/lib/supabase/client'
 import { humanDbError } from '@/lib/db-error'
+import { PRODI_CONFIG } from '@/lib/prodi'
+import { useProdi } from '@/lib/use-prodi'
 import { saveSettingsAction, type FormState } from './actions'
 
 const FOTO_LOGIN_BUCKET = 'up_kiprat'
@@ -15,6 +17,7 @@ export type SettingRow = {
   key: string
   value: string
   type: 'int' | 'time' | 'text' | 'bool' | 'image'
+  prodi: 's1' | 's2' | 'all'
   group: string
   label: string
   help: string
@@ -29,7 +32,6 @@ const GROUP_LABEL: Record<string, string> = {
   cetak: 'Cetak',
   surat: 'Surat Penugasan',
   ujian: 'Jadwal Ujian',
-  sidang: 'Jadwal Prasidang & Sidang',
 }
 
 const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
@@ -56,7 +58,9 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
 
 const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'tembusan'])
 
-export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
+export function PengaturanClient({ settings, canEditShared }: { settings: SettingRow[]; canEditShared: boolean }) {
+  const prodi = useProdi()
+  const groupLabel = (g: string) => (g === 'sidang' ? `Jadwal ${PRODI_CONFIG[prodi].defense.section}` : GROUP_LABEL[g])
   const [state, formAction, isPending] = useActionState<FormState, FormData>(saveSettingsAction, null)
 
   const groups = GROUP_ORDER.map((g) => ({
@@ -66,6 +70,7 @@ export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
 
   return (
     <form action={formAction} className="space-y-[1.2rem]">
+      <input type="hidden" name="prodi" value={prodi} />
       {state && 'error' in state && (
         <div className="bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.7rem] text-[0.87rem] text-[var(--merah)]">
           {state.error}
@@ -86,11 +91,11 @@ export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
       {groups.map(({ group, rows }) => (
         <section key={group} className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem]">
           <h2 className="m-0 text-[1.07rem] font-semibold mb-[1rem] pb-[0.8rem] border-b border-[var(--garis)]">
-            {GROUP_LABEL[group] ?? group}
+            {groupLabel(group) ?? group}
           </h2>
           <div className="space-y-[1rem]">
             {rows.map((row) => (
-              <SettingField key={row.key} row={row} />
+              <SettingField key={`${row.prodi}:${row.key}`} row={row} canEditShared={canEditShared} />
             ))}
           </div>
         </section>
@@ -109,8 +114,10 @@ export function PengaturanClient({ settings }: { settings: SettingRow[] }) {
   )
 }
 
-function SettingField({ row }: { row: SettingRow }) {
-  const name = `setting:${row.key}`
+function SettingField({ row, canEditShared }: { row: SettingRow; canEditShared: boolean }) {
+  const shared = row.prodi === 'all'
+  const name = `${shared ? 'shared' : 'setting'}:${row.key}`
+  const disabled = shared && !canEditShared
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[16rem_1fr] gap-[0.3rem_1.2rem] items-start">
@@ -119,9 +126,17 @@ function SettingField({ row }: { row: SettingRow }) {
           {row.label}
         </label>
         {row.help && <p className="mt-[0.15rem] text-[0.8rem] text-[var(--tinta-3)] leading-[1.4]">{row.help}</p>}
+        {shared && (
+          <span className="block text-[0.8rem] text-[var(--tinta-3)]">
+            Berlaku untuk S1 dan S2{disabled && ' · hanya akun dengan akses Semua yang dapat mengubah'}
+          </span>
+        )}
       </div>
       <div className="max-w-[26rem]">
-        <SettingInput row={row} name={name} />
+        {/* fieldset disables every control inside (Select, hidden inputs, file picker), so none is submitted */}
+        <fieldset disabled={disabled} className={`m-0 p-0 border-0 min-w-0 ${disabled ? 'opacity-60' : ''}`}>
+          <SettingInput row={row} name={name} />
+        </fieldset>
       </div>
     </div>
   )

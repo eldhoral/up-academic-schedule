@@ -6,7 +6,7 @@ import { UjianCetakClient } from './UjianCetakClient'
 export default async function UjianCetakPage(props: PageProps<'/[prodi]/ujian/cetak'>) {
   const prodi = await prodiParam(props.params)
   const searchParams = await props.searchParams
-  const data = await buildUjianCetakData({
+  const data = await buildUjianCetakData(prodi, {
     ay: searchParams.ay as string | undefined,
     ujian: searchParams.ujian as string | undefined,
     jenis: searchParams.jenis as string | undefined,

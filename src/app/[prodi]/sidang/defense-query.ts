@@ -54,7 +54,7 @@ export async function loadDefenseWorld(academicYearId: string) {
     supabase.from('schedules').select('hari, jam_mulai, jam_selesai, kelas, courses(nama_mk), schedule_lecturers(kode_dosen)').eq('academic_year_id', academicYearId),
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     supabase.from('rooms').select('id, nama'),
-    getSettings(),
+    getSettings('s1'), // ponytail: s1 until Task 8 threads prodi here
   ])
 
   const defenses: DefenseClashInput[] = ((defenseData ?? []) as unknown as Raw[]).map(toRow).map((d) => ({

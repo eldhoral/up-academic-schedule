@@ -92,7 +92,7 @@ async function guardAgainstClashes(
   }
 
   if (row.confirmOverride && row.overrideReason) {
-    const settings = await getSettings()
+    const settings = await getSettings('s1') // ponytail: s1 until Task 6 threads prodi here
     const izinkanOverride = settingText(settings, 'izinkan_override', 'ya') === 'ya'
     if (!izinkanOverride) {
       return { formState: { error: 'Jadwal ini bentrok dan fitur terobos bentrok sedang dinonaktifkan di Pengaturan.' } }
