@@ -5,16 +5,19 @@ import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { ROLES, ROLE_LABEL, type Role } from '@/lib/role-types'
-import { createUserAction, deleteUserAction, updateUserRoleAction, type FormState } from './actions'
+import { PRODI_ACCESS, PRODI_ACCESS_LABEL, type ProdiAccess } from '@/lib/prodi'
+import { createUserAction, deleteUserAction, updateUserProdiAccessAction, updateUserRoleAction, type FormState } from './actions'
 
 export type Profile = {
   id: string
   email: string
   role: Role
+  prodi_access: ProdiAccess
   created_at: string
 }
 
 const ROLE_OPTIONS = ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))
+const PRODI_ACCESS_OPTIONS = PRODI_ACCESS.map((a) => ({ value: a, label: PRODI_ACCESS_LABEL[a] }))
 
 export function PenggunaClient({ users, currentUserId }: { users: Profile[]; currentUserId: string }) {
   const router = useRouter()
@@ -74,6 +77,7 @@ export function PenggunaClient({ users, currentUserId }: { users: Profile[]; cur
               <tr>
                 <Th>Email</Th>
                 <Th>Peran</Th>
+                <Th>Akses Prodi</Th>
                 <Th>Dibuat</Th>
                 <Th className="text-right">&nbsp;</Th>
               </tr>
@@ -87,6 +91,13 @@ export function PenggunaClient({ users, currentUserId }: { users: Profile[]; cur
                       <span className="text-[var(--tinta-3)]">{ROLE_LABEL[u.role]} (Anda)</span>
                     ) : (
                       <RoleSelect userId={u.id} role={u.role} />
+                    )}
+                  </Td>
+                  <Td>
+                    {u.role === 'SUPERADMIN' ? (
+                      <span className="text-[var(--tinta-3)]">Semua</span>
+                    ) : (
+                      <ProdiAccessSelect userId={u.id} access={u.prodi_access} />
                     )}
                   </Td>
                   <Td className="text-[var(--tinta-3)]">
@@ -106,7 +117,7 @@ export function PenggunaClient({ users, currentUserId }: { users: Profile[]; cur
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
+                  <td colSpan={5} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
                     {users.length === 0 ? 'Belum ada pengguna.' : <>Tidak ada pengguna yang cocok dengan &ldquo;{query}&rdquo;.</>}
                   </td>
                 </tr>
@@ -151,6 +162,43 @@ function RoleSelect({ userId, role }: { userId: string; role: Role }) {
         disabled={isPending}
         ariaLabel="Peran"
         options={ROLE_OPTIONS}
+        className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.3rem] text-[0.87rem] min-h-[2.1rem]"
+      />
+      {error && <p className="mt-[0.2rem] text-[0.75rem] text-[var(--merah)]">{error}</p>}
+    </div>
+  )
+}
+
+function ProdiAccessSelect({ userId, access }: { userId: string; access: ProdiAccess }) {
+  const router = useRouter()
+  const [current, setCurrent] = useState(access)
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState('')
+
+  function handleChange(next: string) {
+    const formData = new FormData()
+    formData.set('prodi_access', next)
+    setCurrent(next as ProdiAccess)
+    setError('')
+    startTransition(async () => {
+      const result = await updateUserProdiAccessAction(userId, null, formData)
+      if (result && 'error' in result) {
+        setError(result.error)
+        setCurrent(access)
+      } else {
+        router.refresh()
+      }
+    })
+  }
+
+  return (
+    <div>
+      <Select
+        value={current}
+        onValueChange={handleChange}
+        disabled={isPending}
+        ariaLabel="Akses Prodi"
+        options={PRODI_ACCESS_OPTIONS}
         className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.3rem] text-[0.87rem] min-h-[2.1rem]"
       />
       {error && <p className="mt-[0.2rem] text-[0.75rem] text-[var(--merah)]">{error}</p>}
@@ -207,6 +255,15 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
               defaultValue="VIEWER"
               ariaLabel="Peran"
               options={ROLE_OPTIONS}
+              className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
+            />
+          </Field>
+          <Field label="Akses Prodi">
+            <Select
+              name="prodi_access"
+              defaultValue="s1"
+              ariaLabel="Akses Prodi"
+              options={PRODI_ACCESS_OPTIONS}
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
             />
           </Field>

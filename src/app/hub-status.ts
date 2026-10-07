@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { romanSemester } from '@/lib/print'
-import type { Prodi } from '@/lib/prodi'
+import { PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 import { checkAllClashes } from './[prodi]/kuliah/clash-actions'
 import { checkAllExamClashes } from './[prodi]/ujian/actions'
 import { checkAllDefenseClashes } from './[prodi]/sidang/actions'
@@ -87,7 +87,10 @@ export async function getSidangStatus(academicYearId: string, prodi: Prodi): Pro
 
     const today = new Date().toISOString().slice(0, 10)
     const next = data.map((r) => r.tanggal as string).filter((t) => t >= today).sort()[0]
-    const counts = [`${data.filter((r) => r.jenis === 'prasidang').length} prasidang`, `${data.filter((r) => r.jenis === 'sidang').length} sidang`]
+    const counts = [
+      `${data.filter((r) => r.jenis === 'prasidang').length} ${PRODI_CONFIG[prodi].defense.prasidang.toLowerCase()}`,
+      `${data.filter((r) => r.jenis === 'sidang').length} ${PRODI_CONFIG[prodi].defense.sidang.toLowerCase()}`,
+    ]
     const incomplete = data.filter((r) => !r.pembimbing_kode || !r.penguji_kode).length
     return {
       figure: next ? tanggalSingkat(next) : String(data.length),

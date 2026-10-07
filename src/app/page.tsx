@@ -1,21 +1,30 @@
 import Link from 'next/link'
 import { AppHeader } from '@/components/AppHeader'
-import { getCurrentRole } from '@/lib/roles'
+import { getCurrentUser } from '@/lib/roles'
+import { accessibleProdi, PRODI_CONFIG } from '@/lib/prodi'
 import { createClient } from '@/lib/supabase/server'
 import { getCampusPhoto, getKuliahStatus, getSidangStatus, getUjianStatus, type ScheduleStatus } from './hub-status'
 import type { AcademicYear } from './[prodi]/kuliah/penjadwalan-types'
 
 export default async function MenuPage() {
   const supabase = await createClient()
-  const [{ data: academicYears }, role, photo] = await Promise.all([
+  const [{ data: academicYears }, user, photo] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
-    getCurrentRole(),
+    getCurrentUser(),
     getCampusPhoto(),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []
   const year = years.find((y) => y.is_active) ?? years[0]
-  const [kuliah, ujian, sidang] = year ? await Promise.all([getKuliahStatus(year.id, 's1'), getUjianStatus(year.id, 's1'), getSidangStatus(year.id, 's1')]) : [null, null, null]
+  const prodiList = user ? accessibleProdi(user.prodiAccess) : []
+  const blocks = await Promise.all(
+    prodiList.map(async (prodi) => {
+      const [kuliah, ujian, sidang] = year
+        ? await Promise.all([getKuliahStatus(year.id, prodi), getUjianStatus(year.id, prodi), getSidangStatus(year.id, prodi)])
+        : [null, null, null]
+      return { prodi, kuliah, ujian, sidang }
+    }),
+  )
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
@@ -34,19 +43,30 @@ export default async function MenuPage() {
         </figure>
 
         <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.02em] text-balance">{year?.label ?? 'Belum ada tahun akademik'}</h1>
-        <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">Tahun akademik aktif · S1 Psikologi</p>
+        <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">Tahun akademik aktif</p>
 
-        <section aria-label="Jadwal" className="bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)]">
-          <Entry folio="01" name="Jadwal Mata Kuliah & Dosen" scope="Kelas, dosen, ruangan, jam, bentrok" href="/s1/kuliah" printHref="/s1/kuliah/cetak" hasYear={Boolean(year)} status={kuliah} />
-          <Entry folio="02" name="Jadwal UTS & UAS" scope="Tanggal, pengawas, ruangan, bentrok" href="/s1/ujian" printHref="/s1/ujian/cetak" hasYear={Boolean(year)} status={ujian} />
-          <Entry folio="03" name="Jadwal Prasidang & Sidang" scope="Mahasiswa, penguji, ruang, bentrok" href="/s1/sidang" printHref="/s1/sidang/cetak" hasYear={Boolean(year)} status={sidang} />
-        </section>
+        {blocks.map(({ prodi, kuliah, ujian, sidang }) => {
+          const c = PRODI_CONFIG[prodi]
+          return (
+            <section key={prodi} aria-label={c.label} className="mb-[1.2rem]">
+              <div className="flex items-baseline justify-between gap-[1rem] mb-[0.4rem]">
+                <h2 className="m-0 text-[1.07rem] font-semibold tracking-[-0.01em]">{c.label}</h2>
+                <AdminLink href={`/${prodi}/mata-kuliah`}>Data Master {c.short}</AdminLink>
+              </div>
+              <div className="bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)]">
+                <Entry folio="01" name="Jadwal Mata Kuliah & Dosen" scope="Kelas, dosen, ruangan, jam, bentrok" href={`/${prodi}/kuliah`} printHref={`/${prodi}/kuliah/cetak`} hasYear={Boolean(year)} status={kuliah} />
+                <Entry folio="02" name="Jadwal UTS & UAS" scope="Tanggal, pengawas, ruangan, bentrok" href={`/${prodi}/ujian`} printHref={`/${prodi}/ujian/cetak`} hasYear={Boolean(year)} status={ujian} />
+                <Entry folio="03" name={`Jadwal ${c.defense.section}`} scope="Mahasiswa, penguji, ruang, bentrok" href={`/${prodi}/sidang`} printHref={`/${prodi}/sidang/cetak`} hasYear={Boolean(year)} status={sidang} />
+              </div>
+            </section>
+          )
+        })}
 
-        {/* Secondary on purpose: a quiet line of links, not a fourth row competing with the schedules. */}
+        {/* Secondary on purpose: a quiet line of links, not a row competing with the schedules. */}
         <nav aria-label="Lainnya" className="mt-[1rem] flex flex-wrap items-center gap-x-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
           <span className="mr-[0.27rem]">Lainnya:</span>
-          <AdminLink href="/s1/mata-kuliah">Data Master</AdminLink>
-          {role === 'SUPERADMIN' && (
+          <AdminLink href="/dosen">Data Bersama</AdminLink>
+          {user?.role === 'SUPERADMIN' && (
             <>
               <span aria-hidden="true">·</span>
               <AdminLink href="/pengguna">Manajemen Pengguna</AdminLink>

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser, ROLES, type Role } from '@/lib/roles'
 import { humanDbError } from '@/lib/db-error'
+import { PRODI_ACCESS, type ProdiAccess } from '@/lib/prodi'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -18,6 +19,11 @@ async function requireSuperadmin() {
 function readRole(formData: FormData): Role | null {
   const value = formData.get('role') as string
   return (ROLES as readonly string[]).includes(value) ? (value as Role) : null
+}
+
+function readProdiAccess(formData: FormData): ProdiAccess | null {
+  const value = formData.get('prodi_access') as string
+  return (PRODI_ACCESS as readonly string[]).includes(value) ? (value as ProdiAccess) : null
 }
 
 async function isLastSuperadmin(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<boolean> {
@@ -38,10 +44,12 @@ export async function createUserAction(_prev: FormState, formData: FormData): Pr
   const email = (formData.get('email') as string)?.trim()
   const password = formData.get('password') as string
   const role = readRole(formData)
+  const prodi_access = readProdiAccess(formData)
 
   if (!email) return { error: 'Email wajib diisi.' }
   if (!password || password.length < 8) return { error: 'Kata sandi minimal 8 karakter.' }
   if (!role) return { error: 'Peran tidak valid.' }
+  if (!prodi_access) return { error: 'Akses prodi tidak valid.' }
 
   const admin = createAdminClient()
   const { data, error } = await admin.auth.admin.createUser({
@@ -51,10 +59,8 @@ export async function createUserAction(_prev: FormState, formData: FormData): Pr
   })
   if (error) return { error: humanDbError(error) }
 
-  if (role !== 'VIEWER') {
-    const { error: roleError } = await admin.from('profiles').update({ role }).eq('id', data.user.id)
-    if (roleError) return { error: humanDbError(roleError) }
-  }
+  const { error: roleError } = await admin.from('profiles').update({ role, prodi_access }).eq('id', data.user.id)
+  if (roleError) return { error: humanDbError(roleError) }
 
   revalidatePath('/pengguna')
   return { success: true }
@@ -78,6 +84,23 @@ export async function updateUserRoleAction(userId: string, _prev: FormState, for
   }
 
   const { error } = await admin.from('profiles').update({ role }).eq('id', userId)
+  if (error) return { error: humanDbError(error) }
+
+  revalidatePath('/pengguna')
+  return { success: true }
+}
+
+export async function updateUserProdiAccessAction(userId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  try {
+    await requireSuperadmin()
+  } catch (e) {
+    return { error: (e as Error).message }
+  }
+  const prodi_access = readProdiAccess(formData)
+  if (!prodi_access) return { error: 'Akses prodi tidak valid.' }
+
+  const admin = createAdminClient()
+  const { error } = await admin.from('profiles').update({ prodi_access }).eq('id', userId)
   if (error) return { error: humanDbError(error) }
 
   revalidatePath('/pengguna')
