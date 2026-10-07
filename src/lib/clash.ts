@@ -1,3 +1,5 @@
+import type { Prodi } from '@/lib/prodi'
+
 export type Minggu = 'setiap' | 'ganjil' | 'genap'
 
 /** setiap collides with everything; ganjil/genap collide with setiap and themselves, never with each other. */
@@ -17,6 +19,7 @@ export function timeOverlapMinutes(aStart: string, aEnd: string, bStart: string,
 }
 
 export type ScheduleCandidate = {
+  prodi: Prodi
   id?: string // excluded from its own clash check when editing
   hari: string
   jam_mulai: string
@@ -31,6 +34,7 @@ export type ScheduleCandidate = {
 
 export type ExistingScheduleForClash = {
   id: string
+  prodi: Prodi
   kode_mk: string
   nama_mk: string
   kelas: string
@@ -79,7 +83,8 @@ export function findClashes(candidate: ScheduleCandidate, existing: ExistingSche
       clashes.push({ type: 'dosen', with: row, overlapMinutes, detail: names.join(', ') })
     }
 
-    if (row.kelas === candidate.kelas && row.jenis_kelas === candidate.jenis_kelas && row.semester_ke === candidate.semester_ke) {
+    // A kelas is a group of students in one prodi; dosen and rooms above/below are shared across prodi.
+    if (row.prodi === candidate.prodi && row.kelas === candidate.kelas && row.jenis_kelas === candidate.jenis_kelas && row.semester_ke === candidate.semester_ke) {
       clashes.push({ type: 'kelas', with: row, overlapMinutes, detail: `Kelas ${row.kelas}` })
     }
 
@@ -109,6 +114,7 @@ export function findAllClashes(existing: ExistingScheduleForClash[]): ClashPairi
   for (let i = 0; i < existing.length; i++) {
     const a = existing[i]
     const candidate: ScheduleCandidate = {
+      prodi: a.prodi,
       id: a.id,
       hari: a.hari,
       jam_mulai: a.jam_mulai,
@@ -163,4 +169,15 @@ export function findSlotClashes<T extends SlotRow>(rows: T[]): SlotClash<T>[] {
     }
   }
   return clashes
+}
+
+/**
+ * A finding as one prodi's page shows it: null when neither side belongs to that prodi, otherwise
+ * with `a` as that prodi's own row (what "Lihat" jumps to) and `b` the other side. `b` is null for
+ * one-sided findings such as a defense overlapping the dosen's teaching.
+ */
+export function orientFinding<S extends { prodi: Prodi }, F extends { a: S; b: S | null }>(prodi: Prodi, f: F): F | null {
+  if (f.a.prodi === prodi) return f
+  if (f.b?.prodi === prodi) return { ...f, a: f.b, b: f.a } as F // same shape, sides swapped
+  return null
 }

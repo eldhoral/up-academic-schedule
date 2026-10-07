@@ -1,8 +1,10 @@
 import { findSlotClashes } from '@/lib/clash'
+import type { Prodi } from '@/lib/prodi'
 import { needsRoom, GABUNGAN, type KeteranganUjian, type PengawasItem } from './exam-types'
 
 export type ExamClashInput = {
   id: string
+  prodi: Prodi
   kode_mk: string
   nama_mk: string
   jenis_ujian: string
@@ -29,7 +31,7 @@ export type ExamClash = {
 
 export const normalizeName = (s: string) => s.trim().replace(/\s+/g, ' ').toUpperCase()
 
-/** kelas letters per "jenis_kelas/semester" -- what a GABUNGAN row is taken to cover. */
+/** kelas letters per "prodi/jenis_kelas/semester" -- what a GABUNGAN row is taken to cover. */
 export type KelasMap = Map<string, string[]>
 
 /**
@@ -46,8 +48,10 @@ export function examKeys(row: ExamClashInput, kelasMap: KelasMap, cadangan: Set<
   }
   if (needsRoom(row.keterangan_ujian) && row.room_id) keys.push(`ruang:${row.room_id}`)
 
-  const kelas = row.kelas === GABUNGAN ? (kelasMap.get(`${row.jenis_kelas}/${row.semester_ke}`) ?? []) : [row.kelas]
-  for (const k of kelas) keys.push(`kelas:${row.jenis_kelas}/${row.semester_ke}/${k}`)
+  // Kelas keys carry the prodi: kelas A of S1 and kelas A of S2 are different students.
+  const scope = `${row.prodi}/${row.jenis_kelas}/${row.semester_ke}`
+  const kelas = row.kelas === GABUNGAN ? (kelasMap.get(scope) ?? []) : [row.kelas]
+  for (const k of kelas) keys.push(`kelas:${scope}/${k}`)
   return keys
 }
 
@@ -73,7 +77,7 @@ export function findExamClashes(
       const [prefix, id] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)]
       if (prefix === 'ruang') return { type: 'ruangan' as const, a, b, overlapMinutes, detail: roomNames.get(id) ?? '' }
       if (prefix === 'kelas') {
-        const [, smt, kelas] = id.split('/')
+        const [, , smt, kelas] = id.split('/')
         return { type: 'kelas' as const, a, b, overlapMinutes, detail: `Kelas ${kelas} (smt ${smt})` }
       }
       return { type: 'pengawas' as const, a, b, overlapMinutes, detail: prefix === 'dosen' ? (names.get(id) ?? id) : id }

@@ -1,10 +1,12 @@
 import { findSlotClashes, timeOverlapMinutes } from '@/lib/clash'
+import type { Prodi } from '@/lib/prodi'
 import { hariFromTanggal } from '@/lib/hari'
 import { normalizeName } from '../ujian/exam-clash'
 import type { DefenseJenis } from './defense-types'
 
 export type DefenseClashInput = {
   id: string
+  prodi: Prodi
   jenis: DefenseJenis
   tanggal: string
   jam_mulai: string
@@ -27,7 +29,8 @@ export function defenseKeys(d: DefenseClashInput): string[] {
   const keys = [d.pembimbing_kode, d.penguji_kode].filter((k): k is string => !!k).map((k) => `dosen:${k}`)
   if (d.penguji_eksternal.trim()) keys.push(`nama:${normalizeName(d.penguji_eksternal)}`)
   if (d.jenis === 'sidang' && d.room_id) keys.push(`ruang:${d.room_id}`)
-  if (d.jenis === 'prasidang' && d.kelompok !== null) keys.push(`kelompok:${d.kelompok}`)
+  // Each prodi has its own Zoom meeting, so kelompok 1 of S1 and of S2 are different breakout rooms.
+  if (d.jenis === 'prasidang' && d.kelompok !== null) keys.push(`kelompok:${d.prodi}:${d.kelompok}`)
   return keys
 }
 
@@ -37,13 +40,13 @@ export function findDefenseClashes(rows: DefenseClashInput[], names: Map<string,
     const prefix = key.slice(0, key.indexOf(':'))
     const id = key.slice(key.indexOf(':') + 1)
     if (prefix === 'ruang') return { type: 'ruangan' as const, a, b, overlapMinutes, detail: roomNames.get(id) ?? '' }
-    if (prefix === 'kelompok') return { type: 'ruangan' as const, a, b, overlapMinutes, detail: `Kelompok ${id}` }
+    if (prefix === 'kelompok') return { type: 'ruangan' as const, a, b, overlapMinutes, detail: `Kelompok ${id.slice(id.indexOf(':') + 1)}` }
     if (prefix === 'nama') return { type: 'eksternal' as const, a, b, overlapMinutes, detail: id }
     return { type: 'dosen' as const, a, b, overlapMinutes, detail: names.get(id) ?? id }
   })
 }
 
-export type TeachingSlot = { hari: string; jam_mulai: string; jam_selesai: string; nama_mk: string; kelas: string; dosenCodes: string[] }
+export type TeachingSlot = { prodi: Prodi; hari: string; jam_mulai: string; jam_selesai: string; nama_mk: string; kelas: string; dosenCodes: string[] }
 
 export type TeachingOverlap = { defense: DefenseClashInput; kode_dosen: string; teaching: TeachingSlot; overlapMinutes: number }
 
