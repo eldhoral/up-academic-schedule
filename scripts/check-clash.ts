@@ -214,6 +214,9 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
   assert.equal(run([exam('m1', {}), exam('m2', { prodi: 's2' })]).length, 0, 'kelas A of S1 and kelas A of S2 sit apart')
   assert.equal(run([exam('m1', { kelas: 'GABUNGAN' }), exam('m2', { prodi: 's2', kelas: 'A' })]).length, 0, 'S1 GABUNGAN covers S1 kelas only')
   assert.deepEqual(run([exam('m1', { kelas: 'GABUNGAN' }), exam('m2', { kelas: 'B' })]).map((c) => c.detail), ['Kelas B (smt 1)'], 'detail text still reads kelas and smt')
+
+  // S1 m1 and S2 m1 are different exams even though they share kode_mk, jenis, jenis_kelas, semester; they should not suppress clashes
+  assert.deepEqual(run([exam('m1', { room_id: 'r1', pengawas: [{ kode_dosen: 'D9' }] }), exam('m1', { prodi: 's2', room_id: 'r1', pengawas: [{ kode_dosen: 'D9' }] })]).map((c) => c.type).sort(), ['pengawas', 'ruangan'], 'same exam id across prodi must clash')
 }
 {
   const d = (id: string, o: Partial<DefenseClashInput>): DefenseClashInput => ({

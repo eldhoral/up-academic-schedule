@@ -69,7 +69,7 @@ export function findExamClashes(
 ): ExamClash[] {
   const slots = rows.map((r) => ({ ...r, keys: examKeys(r, kelasMap, cadangan) }))
   const sameExam = (a: ExamClashInput, b: ExamClashInput) =>
-    a.kode_mk === b.kode_mk && a.jenis_ujian === b.jenis_ujian && a.jenis_kelas === b.jenis_kelas && a.semester_ke === b.semester_ke
+    a.prodi === b.prodi && a.kode_mk === b.kode_mk && a.jenis_ujian === b.jenis_ujian && a.jenis_kelas === b.jenis_kelas && a.semester_ke === b.semester_ke
 
   return findSlotClashes(slots)
     .filter(({ a, b }) => !sameExam(a, b))
