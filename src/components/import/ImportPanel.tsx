@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from 'react'
 import { commitImportAction, previewImportAction, type PreviewState } from '@/lib/import/actions'
 import type { ImportTableSlug } from '@/lib/import/tables'
 import type { RowOutcome } from '@/lib/import/engine'
+import type { Prodi } from '@/lib/prodi'
 
 const STATUS_LABEL: Record<RowOutcome<Record<string, unknown>>['status'], string> = {
   new: 'New',
@@ -23,10 +24,12 @@ export function ImportPanel({
   tableSlug,
   label,
   onCommitted,
+  prodi,
 }: {
   tableSlug: ImportTableSlug
   label: string
   onCommitted: () => void
+  prodi?: Prodi
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<PreviewState | null>(null)
@@ -44,6 +47,7 @@ export function ImportPanel({
 
     const formData = new FormData()
     formData.set('file', file)
+    if (prodi) formData.set('prodi', prodi)
     startPreview(async () => {
       const result = await previewImportAction(tableSlug, formData)
       setPreview(result)
@@ -57,7 +61,7 @@ export function ImportPanel({
       .map((r) => r.data)
 
     startCommit(async () => {
-      const result = await commitImportAction(tableSlug, rows)
+      const result = await commitImportAction(tableSlug, rows, prodi)
       if (result.ok) {
         setCommitMessage(`${result.written} row${result.written === 1 ? '' : 's'} written.`)
         setPreview(null)
@@ -83,7 +87,7 @@ export function ImportPanel({
         </div>
         <div className="flex gap-[0.5rem] shrink-0">
           <a
-            href={`/api/export/${tableSlug}`}
+            href={`/api/export/${tableSlug}${prodi ? `?prodi=${prodi}` : ''}`}
             download
             className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] font-medium text-[var(--tinta-2)] hover:bg-[var(--cekung)] transition-colors"
           >

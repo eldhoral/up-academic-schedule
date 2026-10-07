@@ -51,6 +51,8 @@ export function classifyRows<T extends Record<string, unknown>>(params: {
   parseRow: (raw: ParsedRow, rowNumber: number) => { key: string; data: T; notes: string[] } | { reason: string }
   existingByKey: Map<string, T>
   equal: (a: T, b: T) => boolean
+  /** Keys owned by another prodi: never overwritten from this prodi's import. */
+  otherProdiKeys?: Set<string>
 }): ImportPreview<T> {
   const { parsed, parseRow, existingByKey, equal } = params
   const outcomes: RowOutcome<T>[] = []
@@ -66,6 +68,10 @@ export function classifyRows<T extends Record<string, unknown>>(params: {
     const { key, data, notes } = parsedResult
     if (seenKeys.has(key)) {
       outcomes.push({ status: 'rejected', key, reason: `Duplicate key "${key}" within this file.`, rowNumber })
+      return
+    }
+    if (params.otherProdiKeys?.has(key)) {
+      outcomes.push({ status: 'rejected', key, reason: `"${key}" sudah terdaftar di prodi lain.`, rowNumber })
       return
     }
     seenKeys.add(key)

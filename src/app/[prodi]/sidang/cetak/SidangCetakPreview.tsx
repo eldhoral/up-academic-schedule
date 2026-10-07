@@ -2,7 +2,7 @@ import type { Prodi } from '@/lib/prodi'
 import { DocFacts, PreviewLayout, PreviewTable, cell } from '@/components/preview'
 import { tanggalPanjang } from '@/lib/hari'
 import { DEFENSE_COLUMNS } from '../defense-blocks'
-import type { DefenseJenis } from '../defense-types'
+import { jenisLabel, type DefenseJenis } from '../defense-types'
 import type { SidangSheet } from './sidang-cetak-data'
 
 export type SidangDoc = {
@@ -20,7 +20,7 @@ export function SidangCetakPreview({ jenis, sheets, doc, prodi }: { jenis: Defen
   return (
     <PreviewLayout
       main={sheets.map((sheet) => (
-        <BlockSection key={sheet.name} jenis={jenis} sheet={sheet} doc={doc} />
+        <BlockSection key={sheet.name} jenis={jenis} prodi={prodi} sheet={sheet} doc={doc} />
       ))}
       panel={
         <DocFacts
@@ -38,7 +38,7 @@ export function SidangCetakPreview({ jenis, sheets, doc, prodi }: { jenis: Defen
   )
 }
 
-function BlockSection({ jenis, sheet, doc }: { jenis: DefenseJenis; sheet: SidangSheet; doc: SidangDoc }) {
+function BlockSection({ jenis, prodi, sheet, doc }: { jenis: DefenseJenis; prodi: Prodi; sheet: SidangSheet; doc: SidangDoc }) {
   const columns = DEFENSE_COLUMNS[jenis]
   const place = jenis === 'sidang' ? `Ruang ${sheet.ruang}` : `Kelompok ${sheet.kelompok}${doc.zoomId ? ` · Zoom ${doc.zoomId}` : ''}`
 
@@ -51,7 +51,7 @@ function BlockSection({ jenis, sheet, doc }: { jenis: DefenseJenis; sheet: Sidan
         </p>
       </div>
 
-      <PreviewTable label={`Jadwal ${jenis} ${tanggalPanjang(sheet.tanggal, false)} ${place}`} columns={columns.map((c) => ({ label: c.label, align: c.center ? ('center' as const) : ('left' as const) }))}>
+      <PreviewTable label={`Jadwal ${jenisLabel(prodi, jenis).toLowerCase()} ${tanggalPanjang(sheet.tanggal, false)} ${place}`} columns={columns.map((c) => ({ label: c.label, align: c.center ? ('center' as const) : ('left' as const) }))}>
         {sheet.rows.map((row, ri) => (
           <tr key={ri} className="h-[2.6rem] border-t border-[var(--garis)]">
             {row.cells.map((text, ci) => (

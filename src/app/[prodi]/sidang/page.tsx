@@ -20,7 +20,7 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select('*').order('nama'),
     supabase.from('rooms').select('*').eq('active', true).order('nama'),
-    supabase.from('students').select('npm, nama, judul_skripsi').order('npm'),
+    supabase.from('students').select('npm, nama, judul_skripsi').eq('prodi', prodi).order('npm'),
     getSettings(prodi),
     getCurrentRole(),
     fetchExternalNames(),
@@ -29,19 +29,20 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
   const years = (academicYears as AcademicYear[]) ?? []
   const defaultYear = years.find((y) => y.is_active)?.id ?? years[0]?.id ?? ''
   const context: DefenseContext = {
+    prodi,
     academic_year_id: (searchParams.ay as string) || defaultYear,
     jenis: (searchParams.jenis as string) === 'sidang' ? 'sidang' : 'prasidang',
   }
   const tanggal = /^\d{4}-\d{2}-\d{2}$/.test((searchParams.tanggal as string) ?? '') ? (searchParams.tanggal as string) : null
 
-  const [defenses, findings] = await Promise.all([fetchDefenses(context.academic_year_id, context.jenis), checkAllDefenseClashes(context.academic_year_id)])
+  const [defenses, findings] = await Promise.all([fetchDefenses(context.academic_year_id, context.jenis, prodi), checkAllDefenseClashes(context.academic_year_id, prodi)])
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <AppHeader active="/sidang" prodi={prodi} />
       <SidangClient
         // A new context (year, jenis) starts the board's local state fresh.
-        key={`${context.academic_year_id}-${context.jenis}`}
+        key={`${prodi}-${context.academic_year_id}-${context.jenis}`}
         academicYears={years}
         context={context}
         defenses={defenses}

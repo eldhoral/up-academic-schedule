@@ -26,7 +26,7 @@ export default async function SidangKalenderPage(props: PageProps<'/[prodi]/sida
 
   // Both kinds on one calendar by default: a dosen sits on prasidang and sidang alike.
   const defenses = (
-    await Promise.all((context.jenis === 'all' ? (['prasidang', 'sidang'] as const) : [context.jenis]).map((j) => fetchDefenses(context.academic_year_id, j)))
+    await Promise.all((context.jenis === 'all' ? (['prasidang', 'sidang'] as const) : [context.jenis]).map((j) => fetchDefenses(context.academic_year_id, j, prodi)))
   ).flat()
 
   return (

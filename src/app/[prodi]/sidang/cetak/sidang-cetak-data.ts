@@ -27,12 +27,13 @@ export async function buildSidangCetakData(prodi: Prodi, params: { ay?: string |
   const defaultYear = years.find((y) => y.is_active)?.id ?? years[0]?.id ?? ''
   const jenis: DefenseJenis = params.jenis === 'sidang' ? 'sidang' : 'prasidang'
   const context = {
+    prodi,
     academic_year_id: params.ay || defaultYear,
     jenis,
     tanggal: /^\d{4}-\d{2}-\d{2}$/.test(params.tanggal ?? '') ? (params.tanggal as string) : ('all' as const), // no or odd tanggal = Semua tanggal
   }
 
-  const all = await fetchDefenses(context.academic_year_id, jenis)
+  const all = await fetchDefenses(context.academic_year_id, jenis, prodi)
   const dates = [...new Set(all.map((d) => d.tanggal))].sort()
   const names = new Map((lecturers ?? []).map((l) => [l.kode_dosen as string, lecturerDisplayName(l)]))
 

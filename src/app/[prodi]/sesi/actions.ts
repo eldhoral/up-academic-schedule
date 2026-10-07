@@ -6,10 +6,13 @@ import { generateDaySessions, type GeneratedSlot } from '@/lib/sesi-generator'
 import { getSettings, settingInt, settingText } from '@/lib/settings'
 import { HARI_DB as HARI_VALUES } from '@/lib/hari'
 import { humanDbError } from '@/lib/db-error'
+import type { Prodi } from '@/lib/prodi'
+import { writableProdi } from '@/lib/prodi-server'
 
 export type FormState = { error: string } | { success: true } | null
 
 export type GeneratorInput = {
+  prodi: Prodi
   hari: string
   startJam: string
   pattern: string // comma list, e.g. "2,2,3"
@@ -29,7 +32,7 @@ export async function previewGeneratedSessions(input: GeneratorInput): Promise<G
     .filter((n) => Number.isFinite(n) && n > 0)
   if (pattern.length === 0) return { ok: false, error: 'Pola SKS butuh minimal satu angka positif, mis. "2,2,3".' }
 
-  const settings = await getSettings('s1') // ponytail: s1 until Task 8 threads prodi here
+  const settings = await getSettings(input.prodi)
   const menitPerSks = settingInt(settings, 'menit_per_sks', 50)
   const istirahatMulai = settingText(settings, 'jam_istirahat_mulai', '12:10')
   const istirahatSelesai = settingText(settings, 'jam_istirahat_selesai', '13:00')
@@ -41,6 +44,7 @@ export async function previewGeneratedSessions(input: GeneratorInput): Promise<G
       .from('sessions')
       .select('sesi_ke')
       .eq('hari', input.hari)
+      .eq('prodi', input.prodi)
       .order('sesi_ke', { ascending: false })
       .limit(1)
     startSesiKe = ((data?.[0]?.sesi_ke as number) ?? 0) + 1
@@ -60,20 +64,24 @@ export async function previewGeneratedSessions(input: GeneratorInput): Promise<G
 }
 
 export async function commitGeneratedSessions(
+  prodi: Prodi,
   hari: string,
   replaceDay: boolean,
   slots: GeneratedSlot[]
 ): Promise<GeneratorResult> {
+  const gate = await writableProdi(prodi)
+  if ('error' in gate) return { ok: false, error: gate.error }
   if (slots.length === 0) return { ok: false, error: 'Tidak ada yang disimpan.' }
 
   const supabase = await createClient()
 
   if (replaceDay) {
-    const { error } = await supabase.from('sessions').delete().eq('hari', hari)
+    const { error } = await supabase.from('sessions').delete().eq('hari', hari).eq('prodi', gate.prodi)
     if (error) return { ok: false, error: humanDbError(error) }
   }
 
   const rows = slots.map((s) => ({
+    prodi: gate.prodi,
     hari,
     sesi_ke: s.sesi_ke,
     jam_mulai: s.jam_mulai,
@@ -99,22 +107,26 @@ function readSessionForm(formData: FormData) {
   return { hari, sesi_ke, jam_mulai, jam_selesai, sks, active }
 }
 
-export async function updateSessionAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
+export async function updateSessionAction(prodi: Prodi, id: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const gate = await writableProdi(prodi)
+  if ('error' in gate) return { error: gate.error }
   const row = readSessionForm(formData)
   if (!row.jam_mulai || !row.jam_selesai) return { error: 'jam_mulai dan jam_selesai wajib diisi.' }
   if (row.jam_selesai <= row.jam_mulai) return { error: 'jam_selesai harus setelah jam_mulai.' }
 
   const supabase = await createClient()
-  const { error } = await supabase.from('sessions').update(row).eq('id', id)
+  const { error } = await supabase.from('sessions').update(row).eq('id', id).eq('prodi', gate.prodi)
   if (error) return { error: humanDbError(error) }
 
   revalidatePath('/[prodi]/sesi', 'page')
   return { success: true }
 }
 
-export async function deleteSessionAction(id: string): Promise<FormState> {
+export async function deleteSessionAction(prodi: Prodi, id: string): Promise<FormState> {
+  const gate = await writableProdi(prodi)
+  if ('error' in gate) return { error: gate.error }
   const supabase = await createClient()
-  const { error } = await supabase.from('sessions').delete().eq('id', id)
+  const { error } = await supabase.from('sessions').delete().eq('id', id).eq('prodi', gate.prodi)
   if (error) return { error: humanDbError(error) }
 
   revalidatePath('/[prodi]/sesi', 'page')

@@ -7,9 +7,10 @@ import { DetailModal, TimeGrid, courseColor, type GridColumn } from '@/component
 import { WeekNav } from '@/components/WeekNav'
 import { hariFromTanggal, tanggalPanjang } from '@/lib/hari'
 import { dayLabel, defaultWeek, eventWeeks, mondayOf, weekDays } from '@/lib/week'
-import { JENIS_LABEL, type DefenseRow } from '../defense-types'
+import { jenisLabel, type DefenseRow } from '../defense-types'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 import { useProdi } from '@/lib/use-prodi'
+import { PRODI_CONFIG } from '@/lib/prodi'
 
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
 
@@ -63,10 +64,10 @@ export function SidangKalenderClient({
         id: d.id,
         jam_mulai: d.jam_mulai,
         jam_selesai: d.jam_selesai,
-        title: `${d.nama_mahasiswa} (${d.npm}) — ${JENIS_LABEL[d.jenis]} — ${d.jam_mulai}–${d.jam_selesai} — ${place(d)}`,
+        title: `${d.nama_mahasiswa} (${d.npm}) — ${jenisLabel(prodi, d.jenis)} — ${d.jam_mulai}–${d.jam_selesai} — ${place(d)}`,
         badge: d.jenis === 'sidang' ? d.room_nama ?? '—' : `K${d.kelompok ?? ''}`,
         name: d.nama_mahasiswa,
-        sub: `${JENIS_LABEL[d.jenis]} · ${d.npm}`,
+        sub: `${jenisLabel(prodi, d.jenis)} · ${d.npm}`,
         // Prasidang and sidang each keep one colour, so the two kinds read apart at a glance.
         colorKey: d.jenis,
         danger: d.is_override,
@@ -97,9 +98,9 @@ export function SidangKalenderClient({
           value={context.jenis}
           onValueChange={(v) => router.push(`/${prodi}/sidang/kalender?${queryOf({ ...context, jenis: v as Context['jenis'] })}`)}
           options={[
-            { value: 'all', label: 'Prasidang & sidang' },
-            { value: 'prasidang', label: 'Prasidang' },
-            { value: 'sidang', label: 'Sidang' },
+            { value: 'all', label: PRODI_CONFIG[prodi].defense.section },
+            { value: 'prasidang', label: jenisLabel(prodi, 'prasidang') },
+            { value: 'sidang', label: jenisLabel(prodi, 'sidang') },
           ]}
           className={CONTROL}
         />
@@ -119,12 +120,12 @@ export function SidangKalenderClient({
         <DetailModal
           accent={selected.is_override ? 'var(--merah)' : courseColor(selected.jenis).border}
           title={selected.nama_mahasiswa}
-          meta={`${selected.npm} · ${JENIS_LABEL[selected.jenis]}`}
+          meta={`${selected.npm} · ${jenisLabel(prodi, selected.jenis)}`}
           warning={selected.is_override ? { title: 'Jadwal ini menerobos aturan bentrok.' } : undefined}
           rows={[
             ['Hari & jam', `${tanggalPanjang(selected.tanggal, false)}, ${selected.jam_mulai}–${selected.jam_selesai}`],
             [selected.jenis === 'sidang' ? 'Ruang' : 'Kelompok', selected.jenis === 'sidang' ? (selected.room_nama ?? '—') : String(selected.kelompok ?? '—')],
-            ['Judul skripsi', selected.judul_skripsi || '—'],
+            [PRODI_CONFIG[prodi].defense.judul, selected.judul_skripsi || '—'],
             ...(selected.jenis === 'sidang'
               ? ([
                   ['Ketua sidang', name(selected.penguji_kode)],

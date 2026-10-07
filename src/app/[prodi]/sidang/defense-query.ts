@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { Prodi } from '@/lib/prodi'
 import { getSettings, settingText } from '@/lib/settings'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import type { ClashPolicy } from '../kuliah/clash-actions'
@@ -17,14 +18,15 @@ const toRow = (r: Raw): DefenseRow => {
   return { ...rest, jam_mulai: r.jam_mulai.slice(0, 5), jam_selesai: r.jam_selesai.slice(0, 5), room_nama: one(rooms)?.nama ?? null }
 }
 
-/** Every defense of one kind in an academic year, in time order. */
-export async function fetchDefenses(academicYearId: string, jenis: DefenseJenis): Promise<DefenseRow[]> {
+/** Every defense of one kind and prodi in an academic year, in time order. */
+export async function fetchDefenses(academicYearId: string, jenis: DefenseJenis, prodi: Prodi): Promise<DefenseRow[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('defenses')
     .select('*, rooms(nama)')
     .eq('academic_year_id', academicYearId)
     .eq('jenis', jenis)
+    .eq('prodi', prodi)
     .order('tanggal')
     .order('jam_mulai')
   return ((data ?? []) as unknown as Raw[]).map(toRow)
@@ -38,6 +40,7 @@ export async function fetchExternalNames(): Promise<string[]> {
 }
 
 type Sched = {
+  prodi: Prodi
   hari: string
   jam_mulai: string
   jam_selesai: string
@@ -46,19 +49,20 @@ type Sched = {
   schedule_lecturers: { kode_dosen: string }[]
 }
 
-/** Everything a defense clash check needs for a whole academic year (prasidang and sidang together). */
-export async function loadDefenseWorld(academicYearId: string) {
+/** Everything a defense clash check needs for a whole academic year (both prodi, prasidang and sidang together: a dosen in the other prodi is still taken). */
+export async function loadDefenseWorld(academicYearId: string, prodi: Prodi) {
   const supabase = await createClient()
   const [{ data: defenseData }, { data: scheduleData }, { data: lecturerData }, { data: roomData }, settings] = await Promise.all([
     supabase.from('defenses').select('*, rooms(nama)').eq('academic_year_id', academicYearId),
-    supabase.from('schedules').select('hari, jam_mulai, jam_selesai, kelas, courses(nama_mk), schedule_lecturers(kode_dosen)').eq('academic_year_id', academicYearId),
+    supabase.from('schedules').select('prodi, hari, jam_mulai, jam_selesai, kelas, courses(nama_mk), schedule_lecturers(kode_dosen)').eq('academic_year_id', academicYearId),
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     supabase.from('rooms').select('id, nama'),
-    getSettings('s1'), // ponytail: s1 until Task 8 threads prodi here
+    getSettings(prodi),
   ])
 
   const defenses: DefenseClashInput[] = ((defenseData ?? []) as unknown as Raw[]).map(toRow).map((d) => ({
     id: d.id,
+    prodi: d.prodi,
     jenis: d.jenis,
     tanggal: d.tanggal,
     jam_mulai: d.jam_mulai,
@@ -73,6 +77,7 @@ export async function loadDefenseWorld(academicYearId: string) {
   }))
 
   const teaching: TeachingSlot[] = ((scheduleData ?? []) as unknown as Sched[]).map((s) => ({
+    prodi: s.prodi,
     hari: s.hari,
     jam_mulai: s.jam_mulai.slice(0, 5),
     jam_selesai: s.jam_selesai.slice(0, 5),

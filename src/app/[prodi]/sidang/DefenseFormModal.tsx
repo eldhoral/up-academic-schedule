@@ -15,8 +15,9 @@ import {
   type DefenseClashSummary,
   type DefenseInput,
 } from './actions'
-import { JENIS_LABEL, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
+import { jenisLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import { useProdi } from '@/lib/use-prodi'
+import { PRODI_CONFIG } from '@/lib/prodi'
 
 type Option = { value: string; label: string }
 export type DefenseDraft = {
@@ -90,6 +91,7 @@ export function DefenseFormModal({
     return {
       id: row?.id ?? null,
       academic_year_id: context.academic_year_id,
+      prodi,
       jenis: context.jenis,
       tanggal,
       jam_mulai: jamMulai,
@@ -145,10 +147,10 @@ export function DefenseFormModal({
   const pickDosen = (set: (v: string) => void) => (v: string) => set(v === NONE ? '' : v)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={`${row ? 'Ubah' : 'Tambah'} ${JENIS_LABEL[context.jenis]}`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={`${row ? 'Ubah' : 'Tambah'} ${jenisLabel(prodi, context.jenis)}`}>
       <div className="w-full max-w-[52rem] my-auto bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.2rem]">
         <h3 className="m-0 mb-[1rem] text-[1.1rem] font-semibold">
-          {row ? 'Ubah' : 'Tambah'} {JENIS_LABEL[context.jenis]}
+          {row ? 'Ubah' : 'Tambah'} {jenisLabel(prodi, context.jenis)}
         </h3>
 
         {error && (
@@ -246,7 +248,7 @@ export function DefenseFormModal({
               <input type="text" readOnly tabIndex={-1} value={nama} className={`${CONTROL} ${READ_ONLY}`} />
             </Field>
           </div>
-          <Field label="Judul skripsi">
+          <Field label={PRODI_CONFIG[prodi].defense.judul}>
             <textarea readOnly tabIndex={-1} value={judul} rows={2} className={`${CONTROL} ${READ_ONLY} resize-none`} />
           </Field>
           <p className="m-0 -mt-[0.5rem] text-[0.8rem] text-[var(--tinta-3)]">
@@ -314,7 +316,7 @@ export function DefenseFormModal({
             {row ? (
               <ConfirmDeleteButton
                 onConfirm={async () => {
-                  const res = await deleteDefenseAction(row.id)
+                  const res = await deleteDefenseAction(prodi, row.id)
                   if ('error' in res) return setError(res.error)
                   router.refresh()
                   onClose()

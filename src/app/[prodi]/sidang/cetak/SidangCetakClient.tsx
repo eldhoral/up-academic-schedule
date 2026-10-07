@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { DownloadButtons } from '@/components/DownloadButtons'
 import { EmptySheet } from '@/components/EmptySheet'
 import { Select } from '@/components/Select'
-import { JENIS_LABEL, tanggalSingkat, type DefenseJenis } from '../defense-types'
+import { jenisLabel, tanggalSingkat, type DefenseJenis } from '../defense-types'
 import { SidangCetakPreview, type SidangDoc } from './SidangCetakPreview'
 import type { SidangSheet } from './sidang-cetak-data'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
@@ -31,7 +31,7 @@ export function SidangCetakClient({
   const router = useRouter()
   const queryOf = (c: Context) => new URLSearchParams({ ay: c.academic_year_id, jenis: c.jenis, tanggal: c.tanggal }).toString()
   const query = queryOf(context)
-  const kind = JENIS_LABEL[context.jenis]
+  const kind = jenisLabel(prodi, context.jenis)
   const yearLabel = academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? ''
 
   function navigate(next: Partial<Context>) {
@@ -61,8 +61,8 @@ export function SidangCetakClient({
           value={context.jenis}
           onValueChange={(v) => navigate({ jenis: v as DefenseJenis })}
           options={[
-            { value: 'prasidang', label: 'Prasidang' },
-            { value: 'sidang', label: 'Sidang' },
+            { value: 'prasidang', label: jenisLabel(prodi, 'prasidang') },
+            { value: 'sidang', label: jenisLabel(prodi, 'sidang') },
           ]}
           className={CONTROL}
         />

@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
+import { useProdi } from '@/lib/use-prodi'
 import type { GeneratedSlot } from '@/lib/sesi-generator'
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
 import {
@@ -32,7 +33,7 @@ export function SesiClient({
 }: {
   sessions: SessionRow[]
   jamMulaiReguler: string
-  jamMulaiRegsus: string
+  jamMulaiRegsus?: string // S2 has no Reguler Khusus
   jedaMenit: number
 }) {
   const router = useRouter()
@@ -128,10 +129,11 @@ function GeneratorPanel({
   onSaved,
 }: {
   jamMulaiReguler: string
-  jamMulaiRegsus: string
+  jamMulaiRegsus?: string
   jedaMenit: number
   onSaved: () => void
 }) {
+  const prodi = useProdi()
   const [hari, setHari] = useState('SENIN')
   const [startJam, setStartJam] = useState(jamMulaiReguler.slice(0, 5))
   const [pattern, setPattern] = useState('2,2,3,2,2')
@@ -147,7 +149,7 @@ function GeneratorPanel({
     setError(null)
     setMessage(null)
     startPreview(async () => {
-      const result = await previewGeneratedSessions({ hari, startJam, pattern, jedaMenit: jeda, replaceDay })
+      const result = await previewGeneratedSessions({ prodi, hari, startJam, pattern, jedaMenit: jeda, replaceDay })
       if (result.ok) setPreview(result.preview)
       else {
         setError(result.error)
@@ -159,7 +161,7 @@ function GeneratorPanel({
   function handleSave() {
     if (!preview) return
     startSaving(async () => {
-      const result = await commitGeneratedSessions(hari, replaceDay, preview)
+      const result = await commitGeneratedSessions(prodi, hari, replaceDay, preview)
       if (result.ok) {
         setMessage(`${preview.length} sesi berhasil disimpan untuk ${hariLabel(hari)}.`)
         setPreview(null)
@@ -204,13 +206,15 @@ function GeneratorPanel({
             >
               Reguler
             </button>
-            <button
-              type="button"
-              onClick={() => setStartJam(jamMulaiRegsus.slice(0, 5))}
-              className="text-[0.8rem] text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 whitespace-nowrap"
-            >
-              Regsus
-            </button>
+            {jamMulaiRegsus && (
+              <button
+                type="button"
+                onClick={() => setStartJam(jamMulaiRegsus.slice(0, 5))}
+                className="text-[0.8rem] text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 whitespace-nowrap"
+              >
+                Regsus
+              </button>
+            )}
           </div>
         </Field>
 
@@ -291,7 +295,8 @@ function GeneratorPanel({
 }
 
 function SessionFormModal({ session, onClose }: { session: SessionRow; onClose: () => void }) {
-  const boundAction = updateSessionAction.bind(null, session.id)
+  const prodi = useProdi()
+  const boundAction = updateSessionAction.bind(null, prodi, session.id)
   const [state, formAction, isPending] = useActionState<FormState, FormData>(boundAction, null)
   const router = useRouter()
 
@@ -365,7 +370,7 @@ function SessionFormModal({ session, onClose }: { session: SessionRow; onClose: 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             <ConfirmDeleteButton
               onConfirm={async () => {
-                await deleteSessionAction(session.id)
+                await deleteSessionAction(prodi, session.id)
                 router.refresh()
                 onClose()
               }}

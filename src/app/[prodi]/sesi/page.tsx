@@ -8,7 +8,7 @@ export default async function SesiPage(props: PageProps<'/[prodi]/sesi'>) {
   const prodi = await prodiParam(props.params)
   const supabase = await createClient()
   const [{ data: sessions }, settings] = await Promise.all([
-    supabase.from('sessions').select('*').order('hari').order('sesi_ke'),
+    supabase.from('sessions').select('*').eq('prodi', prodi).order('hari').order('sesi_ke'),
     getSettings(prodi),
   ])
 
@@ -19,7 +19,7 @@ export default async function SesiPage(props: PageProps<'/[prodi]/sesi'>) {
         <SesiClient
           sessions={(sessions as SessionRow[]) ?? []}
           jamMulaiReguler={settingText(settings, 'jam_mulai_reguler', '07:30')}
-          jamMulaiRegsus={settingText(settings, 'jam_mulai_regsus', '18:00')}
+          jamMulaiRegsus={prodi === 's1' ? settingText(settings, 'jam_mulai_regsus', '18:00') : undefined}
           jedaMenit={settingInt(settings, 'jeda_menit', 10)}
         />
       </main>

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
 import { Select } from '@/components/Select'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
+import { PRODI_CONFIG } from '@/lib/prodi'
+import { useProdi } from '@/lib/use-prodi'
 import { createCourseAction, deleteCourseAction, updateCourseAction, type FormState } from './actions'
 
 export type Course = {
@@ -18,6 +20,7 @@ export type Course = {
 
 export function MataKuliahClient({ courses }: { courses: Course[] }) {
   const router = useRouter()
+  const prodi = useProdi()
   const [editing, setEditing] = useState<Course | 'new' | null>(null)
   const [query, setQuery] = useState('')
   const [kurikulumFilter, setKurikulumFilter] = useState('semua')
@@ -119,7 +122,7 @@ export function MataKuliahClient({ courses }: { courses: Course[] }) {
         </div>
       </div>
 
-      <ImportPanel tableSlug="courses" label="Mata Kuliah" onCommitted={() => router.refresh()} />
+      <ImportPanel tableSlug="courses" label="Mata Kuliah" prodi={prodi} onCommitted={() => router.refresh()} />
 
       {editing && (
         <CourseFormModal
@@ -172,6 +175,7 @@ function CourseFormModal({
   const action = course ? updateCourseAction : createCourseAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
   const router = useRouter()
+  const prodi = useProdi()
 
   const NEW_KURIKULUM = '__baru__'
   const initialKurikulum = course?.kurikulum ?? defaultKurikulum
@@ -205,6 +209,7 @@ function CourseFormModal({
         )}
 
         <form action={formAction} className="space-y-[0.8rem]">
+          <input type="hidden" name="prodi" value={prodi} />
           <Field label="Kode MK">
             <input
               name="kode_mk"
@@ -240,7 +245,7 @@ function CourseFormModal({
                 name="smt"
                 type="number"
                 min={1}
-                max={8}
+                max={PRODI_CONFIG[prodi].semesters}
                 required
                 defaultValue={course?.smt}
                 className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mono"
@@ -308,7 +313,7 @@ function CourseFormModal({
             {course && (
               <ConfirmDeleteButton
                 onConfirm={async () => {
-                  await deleteCourseAction(course.kode_mk)
+                  await deleteCourseAction(prodi, course.kode_mk)
                   router.refresh()
                   onClose()
                 }}

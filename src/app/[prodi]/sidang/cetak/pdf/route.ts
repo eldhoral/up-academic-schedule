@@ -1,5 +1,7 @@
+import { PRODI_CONFIG } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { convertXlsxToPdf } from '@/lib/aspose'
+import { jenisLabel } from '../../defense-types'
 import { buildSidangCetakData } from '../sidang-cetak-data'
 import { buildSidangXlsx } from '../build-sidang-xlsx'
 
@@ -10,7 +12,7 @@ export async function GET(request: Request, ctx: RouteContext<'/[prodi]/sidang/c
   // An empty jadwal isn't worth an Aspose call.
   if (data.sheets.length === 0) return new Response('Tidak ada jadwal untuk dicetak', { status: 404 })
 
-  const filename = `Jadwal ${data.context.jenis === 'sidang' ? 'Sidang' : 'Prasidang'} ${data.academicYearLabel.replace(/\//g, '-')}.pdf`
+  const filename = `${PRODI_CONFIG[prodi].short} Jadwal ${jenisLabel(prodi, data.context.jenis)} ${data.academicYearLabel.replace(/\//g, '-')}.pdf`
 
   try {
     const pdf = await convertXlsxToPdf(await buildSidangXlsx({ ...data, jenis: data.context.jenis }))

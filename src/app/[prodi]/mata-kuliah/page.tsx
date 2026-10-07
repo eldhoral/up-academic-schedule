@@ -6,7 +6,7 @@ import { MataKuliahClient, type Course } from './MataKuliahClient'
 export default async function MataKuliahPage(props: PageProps<'/[prodi]/mata-kuliah'>) {
   const prodi = await prodiParam(props.params)
   const supabase = await createClient()
-  const { data } = await supabase.from('courses').select('*').order('smt').order('kode_mk')
+  const { data } = await supabase.from('courses').select('*').eq('prodi', prodi).order('smt').order('kode_mk')
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">

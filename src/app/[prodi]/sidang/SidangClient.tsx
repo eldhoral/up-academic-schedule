@@ -6,7 +6,7 @@ import { FindingsBar } from '@/components/FindingsBar'
 import { Select } from '@/components/Select'
 import type { DefenseFinding, DefenseSide } from './actions'
 import { DefenseFormModal, type DefenseDraft } from './DefenseFormModal'
-import { JENIS_LABEL, slotLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
+import { jenisLabel, slotLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import type { AcademicYear } from '../kuliah/penjadwalan-types'
 import { useProdi } from '@/lib/use-prodi'
 
@@ -151,8 +151,8 @@ export function SidangClient({
           value={context.jenis}
           onValueChange={(v) => go({ jenis: v as 'prasidang' | 'sidang' })}
           options={[
-            { value: 'prasidang', label: 'Prasidang' },
-            { value: 'sidang', label: 'Sidang' },
+            { value: 'prasidang', label: jenisLabel(context.prodi, 'prasidang') },
+            { value: 'sidang', label: jenisLabel(context.prodi, 'sidang') },
           ]}
           className={CONTROL}
         />
@@ -180,12 +180,12 @@ export function SidangClient({
             where: `${tanggalSingkat(f.a.tanggal)} · ${f.a.jam_mulai}`,
             text: f.b ? (
               <>
-                <b className="font-semibold">{f.a.nama_mahasiswa}</b> ({JENIS_LABEL[f.a.jenis]}) dan <b className="font-semibold">{f.b.nama_mahasiswa}</b> ({JENIS_LABEL[f.b.jenis]}) pada waktu yang sama &mdash;{' '}
+                <b className="font-semibold">{f.a.nama_mahasiswa}</b> ({jenisLabel(f.a.prodi, f.a.jenis)}) dan <b className="font-semibold">{f.b.nama_mahasiswa}</b> ({jenisLabel(f.b.prodi, f.b.jenis)}) pada waktu yang sama &mdash;{' '}
                 {f.type === 'ruangan' ? `${f.detail} terpakai ganda` : f.type === 'eksternal' ? `${f.detail} menguji keduanya` : `${f.detail} hadir di keduanya`}.
               </>
             ) : (
               <>
-                <b className="font-semibold">{f.a.nama_mahasiswa}</b> ({JENIS_LABEL[f.a.jenis]}) &mdash; {f.detail} mengajar {f.teaching} pada jam yang sama.
+                <b className="font-semibold">{f.a.nama_mahasiswa}</b> ({jenisLabel(f.a.prodi, f.a.jenis)}) &mdash; {f.detail} mengajar {f.teaching} pada jam yang sama.
               </>
             ),
             minutes: f.overlapMinutes,
@@ -194,7 +194,7 @@ export function SidangClient({
         />
 
         <div className="flex items-end justify-between gap-[1rem] mb-[0.8rem] flex-wrap">
-          <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.015em]">{JENIS_LABEL[context.jenis]}</h1>
+          <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.015em]">{jenisLabel(context.prodi, context.jenis)}</h1>
           {canEdit && (
             <button
               type="button"
@@ -203,7 +203,7 @@ export function SidangClient({
               title={tanggal ? undefined : 'Pilih atau tambah tanggal dulu'}
               className="px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Tambah {JENIS_LABEL[context.jenis].toLowerCase()}
+              Tambah {jenisLabel(context.prodi, context.jenis).toLowerCase()}
             </button>
           )}
         </div>
@@ -244,7 +244,7 @@ export function SidangClient({
           <div className="flex justify-center py-[2rem]">
             <div className="w-full max-w-[26rem] flex flex-col items-center gap-[0.4rem] text-center bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.6rem]">
               <h2 className="m-0 text-[1.07rem] font-semibold text-balance">
-                Belum ada jadwal {JENIS_LABEL[context.jenis].toLowerCase()} di {yearLabel}
+                Belum ada jadwal {jenisLabel(context.prodi, context.jenis).toLowerCase()} di {yearLabel}
               </h2>
               <p className="m-0 text-[0.87rem] text-[var(--tinta-3)] text-pretty">{canEdit ? 'Pilih tanggal dengan kolom tanggal di atas, lalu isi papan jadwalnya.' : 'Jadwalnya belum diisi.'}</p>
             </div>

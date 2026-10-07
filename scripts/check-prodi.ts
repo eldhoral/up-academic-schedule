@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { accessibleProdi, canAccessProdi, clampSemester, parseJenisKelas, parseProdi, prodiTag, semesterList, PRODI_CONFIG } from '../src/lib/prodi'
+import { classifyRows } from '../src/lib/import/engine'
 
 // --- parseProdi: only the two known values pass ----------------------------------------
 assert.equal(parseProdi('s1'), 's1')
@@ -33,5 +34,19 @@ assert.equal(PRODI_CONFIG.s2.defense.sidang, 'Sidang Tesis')
 // --- tag for the other prodi's side of a clash -------------------------------------------
 assert.equal(prodiTag('s2', 's2'), '')
 assert.equal(prodiTag('s2', 's1'), 'S1 · ')
+
+// --- import on one prodi never takes over a key owned by the other ----------------------------
+{
+  const result = classifyRows({
+    parsed: [{ k: 'A1' }, { k: 'B1' }, { k: 'C1' }],
+    parseRow: (raw) => ({ key: String(raw.k), data: { k: String(raw.k) }, notes: [] }),
+    existingByKey: new Map([['B1', { k: 'B1' }]]),
+    equal: (a, b) => a.k === b.k,
+    otherProdiKeys: new Set(['C1']),
+  })
+  assert.deepEqual(result.rows.map((r) => r.status), ['new', 'unchanged', 'rejected'])
+  const rejected = result.rows[2]
+  assert.ok(rejected.status === 'rejected' && rejected.reason.includes('prodi lain'), 'the reason says why')
+}
 
 console.log('prodi: all checks passed')

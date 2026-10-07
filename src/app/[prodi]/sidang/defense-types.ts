@@ -1,15 +1,18 @@
 import { hariFromTanggal, hariLabel } from '@/lib/hari'
+import { PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 
 export type DefenseJenis = 'prasidang' | 'sidang'
 
-export const JENIS_LABEL: Record<DefenseJenis, string> = { prasidang: 'Prasidang', sidang: 'Sidang' }
+/** "Prasidang"/"Sidang" for S1, "Seminar Proposal"/"Sidang Tesis" for S2; the stored jenis is the same. */
+export const jenisLabel = (prodi: Prodi, jenis: DefenseJenis) => PRODI_CONFIG[prodi].defense[jenis]
 
-export type DefenseContext = { academic_year_id: string; jenis: DefenseJenis }
+export type DefenseContext = { prodi: Prodi; academic_year_id: string; jenis: DefenseJenis }
 export type Student = { npm: string; nama: string; judul_skripsi: string }
 
 export type DefenseRow = {
   id: string
   academic_year_id: string
+  prodi: Prodi
   jenis: DefenseJenis
   tanggal: string // 'YYYY-MM-DD'
   jam_mulai: string // 'HH:MM'

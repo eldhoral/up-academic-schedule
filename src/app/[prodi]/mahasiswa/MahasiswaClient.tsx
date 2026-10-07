@@ -4,6 +4,8 @@ import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
+import { PRODI_CONFIG } from '@/lib/prodi'
+import { useProdi } from '@/lib/use-prodi'
 import { createStudentAction, deleteStudentAction, updateStudentAction, type FormState } from './actions'
 
 export type Student = {
@@ -17,6 +19,7 @@ const INPUT = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] round
 
 export function MahasiswaClient({ students }: { students: Student[] }) {
   const router = useRouter()
+  const prodi = useProdi()
   const [editing, setEditing] = useState<Student | 'new' | null>(null)
   const [query, setQuery] = useState('')
 
@@ -54,7 +57,7 @@ export function MahasiswaClient({ students }: { students: Student[] }) {
               <tr>
                 <Th>NPM</Th>
                 <Th>Nama</Th>
-                <Th>Judul skripsi</Th>
+                <Th>{PRODI_CONFIG[prodi].defense.judul}</Th>
                 <Th className="text-right">&nbsp;</Th>
               </tr>
             </thead>
@@ -89,7 +92,7 @@ export function MahasiswaClient({ students }: { students: Student[] }) {
         </div>
       </div>
 
-      <ImportPanel tableSlug="students" label="Mahasiswa" onCommitted={() => router.refresh()} />
+      <ImportPanel tableSlug="students" label="Mahasiswa" prodi={prodi} onCommitted={() => router.refresh()} />
 
       {editing && <StudentFormModal student={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
@@ -100,6 +103,7 @@ function StudentFormModal({ student, onClose }: { student: Student | null; onClo
   const action = student ? updateStudentAction.bind(null, student.id) : createStudentAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
   const router = useRouter()
+  const prodi = useProdi()
 
   useEffect(() => {
     if (state && 'success' in state) {
@@ -120,13 +124,14 @@ function StudentFormModal({ student, onClose }: { student: Student | null; onClo
         )}
 
         <form action={formAction} className="space-y-[0.8rem]">
+          <input type="hidden" name="prodi" value={prodi} />
           <Field label="NPM">
             <input name="npm" required inputMode="numeric" pattern="[0-9]+" defaultValue={student?.npm} className={`${INPUT} mono`} />
           </Field>
           <Field label="Nama">
             <input name="nama" required defaultValue={student?.nama} className={INPUT} />
           </Field>
-          <Field label="Judul skripsi">
+          <Field label={PRODI_CONFIG[prodi].defense.judul}>
             <textarea name="judul_skripsi" rows={3} defaultValue={student?.judul_skripsi} className={`${INPUT} resize-y`} />
           </Field>
 
@@ -134,7 +139,7 @@ function StudentFormModal({ student, onClose }: { student: Student | null; onClo
             {student && (
               <ConfirmDeleteButton
                 onConfirm={async () => {
-                  await deleteStudentAction(student.id)
+                  await deleteStudentAction(prodi, student.id)
                   router.refresh()
                   onClose()
                 }}

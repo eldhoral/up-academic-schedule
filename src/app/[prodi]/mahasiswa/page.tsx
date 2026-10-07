@@ -6,7 +6,7 @@ import { MahasiswaClient, type Student } from './MahasiswaClient'
 export default async function MahasiswaPage(props: PageProps<'/[prodi]/mahasiswa'>) {
   const prodi = await prodiParam(props.params)
   const supabase = await createClient()
-  const { data } = await supabase.from('students').select('id, npm, nama, judul_skripsi').order('npm')
+  const { data } = await supabase.from('students').select('id, npm, nama, judul_skripsi').eq('prodi', prodi).order('npm')
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">

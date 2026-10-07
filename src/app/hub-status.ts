@@ -76,12 +76,12 @@ export async function getUjianStatus(academicYearId: string, prodi: Prodi): Prom
 }
 
 /** Same for prasidang and sidang: the next date leads; a defense missing an examiner is a gap. */
-export async function getSidangStatus(academicYearId: string): Promise<ScheduleStatus | null> {
+export async function getSidangStatus(academicYearId: string, prodi: Prodi): Promise<ScheduleStatus | null> {
   try {
     const supabase = await createClient()
     const [{ data, error }, clashes] = await Promise.all([
-      supabase.from('defenses').select('jenis, tanggal, pembimbing_kode, penguji_kode').eq('academic_year_id', academicYearId),
-      checkAllDefenseClashes(academicYearId),
+      supabase.from('defenses').select('jenis, tanggal, pembimbing_kode, penguji_kode').eq('academic_year_id', academicYearId).eq('prodi', prodi),
+      checkAllDefenseClashes(academicYearId, prodi),
     ])
     if (error || !data) return null
 

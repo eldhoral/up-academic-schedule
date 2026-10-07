@@ -6,7 +6,7 @@ import { buildSidangXlsx } from '../src/app/[prodi]/sidang/cetak/build-sidang-xl
 import type { DefenseRow } from '../src/app/[prodi]/sidang/defense-types'
 
 const row = (o: Partial<DefenseRow>): DefenseRow => ({
-  id: 'x', academic_year_id: '20252', jenis: 'sidang', tanggal: '2026-02-03', jam_mulai: '08:00', jam_selesai: '10:00', room_id: 'r301', room_nama: '301', kelompok: null,
+  id: 'x', academic_year_id: '20252', prodi: 's1', jenis: 'sidang', tanggal: '2026-02-03', jam_mulai: '08:00', jam_selesai: '10:00', room_id: 'r301', room_nama: '301', kelompok: null,
   npm: '2210001', nama_mahasiswa: 'Alfia', judul_skripsi: 'Judul', pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal: 'Prof. Farida', is_override: false, ...o,
 })
 const names = new Map([['D1', 'Dr. Budi'], ['D2', 'Dr. Ani']])

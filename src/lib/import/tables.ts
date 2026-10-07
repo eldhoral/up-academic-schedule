@@ -10,6 +10,8 @@ export type ImportTableDef<T extends Record<string, unknown>> = {
   keyField: keyof T & string
   parseRow: (raw: ParsedRow, rowNumber: number) => ParseResult<T>
   equal: (a: T, b: T) => boolean
+  /** Rows carry a prodi column: import and export are per prodi. */
+  prodiScoped?: boolean
 }
 
 function str(raw: ParsedRow, key: string): string {
@@ -32,6 +34,7 @@ export type CourseRow = {
 
 export const coursesTable: ImportTableDef<CourseRow> = {
   slug: 'courses',
+  prodiScoped: true,
   label: 'Mata Kuliah',
   headers: ['kode_mk', 'nama_mk', 'sks', 'jenis_mk', 'smt', 'semester', 'kurikulum'],
   exampleRow: {
@@ -200,6 +203,7 @@ export type StudentRow = {
 
 export const studentsTable: ImportTableDef<StudentRow> = {
   slug: 'students',
+  prodiScoped: true,
   label: 'Mahasiswa',
   headers: ['npm', 'nama', 'judul_skripsi'],
   exampleRow: { npm: '6021210017', nama: 'Alfia Rizkyani', judul_skripsi: 'Peran Problematic Online Game Use Terhadap Kualitas Tidur' },
