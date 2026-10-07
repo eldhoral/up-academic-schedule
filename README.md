@@ -1,10 +1,12 @@
-# KRS Scheduling — S1 Psikologi, Universitas Pancasila
+# KRS Scheduling — S1 Psikologi & S2 Psikologi Profesi, Universitas Pancasila
 
 An internal admin tool for building the study program's three schedules each academic year, catching clashes before they happen, and printing the official documents:
 
 1. **Jadwal Mata Kuliah & Dosen** (`/kuliah`) — weekly classes per semester and kelas, for Reguler and Reguler Khusus. Prints the schedule sheet and the per-dosen recap / Surat Penugasan.
 2. **Jadwal UTS & UAS** (`/ujian`) — exam date, time, ruangan, pengawas and keterangan (Offline, Online, Take Home, Project, Ujian Lisan) per mata kuliah. Prints the exam schedule and the pengawas recap.
 3. **Jadwal Prasidang & Sidang** (`/sidang`) — thesis defenses with students, penguji and rooms. Prints the defense schedule.
+
+S1 and S2 each have the three schedules, under `/s1/...` and `/s2/...` (S2's third is Jadwal Seminar Proposal & Tesis). Dosen, Ruangan and Tahun Akademik are shared. A dosen or room booked in both prodi at the same hour is a clash on both sides.
 
 Each schedule has a calendar view and a live clash check (dosen/pengawas, ruangan, kelas). Each clash type can be set to block, warn or be ignored in Pengaturan, and a blocked save can be overridden with a written reason.
 
@@ -57,6 +59,8 @@ There is no sign-up page. Create the first user in the Supabase dashboard (Authe
 update profiles set role = 'SUPERADMIN' where email = 'you@example.com';
 ```
 
+SUPERADMIN implies Akses Prodi Semua.
+
 After that, manage accounts from **Manajemen Pengguna** (`/pengguna`).
 
 | Role | Can |
@@ -64,6 +68,16 @@ After that, manage accounts from **Manajemen Pengguna** (`/pengguna`).
 | `SUPERADMIN` (Super Admin) | Everything, including managing users |
 | `SCHEDULER` (Penjadwal) | Read and write schedules and master data |
 | `VIEWER` (Pemantau) | Read only |
+
+Every account also has an **Akses Prodi** (S1, S2 or Semua; Super Admin is always Semua). It decides which prodi's menu the account sees and which prodi's data it may change.
+
+| Akses Prodi | Menu and writes |
+|---|---|
+| S1 | S1 menu; S1 data only |
+| S2 | S2 menu; S2 data only |
+| Semua | Both prodi |
+
+Shared Pengaturan (clash policies, university/faculty/dekan) needs Semua.
 
 ## Using it
 
@@ -80,6 +94,8 @@ npm run dev       # development server
 npm run build     # production build
 npm run lint      # eslint
 npx tsc --noEmit  # type check
+npm run check:prodi  # prodi config and access rules
+npm run check:db     # needs Docker: applies every migration to a throwaway Postgres, checks the prodi schema and RLS
 ```
 
 The logic that matters (session generator, clash detection, print layout, calendar layout, letter fitting, exam and defense rows) has small assert-based checks. Each prints a line when it passes:
@@ -100,15 +116,17 @@ npm run check:sidang
 src/
   app/
     page.tsx            Menu: the three schedules and their status
-    kuliah/             Class schedule: list, kalender, cetak, rekap (Surat Penugasan)
-    ujian/              UTS/UAS: list, kalender, cetak, rekap pengawas
-    sidang/             Prasidang/sidang: list, kalender, cetak
-    mata-kuliah/ dosen/ ruangan/ mahasiswa/ sesi/ tahun-akademik/ pengaturan/   Data Master
+    [prodi]/            Everything per prodi, served as /s1/... and /s2/...
+      kuliah/             Class schedule: list, kalender, cetak, rekap (Surat Penugasan)
+      ujian/              UTS/UAS: list, kalender, cetak, rekap pengawas
+      sidang/             Prasidang & Sidang (S1) / Seminar Proposal & Tesis (S2)
+      mata-kuliah/ mahasiswa/ sesi/ pengaturan/   Data Master per prodi
+    dosen/ ruangan/ tahun-akademik/   Data Bersama (shared by S1 and S2)
     pengguna/           User management (SUPERADMIN)
     log-aktivitas/      Audit log
     masuk/              Login
     api/                Excel import/export, clash and schedule endpoints
-  lib/                  Supabase clients, settings, clash and time helpers, Excel import, Aspose
+  lib/                  Supabase clients, prodi config, settings, clash and time helpers, Excel import, Aspose
   proxy.ts              Session gate for every route except the login page
 supabase/migrations/    Schema, RLS, roles, seed data
 scripts/                check:* scripts
