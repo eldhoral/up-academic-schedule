@@ -14,7 +14,8 @@
     "check:surat": "tsx scripts/check-surat-fit.ts",
     "check:ujian": "tsx scripts/check-exam-rows.ts",
     "check:sidang": "tsx scripts/check-defense-blocks.ts",
-    "check:prodi": "tsx scripts/check-prodi.ts"
+    "check:prodi": "tsx scripts/check-prodi.ts",
+    "check:db": "bash scripts/check-prodi-db.sh"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.7",
