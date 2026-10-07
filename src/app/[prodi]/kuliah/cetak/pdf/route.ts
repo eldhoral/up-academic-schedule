@@ -1,3 +1,4 @@
+import { PRODI_CONFIG } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { buildCetakData } from '../cetak-data'
 import { buildXlsx } from '../build-xlsx'
@@ -14,7 +15,7 @@ export async function GET(request: Request, ctx: RouteContext<'/[prodi]/kuliah/c
   // An empty jadwal isn't worth an Aspose call.
   if (data.sheets.every((sheet) => sheet.schedules.length === 0)) return new Response('Tidak ada jadwal untuk dicetak', { status: 404 })
 
-  const filename = `Jadwal Perkuliahan ${data.academicYearLabel.replace(/\//g, '-')}.pdf`
+  const filename = `${PRODI_CONFIG[prodi].short} Jadwal Perkuliahan ${data.academicYearLabel.replace(/\//g, '-')}.pdf`
 
   try {
     const pdf = await convertXlsxToPdf(await buildXlsx(data))

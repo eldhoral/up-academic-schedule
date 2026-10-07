@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Prodi } from '@/lib/prodi'
+import { clampSemester, parseJenisKelas, type Prodi } from '@/lib/prodi'
 import { getSettings, settingText } from '@/lib/settings'
 import { computeAngkatan, romanSemester, substituteTemplate } from '@/lib/print'
 import { fetchSchedulesForContext } from '../schedule-query'
@@ -14,9 +14,10 @@ export async function buildCetakData(prodi: Prodi, params: { ay?: string | null;
   const defaultYear = years.find((y) => y.is_active)?.id ?? years[0]?.id ?? ''
 
   const context = {
+    prodi,
     academic_year_id: params.ay || defaultYear,
-    jenis_kelas: (params.jenis === 'regsus' ? 'regsus' : 'reguler') as 'reguler' | 'regsus',
-    semester_ke: parseInt(params.smt ?? '', 10) || ('all' as const), // no or non-numeric smt = Semua semester
+    jenis_kelas: parseJenisKelas(prodi, params.jenis),
+    semester_ke: parseInt(params.smt ?? '', 10) ? clampSemester(prodi, params.smt) : ('all' as const), // no or non-numeric smt = Semua semester
   }
 
   const [settings, schedules] = await Promise.all([getSettings(prodi), fetchSchedulesForContext(context)])

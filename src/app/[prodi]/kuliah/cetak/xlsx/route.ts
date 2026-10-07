@@ -1,3 +1,4 @@
+import { PRODI_CONFIG } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { buildCetakData } from '../cetak-data'
 import { buildXlsx } from '../build-xlsx'
@@ -12,7 +13,7 @@ export async function GET(request: Request, ctx: RouteContext<'/[prodi]/kuliah/c
   })
 
   const buffer = await buildXlsx(data)
-  const filename = `Jadwal Perkuliahan ${data.academicYearLabel.replace(/\//g, '-')}.xlsx`
+  const filename = `${PRODI_CONFIG[prodi].short} Jadwal Perkuliahan ${data.academicYearLabel.replace(/\//g, '-')}.xlsx`
 
   return new Response(buffer, {
     headers: {

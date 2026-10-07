@@ -1,13 +1,17 @@
+import type { JenisKelas, Prodi } from '@/lib/prodi'
 import type { Course } from '../mata-kuliah/MataKuliahClient'
 import type { Lecturer } from '../../dosen/DosenClient'
 import type { Room } from '../../ruangan/RuanganClient'
 import type { SessionRow } from '../sesi/SesiClient'
+
+export type KuliahContext = { prodi: Prodi; academic_year_id: string; jenis_kelas: JenisKelas; semester_ke: number }
 
 export type AcademicYear = { id: string; label: string; is_active: boolean }
 
 export type ScheduleRow = {
   id: string
   academic_year_id: string
+  prodi: Prodi
   jenis_kelas: 'reguler' | 'regsus'
   semester_ke: number
   kode_mk: string

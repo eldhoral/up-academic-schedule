@@ -1,4 +1,5 @@
 import { AppHeader } from '@/components/AppHeader'
+import { clampSemester, parseJenisKelas } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
 import { getSettings, settingInt, settingText } from '@/lib/settings'
@@ -6,7 +7,7 @@ import { PenjadwalanClient } from './PenjadwalanClient'
 import { fetchSchedulesForContext } from './schedule-query'
 import { checkAllClashes } from './clash-actions'
 import { canWrite, getCurrentRole } from '@/lib/roles'
-import type { AcademicYear, Course, Lecturer, Room, SessionRow } from './penjadwalan-types'
+import type { AcademicYear, Course, KuliahContext, Lecturer, Room, SessionRow } from './penjadwalan-types'
 
 function classLetters(maxLetter: string): string[] {
   const max = /^[A-Z]$/.test(maxLetter) ? maxLetter : 'Z'
@@ -30,22 +31,23 @@ export default async function DashboardPage(props: PageProps<'/[prodi]/kuliah'>)
   const years = (academicYears as AcademicYear[]) ?? []
   const defaultYear = years.find((y) => y.is_active)?.id ?? years[0]?.id ?? ''
 
-  const context = {
+  const context: KuliahContext = {
+    prodi,
     academic_year_id: (searchParams.ay as string) || defaultYear,
-    jenis_kelas: ((searchParams.jenis as string) === 'regsus' ? 'regsus' : 'reguler') as 'reguler' | 'regsus',
-    semester_ke: parseInt((searchParams.smt as string) || '1', 10) || 1,
+    jenis_kelas: parseJenisKelas(prodi, searchParams.jenis),
+    semester_ke: clampSemester(prodi, searchParams.smt),
   }
 
   const role = await getCurrentRole()
 
   const [{ data: courses }, { data: lecturers }, { data: rooms }, { data: sessions }, schedules, clashes] =
     await Promise.all([
-      supabase.from('courses').select('*').order('kode_mk'),
+      supabase.from('courses').select('*').eq('prodi', prodi).order('kode_mk'),
       supabase.from('lecturers').select('*').order('nama'),
       supabase.from('rooms').select('*').eq('active', true).order('nama'),
-      supabase.from('sessions').select('*').order('hari').order('sesi_ke'),
+      supabase.from('sessions').select('*').eq('prodi', prodi).order('hari').order('sesi_ke'),
       fetchSchedulesForContext(context),
-      checkAllClashes(context.academic_year_id),
+      checkAllClashes(context.academic_year_id, prodi),
     ])
 
   return (

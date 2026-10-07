@@ -15,7 +15,7 @@ export default async function MenuPage() {
 
   const years = (academicYears as AcademicYear[]) ?? []
   const year = years.find((y) => y.is_active) ?? years[0]
-  const [kuliah, ujian, sidang] = year ? await Promise.all([getKuliahStatus(year.id), getUjianStatus(year.id), getSidangStatus(year.id)]) : [null, null, null]
+  const [kuliah, ujian, sidang] = year ? await Promise.all([getKuliahStatus(year.id, 's1'), getUjianStatus(year.id), getSidangStatus(year.id)]) : [null, null, null]
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">

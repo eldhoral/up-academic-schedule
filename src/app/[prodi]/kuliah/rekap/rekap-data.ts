@@ -18,7 +18,7 @@ export async function buildRekapData(prodi: Prodi, params: { ay?: string | null;
   const academicYearId = params.ay || defaultYear
   const selectedDosen = params.dosen || 'all'
 
-  const schedules = await fetchSchedulesForYear(academicYearId)
+  const schedules = await fetchSchedulesForYear(academicYearId, prodi)
 
   const byDosen = new Map<string, typeof schedules>()
   for (const s of schedules) {

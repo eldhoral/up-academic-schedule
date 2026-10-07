@@ -7,7 +7,7 @@ import { lecturerDisplayName } from '@/lib/import/tables'
 import { createScheduleAction, deleteScheduleAction, updateScheduleAction, type FormState } from './penjadwalan-actions'
 import { checkScheduleClashes, type ClashCheckResult } from './clash-actions'
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
-import type { Course, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
+import type { Course, KuliahContext, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
 
 const CLASH_LABEL: Record<string, string> = { dosen: 'Dosen', kelas: 'Kelas', ruangan: 'Ruangan' }
 
@@ -24,7 +24,7 @@ export function ScheduleFormModal({
   onClose,
   onSaved,
 }: {
-  context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
+  context: KuliahContext
   courses: Course[]
   lecturers: Lecturer[]
   rooms: Room[]
@@ -121,6 +121,7 @@ export function ScheduleFormModal({
     const dosenCodes = dosenRows.filter(Boolean)
     startClashCheck(async () => {
       const result = await checkScheduleClashes(context.academic_year_id, {
+        prodi: context.prodi,
         id: editing?.id,
         hari,
         jam_mulai: jamMulai,
@@ -151,6 +152,7 @@ export function ScheduleFormModal({
         )}
 
         <form action={formAction} className="space-y-[1rem]">
+          <input type="hidden" name="prodi" value={context.prodi} />
           <input type="hidden" name="academic_year_id" value={context.academic_year_id} />
           <input type="hidden" name="jenis_kelas" value={context.jenis_kelas} />
           <input type="hidden" name="semester_ke" value={context.semester_ke} />
@@ -422,7 +424,7 @@ export function ScheduleFormModal({
                 <button
                   type="button"
                   onClick={async () => {
-                    await deleteScheduleAction(editing.id)
+                    await deleteScheduleAction(context.prodi, editing.id)
                     router.refresh()
                     onSaved()
                   }}

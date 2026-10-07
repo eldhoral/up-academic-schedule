@@ -7,10 +7,9 @@ import { HARI_DB, hariLabel } from '@/lib/hari'
 import { ScheduleFormModal } from './ScheduleFormModal'
 import { FindingsBar } from '@/components/FindingsBar'
 import type { ClashFinding, ClashFindingSide } from './clash-actions'
-import type { AcademicYear, Course, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
+import type { AcademicYear, Course, KuliahContext, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
 import { useProdi } from '@/lib/use-prodi'
-
-const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
+import { PRODI_CONFIG, semesterList, type JenisKelas } from '@/lib/prodi'
 
 const CLASH_REASON: Record<ClashFinding['type'], (detail: string) => string> = {
   dosen: (detail) => `${detail} mengajar keduanya pada waktu yang sama`,
@@ -42,7 +41,7 @@ export function PenjadwalanClient({
   kelasOptions: string[]
   maksMahasiswaPerKelas: number
   minMahasiswaPilihan: number
-  context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
+  context: KuliahContext
   canEdit: boolean // VIEWER (Pemantau) can read but not change; RLS enforces it, this just hides the controls
 }) {
   const prodi = useProdi()
@@ -74,6 +73,7 @@ export function PenjadwalanClient({
   async function navigate(next: Partial<typeof context>) {
     const merged = { ...context, ...next }
     const params = new URLSearchParams({
+      prodi: merged.prodi,
       ay: merged.academic_year_id,
       jenis: merged.jenis_kelas,
       smt: String(merged.semester_ke),
@@ -85,7 +85,7 @@ export function PenjadwalanClient({
     const schedulesPromise = fetch(`/api/schedules?${params.toString()}`).then((r) => r.json())
     // Clashes are scoped to the whole academic year, not the semester/kelas filter — only refetch when the year changes.
     const clashesPromise = yearChanged
-      ? fetch(`/api/clashes?ay=${merged.academic_year_id}`).then((r) => r.json())
+      ? fetch(`/api/clashes?${new URLSearchParams({ ay: merged.academic_year_id, prodi: merged.prodi })}`).then((r) => r.json())
       : null
 
     setSchedules(await schedulesPromise)
@@ -95,7 +95,7 @@ export function PenjadwalanClient({
   async function viewClashSide(side: ClashFindingSide) {
     const needsNav = side.jenis_kelas !== context.jenis_kelas || side.semester_ke !== context.semester_ke
     if (needsNav) {
-      await navigate({ jenis_kelas: side.jenis_kelas as 'reguler' | 'regsus', semester_ke: side.semester_ke })
+      await navigate({ jenis_kelas: side.jenis_kelas as JenisKelas, semester_ke: side.semester_ke })
     }
     // rAF: wait a paint past the state update above so the target kelas group exists in the DOM.
     requestAnimationFrame(() => {
@@ -141,19 +141,23 @@ export function PenjadwalanClient({
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
         />
 
-        <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
-          Program
-        </label>
-        <Select
-          id="ctx-jenis"
-          value={context.jenis_kelas}
-          onValueChange={(v) => navigate({ jenis_kelas: v as 'reguler' | 'regsus' })}
-          options={[
-            { value: 'reguler', label: 'Reguler' },
-            { value: 'regsus', label: 'Reguler Khusus' },
-          ]}
-          className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
-        />
+        {PRODI_CONFIG[context.prodi].jenisKelas.length > 1 && (
+          <>
+            <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
+              Program
+            </label>
+            <Select
+              id="ctx-jenis"
+              value={context.jenis_kelas}
+              onValueChange={(v) => navigate({ jenis_kelas: v as JenisKelas })}
+              options={[
+                { value: 'reguler', label: 'Reguler' },
+                { value: 'regsus', label: 'Reguler Khusus' },
+              ]}
+              className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
+            />
+          </>
+        )}
 
         <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-smt">
           Semester
@@ -162,7 +166,7 @@ export function PenjadwalanClient({
           id="ctx-smt"
           value={String(context.semester_ke)}
           onValueChange={(v) => navigate({ semester_ke: parseInt(v, 10) })}
-          options={SEMESTERS.map((s) => ({ value: String(s), label: String(s) }))}
+          options={semesterList(context.prodi).map((s) => ({ value: String(s), label: String(s) }))}
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
         />
 
@@ -192,7 +196,8 @@ export function PenjadwalanClient({
         <div className="flex items-end justify-between gap-[1rem] mb-[1rem] flex-wrap">
           <div>
             <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.015em]">
-              Semester {context.semester_ke} &middot; {context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'}
+              Semester {context.semester_ke}
+              {PRODI_CONFIG[context.prodi].jenisKelas.length > 1 && <> &middot; {context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'}</>}
             </h1>
             <p className="mt-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
               Pilih mata kuliah di sebelah kanan; tabel akan bertambah di bawah, dikelompokkan per kelas.

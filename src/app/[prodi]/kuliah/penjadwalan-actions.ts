@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { getSettings, settingText } from '@/lib/settings'
 import { checkScheduleClashes, type ClashSummary } from './clash-actions'
 import { humanDbError } from '@/lib/db-error'
+import { parseProdi, PRODI_CONFIG, type JenisKelas, type Prodi } from '@/lib/prodi'
+import { writableProdi } from '@/lib/prodi-server'
 
 export type FormState =
   | { error: string }
@@ -13,6 +15,7 @@ export type FormState =
   | null
 
 function readScheduleForm(formData: FormData) {
+  const prodi = parseProdi(formData.get('prodi'))
   const academic_year_id = formData.get('academic_year_id') as string
   const jenis_kelas = formData.get('jenis_kelas') as string
   const semester_ke = parseInt(formData.get('semester_ke') as string, 10)
@@ -34,6 +37,7 @@ function readScheduleForm(formData: FormData) {
   const overrideReason = ((formData.get('override_reason') as string) || '').trim()
 
   return {
+    prodi,
     academic_year_id,
     jenis_kelas,
     semester_ke,
@@ -55,8 +59,10 @@ function readScheduleForm(formData: FormData) {
 
 function validateSchedule(row: ReturnType<typeof readScheduleForm>): string | null {
   if (!row.academic_year_id) return 'Pilih tahun akademik.'
-  if (row.jenis_kelas !== 'reguler' && row.jenis_kelas !== 'regsus') return 'Pilih jenis kelas.'
-  if (row.semester_ke < 1 || row.semester_ke > 8) return 'Semester harus antara 1 dan 8.'
+  if (!row.prodi) return 'Prodi tidak dikenali.'
+  if (!PRODI_CONFIG[row.prodi].jenisKelas.includes(row.jenis_kelas as JenisKelas)) return 'Pilih jenis kelas.'
+  const maxSmt = PRODI_CONFIG[row.prodi].semesters
+  if (row.semester_ke < 1 || row.semester_ke > maxSmt) return `Semester harus antara 1 dan ${maxSmt}.`
   if (!row.kode_mk) return 'Pilih mata kuliah.'
   if (!row.kelas) return 'Kelas wajib diisi.'
   if (!row.hari) return 'Pilih hari (lewat Sesi atau waktu bebas).'
@@ -72,9 +78,11 @@ function validateSchedule(row: ReturnType<typeof readScheduleForm>): string | nu
  */
 async function guardAgainstClashes(
   row: ReturnType<typeof readScheduleForm>,
-  excludeId: string | null
+  excludeId: string | null,
+  prodi: Prodi
 ): Promise<{ formState: FormState } | { isOverride: boolean; overrideReason: string }> {
   const result = await checkScheduleClashes(row.academic_year_id, {
+    prodi,
     id: excludeId ?? undefined,
     hari: row.hari,
     jam_mulai: row.jam_mulai,
@@ -92,7 +100,7 @@ async function guardAgainstClashes(
   }
 
   if (row.confirmOverride && row.overrideReason) {
-    const settings = await getSettings('s1') // ponytail: s1 until Task 6 threads prodi here
+    const settings = await getSettings(prodi)
     const izinkanOverride = settingText(settings, 'izinkan_override', 'ya') === 'ya'
     if (!izinkanOverride) {
       return { formState: { error: 'Jadwal ini bentrok dan fitur terobos bentrok sedang dinonaktifkan di Pengaturan.' } }
@@ -108,7 +116,10 @@ export async function createScheduleAction(_prev: FormState, formData: FormData)
   const validationError = validateSchedule(row)
   if (validationError) return { error: validationError }
 
-  const guard = await guardAgainstClashes(row, null)
+  const gate = await writableProdi(row.prodi)
+  if ('error' in gate) return { error: gate.error }
+
+  const guard = await guardAgainstClashes(row, null, gate.prodi)
   if ('formState' in guard) return guard.formState
 
   const supabase = await createClient()
@@ -121,6 +132,7 @@ export async function createScheduleAction(_prev: FormState, formData: FormData)
     .from('schedules')
     .insert({
       academic_year_id: row.academic_year_id,
+      prodi: gate.prodi,
       jenis_kelas: row.jenis_kelas,
       semester_ke: row.semester_ke,
       kode_mk: row.kode_mk,
@@ -157,7 +169,10 @@ export async function updateScheduleAction(id: string, _prev: FormState, formDat
   const validationError = validateSchedule(row)
   if (validationError) return { error: validationError }
 
-  const guard = await guardAgainstClashes(row, id)
+  const gate = await writableProdi(row.prodi)
+  if ('error' in gate) return { error: gate.error }
+
+  const guard = await guardAgainstClashes(row, id, gate.prodi)
   if ('formState' in guard) return guard.formState
 
   const supabase = await createClient()
@@ -170,6 +185,7 @@ export async function updateScheduleAction(id: string, _prev: FormState, formDat
     .from('schedules')
     .update({
       academic_year_id: row.academic_year_id,
+      prodi: gate.prodi,
       jenis_kelas: row.jenis_kelas,
       semester_ke: row.semester_ke,
       kode_mk: row.kode_mk,
@@ -203,7 +219,10 @@ export async function updateScheduleAction(id: string, _prev: FormState, formDat
   return { success: true }
 }
 
-export async function deleteScheduleAction(id: string): Promise<FormState> {
+export async function deleteScheduleAction(prodi: Prodi, id: string): Promise<FormState> {
+  const gate = await writableProdi(prodi)
+  if ('error' in gate) return { error: gate.error }
+
   const supabase = await createClient()
   const { error } = await supabase.from('schedules').delete().eq('id', id)
   if (error) return { error: humanDbError(error) }

@@ -2,8 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { getSettings, settingText } from '@/lib/settings'
-import type { Prodi } from '@/lib/prodi'
-import { findAllClashes, findClashes, type Clash, type ClashPairing, type ExistingScheduleForClash, type ScheduleCandidate } from '@/lib/clash'
+import { prodiTag, type Prodi } from '@/lib/prodi'
+import { findAllClashes, orientFinding, findClashes, type Clash, type ClashPairing, type ExistingScheduleForClash, type ScheduleCandidate } from '@/lib/clash'
 import { lecturerDisplayName } from '@/lib/import/tables'
 
 export type ClashPolicy = 'blok' | 'peringatan' | 'abaikan'
@@ -28,6 +28,7 @@ export type ClashCheckResult = {
 
 type SupabaseRow = {
   id: string
+  prodi: Prodi
   kode_mk: string
   kelas: string
   jenis_kelas: string
@@ -47,7 +48,7 @@ function one<T>(v: T | T[] | null): T | null {
 }
 
 const CLASH_SELECT =
-  'id, kode_mk, kelas, jenis_kelas, semester_ke, hari, jam_mulai, jam_selesai, minggu, room_id, courses(nama_mk), rooms(nama), schedule_lecturers(kode_dosen, lecturers(nama, gelar_depan, gelar_belakang))'
+  'id, prodi, kode_mk, kelas, jenis_kelas, semester_ke, hari, jam_mulai, jam_selesai, minggu, room_id, courses(nama_mk), rooms(nama), schedule_lecturers(kode_dosen, lecturers(nama, gelar_depan, gelar_belakang))'
 
 function mapClashRows(data: SupabaseRow[]): ExistingScheduleForClash[] {
   return data.map((r) => {
@@ -60,6 +61,7 @@ function mapClashRows(data: SupabaseRow[]): ExistingScheduleForClash[] {
     })
     return {
       id: r.id,
+      prodi: r.prodi,
       kode_mk: r.kode_mk,
       nama_mk: course?.nama_mk ?? r.kode_mk,
       kelas: r.kelas,
@@ -95,8 +97,9 @@ export async function checkScheduleClashes(
   }
 
   const supabase = await createClient()
-  const policies = await getClashPolicies('s1') // ponytail: s1 until Task 6 threads prodi here
+  const policies = await getClashPolicies(candidate.prodi)
 
+  // No prodi filter: a dosen or room taken in the other prodi is still taken.
   const { data, error } = await supabase
     .from('schedules')
     .select(CLASH_SELECT)
@@ -115,7 +118,7 @@ export async function checkScheduleClashes(
       policy: policies[c.type],
       detail: c.detail,
       kode_mk: c.with.kode_mk,
-      nama_mk: c.with.nama_mk,
+      nama_mk: prodiTag(candidate.prodi, c.with.prodi) + c.with.nama_mk,
       kelas: c.with.kelas,
       hari: c.with.hari,
       jam_mulai: c.with.jam_mulai,
@@ -127,6 +130,7 @@ export async function checkScheduleClashes(
 }
 
 export type ClashFindingSide = {
+  prodi: Prodi
   kode_mk: string
   nama_mk: string
   kelas: string
@@ -148,6 +152,7 @@ export type ClashFinding = {
 
 function toFindingSide(row: ExistingScheduleForClash): ClashFindingSide {
   return {
+    prodi: row.prodi,
     kode_mk: row.kode_mk,
     nama_mk: row.nama_mk,
     kelas: row.kelas,
@@ -160,16 +165,15 @@ function toFindingSide(row: ExistingScheduleForClash): ClashFindingSide {
 }
 
 /**
- * Standing findings-bar check: every clash across the whole academic year,
- * not just the one row currently being edited. Scoped to the year (not the
- * semester/kelas filter) because the same lecturer or room clashing across
- * two different semesters still matters.
+ * Standing findings-bar check for one prodi: every clash in the academic year that involves at
+ * least one of its rows (an S1–S2 dosen clash shows on both prodi), with `a` as its own row and
+ * the other prodi's side tagged "S1 · " / "S2 · ".
  */
-export async function checkAllClashes(academicYearId: string): Promise<ClashFinding[]> {
+export async function checkAllClashes(academicYearId: string, prodi: Prodi): Promise<ClashFinding[]> {
   if (!academicYearId) return []
 
   const supabase = await createClient()
-  const policies = await getClashPolicies('s1') // ponytail: s1 until Task 6 threads prodi here
+  const policies = await getClashPolicies(prodi)
 
   const { data, error } = await supabase.from('schedules').select(CLASH_SELECT).eq('academic_year_id', academicYearId)
   if (error || !data) return []
@@ -179,13 +183,8 @@ export async function checkAllClashes(academicYearId: string): Promise<ClashFind
 
   return raw
     .filter((c) => policies[c.type] !== 'abaikan')
-    .map((c) => ({
-      type: c.type,
-      policy: policies[c.type],
-      detail: c.detail,
-      overlapMinutes: c.overlapMinutes,
-      a: toFindingSide(c.a),
-      b: toFindingSide(c.b),
-    }))
+    .map((c) => orientFinding(prodi, { type: c.type, policy: policies[c.type], detail: c.detail, overlapMinutes: c.overlapMinutes, a: toFindingSide(c.a), b: toFindingSide(c.b) }))
+    .filter((f): f is ClashFinding => f !== null)
+    .map((f) => ({ ...f, b: { ...f.b, nama_mk: prodiTag(prodi, f.b.prodi) + f.b.nama_mk } }))
     .sort((x, y) => (x.policy === y.policy ? 0 : x.policy === 'blok' ? -1 : 1))
 }

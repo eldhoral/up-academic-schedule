@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { romanSemester } from '@/lib/print'
+import type { Prodi } from '@/lib/prodi'
 import { checkAllClashes } from './[prodi]/kuliah/clash-actions'
 import { checkAllExamClashes } from './[prodi]/ujian/actions'
 import { checkAllDefenseClashes } from './[prodi]/sidang/actions'
@@ -20,12 +21,12 @@ export type ScheduleStatus = {
 const blocking = (clashes: { policy: string }[]) => clashes.filter((c) => c.policy === 'blok').length
 
 /** What the menu shows for the kuliah schedule of one academic year; null when it can't be read. */
-export async function getKuliahStatus(academicYearId: string): Promise<ScheduleStatus | null> {
+export async function getKuliahStatus(academicYearId: string, prodi: Prodi): Promise<ScheduleStatus | null> {
   try {
     const supabase = await createClient()
     const [{ data, error }, clashes] = await Promise.all([
-      supabase.from('schedules').select('semester_ke').eq('academic_year_id', academicYearId),
-      checkAllClashes(academicYearId),
+      supabase.from('schedules').select('semester_ke').eq('academic_year_id', academicYearId).eq('prodi', prodi),
+      checkAllClashes(academicYearId, prodi),
     ])
     if (error || !data) return null
 

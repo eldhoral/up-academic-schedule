@@ -5,10 +5,9 @@ import { Select } from '@/components/Select'
 import { DetailModal, TimeGrid, courseColor } from '@/components/TimeGrid'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
-import type { AcademicYear, ScheduleRow } from '../penjadwalan-types'
+import type { AcademicYear, KuliahContext, ScheduleRow } from '../penjadwalan-types'
 import { useProdi } from '@/lib/use-prodi'
-
-const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
+import { PRODI_CONFIG, semesterList, type JenisKelas } from '@/lib/prodi'
 const DEFAULT_START_HOUR = 7
 const DEFAULT_END_HOUR = 21
 // Sunday getDay()=0 has no column in this six-day academic week.
@@ -21,7 +20,7 @@ export function KalenderClient({
 }: {
   academicYears: AcademicYear[]
   schedules: ScheduleRow[]
-  context: { academic_year_id: string; jenis_kelas: 'reguler' | 'regsus'; semester_ke: number }
+  context: KuliahContext
 }) {
   const prodi = useProdi()
   const [schedules, setSchedules] = useState(initialSchedules)
@@ -38,6 +37,7 @@ export function KalenderClient({
   async function navigate(next: Partial<typeof context>) {
     const merged = { ...context, ...next }
     const params = new URLSearchParams({
+      prodi: merged.prodi,
       ay: merged.academic_year_id,
       jenis: merged.jenis_kelas,
       smt: String(merged.semester_ke),
@@ -94,19 +94,23 @@ export function KalenderClient({
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
         />
 
-        <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
-          Program
-        </label>
-        <Select
-          id="ctx-jenis"
-          value={context.jenis_kelas}
-          onValueChange={(v) => navigate({ jenis_kelas: v as 'reguler' | 'regsus' })}
-          options={[
-            { value: 'reguler', label: 'Reguler' },
-            { value: 'regsus', label: 'Reguler Khusus' },
-          ]}
-          className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
-        />
+        {PRODI_CONFIG[context.prodi].jenisKelas.length > 1 && (
+          <>
+          <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-jenis">
+            Program
+          </label>
+          <Select
+            id="ctx-jenis"
+            value={context.jenis_kelas}
+            onValueChange={(v) => navigate({ jenis_kelas: v as JenisKelas })}
+            options={[
+              { value: 'reguler', label: 'Reguler' },
+              { value: 'regsus', label: 'Reguler Khusus' },
+            ]}
+            className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
+          />
+          </>
+        )}
 
         <label className="ml-[0.53rem] text-[0.8rem] text-[var(--tinta-3)]" htmlFor="ctx-smt">
           Semester
@@ -115,7 +119,7 @@ export function KalenderClient({
           id="ctx-smt"
           value={String(context.semester_ke)}
           onValueChange={(v) => navigate({ semester_ke: parseInt(v, 10) })}
-          options={SEMESTERS.map((s) => ({ value: String(s), label: String(s) }))}
+          options={semesterList(context.prodi).map((s) => ({ value: String(s), label: String(s) }))}
           className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]"
         />
 
