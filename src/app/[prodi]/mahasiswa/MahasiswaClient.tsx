@@ -32,7 +32,7 @@ export function MahasiswaClient({ students }: { students: Student[] }) {
         <div className="flex items-center justify-between pb-[1rem] border-b border-[var(--garis)] mb-[1.2rem] gap-[1rem] flex-wrap">
           <div>
             <h1 className="text-[1.3rem] font-semibold">Mahasiswa</h1>
-            <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">{students.length} mahasiswa · dipakai untuk prasidang dan sidang</p>
+            <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">{students.length} mahasiswa · dipakai untuk {PRODI_CONFIG[prodi].defense.section.toLowerCase()}</p>
           </div>
           <button
             type="button"

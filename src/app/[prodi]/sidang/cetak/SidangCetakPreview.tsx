@@ -1,7 +1,7 @@
 import type { Prodi } from '@/lib/prodi'
 import { DocFacts, PreviewLayout, PreviewTable, cell } from '@/components/preview'
 import { tanggalPanjang } from '@/lib/hari'
-import { DEFENSE_COLUMNS } from '../defense-blocks'
+import { defenseColumns } from '../defense-blocks'
 import { jenisLabel, type DefenseJenis } from '../defense-types'
 import type { SidangSheet } from './sidang-cetak-data'
 
@@ -39,7 +39,7 @@ export function SidangCetakPreview({ jenis, sheets, doc, prodi }: { jenis: Defen
 }
 
 function BlockSection({ jenis, prodi, sheet, doc }: { jenis: DefenseJenis; prodi: Prodi; sheet: SidangSheet; doc: SidangDoc }) {
-  const columns = DEFENSE_COLUMNS[jenis]
+  const columns = defenseColumns(prodi, jenis)
   const place = jenis === 'sidang' ? `Ruang ${sheet.ruang}` : `Kelompok ${sheet.kelompok}${doc.zoomId ? ` · Zoom ${doc.zoomId}` : ''}`
 
   return (

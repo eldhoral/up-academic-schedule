@@ -15,7 +15,7 @@ export async function GET(request: Request, ctx: RouteContext<'/[prodi]/sidang/c
   const filename = `${PRODI_CONFIG[prodi].short} Jadwal ${jenisLabel(prodi, data.context.jenis)} ${data.academicYearLabel.replace(/\//g, '-')}.pdf`
 
   try {
-    const pdf = await convertXlsxToPdf(await buildSidangXlsx({ ...data, jenis: data.context.jenis }))
+    const pdf = await convertXlsxToPdf(await buildSidangXlsx({ ...data, jenis: data.context.jenis, prodi }))
     return new Response(pdf, {
       headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}"` },
     })

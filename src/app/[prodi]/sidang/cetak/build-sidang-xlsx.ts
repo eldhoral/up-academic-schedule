@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs'
 import { BORDER_ALL, estimateLines, mergedText } from '@/lib/xlsx'
-import { DEFENSE_COLUMNS } from '../defense-blocks'
+import { defenseColumns } from '../defense-blocks'
+import type { Prodi } from '@/lib/prodi'
 import type { DefenseJenis } from '../defense-types'
 import type { SidangCetakData } from './sidang-cetak-data'
 
@@ -8,7 +9,7 @@ const MIN_ROW_HEIGHT = 22
 const HEADER_HEIGHT = 31.5 // the templates' header row, two wrapped lines
 const LINE = 16
 
-type Props = Pick<SidangCetakData, 'sheets' | 'zoomId' | 'zoomPasscode' | 'namaWakilDekan' | 'jabatanWakilDekan' | 'namaPenandatangan' | 'jabatanPenandatangan'> & { jenis: DefenseJenis }
+type Props = Pick<SidangCetakData, 'sheets' | 'zoomId' | 'zoomPasscode' | 'namaWakilDekan' | 'jabatanWakilDekan' | 'namaPenandatangan' | 'jabatanPenandatangan'> & { jenis: DefenseJenis; prodi: Prodi }
 
 /** One worksheet per block (date x room, or date x kelompok), so a PDF is one page run per block. */
 export async function buildSidangXlsx(props: Props): Promise<Uint8Array<ArrayBuffer>> {
@@ -22,7 +23,7 @@ export async function buildSidangXlsx(props: Props): Promise<Uint8Array<ArrayBuf
 }
 
 function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, kelompok }: Props['sheets'][number], props: Props) {
-  const columns = DEFENSE_COLUMNS[props.jenis]
+  const columns = defenseColumns(props.prodi, props.jenis)
   const count = columns.length
   const size = props.jenis === 'sidang' ? 12 : 11 // the templates' type sizes
   const font = (bold = false): Partial<ExcelJS.Font> => ({ name: 'Arial', size, bold })

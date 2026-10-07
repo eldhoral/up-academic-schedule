@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import JSZip from 'jszip'
 import { tanggalPanjang } from '../src/lib/hari'
-import { buildDefenseBlocks, sheetName, type DefenseBlock } from '../src/app/[prodi]/sidang/defense-blocks'
+import { buildDefenseBlocks, defenseColumns, sheetName, type DefenseBlock } from '../src/app/[prodi]/sidang/defense-blocks'
 import { buildSidangXlsx } from '../src/app/[prodi]/sidang/cetak/build-sidang-xlsx'
 import type { DefenseRow } from '../src/app/[prodi]/sidang/defense-types'
 
@@ -10,6 +10,11 @@ const row = (o: Partial<DefenseRow>): DefenseRow => ({
   npm: '2210001', nama_mahasiswa: 'Alfia', judul_skripsi: 'Judul', pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal: 'Prof. Farida', is_override: false, ...o,
 })
 const names = new Map([['D1', 'Dr. Budi'], ['D2', 'Dr. Ani']])
+
+// --- the judul column follows the prodi's wording ---------------------------------------------
+assert.equal(defenseColumns('s1', 'sidang')[4].header, 'JUDUL SKRIPSI')
+assert.equal(defenseColumns('s2', 'sidang')[4].header, 'JUDUL TESIS')
+assert.equal(defenseColumns('s2', 'prasidang')[4].label, 'JUDUL TESIS')
 
 // --- dates ----------------------------------------------------------------------------------
 assert.equal(tanggalPanjang('2026-02-03'), 'SELASA, 3 FEBRUARI 2026')
@@ -66,7 +71,7 @@ async function main() {
   const merges = async (zip: JSZip, n: number) => [...(await zip.file(`xl/worksheets/sheet${n}.xml`)!.async('string')).matchAll(/<mergeCell ref="([^"]+)"/g)].map((m) => m[1])
 
   // sidang: two blocks -> two sheets; 3 title lines + jabatan and nama on both sides
-  const sidang = await JSZip.loadAsync(await buildSidangXlsx({ ...common, jenis: 'sidang', sheets: sheetsOf([row({ npm: '0012345' }), row({ npm: '9', room_nama: '302', room_id: 'r302' })], 'sidang') }))
+  const sidang = await JSZip.loadAsync(await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'sidang', sheets: sheetsOf([row({ npm: '0012345' }), row({ npm: '9', room_nama: '302', room_id: 'r302' })], 'sidang') }))
   const book = await sidang.file('xl/workbook.xml')!.async('string')
   assert.ok(book.includes('03-02 R301') && book.includes('03-02 R302'), 'one sheet per room')
   const sm = await merges(sidang, 1)
@@ -80,7 +85,7 @@ async function main() {
 
   // prasidang: zoom row (3 merges), MENGETAHUI, signatures
   const prasidang = await JSZip.loadAsync(
-    await buildSidangXlsx({ ...common, jenis: 'prasidang', sheets: sheetsOf([row({ jenis: 'prasidang', room_id: null, room_nama: null, kelompok: 1, penguji_eksternal: '' })], 'prasidang') }),
+    await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'prasidang', sheets: sheetsOf([row({ jenis: 'prasidang', room_id: null, room_nama: null, kelompok: 1, penguji_eksternal: '' })], 'prasidang') }),
   )
   const pm = await merges(prasidang, 1)
   assert.equal(pm.length, 3 + 3 + 1 + 4, pm.join(' '))
@@ -88,7 +93,7 @@ async function main() {
   assert.ok(pstrings.includes('MENGETAHUI,') && pstrings.includes('BREAK OUT ROOM KELOMPOK 1') && pstrings.includes('ID ZOOM : 315 414 7118'))
 
   // nothing to print still gives a valid file
-  const empty = await JSZip.loadAsync(await buildSidangXlsx({ ...common, jenis: 'sidang', sheets: [] }))
+  const empty = await JSZip.loadAsync(await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'sidang', sheets: [] }))
   assert.ok((await empty.file('xl/sharedStrings.xml')!.async('string')).includes('Tidak ada data jadwal'))
   console.log('defense blocks: all checks passed')
 }

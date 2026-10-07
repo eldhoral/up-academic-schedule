@@ -1,3 +1,4 @@
+import { PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 import type { DefenseJenis, DefenseRow } from './defense-types'
 
 // What a printed prasidang/sidang sheet says, shared by the on-screen preview and the Excel
@@ -31,6 +32,14 @@ export const DEFENSE_COLUMNS: Record<DefenseJenis, ColumnSpec[]> = {
     { header: 'DOSEN PEMBAHAS', label: 'DOSEN PEMBAHAS', width: 30.7 },
   ],
 }
+
+/** The columns for one prodi: the templates are S1's, only the judul header changes ("JUDUL TESIS" for S2). */
+export const defenseColumns = (prodi: Prodi, jenis: DefenseJenis): ColumnSpec[] =>
+  DEFENSE_COLUMNS[jenis].map((c) => {
+    if (c.header !== 'JUDUL SKRIPSI') return c
+    const judul = PRODI_CONFIG[prodi].defense.judul.toUpperCase()
+    return { ...c, header: judul, label: judul }
+  })
 
 export type BlockRow = { cells: string[] } // one string per column, SESI first
 

@@ -112,7 +112,7 @@ export function SidangKalenderClient({
       </div>
 
       <div className="flex-1 overflow-auto p-[1.3rem]">
-        {defenses.length === 0 && <p className="m-0 mb-[1rem] text-[0.93rem] text-[var(--tinta-3)]">Belum ada jadwal prasidang atau sidang di tahun akademik ini.</p>}
+        {defenses.length === 0 && <p className="m-0 mb-[1rem] text-[0.93rem] text-[var(--tinta-3)]">Belum ada jadwal {PRODI_CONFIG[prodi].defense.section.toLowerCase()} di tahun akademik ini.</p>}
         <TimeGrid columns={columns} startHour={8} endHour={17} />
       </div>
 

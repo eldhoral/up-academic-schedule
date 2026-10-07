@@ -223,7 +223,7 @@ export async function lookupPembimbingAction(npm: string): Promise<{ pembimbing_
   const supabase = await createClient()
   const { data } = await supabase
     .from('defenses')
-    .select('pembimbing_kode, jenis, tanggal')
+    .select('pembimbing_kode, prodi, jenis, tanggal')
     .eq('npm', npm.trim())
     .not('pembimbing_kode', 'is', null)
     .order('tanggal', { ascending: false })
@@ -231,5 +231,5 @@ export async function lookupPembimbingAction(npm: string): Promise<{ pembimbing_
   const d = data?.[0]
   if (!d) return null
   const tanggal = new Date(`${d.tanggal}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-  return { pembimbing_kode: d.pembimbing_kode, from: `${d.jenis} ${tanggal}` }
+  return { pembimbing_kode: d.pembimbing_kode, from: `${jenisLabel(d.prodi as Prodi, d.jenis as DefenseJenis).toLowerCase()} ${tanggal}` }
 }
