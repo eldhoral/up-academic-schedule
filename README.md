@@ -86,6 +86,7 @@ Akses Prodi is set per account in **Manajemen Pengguna**. Shared data (Dosen, Ru
 3. Build the kuliah schedule in `/s1/kuliah` or `/s2/kuliah`.
 4. In `/s1/ujian` or `/s2/ujian`, copy the kuliah classes in as exam rows. Kelas taught only on Zoom start as Online. Then fill in the date, time, ruangan and pengawas.
 5. Print from each section's **Cetak** tab. Changes are recorded in the **Audit Log**.
+6. Share each lecturer's schedule from **Dosen → Link jadwal**: a no-login page plus a calendar feed lecturers can subscribe to. Set **Mulai/Selesai perkuliahan** in Tahun Akademik so weekly classes appear in the calendar. **Reset link** replaces a leaked link.
 
 ## Scripts
 
@@ -99,6 +100,8 @@ npm run check:import  # Excel import/export parsing
 npm run check:proxy   # login redirect fails closed
 npm run check:settings # settings query skips signature images unless asked
 npm run check:roles   # current user from JWT claims
+npm run check:ics     # calendar text: escaping, folding, recurrence lines
+npm run check:jadwal-dosen # lecturer link: weeks, exam-week skips, roles, token
 npm run check:db      # needs Docker: applies every migration to a throwaway Postgres, checks the prodi schema and RLS
 ```
 
