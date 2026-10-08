@@ -46,6 +46,8 @@ assert.equal(escapeText('a,b;c\\d\ne'), 'a\\,b\\;c\\\\d\\ne')
   for (const expected of [
     'X-WR-CALNAME:Jadwal Dr. Budi\\, M.Si',
     'X-WR-TIMEZONE:Asia/Jakarta',
+    'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
+    'X-PUBLISHED-TTL:PT6H',
     'TZOFFSETTO:+0700',
     'DTSTAMP:20261008T030405Z',
     'DTSTART;TZID=Asia/Jakarta:20260907T080000',

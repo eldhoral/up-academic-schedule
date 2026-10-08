@@ -52,6 +52,8 @@ export function toIcs(calName: string, events: IcsEvent[], now: Date): string {
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeText(calName)}`,
     `X-WR-TIMEZONE:${TZ}`,
+    'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
+    'X-PUBLISHED-TTL:PT6H',
     'BEGIN:VTIMEZONE',
     `TZID:${TZ}`,
     'BEGIN:STANDARD',

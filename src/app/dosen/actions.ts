@@ -73,7 +73,8 @@ export type LinkState = { token: string } | { error: string }
 export async function jadwalLinkAction(kodeDosen: string, reset: boolean): Promise<LinkState> {
   const supabase = await createClient()
   if (!reset) {
-    const { data } = await supabase.from('lecturers').select('jadwal_token').eq('kode_dosen', kodeDosen).maybeSingle()
+    const { data, error } = await supabase.from('lecturers').select('jadwal_token').eq('kode_dosen', kodeDosen).maybeSingle()
+    if (error) return { error: humanDbError(error) }
     if (data?.jadwal_token) return { token: data.jadwal_token as string }
   }
 
@@ -81,9 +82,17 @@ export async function jadwalLinkAction(kodeDosen: string, reset: boolean): Promi
   if (!user || !canWrite(user.role)) return { error: 'Hanya Scheduler atau Superadmin yang dapat membuat atau mengganti link jadwal.' }
 
   const token = newJadwalToken()
-  const { data, error } = await supabase.from('lecturers').update({ jadwal_token: token }).eq('kode_dosen', kodeDosen).select('kode_dosen')
+  // Creating never replaces a link someone else just made; only a reset does.
+  let update = supabase.from('lecturers').update({ jadwal_token: token }).eq('kode_dosen', kodeDosen)
+  if (!reset) update = update.is('jadwal_token', null)
+  const { data, error } = await update.select('kode_dosen')
   if (error) return { error: humanDbError(error) }
-  if (!data?.length) return { error: 'Dosen tidak ditemukan.' }
+  if (!data?.length) {
+    if (reset) return { error: 'Dosen tidak ditemukan.' }
+    const { data: existing, error: readError } = await supabase.from('lecturers').select('jadwal_token').eq('kode_dosen', kodeDosen).maybeSingle()
+    if (readError) return { error: humanDbError(readError) }
+    return existing?.jadwal_token ? { token: existing.jadwal_token as string } : { error: 'Dosen tidak ditemukan.' }
+  }
 
   revalidatePath('/dosen')
   return { token }

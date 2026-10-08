@@ -113,6 +113,7 @@ assert.equal(
       ex({ id: 'e3', kelas: 'GABUNGAN', tanggal: '2026-10-21', pengawas: [{ kode_dosen: 'D1' }] }), // teaches a kelas of M1
       ex({ id: 'e4', kelas: 'B' }), // teaches M1 A only
       ex({ id: 'e5', jenis_kelas: 'regsus' }), // another program
+      ex({ id: 'e6', kode_mk: 'M3', tanggal: '2026-10-22', pengawas: [null, { kode_dosen: 'D1' }] as unknown as RawExam['pengawas'] }), // a malformed element must not break the page
     ],
     defenses: [
       { id: 'd2', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-03', jam_mulai: '08:00:00', jam_selesai: '10:00:00', kelompok: null, nama_mahasiswa: 'Alfia', pembimbing_kode: 'D3', penguji_kode: 'D1', rooms: { nama: '302' } },
@@ -127,10 +128,10 @@ assert.equal(
     [['k1', '08:00', '09:40', 'Ruang 301', 'Psikologi Klinis'], ['k2', '18:00', '20:30', 'Zoom 560 278 1304', 'M9']],
     'sorted Senin first; joined rows as object or array; Zoom when there is no room; kode_mk when the course is missing',
   )
-  assert.deepEqual(j.ujian.map((x) => [x.id, x.peran]), [['e1', ['pengampu']], ['e2', ['pengawas']], ['e3', ['pengawas', 'pengampu']]])
-  assert.deepEqual(j.ujian.map((x) => x.tempat), ['Ruang 201', 'Take Home', 'Ruang 201'])
+  assert.deepEqual(j.ujian.map((x) => [x.id, x.peran]), [['e1', ['pengampu']], ['e2', ['pengawas']], ['e3', ['pengawas', 'pengampu']], ['e6', ['pengawas']]])
+  assert.deepEqual(j.ujian.map((x) => x.tempat), ['Ruang 201', 'Take Home', 'Ruang 201', 'Ruang 201'])
   assert.equal(j.ujian[0].jam_mulai, '08:00')
-  assert.equal(j.examDays.length, 5, 'every dated exam pauses kuliah, not only this lecturer’s')
+  assert.equal(j.examDays.length, 6, 'every dated exam pauses kuliah, not only this lecturer’s')
   assert.deepEqual(j.sidang.map((x) => [x.id, x.peran, x.tempat]), [['d1', 'pembimbing', 'Kelompok 2 (Zoom)'], ['d2', 'penguji', 'Ruang 302']])
 }
 

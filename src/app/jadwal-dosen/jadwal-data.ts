@@ -66,7 +66,7 @@ export function toJadwal(raw: RawJadwal): JadwalDosen {
   const ujian: UjianItem[] = raw.exams
     .flatMap((e) => {
       const peran: UjianPeran[] = []
-      if (e.pengawas.some((p) => 'kode_dosen' in p && p.kode_dosen === kode)) peran.push('pengawas')
+      if (e.pengawas.some((p) => p && typeof p === 'object' && 'kode_dosen' in p && p.kode_dosen === kode)) peran.push('pengawas')
       if (e.kelas === GABUNGAN ? taughtMk.has(mk(e)) : taught.has(`${mk(e)}|${e.kelas}`)) peran.push('pengampu')
       if (peran.length === 0) return []
       return [{

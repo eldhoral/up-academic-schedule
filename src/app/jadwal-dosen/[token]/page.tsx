@@ -16,7 +16,8 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
   const jadwal = await loadJadwalDosen(token)
   if (!jadwal) notFound()
 
-  const host = (await headers()).get('host') ?? ''
+  const h = await headers()
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? ''
   const feedPath = `/jadwal-dosen/${token}/kalender.ics`
   const today = todayJakarta()
   // Upcoming first (soonest on top), then what has passed.
@@ -47,9 +48,17 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
             >
               Unduh .ics
             </a>
+            <a
+              href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(`webcal://${host}${feedPath}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.87rem] font-medium no-underline hover:bg-[var(--cekung)]"
+            >
+              Google Calendar
+            </a>
           </div>
           <p className="m-0 mt-[0.6rem] text-[0.8rem] text-[var(--tinta-3)]">
-            Langganan kalender ikut berubah saat jadwal diubah. Jangan bagikan link ini ke orang lain.
+            Kalender yang dilanggan diperbarui otomatis (bisa tertunda beberapa jam). Jangan bagikan link ini ke orang lain.
           </p>
         </header>
 

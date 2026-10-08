@@ -20,8 +20,8 @@ export async function GET(req: Request, ctx: RouteContext<'/api/export/[table]'>
     return new Response(humanDbError(error), { status: 500 })
   }
 
-  // The prodi column is dropped so the file re-imports cleanly.
-  const buffer = await buildExportBuffer((data ?? []).map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'prodi'))))
+  // The prodi column is dropped so the file re-imports cleanly, and the jadwal link token so the file never leaks lecturers' links.
+  const buffer = await buildExportBuffer((data ?? []).map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'prodi' && k !== 'jadwal_token'))))
   return new Response(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
