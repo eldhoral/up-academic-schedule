@@ -154,8 +154,21 @@ export function freeRooms<R extends { id: string }>(rooms: R[], slot: Slot, exis
 export type LoadRow = { prodi: Prodi; kode_mk: string; kelas: string; jenis_kelas: string; semester_ke: number; sks: number; dosenCodes: string[] }
 
 /**
- * Teaching load per dosen, in SKS. A class (prodi, program, semester, kode_mk, kelas) counts once however
- * many weekly meetings it has, and team teaching gives every dosen on it the full SKS.
+ * The dosen over `maks` SKS once a save lands (`after`), each once. `adds` is whether this save raised their
+ * load over `before`: only then may it block — an edit to an over-limit dosen's class that adds nothing must
+ * not need an override. `maks` of 0 means no limit.
+ */
+export function overLimit(codes: string[], before: Map<string, number>, after: Map<string, number>, maks: number) {
+  if (maks <= 0) return []
+  return [...new Set(codes.filter(Boolean))]
+    .filter((d) => (after.get(d) ?? 0) > maks)
+    .map((d) => ({ kode_dosen: d, sks: after.get(d)!, adds: (after.get(d) ?? 0) > (before.get(d) ?? 0) }))
+}
+
+/**
+ * Teaching load per dosen, in SKS. A class (prodi, program, semester, kode_mk, kelas) counts once — the same
+ * class twice (one already saved, the same one as the form's candidate) is not double load — and team
+ * teaching gives every dosen on it the full SKS.
  */
 export function dosenSks(rows: LoadRow[]): Map<string, number> {
   const seen = new Set<string>()

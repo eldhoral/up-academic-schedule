@@ -11,6 +11,7 @@ import {
   findClashes,
   freeRooms,
   orientFinding,
+  overLimit,
   type Clash,
   type ClashPairing,
   type ExistingScheduleForClash,
@@ -40,7 +41,7 @@ export type BebanSummary = { kode_dosen: string; sks: number; maks: number; poli
 export type ClashCheckResult = {
   clashes: ClashSummary[]
   beban: BebanSummary[]
-  freeRooms: { id: string; nama: string }[] // only filled when the candidate has a room clash
+  freeRooms: { id: string; nama: string; kapasitas: number }[] // only filled when the candidate has a room clash
   blocking: boolean
 }
 
@@ -114,11 +115,16 @@ async function getClashPolicies(prodi: Prodi): Promise<{ policies: Record<Clash[
 }
 
 /**
- * The candidate's dosen's load for the year with the candidate counted in (and, when editing, its old
- * version left out). One query over every day, unlike the clash check's single hari.
+ * The candidate's dosen's load for the year as saved now (`before`) and once this save lands (`after`: the
+ * candidate counted in, its old version left out when editing). One query over every day, unlike the clash
+ * check's single hari. Null when the read fails: better no load warning than one that under-counts.
  */
-async function candidateLoad(supabase: SupabaseClient, academicYearId: string, candidate: ScheduleCandidate & { kode_mk: string }): Promise<Map<string, number>> {
-  const [{ data: rows }, { data: course }] = await Promise.all([
+async function candidateLoad(
+  supabase: SupabaseClient,
+  academicYearId: string,
+  candidate: ScheduleCandidate & { kode_mk: string }
+): Promise<{ before: Map<string, number>; after: Map<string, number> } | null> {
+  const [{ data: rows, error }, { data: course, error: courseError }] = await Promise.all([
     supabase
       .from('schedules')
       .select('id, prodi, kode_mk, kelas, jenis_kelas, semester_ke, courses(sks), schedule_lecturers!inner(kode_dosen)')
@@ -127,11 +133,10 @@ async function candidateLoad(supabase: SupabaseClient, academicYearId: string, c
     supabase.from('courses').select('sks').eq('prodi', candidate.prodi).eq('kode_mk', candidate.kode_mk).maybeSingle(),
   ])
   type Row = Omit<LoadRow, 'sks' | 'dosenCodes'> & { id: string; courses: { sks: number } | { sks: number }[] | null; schedule_lecturers: { kode_dosen: string }[] }
-  const loadRows: LoadRow[] = ((rows ?? []) as unknown as Row[])
-    .filter((r) => r.id !== candidate.id)
-    .map((r) => ({ ...r, sks: one(r.courses)?.sks ?? 0, dosenCodes: r.schedule_lecturers.map((sl) => sl.kode_dosen) }))
-  loadRows.push({ ...candidate, sks: (course?.sks as number | undefined) ?? 0 })
-  return dosenSks(loadRows)
+  if (error || courseError || !rows) return null
+  const saved = (rows as unknown as Row[]).map((r) => ({ ...r, sks: one(r.courses)?.sks ?? 0, dosenCodes: r.schedule_lecturers.map((sl) => sl.kode_dosen) }))
+  const next: LoadRow[] = [...saved.filter((r) => r.id !== candidate.id), { ...candidate, sks: (course?.sks as number | undefined) ?? 0 }]
+  return { before: dosenSks(saved), after: dosenSks(next) }
 }
 
 export async function checkScheduleClashes(
@@ -171,14 +176,20 @@ export async function checkScheduleClashes(
       overlapMinutes: c.overlapMinutes,
     }))
 
+  // A save only blocks on load it adds; a dosen already over the limit is still shown, as a warning.
   const beban: BebanSummary[] =
     policies.beban === 'abaikan' || !load
       ? []
-      : dosenCodes.filter((d) => (load.get(d) ?? 0) > maksSks).map((d) => ({ kode_dosen: d, sks: load.get(d)!, maks: maksSks, policy: policies.beban }))
+      : overLimit(dosenCodes, load.before, load.after, maksSks).map((o) => ({
+          kode_dosen: o.kode_dosen,
+          sks: o.sks,
+          maks: maksSks,
+          policy: o.adds ? policies.beban : 'peringatan',
+        }))
 
   let rooms: ClashCheckResult['freeRooms'] = []
   if (clashes.some((c) => c.type === 'ruangan')) {
-    const { data: active } = await supabase.from('rooms').select('id, nama').eq('active', true).order('nama')
+    const { data: active } = await supabase.from('rooms').select('id, nama, kapasitas').eq('active', true).order('nama')
     rooms = freeRooms(active ?? [], candidate, existing)
   }
 
@@ -225,26 +236,17 @@ function toFindingSide(row: ExistingScheduleForClash): ClashFindingSide {
   }
 }
 
-/** Every schedule in the year, both prodi: the clash and workload checks of one request share this read. */
+/** Every schedule in the year, both prodi. Cached per render: hub-status asks for S1 and S2 from one read. */
 const fetchYearRows = cache(async (academicYearId: string): Promise<YearRow[] | null> => {
   const supabase = await createClient()
   const { data, error } = await supabase.from('schedules').select(CLASH_SELECT).eq('academic_year_id', academicYearId)
   return error || !data ? null : mapClashRows(data as unknown as SupabaseRow[])
 })
 
-/**
- * Standing findings-bar check for one prodi: every clash in the academic year that involves at
- * least one of its rows (an S1–S2 dosen clash shows on both prodi), with `a` as its own row and
- * the other prodi's side tagged "S1 · " / "S2 · ".
- */
-export async function checkAllClashes(academicYearId: string, prodi: Prodi): Promise<ClashFinding[]> {
-  if (!academicYearId) return []
+type Policies = Awaited<ReturnType<typeof getClashPolicies>>
 
-  const [{ policies }, existing] = await Promise.all([getClashPolicies(prodi), fetchYearRows(academicYearId)])
-  if (!existing) return []
-
-  const raw: ClashPairing[] = findAllClashes(existing)
-
+function clashFindings(rows: YearRow[], { policies }: Policies, prodi: Prodi): ClashFinding[] {
+  const raw: ClashPairing[] = findAllClashes(rows)
   return raw
     .filter((c) => policies[c.type] !== 'abaikan')
     .map((c) => orientFinding(prodi, { type: c.type, policy: policies[c.type], detail: c.detail, overlapMinutes: c.overlapMinutes, a: toFindingSide(c.a), b: toFindingSide(c.b) }))
@@ -254,23 +256,32 @@ export async function checkAllClashes(academicYearId: string, prodi: Prodi): Pro
 }
 
 /** Dosen teaching in this prodi whose load for the year (both prodi together) is over the limit. */
-export async function checkWorkload(academicYearId: string, prodi: Prodi): Promise<BebanSummary[]> {
+function workloadFindings(rows: YearRow[], { policies, maksSks }: Policies, prodi: Prodi): BebanSummary[] {
+  if (policies.beban === 'abaikan') return []
+  const load = dosenSks(rows)
+  const teachesHere = rows.filter((r) => r.prodi === prodi).flatMap((r) => r.dosenCodes)
+  return overLimit(teachesHere, load, load, maksSks)
+    .sort((a, b) => b.sks - a.sks)
+    .map((o) => ({ kode_dosen: o.kode_dosen, sks: o.sks, maks: maksSks, policy: policies.beban }))
+}
+
+/**
+ * Standing findings-bar check for one prodi: every clash in the academic year that involves at
+ * least one of its rows (an S1–S2 dosen clash shows on both prodi), with `a` as its own row and
+ * the other prodi's side tagged "S1 · " / "S2 · ".
+ */
+export async function checkAllClashes(academicYearId: string, prodi: Prodi): Promise<ClashFinding[]> {
   if (!academicYearId) return []
-
-  const [{ policies, maksSks }, rows] = await Promise.all([getClashPolicies(prodi), fetchYearRows(academicYearId)])
-  if (!rows || policies.beban === 'abaikan') return []
-
-  const teachesHere = new Set(rows.filter((r) => r.prodi === prodi).flatMap((r) => r.dosenCodes))
-  return [...dosenSks(rows)]
-    .filter(([d, sks]) => teachesHere.has(d) && sks > maksSks)
-    .sort(([, a], [, b]) => b - a)
-    .map(([kode_dosen, sks]) => ({ kode_dosen, sks, maks: maksSks, policy: policies.beban }))
+  const [policies, rows] = await Promise.all([getClashPolicies(prodi), fetchYearRows(academicYearId)])
+  return rows ? clashFindings(rows, policies, prodi) : []
 }
 
 export type KuliahFindings = { clashes: ClashFinding[]; beban: BebanSummary[] }
 
-/** Both standing checks for the kuliah findings bar. */
+/** Both standing checks for the kuliah findings bar, from one read of the year (also outside a render, e.g. /api/clashes). */
 export async function checkKuliahFindings(academicYearId: string, prodi: Prodi): Promise<KuliahFindings> {
-  const [clashes, beban] = await Promise.all([checkAllClashes(academicYearId, prodi), checkWorkload(academicYearId, prodi)])
-  return { clashes, beban }
+  if (!academicYearId) return { clashes: [], beban: [] }
+  const [policies, rows] = await Promise.all([getClashPolicies(prodi), fetchYearRows(academicYearId)])
+  if (!rows) return { clashes: [], beban: [] }
+  return { clashes: clashFindings(rows, policies, prodi), beban: workloadFindings(rows, policies, prodi) }
 }

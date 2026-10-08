@@ -41,7 +41,7 @@ function logHref(filters: LogFilters, patch: Partial<LogFilters>): string {
 
 const inputClass = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]'
 
-export function LogAktivitasClient({ rows, total, filters }: { rows: AuditRow[]; total: number; filters: LogFilters }) {
+export function LogAktivitasClient({ rows, total, filters, loadError }: { rows: AuditRow[]; total: number; filters: LogFilters; loadError: string | null }) {
   const [selected, setSelected] = useState<AuditRow | null>(null)
   const pages = Math.max(1, Math.ceil(total / LOG_PAGE_SIZE))
   const first = (filters.page - 1) * LOG_PAGE_SIZE + 1
@@ -160,7 +160,11 @@ export function LogAktivitasClient({ rows, total, filters }: { rows: AuditRow[];
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
-                    {filtered ? 'Tidak ada aktivitas yang cocok dengan filter ini.' : 'Belum ada aktivitas tercatat.'}
+                    {loadError
+                      ? `Log gagal dimuat: ${loadError}`
+                      : filtered
+                        ? 'Tidak ada aktivitas yang cocok dengan filter ini.'
+                        : 'Belum ada aktivitas tercatat.'}
                   </td>
                 </tr>
               )}

@@ -30,8 +30,11 @@ const classKey = (r: ClassKey) => `${r.jenis_kelas}|${r.semester_ke}|${r.kode_mk
 
 export const COPY_CONFLICT = 'academic_year_id,jenis_kelas,semester_ke,kode_mk,kelas'
 
-/** The slot carries over; enrolment and any clash override belong to the year they were made in. */
-export function copiedSchedules(source: SourceSchedule[], academic_year_id: string) {
+/**
+ * The slot carries over; enrolment and any clash override belong to the year they were made in. A room no
+ * longer active is dropped: the form only offers active rooms, so an edit would clear it silently anyway.
+ */
+export function copiedSchedules(source: SourceSchedule[], academic_year_id: string, activeRoomIds: Set<string>) {
   return source.map((s) => ({
     academic_year_id,
     prodi: s.prodi,
@@ -42,7 +45,7 @@ export function copiedSchedules(source: SourceSchedule[], academic_year_id: stri
     hari: s.hari,
     jam_mulai: s.jam_mulai,
     jam_selesai: s.jam_selesai,
-    room_id: s.room_id,
+    room_id: s.room_id && activeRoomIds.has(s.room_id) ? s.room_id : null,
     zoom_id: s.zoom_id,
     minggu: s.minggu,
     keterangan: s.keterangan,

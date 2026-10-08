@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { dosenSks, findAllClashes, findClashes, findSlotClashes, freeRooms, orientFinding, timeOverlapMinutes, weeksCollide, type ExistingScheduleForClash, type ScheduleCandidate } from '../src/lib/clash'
+import { dosenSks, findAllClashes, findClashes, findSlotClashes, freeRooms, overLimit, orientFinding, timeOverlapMinutes, weeksCollide, type ExistingScheduleForClash, type ScheduleCandidate } from '../src/lib/clash'
 import { examKeys, findExamClashes, type ExamClashInput } from '../src/app/[prodi]/ujian/exam-clash'
 import { defenseKeys, findDefenseClashes, findTeachingOverlaps, type DefenseClashInput } from '../src/app/[prodi]/sidang/defense-clash'
 
@@ -272,13 +272,24 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
 {
   const load = dosenSks([
     { prodi: 's1', kode_mk: 'MK1', kelas: 'A', jenis_kelas: 'reguler', semester_ke: 1, sks: 3, dosenCodes: ['D1', 'D2'] },
-    { prodi: 's1', kode_mk: 'MK1', kelas: 'A', jenis_kelas: 'reguler', semester_ke: 1, sks: 3, dosenCodes: ['D1'] }, // a second weekly meeting of the same class
+    { prodi: 's1', kode_mk: 'MK1', kelas: 'A', jenis_kelas: 'reguler', semester_ke: 1, sks: 3, dosenCodes: ['D1'] }, // the same class again (the form's candidate for a class being created twice): counted once
     { prodi: 's1', kode_mk: 'MK1', kelas: 'B', jenis_kelas: 'reguler', semester_ke: 1, sks: 3, dosenCodes: ['D1'] },
     { prodi: 's2', kode_mk: 'MK1', kelas: 'A', jenis_kelas: 'reguler', semester_ke: 1, sks: 2, dosenCodes: ['D1'] }, // same code, other prodi: another class
   ])
   assert.equal(load.get('D1'), 8)
   assert.equal(load.get('D2'), 3, 'team teaching counts the full SKS for every dosen')
   assert.equal(load.get('D3'), undefined)
+}
+
+// --- overLimit: who is over the SKS limit after a save, and whether this save is what added the load ----
+{
+  const before = new Map([['D1', 12], ['D2', 14], ['D3', 9]])
+  const after = new Map([['D1', 15], ['D2', 14], ['D3', 12]])
+  assert.deepEqual(overLimit(['D1', 'D2', 'D3', 'D1', ''], before, after, 12), [
+    { kode_dosen: 'D1', sks: 15, adds: true },
+    { kode_dosen: 'D2', sks: 14, adds: false }, // already over; an edit that adds nothing must not be blocked
+  ], 'at the limit is fine; a dosen picked twice is listed once; blanks ignored')
+  assert.deepEqual(overLimit(['D1'], before, after, 0), [], 'a limit of 0 means no limit, like maks_mahasiswa_per_kelas')
 }
 
 console.log('clash: all checks passed')

@@ -41,6 +41,8 @@ export function tableLabel(name: string): string {
 }
 
 export const LOG_PAGE_SIZE = 50
+// ponytail: 500k rows deep; the log's retention job keeps it far below that.
+const MAX_LOG_PAGE = 10000
 
 export type LogFilters = { page: number; table: string | null; action: AuditAction | null; q: string; from: string | null; to: string | null }
 
@@ -57,7 +59,7 @@ export function parseLogFilters(params: Params): LogFilters {
   const table = get('tabel')
   const action = get('aksi')
   return {
-    page: page >= 1 ? page : 1,
+    page: page >= 1 ? Math.min(page, MAX_LOG_PAGE) : 1,
     table: Object.hasOwn(TABLE_LABEL, table) ? table : null,
     action: Object.hasOwn(ACTION_LABEL, action) ? (action as AuditAction) : null,
     q: get('q'),

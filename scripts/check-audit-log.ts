@@ -16,6 +16,7 @@ assert.equal(junk.to, null)
 assert.equal(parseLogFilters({ tabel: 'constructor', aksi: 'toString' }).table, null, 'prototype keys are not tables')
 assert.equal(parseLogFilters({ aksi: 'toString' }).action, null, 'prototype keys are not actions')
 assert.equal(parseLogFilters({ hal: 'abc' }).page, 1)
+assert.equal(parseLogFilters({ hal: '99999999999999' }).page, 10000, 'a huge page is capped so the row range stays a sane number')
 assert.equal(parseLogFilters({ hal: ['2', '9'] }).page, 2, 'a repeated param takes the first')
 
 // --- logSearchFilter: the text goes into a PostgREST or() string, so nothing may break out of it ---

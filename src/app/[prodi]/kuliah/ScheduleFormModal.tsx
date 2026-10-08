@@ -139,6 +139,9 @@ export function ScheduleFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidateComplete, kodeMk, hari, jamMulai, jamSelesai, kelas, roomId, minggu, dosenRows.join(',')])
 
+  // Kapasitas 0 means not recorded: such a room is still offered.
+  const fittingFreeRooms = (livePreview?.freeRooms ?? []).filter((r) => !(r.kapasitas > 0 && r.kapasitas < jumlahMhs))
+
   const dosenName = (kode: string) => {
     const l = lecturers.find((x) => x.kode_dosen === kode)
     return l ? lecturerDisplayName(l) : kode
@@ -388,11 +391,11 @@ export function ScheduleFormModal({
             <ClashList clashes={livePreview.clashes} />
           )}
 
-          {candidateComplete && livePreview && livePreview.freeRooms.length > 0 && (
+          {candidateComplete && fittingFreeRooms.length > 0 && (
             <div className="text-[0.87rem]">
               <span className="text-[var(--tinta-3)]">Ruangan kosong pada waktu ini:</span>
               <div className="flex flex-wrap gap-[0.4rem] mt-[0.3rem]">
-                {livePreview.freeRooms.map((r) => (
+                {fittingFreeRooms.map((r) => (
                   <button
                     key={r.id}
                     type="button"

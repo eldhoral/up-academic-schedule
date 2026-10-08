@@ -50,7 +50,7 @@ function KuliahFindingsBar({
       }))}
       notes={beban.map(
         (b) =>
-          `${nama.get(b.kode_dosen) ?? b.kode_dosen} mengajar ${b.sks} SKS tahun akademik ini (S1 dan S2), melebihi batas ${b.maks} SKS${b.policy === 'blok' ? ' — penyimpanan jadwalnya diblokir' : ''}.`
+          `${nama.get(b.kode_dosen) ?? b.kode_dosen} mengajar ${b.sks} SKS tahun akademik ini (S1 dan S2), melebihi batas ${b.maks} SKS${b.policy === 'blok' ? ' — menambah jadwal untuknya diblokir' : ''}.`
       )}
       onView={onView}
     />
@@ -137,6 +137,9 @@ export function PenjadwalanClient({
     })
     const yearChanged = merged.academic_year_id !== context.academic_year_id
     setContext(merged)
+    // A pending copy confirmation or its result belongs to the view it was made in.
+    setConfirmingCopy(false)
+    setCopyMessage(null)
     window.history.replaceState(null, '', `/${prodi}/kuliah?${params.toString()}`)
 
     const schedulesPromise = fetch(`/api/schedules?${params.toString()}`).then((r) => r.json())

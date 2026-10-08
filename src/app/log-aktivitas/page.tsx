@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { AppHeader } from '@/components/AppHeader'
 import { createClient } from '@/lib/supabase/server'
+import { humanDbError } from '@/lib/db-error'
 import { LogAktivitasClient } from './LogAktivitasClient'
 import { LOG_PAGE_SIZE, logSearchFilter, parseLogFilters, type AuditRow } from '@/lib/audit-log'
 
@@ -41,7 +42,7 @@ export default async function LogAktivitasPage(props: PageProps<'/log-aktivitas'
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <AppHeader active="/log-aktivitas" />
       <main className="flex-1 p-[1.3rem] max-w-[1400px] w-full mx-auto">
-        <LogAktivitasClient rows={(data as AuditRow[]) ?? []} total={count ?? 0} filters={filters} />
+        <LogAktivitasClient rows={(data as AuditRow[]) ?? []} total={count ?? 0} filters={filters} loadError={error ? humanDbError(error) : null} />
       </main>
     </div>
   )
