@@ -17,7 +17,7 @@ The UI is in Indonesian. The design rationale and data model are in [`PLAN.md`](
 - Next.js 16 (App Router, server actions). This version differs from older Next.js; see `AGENTS.md` and `node_modules/next/dist/docs/`. The session gate is `src/proxy.ts`, not `middleware.ts`.
 - Supabase Postgres and Supabase Auth (email and password), using `@supabase/ssr`. Row Level Security is enabled on every table.
 - Tailwind CSS 4.
-- `exceljs` / `xlsx` for Excel import and export, `docx` for the Surat Penugasan.
+- `exceljs` for Excel import and export, `docx` for the Surat Penugasan.
 - Aspose Cells Cloud for xlsx-to-PDF conversion (optional).
 
 ## Getting started
@@ -95,6 +95,8 @@ npm run build         # production build
 npm run lint          # eslint
 npx tsc --noEmit      # type check
 npm run check:prodi   # prodi config and access rules
+npm run check:import  # Excel import/export parsing
+npm run check:proxy   # login redirect fails closed
 npm run check:db      # needs Docker: applies every migration to a throwaway Postgres, checks the prodi schema and RLS
 ```
 

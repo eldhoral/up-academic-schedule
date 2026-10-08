@@ -8,7 +8,7 @@ export async function GET(_req: Request, ctx: RouteContext<'/api/import/[table]/
     return new Response('Unknown import table.', { status: 404 })
   }
 
-  const buffer = buildTemplateBuffer(def.headers, def.exampleRow)
+  const buffer = await buildTemplateBuffer(def.headers, def.exampleRow)
   return new Response(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

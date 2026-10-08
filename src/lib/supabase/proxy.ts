@@ -51,14 +51,7 @@ export async function updateSession(request: NextRequest) {
     const isMasuk = pathname === '/masuk'
 
     // If unauthenticated and trying to access protected route, redirect to /masuk
-    if (!user && !isMasuk) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/masuk'
-      if (pathname !== '/') {
-        url.searchParams.set('redirectTo', pathname)
-      }
-      return NextResponse.redirect(url)
-    }
+    if (!user && !isMasuk) return redirectToMasuk(request, pathname)
 
     // If authenticated and visiting /masuk, redirect to dashboard or redirectTo target
     if (user && isMasuk) {
@@ -69,8 +62,19 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
   } catch (err) {
+    // Fail closed: an auth check that throws must not let the request through.
     console.error('Session update error in proxy:', err)
+    if (pathname !== '/masuk') return redirectToMasuk(request, pathname)
   }
 
   return supabaseResponse
+}
+
+function redirectToMasuk(request: NextRequest, pathname: string) {
+  const url = request.nextUrl.clone()
+  url.pathname = '/masuk'
+  if (pathname !== '/') {
+    url.searchParams.set('redirectTo', pathname)
+  }
+  return NextResponse.redirect(url)
 }

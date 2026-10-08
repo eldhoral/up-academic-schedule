@@ -21,7 +21,7 @@ export async function GET(req: Request, ctx: RouteContext<'/api/export/[table]'>
   }
 
   // The prodi column is dropped so the file re-imports cleanly.
-  const buffer = buildExportBuffer((data ?? []).map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'prodi'))))
+  const buffer = await buildExportBuffer((data ?? []).map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'prodi'))))
   return new Response(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

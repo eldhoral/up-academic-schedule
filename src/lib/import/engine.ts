@@ -1,33 +1,55 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 export type ParsedRow = Record<string, unknown>
 
+/** A cell as a plain value: formulas give their result, rich text and links their text. */
+function plain(value: ExcelJS.CellValue): unknown {
+  if (value === null || value === undefined) return ''
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+  if (typeof value !== 'object') return value
+  if ('richText' in value) return value.richText.map((r) => r.text).join('')
+  if ('formula' in value || 'sharedFormula' in value) return plain((value as ExcelJS.CellFormulaValue).result ?? '')
+  if ('text' in value) return plain(value.text as ExcelJS.CellValue)
+  if ('error' in value) return ''
+  return ''
+}
+
 /** Reads the first sheet of an uploaded workbook into row objects keyed by header. */
-export function parseWorkbookRows(buffer: ArrayBuffer): ParsedRow[] {
-  const workbook = XLSX.read(buffer, { type: 'array' })
-  const sheet = workbook.Sheets[workbook.SheetNames[0]]
+export async function parseWorkbookRows(buffer: ArrayBuffer): Promise<ParsedRow[]> {
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(buffer)
+  const sheet = workbook.worksheets[0]
   if (!sheet) return []
-  return XLSX.utils.sheet_to_json<ParsedRow>(sheet, { defval: '', raw: true })
+
+  const headers: string[] = []
+  sheet.getRow(1).eachCell((cell, col) => (headers[col] = String(plain(cell.value)).trim()))
+
+  const rows: ParsedRow[] = []
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return
+    // A null prototype: a "__proto__" header is just a key, never Object.prototype.
+    const out: ParsedRow = Object.create(null)
+    headers.forEach((h, col) => h && (out[h] = plain(row.getCell(col).value)))
+    if (Object.values(out).some((v) => v !== '')) rows.push({ ...out })
+  })
+  return rows
+}
+
+async function writeSheet(name: string, rows: unknown[][]): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook()
+  workbook.addWorksheet(name).addRows(rows)
+  return Buffer.from(await workbook.xlsx.writeBuffer())
 }
 
 /** Builds a downloadable .xlsx template: header row + one example row. */
-export function buildTemplateBuffer(
-  headers: string[],
-  exampleRow: Record<string, string | number>
-): Buffer {
-  const rows = [headers, headers.map((h) => exampleRow[h] ?? '')]
-  const sheet = XLSX.utils.aoa_to_sheet(rows)
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Template')
-  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+export function buildTemplateBuffer(headers: string[], exampleRow: Record<string, string | number>): Promise<Buffer> {
+  return writeSheet('Template', [headers, headers.map((h) => exampleRow[h] ?? '')])
 }
 
 /** Builds a downloadable .xlsx of the current DB rows — column names match import headers, so it re-uploads cleanly. */
-export function buildExportBuffer(rows: Record<string, unknown>[]): Buffer {
-  const sheet = XLSX.utils.json_to_sheet(rows)
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Data')
-  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+export function buildExportBuffer(rows: Record<string, unknown>[]): Promise<Buffer> {
+  const headers = [...new Set(rows.flatMap((r) => Object.keys(r)))]
+  return writeSheet('Data', [headers, ...rows.map((r) => headers.map((h) => r[h] ?? ''))])
 }
 
 export type RowOutcome<T> =

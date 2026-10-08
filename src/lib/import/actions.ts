@@ -25,7 +25,7 @@ export async function previewImportAction(
   const prodi = def.prodiScoped ? parseProdi(formData.get('prodi')) : null
   if (def.prodiScoped && !prodi) return { ok: false, error: 'Prodi tidak dikenali.' }
   const buffer = await file.arrayBuffer()
-  const parsed = parseWorkbookRows(buffer)
+  const parsed = await parseWorkbookRows(buffer)
   if (parsed.length === 0) {
     return { ok: false, error: 'File tidak memiliki baris data.' }
   }
