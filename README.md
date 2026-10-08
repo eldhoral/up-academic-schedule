@@ -95,6 +95,7 @@ npm run dev           # development server
 npm run build         # production build
 npm run lint          # eslint
 npx tsc --noEmit      # type check
+npm run check         # every check:* below except check:db, in one go
 npm run check:prodi   # prodi config and access rules
 npm run check:import  # Excel import/export parsing
 npm run check:proxy   # login redirect fails closed
@@ -102,6 +103,7 @@ npm run check:settings # settings query skips signature images unless asked
 npm run check:roles   # current user from JWT claims
 npm run check:ics     # calendar text: escaping, folding, recurrence lines
 npm run check:jadwal-dosen # lecturer link: weeks, exam-week skips, roles, token
+npm run check:tahun-akademik # saving a term never leaves no active term
 npm run check:db      # needs Docker: applies every migration to a throwaway Postgres, checks the prodi schema and RLS
 ```
 
@@ -116,6 +118,8 @@ npm run check:surat
 npm run check:ujian
 npm run check:sidang
 ```
+
+GitHub Actions (`.github/workflows/checks.yml`) runs `npm run check`, the build, `tsc`, lint and `check:db` on every push to `main` and every pull request.
 
 ## Project layout
 

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { humanDbError } from '@/lib/db-error'
+import { saveAcademicYear, type SaveStep } from './save-year'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -29,17 +30,9 @@ export async function createAcademicYearAction(_prev: FormState, formData: FormD
   if (datesError) return { error: datesError }
 
   const supabase = await createClient()
-
-  if (is_active) {
-    const { error } = await supabase.from('academic_years').update({ is_active: false }).eq('is_active', true)
-    if (error) return { error: humanDbError(error) }
-  }
-
-  const { error } = await supabase.from('academic_years').insert({ id, label, is_active, mulai_kuliah, selesai_kuliah })
-  if (error) return { error: humanDbError(error, 'Tahun akademik') }
-
+  const failed = await saveAcademicYear(supabase, { id, isNew: true, fields: { label, mulai_kuliah, selesai_kuliah }, isActive: is_active })
   revalidatePath('/tahun-akademik')
-  return { success: true }
+  return failed ? { error: saveErrorMessage(failed) } : { success: true }
 }
 
 export async function updateAcademicYearAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
@@ -50,17 +43,15 @@ export async function updateAcademicYearAction(id: string, _prev: FormState, for
   if (datesError) return { error: datesError }
 
   const supabase = await createClient()
-
-  if (is_active) {
-    const { error } = await supabase.from('academic_years').update({ is_active: false }).eq('is_active', true).neq('id', id)
-    if (error) return { error: humanDbError(error) }
-  }
-
-  const { error } = await supabase.from('academic_years').update({ label, is_active, mulai_kuliah, selesai_kuliah }).eq('id', id)
-  if (error) return { error: humanDbError(error, 'Tahun akademik') }
-
+  const failed = await saveAcademicYear(supabase, { id, isNew: false, fields: { label, mulai_kuliah, selesai_kuliah }, isActive: is_active })
   revalidatePath('/tahun-akademik')
-  return { success: true }
+  return failed ? { error: saveErrorMessage(failed) } : { success: true }
+}
+
+function saveErrorMessage({ step, error }: { step: SaveStep; error: Parameters<typeof humanDbError>[0] }): string {
+  if (step === 'save') return humanDbError(error, 'Tahun akademik')
+  if (step === 'activate') return `Tahun akademik tersimpan, tetapi belum aktif: ${humanDbError(error)}`
+  return `Tahun akademik ini sudah aktif, tetapi tahun akademik lain belum dinonaktifkan: ${humanDbError(error)} Simpan sekali lagi.`
 }
 
 export async function deleteAcademicYearAction(id: string): Promise<FormState> {

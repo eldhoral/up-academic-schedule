@@ -21,7 +21,9 @@
     "check:proxy": "tsx scripts/check-proxy.ts",
     "check:settings": "tsx scripts/check-settings.ts",
     "check:roles": "tsx scripts/check-roles.ts",
-    "check:ics": "tsx scripts/check-ics.ts"
+    "check:ics": "tsx scripts/check-ics.ts",
+    "check:tahun-akademik": "tsx scripts/check-tahun-akademik.ts",
+    "check": "npm run -s check:sesi && npm run -s check:clash && npm run -s check:print && npm run -s check:calendar && npm run -s check:surat && npm run -s check:ujian && npm run -s check:sidang && npm run -s check:prodi && npm run -s check:import && npm run -s check:jadwal-dosen && npm run -s check:proxy && npm run -s check:settings && npm run -s check:roles && npm run -s check:ics && npm run -s check:tahun-akademik"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.7",
