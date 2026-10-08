@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { buildEvents, kuliahDates, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
+import { toJadwal, type RawExam } from '../src/app/jadwal-dosen/jadwal-data'
 import { isJadwalToken, newJadwalToken } from '../src/app/jadwal-dosen/token'
 
 // Term: mulai Rabu 2026-09-02 (week 1 = Senin 2026-08-31), selesai Jumat 2026-12-18.
@@ -91,6 +92,46 @@ assert.equal(
   assert.ok(!isJadwalToken('abc'))
   assert.ok(!isJadwalToken(`${a}/`))
   assert.ok(!isJadwalToken(`${a.slice(0, 42)}.`))
+}
+
+// --- shaping DB rows -------------------------------------------------------------------------------
+{
+  const ex = (o: Partial<RawExam>): RawExam => ({
+    id: 'e', prodi: 's1', jenis_kelas: 'reguler', jenis_ujian: 'uts', kode_mk: 'M1', kelas: 'A', tanggal: '2026-10-19',
+    jam_mulai: '08:00:00', jam_selesai: '10:00:00', keterangan_ujian: 'offline', pengawas: [], courses: { nama_mk: 'Psikologi Klinis' }, rooms: { nama: '201' }, ...o,
+  })
+  const j = toJadwal({
+    lecturer: { kode_dosen: 'D1', nama: 'Budi', gelar_depan: 'Dr.', gelar_belakang: ', M.Si' },
+    term: { id: '20261', label: '2026/2027 Gasal', mulai_kuliah: '2026-09-02', selesai_kuliah: null },
+    schedules: [
+      { id: 'k2', prodi: 's2', jenis_kelas: 'reguler', kode_mk: 'M9', kelas: 'B', hari: 'RABU', jam_mulai: '18:00:00', jam_selesai: '20:30:00', minggu: 'ganjil', zoom_id: ' 560 278 1304 ', courses: null, rooms: null },
+      { id: 'k1', prodi: 's1', jenis_kelas: 'reguler', kode_mk: 'M1', kelas: 'A', hari: 'SENIN', jam_mulai: '08:00:00', jam_selesai: '09:40:00', minggu: 'setiap', zoom_id: '', courses: { nama_mk: 'Psikologi Klinis' }, rooms: [{ nama: '301' }] },
+    ],
+    exams: [
+      ex({ id: 'e1', pengawas: [{ nama: 'AKADEMIK' }] }), // teaches M1 A: pengampu; a non-dosen pengawas matches nobody
+      ex({ id: 'e2', kode_mk: 'M2', tanggal: '2026-10-20', pengawas: [{ kode_dosen: 'D1' }], keterangan_ujian: 'take_home', rooms: null }),
+      ex({ id: 'e3', kelas: 'GABUNGAN', tanggal: '2026-10-21', pengawas: [{ kode_dosen: 'D1' }] }), // teaches a kelas of M1
+      ex({ id: 'e4', kelas: 'B' }), // teaches M1 A only
+      ex({ id: 'e5', jenis_kelas: 'regsus' }), // another program
+    ],
+    defenses: [
+      { id: 'd2', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-03', jam_mulai: '08:00:00', jam_selesai: '10:00:00', kelompok: null, nama_mahasiswa: 'Alfia', pembimbing_kode: 'D3', penguji_kode: 'D1', rooms: { nama: '302' } },
+      { id: 'd1', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-02', jam_mulai: '09:00:00', jam_selesai: '10:00:00', kelompok: 2, nama_mahasiswa: 'Yuyun', pembimbing_kode: 'D1', penguji_kode: 'D2', rooms: null },
+    ],
+  })
+  assert.equal(j.kodeDosen, 'D1')
+  assert.equal(j.nama, 'Dr. Budi, M.Si')
+  assert.deepEqual(j.term, { id: '20261', label: '2026/2027 Gasal', mulai: '2026-09-02', selesai: null })
+  assert.deepEqual(
+    j.kuliah.map((x) => [x.id, x.jam_mulai, x.jam_selesai, x.tempat, x.nama_mk]),
+    [['k1', '08:00', '09:40', 'Ruang 301', 'Psikologi Klinis'], ['k2', '18:00', '20:30', 'Zoom 560 278 1304', 'M9']],
+    'sorted Senin first; joined rows as object or array; Zoom when there is no room; kode_mk when the course is missing',
+  )
+  assert.deepEqual(j.ujian.map((x) => [x.id, x.peran]), [['e1', ['pengampu']], ['e2', ['pengawas']], ['e3', ['pengawas', 'pengampu']]])
+  assert.deepEqual(j.ujian.map((x) => x.tempat), ['Ruang 201', 'Take Home', 'Ruang 201'])
+  assert.equal(j.ujian[0].jam_mulai, '08:00')
+  assert.equal(j.examDays.length, 5, 'every dated exam pauses kuliah, not only this lecturer’s')
+  assert.deepEqual(j.sidang.map((x) => [x.id, x.peran, x.tempat]), [['d1', 'pembimbing', 'Kelompok 2 (Zoom)'], ['d2', 'penguji', 'Ruang 302']])
 }
 
 console.log('jadwal dosen: all checks passed')
