@@ -25,7 +25,7 @@ export async function buildCetakData(prodi: Prodi, params: { ay?: string | null;
   const year = years.find((y) => y.id === context.academic_year_id)
   const label = year?.label ?? ''
   const space = label.indexOf(' ')
-  const headerTemplate = settingText(settings, 'header_baris', '').split('\n')
+  const headerTemplate = settingText(settings, 'header_baris', '').split(/\r?\n/)
 
   // One sheet per semester: its own header (semester/angkatan differ) over its own rows.
   // "Semua semester" prints every semester that has classes, in order.
@@ -49,7 +49,7 @@ export async function buildCetakData(prodi: Prodi, params: { ay?: string | null;
       schedules: schedules.filter((s) => s.semester_ke === semesterKe),
     }
   })
-  const keteranganLines = settingText(settings, 'keterangan_cetak', '').split('\n').filter(Boolean)
+  const keteranganLines = settingText(settings, 'keterangan_cetak', '').split(/\r?\n/).filter(Boolean)
 
   return {
     academicYears: years,

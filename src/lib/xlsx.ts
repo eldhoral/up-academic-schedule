@@ -38,6 +38,6 @@ export function mergedText(
   const cell = sheet.getCell(row, 1)
   cell.value = text
   cell.font = { bold: opts.bold ?? false, size: opts.size ?? 10, underline: opts.underline ?? false }
-  cell.alignment = { horizontal: opts.align ?? 'left' }
+  cell.alignment = { horizontal: opts.align ?? 'left', vertical: 'top' }
   return cell
 }

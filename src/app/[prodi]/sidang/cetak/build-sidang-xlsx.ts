@@ -6,7 +6,6 @@ import type { DefenseJenis } from '../defense-types'
 import type { SidangCetakData } from './sidang-cetak-data'
 
 const MIN_ROW_HEIGHT = 22
-const HEADER_HEIGHT = 31.5 // the templates' header row, two wrapped lines
 const LINE = 16
 
 type Props = Pick<SidangCetakData, 'sheets' | 'zoomId' | 'zoomPasscode' | 'namaWakilDekan' | 'jabatanWakilDekan' | 'namaPenandatangan' | 'jabatanPenandatangan'> & { jenis: DefenseJenis; prodi: Prodi }
@@ -27,6 +26,9 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, kelompo
   const count = columns.length
   const size = props.jenis === 'sidang' ? 12 : 11 // the templates' type sizes
   const font = (bold = false): Partial<ExcelJS.Font> => ({ name: 'Arial', size, bold })
+  // Row heights in points, from the templates (prasidang: Jadwal Prasidang Gasal 2025-2026, sidang: jadwal sidang master).
+  const titleHeight = props.jenis === 'sidang' ? 15.75 : 15
+  const headerHeight = props.jenis === 'sidang' ? 31.5 : 30
 
   const sheet = workbook.addWorksheet(name, {
     pageSetup: {
@@ -46,30 +48,34 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, kelompo
     const cell = sheet.getCell(r, from)
     cell.value = text
     cell.font = font(bold)
-    cell.alignment = { horizontal: align, vertical: 'middle', wrapText: true }
+    cell.alignment = { horizontal: align, vertical: 'top', wrapText: true }
   }
 
   let r = 1
   for (const line of headerLines) {
-    const cell = mergedText(sheet, r++, count, line, { bold: true, align: 'center' })
+    const cell = mergedText(sheet, r, count, line, { bold: true, align: 'center' })
     cell.font = font(true)
-  }
-
-  if (props.jenis === 'prasidang') {
-    // Prasidang is on Zoom, one breakout room per kelompok.
-    merged(r, 1, 3, `ID ZOOM : ${props.zoomId}`, true, 'left')
-    merged(r, 4, 5, `PASSCODE : ${props.zoomPasscode}`, true, 'left')
-    merged(r, 6, 7, `(BREAK OUT ROOM KELOMPOK ${kelompok ?? ''})`, true, 'left')
-    r++
+    sheet.getRow(r++).height = titleHeight
   }
   r++
 
-  sheet.getRow(r).height = HEADER_HEIGHT
+  if (props.jenis === 'prasidang') {
+    // Prasidang is on Zoom, one breakout room per kelompok.
+    sheet.getRow(r).height = titleHeight
+    merged(r, 1, 3, `ID ZOOM : ${props.zoomId}`, true, 'center')
+    merged(r, 4, 5, `PASSCODE : ${props.zoomPasscode}`, true, 'center')
+    merged(r, 6, 7, `(BREAK OUT ROOM KELOMPOK ${kelompok ?? ''})`, true, 'center')
+    r += 2
+  } else {
+    r++ // sidang leaves two blank rows above the table
+  }
+
+  sheet.getRow(r).height = headerHeight
   columns.forEach((c, i) => {
     const cell = sheet.getCell(r, i + 1)
     cell.value = c.header
     cell.font = font(true)
-    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
+    cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true }
     cell.border = BORDER_ALL
   })
   const headerRow = r
@@ -81,21 +87,23 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, kelompo
       const cell = sheet.getCell(r, i + 1)
       cell.value = v // NPM stays text: no leading-zero loss, no scientific notation
       cell.font = font()
-      cell.alignment = { vertical: 'middle', horizontal: columns[i].center ? 'center' : 'left', wrapText: true }
+      cell.alignment = { vertical: 'top', horizontal: columns[i].center ? 'center' : 'left', wrapText: true }
       cell.border = BORDER_ALL
     })
     r++
   }
 
   // Signatures: Wakil Dekan I on the left ("MENGETAHUI," only on prasidang), Kaprodi on the right.
+  // Placement follows each template: prasidang left block A:C, names 4 rows down; sidang B:C, 5 rows down.
+  const leftFrom = props.jenis === 'sidang' ? 2 : 1
   const rightFrom = 6
   const rightTo = props.jenis === 'sidang' ? 8 : 7
-  r += 2
-  if (props.jenis === 'prasidang') merged(r++, 2, 3, 'MENGETAHUI,', false, 'center')
-  merged(r, 2, 3, props.jabatanWakilDekan, false, 'center')
+  r += 1
+  if (props.jenis === 'prasidang') merged(r++, leftFrom, 3, 'MENGETAHUI,', false, 'center')
+  merged(r, leftFrom, 3, props.jabatanWakilDekan, false, 'center')
   merged(r, rightFrom, rightTo, props.jabatanPenandatangan, false, 'center')
-  r += 5
-  merged(r, 2, 3, props.namaWakilDekan, true, 'center')
+  r += props.jenis === 'sidang' ? 5 : 4
+  merged(r, leftFrom, 3, props.namaWakilDekan, true, 'center')
   merged(r, rightFrom, rightTo, props.namaPenandatangan, true, 'center')
 
   // Repeats the column header row on every printed page (Excel's "Print Titles").

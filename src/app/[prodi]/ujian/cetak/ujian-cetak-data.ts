@@ -51,7 +51,7 @@ export async function buildUjianCetakData(prodi: Prodi, params: { ay?: string | 
 
   const label = years.find((y) => y.id === context.academic_year_id)?.label ?? ''
   const space = label.indexOf(' ')
-  const headerTemplate = settingText(settings, 'ujian_header_baris', '').split('\n')
+  const headerTemplate = settingText(settings, 'ujian_header_baris', '').split(/\r?\n/)
 
   const semesters =
     context.semester_ke === 'all' ? [...new Set(exams.map((e) => e.semester_ke))].sort((a, b) => a - b) : [context.semester_ke]

@@ -39,7 +39,7 @@ export async function buildSidangCetakData(prodi: Prodi, params: { ay?: string |
 
   const label = years.find((y) => y.id === context.academic_year_id)?.label ?? ''
   const space = label.indexOf(' ')
-  const template = settingText(settings, jenis === 'sidang' ? 'sidang_header_baris' : 'prasidang_header_baris', '').split('\n')
+  const template = settingText(settings, jenis === 'sidang' ? 'sidang_header_baris' : 'prasidang_header_baris', '').split(/\r?\n/)
 
   const taken = new Set<string>()
   const sheets: SidangSheet[] = buildDefenseBlocks(

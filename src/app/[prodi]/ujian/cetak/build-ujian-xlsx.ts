@@ -4,8 +4,9 @@ import { EXAM_ALIGN, EXAM_COLUMNS, EXAM_WIDTHS } from '../exam-rows'
 import type { UjianSheet } from './ujian-cetak-data'
 
 const COLUMN_COUNT = EXAM_COLUMNS.length
-const MIN_ROW_HEIGHT = 24 // points; the template's rows are about this tall
-const LINE = 16
+const TITLE_HEIGHT = 15 // points, as in the template
+const MIN_ROW_HEIGHT = 14.45 // the template's one-line row
+const LINE = 14.45
 const SIGNATURE_FROM = 7 // 1-based: the jabatan/nama block sits over DOSEN PENGAMPU..PENGAWAS, as in the template
 const SIGNATURE_TO = 9
 
@@ -42,7 +43,10 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: Ujian
   }
 
   let r = 1
-  for (const line of headerLines) title(r++, line, { bold: true, size: 11, align: 'center' })
+  for (const line of headerLines) {
+    title(r, line, { bold: true, size: 11, align: 'center' })
+    sheet.getRow(r++).height = TITLE_HEIGHT
+  }
   r++
 
   const headerRow = r
@@ -51,7 +55,7 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: Ujian
     const cell = sheet.getCell(r, i + 1)
     cell.value = label
     cell.font = font(true)
-    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
+    cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true }
     cell.border = BORDER_ALL
   })
   r++
@@ -81,7 +85,8 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: Ujian
       const cell = sheet.getCell(first + ri, i + 1)
       cell.value = c.text
       cell.font = font()
-      cell.alignment = { vertical: 'middle', horizontal: c.colSpan > 1 ? 'center' : EXAM_ALIGN[i], wrapText: true }
+      // The template tops every cell; only the merged UNIVERSITAS note is centred in its block.
+      cell.alignment = { vertical: c.colSpan > 1 ? 'middle' : 'top', horizontal: c.colSpan > 1 ? 'center' : EXAM_ALIGN[i], wrapText: true }
       cell.border = BORDER_ALL
       // Style first, merge second: exceljs copies the master's style to the covered cells.
       if (c.rowSpan > 1 || c.colSpan > 1) sheet.mergeCells(first + ri, i + 1, first + ri + c.rowSpan - 1, i + c.colSpan)
@@ -94,9 +99,9 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: Ujian
     const cell = sheet.getCell(row, SIGNATURE_FROM)
     cell.value = text
     cell.font = font(bold)
-    cell.alignment = { horizontal: 'center' }
+    cell.alignment = { horizontal: 'center', vertical: 'top' }
   }
-  r += 2
+  r += 1 // one blank row under the table, as in the template
   signature(r, props.jabatanPenandatangan, false)
   r += 5
   signature(r, props.namaPenandatangan, true)
