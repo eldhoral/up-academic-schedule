@@ -14,7 +14,7 @@ export default async function MenuPage() {
     getCampusPhoto(),
   ])
 
-  const years = (academicYears as AcademicYear[]) ?? []
+  const years = (academicYears as (AcademicYear & { mulai_kuliah: string | null; selesai_kuliah: string | null })[]) ?? []
   const year = years.find((y) => y.is_active) ?? years[0]
   const prodiList = user ? accessibleProdi(user.prodiAccess) : []
   const blocks = await Promise.all(
@@ -43,7 +43,23 @@ export default async function MenuPage() {
         </figure>
 
         <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.02em] text-balance">{year?.label ?? 'Belum ada tahun akademik'}</h1>
-        <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">Tahun akademik aktif</p>
+        <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">
+          Tahun akademik aktif
+          {year && (
+            <>
+              {' · '}
+              {year.mulai_kuliah || year.selesai_kuliah ? (
+                <span className="whitespace-nowrap">
+                  Perkuliahan {tanggalPendek(year.mulai_kuliah)} &ndash; {tanggalPendek(year.selesai_kuliah)}
+                </span>
+              ) : (
+                <Link href="/tahun-akademik" className="text-[var(--tinta-2)] hover:underline">
+                  Atur tanggal perkuliahan
+                </Link>
+              )}
+            </>
+          )}
+        </p>
 
         {blocks.map(({ prodi, kuliah, ujian, sidang }) => {
           const c = PRODI_CONFIG[prodi]
@@ -180,6 +196,12 @@ function Tally({ status }: { status: ScheduleStatus }) {
       </span>
     )
   return <span className={`${cell} text-[0.93rem] font-medium text-[var(--hijau)]`}>✓ bersih</span>
+}
+
+/** "1 Sep 2026"; a date not set yet reads "—". */
+function tanggalPendek(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 }
 
 function AdminLink({ href, children }: { href: string; children: React.ReactNode }) {
