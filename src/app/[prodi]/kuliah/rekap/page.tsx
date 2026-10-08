@@ -5,7 +5,7 @@ import { lecturerDisplayName } from '@/lib/import/tables'
 import { buildRekapData } from './rekap-data'
 import { letterSections, sumSks } from './letter-rows'
 import { RekapClient } from './RekapClient'
-import type { AcademicYear, Lecturer } from '../penjadwalan-types'
+import { LECTURER_COLUMNS, type AcademicYear, type Lecturer } from '../penjadwalan-types'
 
 export default async function RekapPage(props: PageProps<'/[prodi]/kuliah/rekap'>) {
   const prodi = await prodiParam(props.params)
@@ -14,7 +14,7 @@ export default async function RekapPage(props: PageProps<'/[prodi]/kuliah/rekap'
 
   const [{ data: academicYears }, { data: lecturers }] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
-    supabase.from('lecturers').select('*').order('nama'),
+    supabase.from('lecturers').select(LECTURER_COLUMNS).order('nama'),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []

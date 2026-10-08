@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { createScheduleAction, deleteScheduleAction, updateScheduleAction, type FormState } from './penjadwalan-actions'
-import { checkScheduleClashes, type ClashCheckResult } from './clash-actions'
+import { checkScheduleClashes, type BebanSummary, type ClashCheckResult } from './clash-actions'
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
 import type { Course, KuliahContext, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
 
@@ -123,6 +123,7 @@ export function ScheduleFormModal({
       const result = await checkScheduleClashes(context.academic_year_id, {
         prodi: context.prodi,
         id: editing?.id,
+        kode_mk: kodeMk,
         hari,
         jam_mulai: jamMulai,
         jam_selesai: jamSelesai,
@@ -136,7 +137,12 @@ export function ScheduleFormModal({
       setLivePreview(result)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidateComplete, hari, jamMulai, jamSelesai, kelas, roomId, minggu, dosenRows.join(',')])
+  }, [candidateComplete, kodeMk, hari, jamMulai, jamSelesai, kelas, roomId, minggu, dosenRows.join(',')])
+
+  const dosenName = (kode: string) => {
+    const l = lecturers.find((x) => x.kode_dosen === kode)
+    return l ? lecturerDisplayName(l) : kode
+  }
 
   const needsOverride = state && 'needsOverride' in state ? state : null
 
@@ -382,12 +388,34 @@ export function ScheduleFormModal({
             <ClashList clashes={livePreview.clashes} />
           )}
 
+          {candidateComplete && livePreview && livePreview.freeRooms.length > 0 && (
+            <div className="text-[0.87rem]">
+              <span className="text-[var(--tinta-3)]">Ruangan kosong pada waktu ini:</span>
+              <div className="flex flex-wrap gap-[0.4rem] mt-[0.3rem]">
+                {livePreview.freeRooms.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setRoomId(r.id)}
+                    className="px-[0.6rem] py-[0.2rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] bg-[var(--lembar)] text-[0.8rem] cursor-pointer hover:bg-[var(--cekung)]"
+                  >
+                    {r.nama}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {candidateComplete && livePreview && livePreview.beban.length > 0 && <BebanList beban={livePreview.beban} dosenName={dosenName} />}
+
           {needsOverride && (
             <div className="bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.8rem] space-y-[0.6rem]">
               <p className="text-[0.87rem] text-[var(--merah)] font-medium">
-                Penyimpanan diblokir oleh {needsOverride.clashes.filter((c) => c.policy === 'blok').length} bentrokan.
+                Penyimpanan diblokir oleh{' '}
+                {[...needsOverride.clashes, ...needsOverride.beban].filter((c) => c.policy === 'blok').length} bentrokan.
               </p>
               <ClashList clashes={needsOverride.clashes} />
+              <BebanList beban={needsOverride.beban} dosenName={dosenName} />
               <label className="flex items-start gap-[0.4rem] text-[0.87rem]">
                 <input
                   type="checkbox"
@@ -471,6 +499,27 @@ function ClashList({ clashes }: { clashes: { type: string; policy: string; detai
           <span className="font-medium">{CLASH_LABEL[c.type] ?? c.type}</span> bentrok dengan{' '}
           <b>{c.nama_mk}</b> (Kelas {c.kelas}, {c.detail}) — {hariLabel(c.hari)} {c.jam_mulai.slice(0, 5)}–{c.jam_selesai.slice(0, 5)},{' '}
           tumpang tindih {c.overlapMinutes} menit.
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function BebanList({ beban, dosenName }: { beban: BebanSummary[]; dosenName: (kode: string) => string }) {
+  if (beban.length === 0) return null
+  return (
+    <ul className="m-0 pl-0 list-none space-y-[0.4rem]">
+      {beban.map((b) => (
+        <li
+          key={b.kode_dosen}
+          className={`text-[0.87rem] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] border ${
+            b.policy === 'blok'
+              ? 'bg-[var(--merah-lembut)] border-[var(--merah-garis)] text-[var(--merah-teks)]'
+              : 'bg-[var(--kuning-lembut)] border-[var(--kuning-garis)] text-[var(--kuning)]'
+          }`}
+        >
+          <span className="font-medium">Beban SKS</span> &mdash; <b>{dosenName(b.kode_dosen)}</b> menjadi {b.sks} SKS tahun akademik ini, melebihi batas{' '}
+          {b.maks} SKS.
         </li>
       ))}
     </ul>

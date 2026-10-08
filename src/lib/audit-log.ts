@@ -40,6 +40,38 @@ export function tableLabel(name: string): string {
   return TABLE_LABEL[name] ?? name
 }
 
+export const LOG_PAGE_SIZE = 50
+
+export type LogFilters = { page: number; table: string | null; action: AuditAction | null; q: string; from: string | null; to: string | null }
+
+type Params = Record<string, string | string[] | undefined>
+
+/** The Log Aktivitas filters, read from the URL: anything unknown falls back to "all". */
+export function parseLogFilters(params: Params): LogFilters {
+  const get = (k: string) => {
+    const v = params[k]
+    return (Array.isArray(v) ? v[0] : v)?.trim() ?? ''
+  }
+  const date = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null)
+  const page = parseInt(get('hal'), 10)
+  const table = get('tabel')
+  const action = get('aksi')
+  return {
+    page: page >= 1 ? page : 1,
+    table: Object.hasOwn(TABLE_LABEL, table) ? table : null,
+    action: Object.hasOwn(ACTION_LABEL, action) ? (action as AuditAction) : null,
+    q: get('q'),
+    from: date(get('dari')),
+    to: date(get('sampai')),
+  }
+}
+
+/** PostgREST or() filter for the email / record-id search; only email and id characters survive, so no comma or paren can add a condition. */
+export function logSearchFilter(q: string): string | null {
+  const term = q.replace(/[^\w@.-]/g, '')
+  return term ? `actor_email.ilike.*${term}*,record_id.ilike.*${term}*` : null
+}
+
 /** Fields the table only churns internally — noisy in a diff, not a real change someone made. */
 const IGNORED_FIELDS = new Set(['created_at', 'updated_at'])
 

@@ -49,7 +49,7 @@ npx supabase db push
 
 The migrations create the schema, RLS policies, roles and settings, and seed data: the 2026 curriculum, the 2026/2027 Gasal schedule, and the 2025/2026 Gasal UTS and sidang.
 
-Without the CLI, paste `supabase/all_in_one_setup.sql` into the Supabase SQL editor and run it. It is every migration joined into one file, so whenever you add a migration, append it there too. It is for a fresh database only: an existing project applies just the new migration files, `supabase/migrations/20261007000001_prodi.sql`, `supabase/migrations/20261008000001_header_line_breaks.sql`, `supabase/migrations/20261008000002_s2_reguler_malam.sql` and `supabase/migrations/20261008000003_jadwal_dosen.sql`.
+Without the CLI, paste `supabase/all_in_one_setup.sql` into the Supabase SQL editor and run it. It is every migration joined into one file, so whenever you add a migration, append it there too. It is for a fresh database only: an existing project applies just the new migration files, `supabase/migrations/20261007000001_prodi.sql`, `supabase/migrations/20261008000001_header_line_breaks.sql`, `supabase/migrations/20261008000002_s2_reguler_malam.sql`, `supabase/migrations/20261008000003_jadwal_dosen.sql` and `supabase/migrations/20261009000001_beban_dosen.sql`.
 
 ### First account
 
@@ -83,7 +83,7 @@ Akses Prodi is set per account in **Manajemen Pengguna**. Shared data (Dosen, Ru
 
 1. In **Data Master**, set up each prodi's Mata Kuliah, Mahasiswa (for prasidang/sidang or seminar/tesis), Sesi and Pengaturan (clash policies, print header, signatories), and the shared Data Bersama: Dosen, Ruangan and Tahun Akademik. Mata Kuliah, Dosen, Ruangan and Mahasiswa can be imported from Excel: download the template, or export the current data, fill it in, upload it, check the dry-run preview, then commit.
 2. Set the active academic year in **Tahun Akademik** and generate the time slots in **Sesi**.
-3. Build the kuliah schedule in `/s1/kuliah` or `/s2/kuliah`.
+3. Build the kuliah schedule in `/s1/kuliah` or `/s2/kuliah`. **Salin dari {tahun lalu}** copies the same term from a year earlier (slots, rooms and dosen) as a starting point; classes that already exist are left alone. The findings bar also flags any dosen over **Maksimum SKS dosen** (Pengaturan, S1 and S2 counted together).
 4. In `/s1/ujian` or `/s2/ujian`, copy the kuliah classes in as exam rows. Kelas taught only on Zoom start as Online. Then fill in the date, time, ruangan and pengawas.
 5. Print from each section's **Cetak** tab. Changes are recorded in the **Audit Log**.
 6. Share each lecturer's schedule from **Dosen → Link jadwal**: a no-login page plus a calendar feed lecturers can subscribe to. Set **Mulai/Selesai perkuliahan** in Tahun Akademik so weekly classes appear in the calendar. **Reset link** replaces a leaked link.
@@ -104,6 +104,8 @@ npm run check:roles   # current user from JWT claims
 npm run check:ics     # calendar text: escaping, folding, recurrence lines
 npm run check:jadwal-dosen # lecturer link: weeks, exam-week skips, roles, token
 npm run check:tahun-akademik # saving a term never leaves no active term
+npm run check:copy-year # copying kuliah from last year: source term, reset fields, dosen for inserted rows only
+npm run check:audit-log # Log Aktivitas URL filters and search escaping
 npm run check:db      # needs Docker: applies every migration to a throwaway Postgres, checks the prodi schema and RLS
 ```
 

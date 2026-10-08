@@ -10,7 +10,7 @@ import { fetchExamPage } from './exam-query'
 import { normalizeName } from './exam-clash'
 import { parseSesiList, type ExamContext } from './exam-types'
 import { UjianClient } from './UjianClient'
-import type { AcademicYear, Lecturer, Room } from '../kuliah/penjadwalan-types'
+import { LECTURER_COLUMNS, type AcademicYear, type Lecturer, type Room } from '../kuliah/penjadwalan-types'
 
 export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
   const prodi = await prodiParam(props.params)
@@ -19,7 +19,7 @@ export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
 
   const [{ data: academicYears }, { data: lecturers }, { data: rooms }, settings, role] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
-    supabase.from('lecturers').select('*').order('nama'),
+    supabase.from('lecturers').select(LECTURER_COLUMNS).order('nama'),
     supabase.from('rooms').select('*').eq('active', true).order('nama'),
     getSettings(prodi),
     getCurrentRole(),

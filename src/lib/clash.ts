@@ -107,10 +107,16 @@ export type ClashPairing = {
 /**
  * All-pairs scan across a set of already-saved schedules — the standing
  * findings-bar view, as opposed to findClashes' one-candidate-vs-many check
- * used while editing a single row. O(n^2) over ~100 rows; fine at this size.
+ * used while editing a single row. Rows only clash on the same hari, so pairs are
+ * scanned per hari: O(n^2 / days) — a whole year of both prodi stays cheap.
  */
 export function findAllClashes(existing: ExistingScheduleForClash[]): ClashPairing[] {
   const pairings: ClashPairing[] = []
+  for (const day of Map.groupBy(existing, (r) => r.hari).values()) pairSameDay(day, pairings)
+  return pairings
+}
+
+function pairSameDay(existing: ExistingScheduleForClash[], pairings: ClashPairing[]) {
   for (let i = 0; i < existing.length; i++) {
     const a = existing[i]
     const candidate: ScheduleCandidate = {
@@ -130,7 +136,39 @@ export function findAllClashes(existing: ExistingScheduleForClash[]): ClashPairi
       pairings.push({ type: clash.type, a, b: clash.with, overlapMinutes: clash.overlapMinutes, detail: clash.detail })
     }
   }
-  return pairings
+}
+
+type Slot = { id?: string; hari: string; jam_mulai: string; jam_selesai: string; minggu: Minggu }
+
+/** Rooms no other row holds in the slot (same rule as a room clash): the suggestions shown under a room clash. */
+export function freeRooms<R extends { id: string }>(rooms: R[], slot: Slot, existing: (Slot & { id: string; room_id: string | null })[]): R[] {
+  const taken = new Set(
+    existing
+      .filter((r) => r.id !== slot.id && r.hari === slot.hari && weeksCollide(r.minggu, slot.minggu))
+      .filter((r) => timeOverlapMinutes(slot.jam_mulai, slot.jam_selesai, r.jam_mulai, r.jam_selesai) > 0)
+      .map((r) => r.room_id)
+  )
+  return rooms.filter((room) => !taken.has(room.id))
+}
+
+export type LoadRow = { prodi: Prodi; kode_mk: string; kelas: string; jenis_kelas: string; semester_ke: number; sks: number; dosenCodes: string[] }
+
+/**
+ * Teaching load per dosen, in SKS. A class (prodi, program, semester, kode_mk, kelas) counts once however
+ * many weekly meetings it has, and team teaching gives every dosen on it the full SKS.
+ */
+export function dosenSks(rows: LoadRow[]): Map<string, number> {
+  const seen = new Set<string>()
+  const load = new Map<string, number>()
+  for (const r of rows) {
+    for (const d of r.dosenCodes) {
+      const key = `${d}|${r.prodi}|${r.jenis_kelas}|${r.semester_ke}|${r.kode_mk}|${r.kelas}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      load.set(d, (load.get(d) ?? 0) + r.sks)
+    }
+  }
+  return load
 }
 
 // --- Dated slots (ujian, sidang) ----------------------------------------------

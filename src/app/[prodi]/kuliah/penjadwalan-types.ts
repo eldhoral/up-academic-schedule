@@ -8,6 +8,10 @@ export type KuliahContext = { prodi: Prodi; academic_year_id: string; jenis_kela
 
 export type AcademicYear = { id: string; label: string; is_active: boolean }
 
+// Only the columns the pages use: lecturers also holds each dosen's secret jadwal link token.
+export const LECTURER_COLUMNS = 'kode_dosen, nidn, nama, gelar_depan, gelar_belakang'
+export const YEAR_COLUMNS = 'id, label, is_active'
+
 export type ScheduleRow = {
   id: string
   academic_year_id: string

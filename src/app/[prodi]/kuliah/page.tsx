@@ -5,9 +5,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getSettings, settingInt, settingText } from '@/lib/settings'
 import { PenjadwalanClient } from './PenjadwalanClient'
 import { fetchSchedulesForContext } from './schedule-query'
-import { checkAllClashes } from './clash-actions'
+import { checkKuliahFindings } from './clash-actions'
 import { canWrite, getCurrentRole } from '@/lib/roles'
-import type { AcademicYear, Course, KuliahContext, Lecturer, Room, SessionRow } from './penjadwalan-types'
+import { LECTURER_COLUMNS, YEAR_COLUMNS, type AcademicYear, type Course, type KuliahContext, type Lecturer, type Room, type SessionRow } from './penjadwalan-types'
 
 function classLetters(maxLetter: string): string[] {
   const max = /^[A-Z]$/.test(maxLetter) ? maxLetter : 'Z'
@@ -23,9 +23,15 @@ export default async function DashboardPage(props: PageProps<'/[prodi]/kuliah'>)
   const searchParams = await props.searchParams
   const supabase = await createClient()
 
-  const [{ data: academicYears }, settings] = await Promise.all([
-    supabase.from('academic_years').select('*').order('id', { ascending: false }),
+  // Everything that doesn't depend on the academic year starts at once.
+  const [{ data: academicYears }, settings, { data: courses }, { data: lecturers }, { data: rooms }, { data: sessions }, role] = await Promise.all([
+    supabase.from('academic_years').select(YEAR_COLUMNS).order('id', { ascending: false }),
     getSettings(prodi),
+    supabase.from('courses').select('kode_mk, nama_mk, sks, jenis_mk, smt, kurikulum').eq('prodi', prodi).order('kode_mk'),
+    supabase.from('lecturers').select(LECTURER_COLUMNS).order('nama'),
+    supabase.from('rooms').select('id, nama, kapasitas, keterangan, active').eq('active', true).order('nama'),
+    supabase.from('sessions').select('id, hari, sesi_ke, jam_mulai, jam_selesai, sks, active').eq('prodi', prodi).order('hari').order('sesi_ke'),
+    getCurrentRole(),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []
@@ -38,17 +44,9 @@ export default async function DashboardPage(props: PageProps<'/[prodi]/kuliah'>)
     semester_ke: clampSemester(prodi, searchParams.smt),
   }
 
-  const role = await getCurrentRole()
-
-  const [{ data: courses }, { data: lecturers }, { data: rooms }, { data: sessions }, schedules, clashes] =
-    await Promise.all([
-      supabase.from('courses').select('*').eq('prodi', prodi).order('kode_mk'),
-      supabase.from('lecturers').select('*').order('nama'),
-      supabase.from('rooms').select('*').eq('active', true).order('nama'),
-      supabase.from('sessions').select('*').eq('prodi', prodi).order('hari').order('sesi_ke'),
-      fetchSchedulesForContext(context),
-      checkAllClashes(context.academic_year_id, prodi),
-    ])
+  // The findings bar (a whole-year scan of both prodi) streams in after the table: not awaited here.
+  const findings = checkKuliahFindings(context.academic_year_id, prodi)
+  const schedules = await fetchSchedulesForContext(context)
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
@@ -60,7 +58,7 @@ export default async function DashboardPage(props: PageProps<'/[prodi]/kuliah'>)
         rooms={(rooms as Room[]) ?? []}
         sessions={(sessions as SessionRow[]) ?? []}
         schedules={schedules}
-        clashes={clashes}
+        findings={findings}
         kelasOptions={classLetters(settingText(settings, 'kelas_maksimal', 'Z'))}
         maksMahasiswaPerKelas={settingInt(settings, 'maks_mahasiswa_per_kelas', 50)}
         minMahasiswaPilihan={settingInt(settings, 'min_mahasiswa_pilihan', 10)}

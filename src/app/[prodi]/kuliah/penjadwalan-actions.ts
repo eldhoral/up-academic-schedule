@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getSettings, settingText } from '@/lib/settings'
-import { checkScheduleClashes, type ClashSummary } from './clash-actions'
+import { checkScheduleClashes, type BebanSummary, type ClashSummary } from './clash-actions'
+import { COPY_CONFLICT, copiedLecturers, copiedSchedules, previousYearId, type SourceSchedule } from './copy-year'
 import { humanDbError } from '@/lib/db-error'
 import { parseProdi, PRODI_CONFIG, type JenisKelas, type Prodi } from '@/lib/prodi'
 import { writableProdi } from '@/lib/prodi-server'
@@ -11,7 +12,7 @@ import { writableProdi } from '@/lib/prodi-server'
 export type FormState =
   | { error: string }
   | { success: true }
-  | { needsOverride: true; clashes: ClashSummary[] }
+  | { needsOverride: true; clashes: ClashSummary[]; beban: BebanSummary[] }
   | null
 
 function readScheduleForm(formData: FormData) {
@@ -84,6 +85,7 @@ async function guardAgainstClashes(
   const result = await checkScheduleClashes(row.academic_year_id, {
     prodi,
     id: excludeId ?? undefined,
+    kode_mk: row.kode_mk,
     hari: row.hari,
     jam_mulai: row.jam_mulai,
     jam_selesai: row.jam_selesai,
@@ -108,7 +110,7 @@ async function guardAgainstClashes(
     return { isOverride: true, overrideReason: row.overrideReason }
   }
 
-  return { formState: { needsOverride: true, clashes: result.clashes } }
+  return { formState: { needsOverride: true, clashes: result.clashes, beban: result.beban } }
 }
 
 export async function createScheduleAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -229,4 +231,49 @@ export async function deleteScheduleAction(prodi: Prodi, id: string): Promise<Fo
 
   revalidatePath('/[prodi]/kuliah', 'page')
   return { success: true }
+}
+
+export type CopyYearState = { error: string } | { success: true; message: string }
+
+/**
+ * Copies one program's kuliah (all semesters) from the same term a year earlier into this year, with their
+ * dosen. A class that already exists here is left as it is. Clashes are not checked one by one: the
+ * findings bar shows any the copy brings in, to fix there.
+ */
+export async function copyFromPreviousYearAction(c: { prodi: Prodi; academic_year_id: string; jenis_kelas: string }): Promise<CopyYearState> {
+  const gate = await writableProdi(c.prodi)
+  if ('error' in gate) return { error: gate.error }
+  const sourceYear = previousYearId(c.academic_year_id)
+  if (!sourceYear) return { error: 'Tahun akademik sebelumnya tidak dikenali.' }
+
+  const supabase = await createClient()
+  const { data: source, error } = await supabase
+    .from('schedules')
+    .select('prodi, jenis_kelas, semester_ke, kode_mk, kelas, hari, jam_mulai, jam_selesai, room_id, zoom_id, minggu, keterangan, schedule_lecturers(kode_dosen, urutan)')
+    .eq('academic_year_id', sourceYear)
+    .eq('prodi', gate.prodi)
+    .eq('jenis_kelas', c.jenis_kelas)
+  if (error) return { error: humanDbError(error) }
+  if (!source?.length) return { success: true, message: 'Tidak ada jadwal kuliah tahun lalu untuk disalin.' }
+
+  const rows = source as SourceSchedule[]
+  const { data: inserted, error: insertError } = await supabase
+    .from('schedules')
+    .upsert(copiedSchedules(rows, c.academic_year_id), { onConflict: COPY_CONFLICT, ignoreDuplicates: true })
+    .select('id, jenis_kelas, semester_ke, kode_mk, kelas')
+  if (insertError) return { error: humanDbError(insertError) }
+
+  const lecturers = copiedLecturers(rows, inserted ?? [])
+  if (lecturers.length > 0) {
+    const { error: lecturerError } = await supabase.from('schedule_lecturers').insert(lecturers)
+    if (lecturerError) {
+      // Undo the copy: a rerun skips classes that exist, so dosen-less copies would never get their dosen.
+      await supabase.from('schedules').delete().in('id', inserted!.map((r) => r.id))
+      return { error: humanDbError(lecturerError, 'Dosen ini pada jadwal') }
+    }
+  }
+
+  revalidatePath('/[prodi]/kuliah', 'page')
+  const n = inserted?.length ?? 0
+  return { success: true, message: `${n} ditambahkan, ${rows.length - n} sudah ada.` }
 }

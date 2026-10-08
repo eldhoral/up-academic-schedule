@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { fetchExamsForPrint } from '../exam-query'
 import { UjianKalenderClient } from './UjianKalenderClient'
-import type { AcademicYear, Lecturer } from '../../kuliah/penjadwalan-types'
+import { LECTURER_COLUMNS, type AcademicYear, type Lecturer } from '../../kuliah/penjadwalan-types'
 
 export default async function UjianKalenderPage(props: PageProps<'/[prodi]/ujian/kalender'>) {
   const prodi = await prodiParam(props.params)
@@ -13,7 +13,7 @@ export default async function UjianKalenderPage(props: PageProps<'/[prodi]/ujian
   const supabase = await createClient()
   const [{ data: academicYears }, { data: lecturers }] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
-    supabase.from('lecturers').select('*'),
+    supabase.from('lecturers').select(LECTURER_COLUMNS),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []

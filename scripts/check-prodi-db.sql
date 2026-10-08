@@ -166,3 +166,10 @@ do $$ begin
     assert not exists (select 1 from audit_log where coalesce(new_data::text, '') || coalesce(old_data::text, '') like '%secret-token-check%'), 'token kept out of audit_log';
     assert exists (select 1 from audit_log where table_name = 'lecturers' and record_id = 'TOKCHK' and action = 'UPDATE'), 'the update is still logged';
 end $$;
+
+-- Beban SKS dosen ---------------------------------------------------------------------------------
+do $$ begin
+    assert (select value from settings where key = 'maks_sks_dosen' and prodi = 'all') = '12', 'maks_sks_dosen shared, 12 by default';
+    assert (select value from settings where key = 'bentrok_beban' and prodi = 'all') = 'peringatan', 'bentrok_beban shared, peringatan by default';
+    assert not exists (select 1 from settings where key in ('maks_sks_dosen', 'bentrok_beban') and prodi <> 'all'), 'a dosen''s load spans both prodi: one shared row each';
+end $$;

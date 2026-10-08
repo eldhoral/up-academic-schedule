@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { fetchDefenses } from '../defense-query'
 import { SidangKalenderClient } from './SidangKalenderClient'
-import type { AcademicYear, Lecturer } from '../../kuliah/penjadwalan-types'
+import { LECTURER_COLUMNS, type AcademicYear, type Lecturer } from '../../kuliah/penjadwalan-types'
 
 export default async function SidangKalenderPage(props: PageProps<'/[prodi]/sidang/kalender'>) {
   const prodi = await prodiParam(props.params)
@@ -12,7 +12,7 @@ export default async function SidangKalenderPage(props: PageProps<'/[prodi]/sida
   const supabase = await createClient()
   const [{ data: academicYears }, { data: lecturers }] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
-    supabase.from('lecturers').select('*'),
+    supabase.from('lecturers').select(LECTURER_COLUMNS),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []

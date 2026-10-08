@@ -9,7 +9,7 @@ import { checkAllDefenseClashes } from './actions'
 import { fetchDefenses, fetchExternalNames } from './defense-query'
 import type { DefenseContext, Student } from './defense-types'
 import { SidangClient } from './SidangClient'
-import type { AcademicYear, Lecturer, Room } from '../kuliah/penjadwalan-types'
+import { LECTURER_COLUMNS, type AcademicYear, type Lecturer, type Room } from '../kuliah/penjadwalan-types'
 
 export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
   const prodi = await prodiParam(props.params)
@@ -18,7 +18,7 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
 
   const [{ data: academicYears }, { data: lecturers }, { data: rooms }, { data: students }, settings, role, externalNames] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
-    supabase.from('lecturers').select('*').order('nama'),
+    supabase.from('lecturers').select(LECTURER_COLUMNS).order('nama'),
     supabase.from('rooms').select('*').eq('active', true).order('nama'),
     supabase.from('students').select('npm, nama, judul_skripsi').eq('prodi', prodi).order('npm'),
     getSettings(prodi),

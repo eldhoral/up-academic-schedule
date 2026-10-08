@@ -50,6 +50,11 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: 'peringatan', label: 'Peringatan' },
     { value: 'abaikan', label: 'Abaikan' },
   ],
+  bentrok_beban: [
+    { value: 'blok', label: 'Blok' },
+    { value: 'peringatan', label: 'Peringatan' },
+    { value: 'abaikan', label: 'Abaikan' },
+  ],
   izinkan_override: [
     { value: 'ya', label: 'Ya' },
     { value: 'tidak', label: 'Tidak' },

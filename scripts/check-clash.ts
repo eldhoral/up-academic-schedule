@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { findClashes, findSlotClashes, orientFinding, timeOverlapMinutes, weeksCollide, type ExistingScheduleForClash, type ScheduleCandidate } from '../src/lib/clash'
+import { dosenSks, findAllClashes, findClashes, findSlotClashes, freeRooms, orientFinding, timeOverlapMinutes, weeksCollide, type ExistingScheduleForClash, type ScheduleCandidate } from '../src/lib/clash'
 import { examKeys, findExamClashes, type ExamClashInput } from '../src/app/[prodi]/ujian/exam-clash'
 import { defenseKeys, findDefenseClashes, findTeachingOverlaps, type DefenseClashInput } from '../src/app/[prodi]/sidang/defense-clash'
 
@@ -240,6 +240,45 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
   assert.equal(orientFinding('s1', f({ prodi: 's1', n: 'x' }, { prodi: 's2', n: 'y' }))?.a.n, 'x')
   assert.equal(orientFinding('s1', f({ prodi: 's1', n: 'x' }, null))?.a.n, 'x', 'a one-sided finding (teaching overlap) keeps its side')
   assert.equal(orientFinding('s2', f({ prodi: 's1', n: 'x' }, null)), null)
+}
+
+// --- findAllClashes: pairs only rows on the same hari --------------------------
+{
+  const rows = [
+    row({ id: 'r1', hari: 'SENIN', dosenCodes: ['D1'], dosenNames: ['Ani'] }),
+    row({ id: 'r2', hari: 'SELASA', kelas: 'A', dosenCodes: ['D1'], dosenNames: ['Ani'] }),
+    row({ id: 'r3', hari: 'SENIN', kelas: 'B', dosenCodes: ['D1'], dosenNames: ['Ani'] }),
+    row({ id: 'r4', hari: 'SELASA', kelas: 'B', dosenCodes: ['D1'], dosenNames: ['Ani'] }),
+  ]
+  const pairs = findAllClashes(rows).map((p) => `${p.type}:${p.a.id}-${p.b.id}`)
+  assert.deepEqual(pairs, ['dosen:r1-r3', 'dosen:r2-r4'], 'same dosen on different hari is not a clash; each pair once, in row order')
+}
+
+// --- freeRooms: rooms nobody holds in the candidate's slot ---------------------
+{
+  const rooms = [{ id: 'R1', nama: '101' }, { id: 'R2', nama: '102' }, { id: 'R3', nama: '103' }, { id: 'R4', nama: '104' }]
+  const slot = { id: 'self', hari: 'JUMAT', jam_mulai: '13:00', jam_selesai: '14:40', minggu: 'ganjil' as const }
+  const day = [
+    row({ id: 'a', room_id: 'R1' }), // overlaps: taken
+    row({ id: 'b', room_id: 'R2', jam_mulai: '14:40', jam_selesai: '16:20' }), // back-to-back: free
+    row({ id: 'c', room_id: 'R3', minggu: 'genap' }), // other week parity: free
+    row({ id: 'self', room_id: 'R4' }), // the row being edited does not block its own room
+  ]
+  assert.deepEqual(freeRooms(rooms, slot, day).map((r) => r.id), ['R2', 'R3', 'R4'])
+  assert.deepEqual(freeRooms(rooms, { ...slot, hari: 'SENIN' }, day).map((r) => r.id), ['R1', 'R2', 'R3', 'R4'], 'rows on another hari never block')
+}
+
+// --- dosenSks: SKS per dosen, once per class, full SKS for each team member ----
+{
+  const load = dosenSks([
+    { prodi: 's1', kode_mk: 'MK1', kelas: 'A', jenis_kelas: 'reguler', semester_ke: 1, sks: 3, dosenCodes: ['D1', 'D2'] },
+    { prodi: 's1', kode_mk: 'MK1', kelas: 'A', jenis_kelas: 'reguler', semester_ke: 1, sks: 3, dosenCodes: ['D1'] }, // a second weekly meeting of the same class
+    { prodi: 's1', kode_mk: 'MK1', kelas: 'B', jenis_kelas: 'reguler', semester_ke: 1, sks: 3, dosenCodes: ['D1'] },
+    { prodi: 's2', kode_mk: 'MK1', kelas: 'A', jenis_kelas: 'reguler', semester_ke: 1, sks: 2, dosenCodes: ['D1'] }, // same code, other prodi: another class
+  ])
+  assert.equal(load.get('D1'), 8)
+  assert.equal(load.get('D2'), 3, 'team teaching counts the full SKS for every dosen')
+  assert.equal(load.get('D3'), undefined)
 }
 
 console.log('clash: all checks passed')

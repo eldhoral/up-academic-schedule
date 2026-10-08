@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, use, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { HARI_DB, hariLabel } from '@/lib/hari'
 import { ScheduleFormModal } from './ScheduleFormModal'
 import { FindingsBar } from '@/components/FindingsBar'
-import type { ClashFinding, ClashFindingSide } from './clash-actions'
+import type { ClashFinding, ClashFindingSide, KuliahFindings } from './clash-actions'
+import { copyFromPreviousYearAction } from './penjadwalan-actions'
+import { previousYearId } from './copy-year'
 import type { AcademicYear, Course, KuliahContext, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
 import { useProdi } from '@/lib/use-prodi'
 import { PRODI_CONFIG, semesterList, type JenisKelas } from '@/lib/prodi'
@@ -17,6 +20,43 @@ const CLASH_REASON: Record<ClashFinding['type'], (detail: string) => string> = {
   ruangan: (detail) => `Ruangan ${detail} terjadwal ganda`,
 }
 
+function KuliahFindingsBar({
+  findings,
+  scopeLabel,
+  lecturers,
+  onView,
+}: {
+  findings: KuliahFindings | Promise<KuliahFindings>
+  scopeLabel: string
+  lecturers: Lecturer[]
+  onView: (side: ClashFindingSide) => void
+}) {
+  const { clashes, beban } = findings instanceof Promise ? use(findings) : findings
+  const nama = new Map(lecturers.map((l) => [l.kode_dosen, lecturerDisplayName(l)]))
+  return (
+    <FindingsBar
+      scopeLabel={scopeLabel}
+      findings={clashes.map((c) => ({
+        policy: c.policy === 'blok' ? 'blok' : 'peringatan',
+        where: `Semester ${c.a.semester_ke} · Kelas ${c.a.kelas}`,
+        text: (
+          <>
+            <b className="font-semibold">{c.a.nama_mk}</b> dan <b className="font-semibold">{c.b.nama_mk}</b> berjalan pada waktu
+            yang sama di hari {hariLabel(c.a.hari)} &mdash; {CLASH_REASON[c.type](c.detail)}.
+          </>
+        ),
+        minutes: c.overlapMinutes,
+        target: c.a,
+      }))}
+      notes={beban.map(
+        (b) =>
+          `${nama.get(b.kode_dosen) ?? b.kode_dosen} mengajar ${b.sks} SKS tahun akademik ini (S1 dan S2), melebihi batas ${b.maks} SKS${b.policy === 'blok' ? ' — penyimpanan jadwalnya diblokir' : ''}.`
+      )}
+      onView={onView}
+    />
+  )
+}
+
 export function PenjadwalanClient({
   academicYears,
   courses,
@@ -24,7 +64,7 @@ export function PenjadwalanClient({
   rooms,
   sessions,
   schedules: initialSchedules,
-  clashes: initialClashes,
+  findings: initialFindings,
   kelasOptions,
   maksMahasiswaPerKelas,
   minMahasiswaPilihan,
@@ -37,7 +77,7 @@ export function PenjadwalanClient({
   rooms: Room[]
   sessions: SessionRow[]
   schedules: ScheduleRow[]
-  clashes: ClashFinding[]
+  findings: Promise<KuliahFindings> // streamed: the page doesn't wait for the whole-year scan
   kelasOptions: string[]
   maksMahasiswaPerKelas: number
   minMahasiswaPilihan: number
@@ -47,27 +87,44 @@ export function PenjadwalanClient({
   const prodi = useProdi()
   const [modalOpen, setModalOpen] = useState<'new' | ScheduleRow | null>(null)
   const [schedules, setSchedules] = useState(initialSchedules)
-  const [clashes, setClashes] = useState(initialClashes)
+  // Findings fetched after a client-side year change; null means the page's streamed ones.
+  const [fetchedFindings, setFetchedFindings] = useState<KuliahFindings | null>(null)
   const [context, setContext] = useState(initialContext)
   const [query, setQuery] = useState('')
   const [hariFilter, setHariFilter] = useState('semua')
+  const router = useRouter()
+  const [isCopying, startCopy] = useTransition()
+  const [confirmingCopy, setConfirmingCopy] = useState(false)
+  const [copyMessage, setCopyMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   // router.refresh() (after add/edit save) re-renders the server page with fresh props — resync.
   // (React "adjusting state during render" pattern: avoids an effect + extra render pass.)
   const [prevInitial, setPrevInitial] = useState({
     schedules: initialSchedules,
-    clashes: initialClashes,
+    findings: initialFindings,
     context: initialContext,
   })
   if (
     initialSchedules !== prevInitial.schedules ||
-    initialClashes !== prevInitial.clashes ||
+    initialFindings !== prevInitial.findings ||
     initialContext !== prevInitial.context
   ) {
-    setPrevInitial({ schedules: initialSchedules, clashes: initialClashes, context: initialContext })
+    setPrevInitial({ schedules: initialSchedules, findings: initialFindings, context: initialContext })
     setSchedules(initialSchedules)
-    setClashes(initialClashes)
+    setFetchedFindings(null)
     setContext(initialContext)
+  }
+
+  const copySource = academicYears.find((ay) => ay.id === previousYearId(context.academic_year_id)) ?? null
+  const programLabel = PRODI_CONFIG[context.prodi].jenisKelas.length > 1 ? (context.jenis_kelas === 'reguler' ? ' Reguler' : ' Reguler Khusus') : ''
+
+  function copyFromPreviousYear() {
+    setConfirmingCopy(false)
+    startCopy(async () => {
+      const result = await copyFromPreviousYearAction({ prodi: context.prodi, academic_year_id: context.academic_year_id, jenis_kelas: context.jenis_kelas })
+      setCopyMessage('error' in result ? { ok: false, text: result.error } : { ok: true, text: result.message })
+      if (!('error' in result)) router.refresh()
+    })
   }
 
   async function navigate(next: Partial<typeof context>) {
@@ -89,7 +146,7 @@ export function PenjadwalanClient({
       : null
 
     setSchedules(await schedulesPromise)
-    if (clashesPromise) setClashes(await clashesPromise)
+    if (clashesPromise) setFetchedFindings(await clashesPromise)
   }
 
   async function viewClashSide(side: ClashFindingSide) {
@@ -176,22 +233,20 @@ export function PenjadwalanClient({
       </div>
 
       <div className="p-[1.07rem_1.3rem_1.3rem]">
-        <FindingsBar
-          scopeLabel={academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? 'tahun ini'}
-          findings={clashes.map((c) => ({
-            policy: c.policy === 'blok' ? 'blok' : 'peringatan',
-            where: `Semester ${c.a.semester_ke} · Kelas ${c.a.kelas}`,
-            text: (
-              <>
-                <b className="font-semibold">{c.a.nama_mk}</b> dan <b className="font-semibold">{c.b.nama_mk}</b> berjalan pada waktu
-                yang sama di hari {hariLabel(c.a.hari)} &mdash; {CLASH_REASON[c.type](c.detail)}.
-              </>
-            ),
-            minutes: c.overlapMinutes,
-            target: c.a,
-          }))}
-          onView={viewClashSide}
-        />
+        <Suspense
+          fallback={
+            <p className="mb-[1rem] px-[1rem] py-[0.53rem] border border-[var(--garis)] rounded-[var(--r-sedang)] text-[0.87rem] text-[var(--tinta-3)]">
+              Memeriksa bentrokan&hellip;
+            </p>
+          }
+        >
+          <KuliahFindingsBar
+            findings={fetchedFindings ?? initialFindings}
+            scopeLabel={academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? 'tahun ini'}
+            lecturers={lecturers}
+            onView={viewClashSide}
+          />
+        </Suspense>
 
         <div className="flex items-end justify-between gap-[1rem] mb-[1rem] flex-wrap">
           <div>
@@ -221,6 +276,18 @@ export function PenjadwalanClient({
               ]}
               className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.5rem]"
             />
+            {canEdit && copySource && (
+              <button
+                type="button"
+                onClick={confirmingCopy ? copyFromPreviousYear : () => setConfirmingCopy(true)}
+                onBlur={() => setConfirmingCopy(false)}
+                disabled={isCopying}
+                title={`Menyalin semua semester${programLabel} dari ${copySource.label}; kelas yang sudah ada tidak diubah.`}
+                className="px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] bg-[var(--lembar)] font-medium cursor-pointer hover:bg-[var(--cekung)] transition-colors text-[0.93rem] disabled:opacity-60"
+              >
+                {isCopying ? 'Menyalin…' : confirmingCopy ? `Salin semua semester${programLabel}?` : `Salin dari ${copySource.label}`}
+              </button>
+            )}
             {canEdit && (
               <button
                 type="button"
@@ -232,6 +299,12 @@ export function PenjadwalanClient({
             )}
           </div>
         </div>
+
+        {copyMessage && (
+          <p role="status" className={`mb-[1rem] text-[0.87rem] ${copyMessage.ok ? 'text-[var(--hijau)]' : 'text-[var(--merah)]'}`}>
+            {copyMessage.text}
+          </p>
+        )}
 
         {schedules.length > 0 && kelasGroups.length === 0 && (
           <p className="text-[0.93rem] text-[var(--tinta-3)] py-[2rem] text-center">
