@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { humanDbError } from '@/lib/db-error'
+import { canWrite, getCurrentUser } from '@/lib/roles'
+import { newJadwalToken } from '../jadwal-dosen/token'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -59,4 +61,30 @@ export async function deleteLecturerAction(kodeDosen: string): Promise<FormState
 
   revalidatePath('/dosen')
   return { success: true }
+}
+
+export type LinkState = { token: string } | { error: string }
+
+/**
+ * The lecturer's jadwal link token. Without `reset`, an existing token is returned as is (any signed-in
+ * role may copy it) and a missing one is created; with `reset`, a new token replaces the old one,
+ * which stops working at once. Creating and resetting are for SCHEDULER and SUPERADMIN (RLS agrees).
+ */
+export async function jadwalLinkAction(kodeDosen: string, reset: boolean): Promise<LinkState> {
+  const supabase = await createClient()
+  if (!reset) {
+    const { data } = await supabase.from('lecturers').select('jadwal_token').eq('kode_dosen', kodeDosen).maybeSingle()
+    if (data?.jadwal_token) return { token: data.jadwal_token as string }
+  }
+
+  const user = await getCurrentUser()
+  if (!user || !canWrite(user.role)) return { error: 'Hanya Scheduler atau Superadmin yang dapat membuat atau mengganti link jadwal.' }
+
+  const token = newJadwalToken()
+  const { data, error } = await supabase.from('lecturers').update({ jadwal_token: token }).eq('kode_dosen', kodeDosen).select('kode_dosen')
+  if (error) return { error: humanDbError(error) }
+  if (!data?.length) return { error: 'Dosen tidak ditemukan.' }
+
+  revalidatePath('/dosen')
+  return { token }
 }

@@ -1,11 +1,11 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { useActionState, useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { lecturerDisplayName } from '@/lib/import/tables'
-import { createLecturerAction, deleteLecturerAction, updateLecturerAction, type FormState } from './actions'
+import { createLecturerAction, deleteLecturerAction, jadwalLinkAction, updateLecturerAction, type FormState } from './actions'
 
 export type Lecturer = {
   kode_dosen: string
@@ -13,12 +13,14 @@ export type Lecturer = {
   nama: string
   gelar_depan: string
   gelar_belakang: string
+  jadwal_token?: string | null
 }
 
 export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
   const router = useRouter()
   const [editing, setEditing] = useState<Lecturer | 'new' | null>(null)
   const [query, setQuery] = useState('')
+  const [linkMessage, setLinkMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   const filtered = lecturers.filter((l) => {
     const q = query.trim().toLowerCase()
@@ -45,6 +47,18 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
           </button>
         </div>
 
+        {linkMessage && (
+          <div
+            role="status"
+            className={`rounded-[var(--r-kecil)] p-[0.6rem] text-[0.87rem] mb-[1rem] break-all border ${
+              linkMessage.ok
+                ? 'bg-[var(--hijau-lembut)] border-[var(--garis)] text-[var(--hijau)]'
+                : 'bg-[var(--merah-lembut)] border-[var(--merah-garis)] text-[var(--merah)]'
+            }`}
+          >
+            {linkMessage.text}
+          </div>
+        )}
         <input
           type="search"
           placeholder="Cari kode, nama, atau NIDN…"
@@ -69,11 +83,12 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
                   <Td className="mono">{l.kode_dosen}</Td>
                   <Td className="mono">{l.nidn || '—'}</Td>
                   <Td>{lecturerDisplayName(l)}</Td>
-                  <Td className="text-right">
+                  <Td className="text-right whitespace-nowrap">
+                    <JadwalLinkButtons kodeDosen={l.kode_dosen} hasLink={!!l.jadwal_token} onMessage={setLinkMessage} />
                     <button
                       type="button"
                       onClick={() => setEditing(l)}
-                      className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
+                      className="ml-[0.8rem] text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
                     >
                       Ubah
                     </button>
@@ -98,6 +113,54 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
 
       {editing && <LecturerFormModal lecturer={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
+  )
+}
+
+function JadwalLinkButtons({ kodeDosen, hasLink, onMessage }: { kodeDosen: string; hasLink: boolean; onMessage: (m: { ok: boolean; text: string }) => void }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [confirmReset, setConfirmReset] = useState(false)
+  const link = 'text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem] disabled:opacity-50'
+
+  const run = (reset: boolean) =>
+    startTransition(async () => {
+      const result = await jadwalLinkAction(kodeDosen, reset)
+      setConfirmReset(false)
+      if ('error' in result) {
+        onMessage({ ok: false, text: result.error })
+        return
+      }
+      const url = `${window.location.origin}/jadwal-dosen/${result.token}`
+      try {
+        await navigator.clipboard.writeText(url)
+        onMessage({ ok: true, text: `${reset ? 'Link baru' : 'Link'} jadwal ${kodeDosen} disalin: ${url}` })
+      } catch {
+        onMessage({ ok: true, text: `Link jadwal ${kodeDosen}: ${url}` })
+      }
+      router.refresh()
+    })
+
+  return (
+    <>
+      <button type="button" disabled={isPending} onClick={() => run(false)} className={link}>
+        Link jadwal
+      </button>
+      {hasLink &&
+        (confirmReset ? (
+          <>
+            <button type="button" disabled={isPending} onClick={() => run(true)} className={`ml-[0.8rem] ${link} text-[var(--merah)]`}>
+              Ya, ganti link
+            </button>
+            <button type="button" onClick={() => setConfirmReset(false)} className={`ml-[0.6rem] ${link}`}>
+              Batal
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => setConfirmReset(true)} className={`ml-[0.8rem] ${link}`}>
+            Reset link
+          </button>
+        ))}
+    </>
   )
 }
 
