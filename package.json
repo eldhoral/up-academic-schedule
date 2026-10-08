@@ -19,7 +19,8 @@
     "check:import": "tsx scripts/check-import.ts",
     "check:proxy": "tsx scripts/check-proxy.ts",
     "check:settings": "tsx scripts/check-settings.ts",
-    "check:roles": "tsx scripts/check-roles.ts"
+    "check:roles": "tsx scripts/check-roles.ts",
+    "check:ics": "tsx scripts/check-ics.ts"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.7",
