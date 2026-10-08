@@ -14,6 +14,8 @@ export type AcademicYearRow = {
   id: string
   label: string
   is_active: boolean
+  mulai_kuliah: string | null
+  selesai_kuliah: string | null
 }
 
 export function TahunAkademikClient({ years }: { years: AcademicYearRow[] }) {
@@ -143,6 +145,27 @@ function AcademicYearFormModal({ year, onClose }: { year: AcademicYearRow | null
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
             />
           </Field>
+          <div className="grid grid-cols-2 gap-[0.6rem]">
+            <Field label="Mulai perkuliahan">
+              <input
+                type="date"
+                name="mulai_kuliah"
+                defaultValue={year?.mulai_kuliah ?? ''}
+                className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
+              />
+            </Field>
+            <Field label="Selesai perkuliahan">
+              <input
+                type="date"
+                name="selesai_kuliah"
+                defaultValue={year?.selesai_kuliah ?? ''}
+                className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
+              />
+            </Field>
+          </div>
+          <p className="text-[0.8rem] text-[var(--tinta-3)]">
+            Dipakai kalender jadwal dosen: kuliah berulang tiap minggu di antara kedua tanggal ini, kecuali minggu UTS/UAS.
+          </p>
           <label className="flex items-center gap-[0.5rem] text-[0.93rem]">
             <input type="checkbox" name="is_active" defaultChecked={year?.is_active ?? false} className="w-[1rem] h-[1rem]" />
             Aktif

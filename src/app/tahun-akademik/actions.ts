@@ -10,13 +10,23 @@ function readForm(formData: FormData) {
   const id = (formData.get('id') as string)?.trim()
   const label = (formData.get('label') as string)?.trim()
   const is_active = formData.get('is_active') === 'on'
-  return { id, label, is_active }
+  // Empty date inputs mean "not set yet": the calendar feed then leaves kuliah out.
+  const mulai_kuliah = ((formData.get('mulai_kuliah') as string) || '').trim() || null
+  const selesai_kuliah = ((formData.get('selesai_kuliah') as string) || '').trim() || null
+  return { id, label, is_active, mulai_kuliah, selesai_kuliah }
+}
+
+function kuliahDatesError(mulai: string | null, selesai: string | null): string | null {
+  return mulai && selesai && selesai < mulai ? 'Selesai perkuliahan tidak boleh sebelum mulai perkuliahan.' : null
 }
 
 export async function createAcademicYearAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { id, label, is_active } = readForm(formData)
+  const { id, label, is_active, mulai_kuliah, selesai_kuliah } = readForm(formData)
   if (!id) return { error: 'ID wajib diisi.' }
   if (!label) return { error: 'Label wajib diisi.' }
+
+  const datesError = kuliahDatesError(mulai_kuliah, selesai_kuliah)
+  if (datesError) return { error: datesError }
 
   const supabase = await createClient()
 
@@ -25,7 +35,7 @@ export async function createAcademicYearAction(_prev: FormState, formData: FormD
     if (error) return { error: humanDbError(error) }
   }
 
-  const { error } = await supabase.from('academic_years').insert({ id, label, is_active })
+  const { error } = await supabase.from('academic_years').insert({ id, label, is_active, mulai_kuliah, selesai_kuliah })
   if (error) return { error: humanDbError(error, 'Tahun akademik') }
 
   revalidatePath('/tahun-akademik')
@@ -33,8 +43,11 @@ export async function createAcademicYearAction(_prev: FormState, formData: FormD
 }
 
 export async function updateAcademicYearAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const { label, is_active } = readForm(formData)
+  const { label, is_active, mulai_kuliah, selesai_kuliah } = readForm(formData)
   if (!label) return { error: 'Label wajib diisi.' }
+
+  const datesError = kuliahDatesError(mulai_kuliah, selesai_kuliah)
+  if (datesError) return { error: datesError }
 
   const supabase = await createClient()
 
@@ -43,7 +56,7 @@ export async function updateAcademicYearAction(id: string, _prev: FormState, for
     if (error) return { error: humanDbError(error) }
   }
 
-  const { error } = await supabase.from('academic_years').update({ label, is_active }).eq('id', id)
+  const { error } = await supabase.from('academic_years').update({ label, is_active, mulai_kuliah, selesai_kuliah }).eq('id', id)
   if (error) return { error: humanDbError(error, 'Tahun akademik') }
 
   revalidatePath('/tahun-akademik')
