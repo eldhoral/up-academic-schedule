@@ -119,7 +119,30 @@ npm run check:ujian
 npm run check:sidang
 ```
 
-GitHub Actions (`.github/workflows/checks.yml`) runs `npm run check`, the build, `tsc`, lint and `check:db` on every push to `main` and every pull request.
+GitHub Actions (`.github/workflows/checks.yml`) runs `npm audit` (runtime dependencies), `npm run check`, the build, `tsc`, lint and `check:db` on every push to `main` and every pull request. Dependabot (`.github/dependabot.yml`) opens weekly update PRs for npm packages and Actions, and the same checks test each one.
+
+## Backups
+
+The free Supabase plan keeps no backups, so `.github/workflows/backup.yml` dumps the database every Monday at 03:00 WIB (or on demand: Actions → Database backup → Run workflow). The repository is public, so the dump is encrypted with AES-256 before it is uploaded; each run keeps one artifact for 90 days.
+
+It needs two repository secrets (Settings → Secrets and variables → Actions):
+
+- `SUPABASE_DB_URL` — Supabase → Connect → Session pooler connection string, with the database password filled in.
+- `BACKUP_PASSPHRASE` — a long random passphrase. Keep it in a password manager: without it the backups cannot be opened.
+
+GitHub pauses scheduled workflows in a public repository after 60 days without commits; re-enable it on the Actions tab if that happens.
+
+To restore, download the artifact (a zip containing `krs-backup-YYYY-MM-DD.tar.gz.gpg`), then:
+
+```bash
+gpg -d krs-backup-YYYY-MM-DD.tar.gz.gpg | tar -xzf -    # asks for the passphrase; gives roles.sql, schema.sql, data.sql
+psql --single-transaction --variable ON_ERROR_STOP=1 \
+  --file roles.sql --file schema.sql \
+  --command 'SET session_replication_role = replica' --file data.sql \
+  --dbname "<connection string of the database to restore into>"
+```
+
+Restore into a new, empty Supabase project, then point the app's environment variables at it.
 
 ## Project layout
 

@@ -20,6 +20,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # A known moderate-or-worse advisory in a runtime dependency fails the run (dev-only tools are skipped).
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=moderate
       - name: Logic checks
         run: npm run check
       # Build first: it generates the route types (PageProps, RouteContext) that tsc needs.
