@@ -49,7 +49,7 @@ npx supabase db push
 
 The migrations create the schema, RLS policies, roles and settings, and seed data: the 2026 curriculum, the 2026/2027 Gasal schedule, and the 2025/2026 Gasal UTS and sidang.
 
-Without the CLI, paste `supabase/all_in_one_setup.sql` into the Supabase SQL editor and run it. It is every migration joined into one file, so whenever you add a migration, append it there too. It is for a fresh database only: an existing project applies just the new migration files, `supabase/migrations/20261007000001_prodi.sql`, `supabase/migrations/20261008000001_header_line_breaks.sql` and `supabase/migrations/20261008000002_s2_reguler_malam.sql`.
+Without the CLI, paste `supabase/all_in_one_setup.sql` into the Supabase SQL editor and run it. It is every migration joined into one file, so whenever you add a migration, append it there too. It is for a fresh database only: an existing project applies just the new migration files, `supabase/migrations/20261007000001_prodi.sql`, `supabase/migrations/20261008000001_header_line_breaks.sql`, `supabase/migrations/20261008000002_s2_reguler_malam.sql` and `supabase/migrations/20261008000003_jadwal_dosen.sql`.
 
 ### First account
 
