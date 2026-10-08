@@ -20,7 +20,7 @@ export async function buildCetakData(prodi: Prodi, params: { ay?: string | null;
     semester_ke: parseInt(params.smt ?? '', 10) ? clampSemester(prodi, params.smt) : ('all' as const), // no or non-numeric smt = Semua semester
   }
 
-  const [settings, schedules] = await Promise.all([getSettings(prodi), fetchSchedulesForContext(context)])
+  const [settings, schedules] = await Promise.all([getSettings(prodi, true), fetchSchedulesForContext(context)])
 
   const year = years.find((y) => y.id === context.academic_year_id)
   const label = year?.label ?? ''

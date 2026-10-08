@@ -17,7 +17,9 @@
     "check:prodi": "tsx scripts/check-prodi.ts",
     "check:db": "bash scripts/check-prodi-db.sh",
     "check:import": "tsx scripts/check-import.ts",
-    "check:proxy": "tsx scripts/check-proxy.ts"
+    "check:proxy": "tsx scripts/check-proxy.ts",
+    "check:settings": "tsx scripts/check-settings.ts",
+    "check:roles": "tsx scripts/check-roles.ts"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.7",

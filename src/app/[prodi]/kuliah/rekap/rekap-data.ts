@@ -10,7 +10,7 @@ export async function buildRekapData(prodi: Prodi, params: { ay?: string | null;
   const [{ data: academicYears }, { data: lecturers }, settings] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select('*').order('nama'),
-    getSettings(prodi),
+    getSettings(prodi, true),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []

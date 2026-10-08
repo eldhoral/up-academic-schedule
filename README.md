@@ -97,6 +97,8 @@ npx tsc --noEmit      # type check
 npm run check:prodi   # prodi config and access rules
 npm run check:import  # Excel import/export parsing
 npm run check:proxy   # login redirect fails closed
+npm run check:settings # settings query skips signature images unless asked
+npm run check:roles   # current user from JWT claims
 npm run check:db      # needs Docker: applies every migration to a throwaway Postgres, checks the prodi schema and RLS
 ```
 

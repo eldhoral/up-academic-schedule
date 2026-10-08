@@ -44,9 +44,10 @@ export async function updateSession(request: NextRequest) {
       },
     })
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    // getClaims refreshes an expired session like getUser, but verifies the JWT locally
+    // when the project uses asymmetric signing keys instead of asking the Auth server.
+    const { data } = await supabase.auth.getClaims()
+    const user = data?.claims ?? null
 
     const isMasuk = pathname === '/masuk'
 

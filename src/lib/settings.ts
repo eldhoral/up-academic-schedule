@@ -1,16 +1,25 @@
+import { cache } from 'react'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import type { Prodi } from '@/lib/prodi'
 
 export type SettingsMap = Record<string, string>
 
-/** Reads a prodi's settings plus the shared ('all') ones, once per request; casts happen at the call site. */
-export async function getSettings(prodi: Prodi): Promise<SettingsMap> {
-  const supabase = await createClient()
-  const { data } = await supabase.from('settings').select('key, value').in('prodi', [prodi, 'all'])
+/**
+ * A prodi's settings plus the shared ('all') ones; casts happen at the call site.
+ * Signature images (base64, the bulk of the table) only when `withImages`: just the cetak and rekap pages print them.
+ */
+export async function loadSettings(supabase: SupabaseClient, prodi: Prodi, withImages: boolean): Promise<SettingsMap> {
+  let query = supabase.from('settings').select('key, value').in('prodi', [prodi, 'all'])
+  if (!withImages) query = query.neq('type', 'image')
+  const { data } = await query
   const map: SettingsMap = {}
   for (const row of data ?? []) map[row.key as string] = (row.value as string) ?? ''
   return map
 }
+
+/** Read once per request: a page and the helpers it calls share one query. */
+export const getSettings = cache(async (prodi: Prodi, withImages = false) => loadSettings(await createClient(), prodi, withImages))
 
 export function settingInt(settings: SettingsMap, key: string, fallback: number): number {
   const parsed = parseInt(settings[key], 10)
