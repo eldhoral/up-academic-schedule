@@ -16,6 +16,17 @@ async function main() {
   const masuk = await updateSession(new NextRequest('http://localhost/masuk'))
   assert.equal(masuk.headers.get('location'), null, '/masuk is not redirected')
 
+  // The lecturer link and its feed are public: no login, no redirect...
+  for (const path of ['/jadwal-dosen/abc', '/jadwal-dosen/abc/kalender.ics']) {
+    const r = await updateSession(new NextRequest(`http://localhost${path}`))
+    assert.equal(r.headers.get('location'), null, `${path} passes through`)
+  }
+  // ...but only under that exact prefix.
+  for (const path of ['/jadwal-dosenx', '/jadwal-dosen']) {
+    const r = await updateSession(new NextRequest(`http://localhost${path}`))
+    assert.equal(new URL(r.headers.get('location')!).pathname, '/masuk', `${path} still needs login`)
+  }
+
   console.log('proxy: all checks passed')
 }
 

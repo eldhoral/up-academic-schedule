@@ -23,6 +23,18 @@ const nextConfig: NextConfig = {
       { source: "/pengaturan", destination: "/s1/pengaturan", permanent: false },
     ];
   },
+  // The lecturer link carries its secret in the URL: keep it out of search engines and Referer headers.
+  async headers() {
+    return [
+      {
+        source: "/jadwal-dosen/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

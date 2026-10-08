@@ -15,6 +15,7 @@ export async function updateSession(request: NextRequest) {
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/auth') ||
+    pathname.startsWith('/jadwal-dosen/') || // the lecturer's secret link and calendar feed: no session
     pathname === '/favicon.ico' ||
     pathname.match(/\.(png|jpg|jpeg|svg|css|js|ico|xlsx|pdf)$/)
   ) {
