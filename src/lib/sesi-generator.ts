@@ -62,3 +62,8 @@ export function generateDaySessions(params: {
 
   return slots
 }
+
+/** True when a slot runs past 24:00: toHHMM wraps, so an end at or before its start, or a start before the previous end. */
+export function crossesMidnight(slots: GeneratedSlot[]): boolean {
+  return slots.some((s, i) => s.jam_selesai <= s.jam_mulai || (i > 0 && s.jam_mulai < slots[i - 1].jam_selesai))
+}

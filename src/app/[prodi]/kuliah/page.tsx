@@ -30,7 +30,7 @@ export default async function DashboardPage(props: PageProps<'/[prodi]/kuliah'>)
     supabase.from('courses').select('kode_mk, nama_mk, sks, jenis_mk, smt, kurikulum').eq('prodi', prodi).order('kode_mk'),
     supabase.from('lecturers').select(LECTURER_COLUMNS).order('nama'),
     supabase.from('rooms').select('id, nama, kapasitas, keterangan, active').eq('active', true).order('nama'),
-    supabase.from('sessions').select('id, hari, sesi_ke, jam_mulai, jam_selesai, sks, active').eq('prodi', prodi).order('hari').order('sesi_ke'),
+    supabase.from('sessions').select('id, hari, jenis_kelas, sesi_ke, jam_mulai, jam_selesai, sks, active').eq('prodi', prodi).order('hari').order('sesi_ke'),
     getCurrentRole(),
   ])
 

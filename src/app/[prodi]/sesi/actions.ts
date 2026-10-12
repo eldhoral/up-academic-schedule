@@ -2,11 +2,11 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { generateDaySessions, type GeneratedSlot } from '@/lib/sesi-generator'
+import { crossesMidnight, generateDaySessions, type GeneratedSlot } from '@/lib/sesi-generator'
 import { getSettings, settingInt, settingText } from '@/lib/settings'
 import { HARI_DB as HARI_VALUES } from '@/lib/hari'
 import { humanDbError } from '@/lib/db-error'
-import type { Prodi } from '@/lib/prodi'
+import { parseJenisKelas, type JenisKelas, type Prodi } from '@/lib/prodi'
 import { writableProdi } from '@/lib/prodi-server'
 
 export type FormState = { error: string } | { success: true } | null
@@ -14,6 +14,7 @@ export type FormState = { error: string } | { success: true } | null
 export type GeneratorInput = {
   prodi: Prodi
   hari: string
+  jenisKelas: JenisKelas
   startJam: string
   pattern: string // comma list, e.g. "2,2,3"
   jedaMenit: number
@@ -45,6 +46,7 @@ export async function previewGeneratedSessions(input: GeneratorInput): Promise<G
       .select('sesi_ke')
       .eq('hari', input.hari)
       .eq('prodi', input.prodi)
+      .eq('jenis_kelas', parseJenisKelas(input.prodi, input.jenisKelas))
       .order('sesi_ke', { ascending: false })
       .limit(1)
     startSesiKe = ((data?.[0]?.sesi_ke as number) ?? 0) + 1
@@ -60,29 +62,39 @@ export async function previewGeneratedSessions(input: GeneratorInput): Promise<G
     startSesiKe,
   })
 
+  if (crossesMidnight(preview)) return { ok: false, error: 'Sesi melewati pukul 24:00. Kurangi pola SKS atau majukan jam mulai.' }
+
   return { ok: true, preview }
 }
 
 export async function commitGeneratedSessions(
   prodi: Prodi,
   hari: string,
+  jenisKelas: JenisKelas,
   replaceDay: boolean,
   slots: GeneratedSlot[]
 ): Promise<GeneratorResult> {
   const gate = await writableProdi(prodi)
   if ('error' in gate) return { ok: false, error: gate.error }
+  const jenis_kelas = parseJenisKelas(gate.prodi, jenisKelas)
   if (slots.length === 0) return { ok: false, error: 'Tidak ada yang disimpan.' }
 
   const supabase = await createClient()
 
   if (replaceDay) {
-    const { error } = await supabase.from('sessions').delete().eq('hari', hari).eq('prodi', gate.prodi)
+    const { error } = await supabase
+      .from('sessions')
+      .delete()
+      .eq('hari', hari)
+      .eq('prodi', gate.prodi)
+      .eq('jenis_kelas', jenis_kelas)
     if (error) return { ok: false, error: humanDbError(error) }
   }
 
   const rows = slots.map((s) => ({
     prodi: gate.prodi,
     hari,
+    jenis_kelas,
     sesi_ke: s.sesi_ke,
     jam_mulai: s.jam_mulai,
     jam_selesai: s.jam_selesai,
@@ -97,20 +109,21 @@ export async function commitGeneratedSessions(
   return { ok: true, preview: slots }
 }
 
-function readSessionForm(formData: FormData) {
+function readSessionForm(prodi: Prodi, formData: FormData) {
   const hari = formData.get('hari') as string
   const sesi_ke = parseInt(formData.get('sesi_ke') as string, 10)
   const jam_mulai = formData.get('jam_mulai') as string
   const jam_selesai = formData.get('jam_selesai') as string
   const sks = parseInt(formData.get('sks') as string, 10)
   const active = formData.get('active') === 'on'
-  return { hari, sesi_ke, jam_mulai, jam_selesai, sks, active }
+  const jenis_kelas = parseJenisKelas(prodi, formData.get('jenis_kelas'))
+  return { hari, jenis_kelas, sesi_ke, jam_mulai, jam_selesai, sks, active }
 }
 
 export async function updateSessionAction(prodi: Prodi, id: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const gate = await writableProdi(prodi)
   if ('error' in gate) return { error: gate.error }
-  const row = readSessionForm(formData)
+  const row = readSessionForm(gate.prodi, formData)
   if (!row.jam_mulai || !row.jam_selesai) return { error: 'jam_mulai dan jam_selesai wajib diisi.' }
   if (row.jam_selesai <= row.jam_mulai) return { error: 'jam_selesai harus setelah jam_mulai.' }
 
