@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { generateDaySessions } from '../src/lib/sesi-generator'
+import { crossesMidnight, generateDaySessions } from '../src/lib/sesi-generator'
 
 // Plain back-to-back slots, no break-window interference.
 const basic = generateDaySessions({
@@ -44,5 +44,12 @@ const continued = generateDaySessions({
   startSesiKe: 5,
 })
 assert.equal(continued[0].sesi_ke, 5)
+
+// An evening pattern too long for the day runs past 24:00 and is flagged; one that fits is not.
+const lateDay = (pattern: number[]) => generateDaySessions({ startJam: '18:00', pattern, jedaMenit: 10, menitPerSks: 50 })
+assert.equal(crossesMidnight(lateDay([2, 2, 2, 3, 2])), true) // 23:30–02:00
+assert.equal(crossesMidnight(lateDay([2, 2, 2, 2])), true) // last slot starts 23:30, ends 01:10
+assert.equal(crossesMidnight(lateDay([2, 3])), false)
+assert.equal(crossesMidnight(basic), false)
 
 console.log('sesi-generator: all checks passed')

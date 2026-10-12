@@ -7,6 +7,7 @@ import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { useProdi } from '@/lib/use-prodi'
 import type { GeneratedSlot } from '@/lib/sesi-generator'
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
+import type { JenisKelas } from '@/lib/prodi'
 import {
   commitGeneratedSessions,
   deleteSessionAction,
@@ -18,12 +19,18 @@ import {
 export type SessionRow = {
   id: string
   hari: string
+  jenis_kelas: JenisKelas
   sesi_ke: number
   jam_mulai: string
   jam_selesai: string
   sks: number
   active: boolean
 }
+
+const JENIS_LABEL: Record<JenisKelas, string> = { reguler: 'Reguler', regsus: 'Reguler Khusus' }
+const JENIS: JenisKelas[] = ['reguler', 'regsus']
+// Reguler Khusus starts in the evening; a longer pattern runs past midnight
+const REGSUS_PATTERN = '2,3'
 
 export function SesiClient({
   sessions,
@@ -41,9 +48,13 @@ export function SesiClient({
   const router = useRouter()
   const [editing, setEditing] = useState<SessionRow | null>(null)
 
-  const byHari = HARI.map((h) => ({ hari: h, rows: sessions.filter((s) => s.hari === h) })).filter(
-    (g) => g.rows.length > 0
-  )
+  const hasRegsus = jamMulaiRegsus !== undefined
+  const byHari = HARI.map((h) => ({
+    hari: h,
+    groups: JENIS.map((j) => ({ jenis: j, rows: sessions.filter((s) => s.hari === h && s.jenis_kelas === j) })).filter(
+      (g) => g.rows.length > 0
+    ),
+  })).filter((d) => d.groups.length > 0)
 
   return (
     <div className="space-y-[1.2rem]">
@@ -68,59 +79,66 @@ export function SesiClient({
         {byHari.length === 0 && <p className="text-[0.93rem] text-[var(--tinta-3)] py-[1rem]">Belum ada sesi — buat jadwal hari di atas.</p>}
 
         <div className="space-y-[1.2rem]">
-          {byHari.map(({ hari, rows }) => (
+          {byHari.map(({ hari, groups }) => (
             <div key={hari}>
               <h3 className="text-[0.87rem] font-semibold text-[var(--tinta-2)] mb-[0.4rem]">{hariLabel(hari)}</h3>
-              <div className="overflow-x-auto border border-[var(--garis)] rounded-[var(--r-kecil)]">
-                <table className="w-full text-[0.87rem] border-collapse">
-                  <thead className="bg-[var(--cekung)]">
-                    <tr>
-                      <Th>Sesi</Th>
-                      <Th>Jam</Th>
-                      <Th className="text-right">SKS</Th>
-                      <Th>Status</Th>
-                      <Th className="text-right">&nbsp;</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows
-                      .sort((a, b) => a.sesi_ke - b.sesi_ke)
-                      .map((s) => (
-                        <tr key={s.id} className="border-t border-[var(--garis)] h-[2.4rem]">
-                          <Td className="mono">{s.sesi_ke}</Td>
-                          <Td className="mono">
-                            {s.jam_mulai.slice(0, 5)}–{s.jam_selesai.slice(0, 5)}
-                          </Td>
-                          <Td className="text-right mono">{s.sks}</Td>
-                          <Td>
-                            <span
-                              className={`inline-block px-[0.4rem] py-[0.1rem] rounded-[var(--r-kecil)] text-[0.8rem] font-medium ${
-                                s.active ? 'bg-[var(--hijau-lembut)] text-[var(--hijau)]' : 'bg-[var(--cekung)] text-[var(--tinta-3)]'
-                              }`}
-                            >
-                              {s.active ? 'Aktif' : 'Nonaktif'}
-                            </span>
-                          </Td>
-                          <Td className="text-right">
-                            <button
-                              type="button"
-                              onClick={() => setEditing(s)}
-                              className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
-                            >
-                              Ubah
-                            </button>
-                          </Td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+              <div className="space-y-[0.8rem]">
+                {groups.map(({ jenis, rows }) => (
+                  <div key={jenis}>
+                    {hasRegsus && <h4 className="text-[0.8rem] font-medium text-[var(--tinta-3)] mb-[0.3rem]">{JENIS_LABEL[jenis]}</h4>}
+                    <div className="overflow-x-auto border border-[var(--garis)] rounded-[var(--r-kecil)]">
+                      <table className="w-full text-[0.87rem] border-collapse">
+                        <thead className="bg-[var(--cekung)]">
+                          <tr>
+                            <Th>Sesi</Th>
+                            <Th>Jam</Th>
+                            <Th className="text-right">SKS</Th>
+                            <Th>Status</Th>
+                            <Th className="text-right">&nbsp;</Th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows
+                            .sort((a, b) => a.sesi_ke - b.sesi_ke)
+                            .map((s) => (
+                              <tr key={s.id} className="border-t border-[var(--garis)] h-[2.4rem]">
+                                <Td className="mono">{s.sesi_ke}</Td>
+                                <Td className="mono">
+                                  {s.jam_mulai.slice(0, 5)}–{s.jam_selesai.slice(0, 5)}
+                                </Td>
+                                <Td className="text-right mono">{s.sks}</Td>
+                                <Td>
+                                  <span
+                                    className={`inline-block px-[0.4rem] py-[0.1rem] rounded-[var(--r-kecil)] text-[0.8rem] font-medium ${
+                                      s.active ? 'bg-[var(--hijau-lembut)] text-[var(--hijau)]' : 'bg-[var(--cekung)] text-[var(--tinta-3)]'
+                                    }`}
+                                  >
+                                    {s.active ? 'Aktif' : 'Nonaktif'}
+                                  </span>
+                                </Td>
+                                <Td className="text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditing(s)}
+                                    className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
+                                  >
+                                    Ubah
+                                  </button>
+                                </Td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {editing && <SessionFormModal session={editing} onClose={() => setEditing(null)} />}
+      {editing && <SessionFormModal session={editing} hasRegsus={hasRegsus} onClose={() => setEditing(null)} />}
     </div>
   )
 }
@@ -140,7 +158,9 @@ function GeneratorPanel({
 }) {
   const prodi = useProdi()
   const [hari, setHari] = useState('SENIN')
-  const [startJam, setStartJam] = useState(jamMulaiReguler.slice(0, 5))
+  const [jenis, setJenis] = useState<JenisKelas>('reguler')
+  const jenisStart = (j: JenisKelas) => (j === 'regsus' && jamMulaiRegsus ? jamMulaiRegsus : jamMulaiReguler).slice(0, 5)
+  const [startJam, setStartJam] = useState(jenisStart('reguler'))
   const [pattern, setPattern] = useState(defaultPattern)
   const [jeda, setJeda] = useState(jedaMenit)
   const [replaceDay, setReplaceDay] = useState(false)
@@ -150,11 +170,18 @@ function GeneratorPanel({
   const [isPreviewing, startPreview] = useTransition()
   const [isSaving, startSaving] = useTransition()
 
+  function pickJenis(j: JenisKelas) {
+    setJenis(j)
+    setStartJam(jenisStart(j))
+    setPattern(j === 'regsus' ? REGSUS_PATTERN : defaultPattern)
+    setPreview(null)
+  }
+
   function handlePreview() {
     setError(null)
     setMessage(null)
     startPreview(async () => {
-      const result = await previewGeneratedSessions({ prodi, hari, startJam, pattern, jedaMenit: jeda, replaceDay })
+      const result = await previewGeneratedSessions({ prodi, hari, jenisKelas: jenis, startJam, pattern, jedaMenit: jeda, replaceDay })
       if (result.ok) setPreview(result.preview)
       else {
         setError(result.error)
@@ -166,9 +193,9 @@ function GeneratorPanel({
   function handleSave() {
     if (!preview) return
     startSaving(async () => {
-      const result = await commitGeneratedSessions(prodi, hari, replaceDay, preview)
+      const result = await commitGeneratedSessions(prodi, hari, jenis, replaceDay, preview)
       if (result.ok) {
-        setMessage(`${preview.length} sesi berhasil disimpan untuk ${hariLabel(hari)}.`)
+        setMessage(`${preview.length} sesi berhasil disimpan untuk ${hariLabel(hari)}${jamMulaiRegsus ? ` ${JENIS_LABEL[jenis]}` : ''}.`)
         setPreview(null)
         onSaved()
       } else {
@@ -196,6 +223,18 @@ function GeneratorPanel({
           />
         </Field>
 
+        {jamMulaiRegsus && (
+          <Field label="Jenis kelas">
+            <Select
+              value={jenis}
+              onValueChange={(v) => pickJenis(v as JenisKelas)}
+              options={JENIS.map((j) => ({ value: j, label: JENIS_LABEL[j] }))}
+              ariaLabel="Jenis kelas"
+              className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
+            />
+          </Field>
+        )}
+
         <Field label="Jam mulai">
           <div className="flex gap-[0.4rem] items-center">
             <input
@@ -206,20 +245,11 @@ function GeneratorPanel({
             />
             <button
               type="button"
-              onClick={() => setStartJam(jamMulaiReguler.slice(0, 5))}
+              onClick={() => setStartJam(jenisStart(jenis))}
               className="text-[0.8rem] text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 whitespace-nowrap"
             >
-              Reguler
+              Default
             </button>
-            {jamMulaiRegsus && (
-              <button
-                type="button"
-                onClick={() => setStartJam(jamMulaiRegsus.slice(0, 5))}
-                className="text-[0.8rem] text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 whitespace-nowrap"
-              >
-                Regsus
-              </button>
-            )}
           </div>
         </Field>
 
@@ -245,7 +275,8 @@ function GeneratorPanel({
 
         <label className="flex items-center gap-[0.4rem] text-[0.87rem] pb-[0.5rem]">
           <input type="checkbox" checked={replaceDay} onChange={(e) => setReplaceDay(e.target.checked)} className="w-[1rem] h-[1rem]" />
-          Ganti sesi {hariLabel(hari)} yang ada
+          Ganti sesi {hariLabel(hari)}
+          {jamMulaiRegsus ? ` ${JENIS_LABEL[jenis]}` : ''} yang ada
         </label>
 
         <button
@@ -299,7 +330,7 @@ function GeneratorPanel({
   )
 }
 
-function SessionFormModal({ session, onClose }: { session: SessionRow; onClose: () => void }) {
+function SessionFormModal({ session, hasRegsus, onClose }: { session: SessionRow; hasRegsus: boolean; onClose: () => void }) {
   const prodi = useProdi()
   const boundAction = updateSessionAction.bind(null, prodi, session.id)
   const [state, formAction, isPending] = useActionState<FormState, FormData>(boundAction, null)
@@ -316,7 +347,8 @@ function SessionFormModal({ session, onClose }: { session: SessionRow; onClose: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-[24rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
         <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">
-          Ubah {hariLabel(session.hari)} · sesi {session.sesi_ke}
+          Ubah {hariLabel(session.hari)}
+          {hasRegsus ? ` ${JENIS_LABEL[session.jenis_kelas]}` : ''} · sesi {session.sesi_ke}
         </h3>
 
         {state && 'error' in state && (
@@ -327,6 +359,17 @@ function SessionFormModal({ session, onClose }: { session: SessionRow; onClose: 
 
         <form action={formAction} className="space-y-[0.8rem]">
           <input type="hidden" name="hari" value={session.hari} />
+          {hasRegsus && (
+            <Field label="Jenis kelas">
+              <Select
+                name="jenis_kelas"
+                defaultValue={session.jenis_kelas}
+                options={JENIS.map((j) => ({ value: j, label: JENIS_LABEL[j] }))}
+                ariaLabel="Jenis kelas"
+                className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
+              />
+            </Field>
+          )}
           <Field label="Sesi ke">
             <input
               name="sesi_ke"

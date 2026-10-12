@@ -80,7 +80,7 @@ export function ScheduleFormModal({
   const [jamMulai, setJamMulai] = useState(editing?.jam_mulai?.slice(0, 5) ?? '')
   const [jamSelesai, setJamSelesai] = useState(editing?.jam_selesai?.slice(0, 5) ?? '')
 
-  const activeSessions = sessions.filter((s) => s.active)
+  const activeSessions = sessions.filter((s) => s.active && s.jenis_kelas === context.jenis_kelas)
   const visibleSessions =
     showAllSessions || !selectedCourse ? activeSessions : activeSessions.filter((s) => s.sks === selectedCourse.sks)
 
