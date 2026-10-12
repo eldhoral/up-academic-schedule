@@ -30,11 +30,13 @@ export function SesiClient({
   jamMulaiReguler,
   jamMulaiRegsus,
   jedaMenit,
+  defaultPattern,
 }: {
   sessions: SessionRow[]
   jamMulaiReguler: string
   jamMulaiRegsus?: string // S2 has no Reguler Khusus
   jedaMenit: number
+  defaultPattern: string
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState<SessionRow | null>(null)
@@ -49,6 +51,7 @@ export function SesiClient({
         jamMulaiReguler={jamMulaiReguler}
         jamMulaiRegsus={jamMulaiRegsus}
         jedaMenit={jedaMenit}
+        defaultPattern={defaultPattern}
         onSaved={() => router.refresh()}
       />
 
@@ -126,17 +129,19 @@ function GeneratorPanel({
   jamMulaiReguler,
   jamMulaiRegsus,
   jedaMenit,
+  defaultPattern,
   onSaved,
 }: {
   jamMulaiReguler: string
   jamMulaiRegsus?: string
   jedaMenit: number
+  defaultPattern: string
   onSaved: () => void
 }) {
   const prodi = useProdi()
   const [hari, setHari] = useState('SENIN')
   const [startJam, setStartJam] = useState(jamMulaiReguler.slice(0, 5))
-  const [pattern, setPattern] = useState('2,2,3,2,2')
+  const [pattern, setPattern] = useState(defaultPattern)
   const [jeda, setJeda] = useState(jedaMenit)
   const [replaceDay, setReplaceDay] = useState(false)
   const [preview, setPreview] = useState<GeneratedSlot[] | null>(null)
@@ -223,7 +228,7 @@ function GeneratorPanel({
             type="text"
             value={pattern}
             onChange={(e) => setPattern(e.target.value)}
-            placeholder="2,2,3,2,2"
+            placeholder={defaultPattern}
             className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mono"
           />
         </Field>

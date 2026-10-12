@@ -21,6 +21,8 @@ export default async function SesiPage(props: PageProps<'/[prodi]/sesi'>) {
           jamMulaiReguler={settingText(settings, 'jam_mulai_reguler', '07:30')}
           jamMulaiRegsus={prodi === 's1' ? settingText(settings, 'jam_mulai_regsus', '18:00') : undefined}
           jedaMenit={settingInt(settings, 'jeda_menit', 10)}
+          // S2 starts at 18:00; five slots would run past midnight
+          defaultPattern={prodi === 's2' ? '2,3' : '2,2,3,2,2'}
         />
       </main>
     </div>

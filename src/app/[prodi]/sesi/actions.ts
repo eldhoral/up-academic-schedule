@@ -60,6 +60,12 @@ export async function previewGeneratedSessions(input: GeneratorInput): Promise<G
     startSesiKe,
   })
 
+  // HH:MM strings compare in time order; a wrap past 24:00 shows up as an end at or before its start
+  const crossesMidnight = preview.some(
+    (s, i) => s.jam_selesai <= s.jam_mulai || (i > 0 && s.jam_mulai < preview[i - 1].jam_selesai)
+  )
+  if (crossesMidnight) return { ok: false, error: 'Sesi melewati pukul 24:00. Kurangi pola SKS atau majukan jam mulai.' }
+
   return { ok: true, preview }
 }
 
