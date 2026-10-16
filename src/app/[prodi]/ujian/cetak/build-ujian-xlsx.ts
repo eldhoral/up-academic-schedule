@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs'
 import { BORDER_ALL, estimateLines, mergedText } from '@/lib/xlsx'
-import { EXAM_ALIGN, EXAM_COLUMNS, EXAM_WIDTHS } from '../exam-rows'
+import { EXAM_COLUMNS, EXAM_WIDTHS } from '../exam-rows'
 import type { UjianSheet } from './ujian-cetak-data'
 
 const COLUMN_COUNT = EXAM_COLUMNS.length
@@ -55,7 +55,7 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: Ujian
     const cell = sheet.getCell(r, i + 1)
     cell.value = label
     cell.font = font(true)
-    cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true }
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
     cell.border = BORDER_ALL
   })
   r++
@@ -85,8 +85,7 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: Ujian
       const cell = sheet.getCell(first + ri, i + 1)
       cell.value = c.text
       cell.font = font()
-      // The template tops every cell; only the merged UNIVERSITAS note is centred in its block.
-      cell.alignment = { vertical: c.colSpan > 1 ? 'middle' : 'top', horizontal: c.colSpan > 1 ? 'center' : EXAM_ALIGN[i], wrapText: true }
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
       cell.border = BORDER_ALL
       // Style first, merge second: exceljs copies the master's style to the covered cells.
       if (c.rowSpan > 1 || c.colSpan > 1) sheet.mergeCells(first + ri, i + 1, first + ri + c.rowSpan - 1, i + c.colSpan)

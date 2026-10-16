@@ -8,13 +8,12 @@ export type ColumnSpec = {
   header: string // as printed in Excel (line breaks as in the faculty template)
   label: string // the same on screen
   width: number // Excel character-width units, from the faculty's templates
-  center?: boolean
 }
 
 export const DEFENSE_COLUMNS: Record<DefenseJenis, ColumnSpec[]> = {
   sidang: [
-    { header: 'SESI', label: 'SESI', width: 6.6, center: true },
-    { header: 'WAKTU', label: 'WAKTU', width: 13.6, center: true },
+    { header: 'SESI', label: 'SESI', width: 6.6 },
+    { header: 'WAKTU', label: 'WAKTU', width: 13.6 },
     { header: 'NPM', label: 'NPM', width: 14.3 },
     { header: 'NAMA', label: 'NAMA', width: 21.4 },
     { header: 'JUDUL SKRIPSI', label: 'JUDUL SKRIPSI', width: 45.1 },
@@ -23,8 +22,8 @@ export const DEFENSE_COLUMNS: Record<DefenseJenis, ColumnSpec[]> = {
     { header: 'ANGGOTA PENGUJI II\n(Dosen Pembimbing)', label: 'ANGGOTA PENGUJI II (Dosen Pembimbing)', width: 28.7 },
   ],
   prasidang: [
-    { header: 'SESI', label: 'SESI', width: 6, center: true },
-    { header: 'WAKTU', label: 'WAKTU', width: 16.3, center: true },
+    { header: 'SESI', label: 'SESI', width: 6 },
+    { header: 'WAKTU', label: 'WAKTU', width: 16.3 },
     { header: 'NPM', label: 'NPM', width: 12.9 },
     { header: 'NAMA', label: 'NAMA', width: 21.9 },
     { header: 'JUDUL SKRIPSI', label: 'JUDUL SKRIPSI', width: 41.7 },

@@ -51,11 +51,11 @@ function BlockSection({ jenis, prodi, sheet, doc }: { jenis: DefenseJenis; prodi
         </p>
       </div>
 
-      <PreviewTable label={`Jadwal ${jenisLabel(prodi, jenis).toLowerCase()} ${tanggalPanjang(sheet.tanggal, false)} ${place}`} columns={columns.map((c) => ({ label: c.label, align: c.center ? ('center' as const) : ('left' as const) }))}>
+      <PreviewTable label={`Jadwal ${jenisLabel(prodi, jenis).toLowerCase()} ${tanggalPanjang(sheet.tanggal, false)} ${place}`} columns={columns.map((c) => ({ label: c.label, align: 'center' as const }))}>
         {sheet.rows.map((row, ri) => (
           <tr key={ri} className="h-[2.6rem] border-t border-[var(--garis)]">
             {row.cells.map((text, ci) => (
-              <td key={ci} className={`${cell(columns[ci].center ? 'center' : 'left')} ${MONO_COLUMNS.has(ci) ? 'mono' : ''}`}>
+              <td key={ci} className={`${cell('center')} ${MONO_COLUMNS.has(ci) ? 'mono' : ''}`}>
                 {text || <span className="text-[var(--tinta-3)]">—</span>}
               </td>
             ))}

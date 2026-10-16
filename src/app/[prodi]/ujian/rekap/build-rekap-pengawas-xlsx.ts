@@ -5,7 +5,6 @@ import type { RekapPengawasData } from './rekap-pengawas-data'
 const DETAIL = ['NO', 'NAMA PENGAWAS', 'HARI', 'TANGGAL', 'JAM', 'KODE MK', 'MATA KULIAH', 'KELAS', 'PROGRAM', 'RUANGAN', 'KETERANGAN']
 const WIDTHS = [5, 34, 14, 12, 14, 11, 32, 10, 16, 11, 16]
 const COLUMN_COUNT = DETAIL.length
-const LEFT = new Set([1, 6]) // NAMA PENGAWAS, MATA KULIAH
 const MIN_ROW_HEIGHT = 22
 const LINE = 16
 const SIGNATURE_FROM = 8 // 1-based: the block sits at the right, over KELAS..KETERANGAN
@@ -57,7 +56,7 @@ export async function buildRekapPengawasXlsx(
   sheet.getRow(r++).height = MIN_ROW_HEIGHT
   data.groups.forEach((g, i) => {
     boxed(r, 1, i + 1, { align: 'center' })
-    boxed(r, 2, g.nama.toUpperCase(), { align: 'left' })
+    boxed(r, 2, g.nama.toUpperCase(), { align: 'center' })
     boxed(r, 3, g.kind === 'dosen' ? 'DOSEN' : 'NON-DOSEN', { align: 'center' })
     boxed(r, 4, g.jumlah, { align: 'center' })
     sheet.getRow(r).height = Math.max(MIN_ROW_HEIGHT, estimateLines(g.nama, WIDTHS[1]) * LINE)
@@ -78,12 +77,12 @@ export async function buildRekapPengawasXlsx(
     const top = r
     g.rows.forEach((row) => {
       const values = ['', '', row.hari, row.tanggal, row.jam, row.kode_mk, row.nama_mk, row.kelas, row.program, row.ruangan, row.keterangan]
-      values.slice(2).forEach((value, i) => boxed(r, i + 3, value, { align: LEFT.has(i + 2) ? 'left' : 'center' }))
+      values.slice(2).forEach((value, i) => boxed(r, i + 3, value, { align: 'center' }))
       sheet.getRow(r).height = Math.max(MIN_ROW_HEIGHT, ...values.map((v, i) => (i >= 2 ? estimateLines(v, WIDTHS[i]) * LINE : 0)))
       r++
     })
     boxed(top, 1, gi + 1, { align: 'center' })
-    boxed(top, 2, g.nama.toUpperCase(), { bold: true, align: 'left' })
+    boxed(top, 2, g.nama.toUpperCase(), { bold: true, align: 'center' })
     // Style first, merge second: exceljs copies the master's style to the covered cells.
     if (g.rows.length > 1) {
       sheet.mergeCells(top, 1, r - 1, 1)

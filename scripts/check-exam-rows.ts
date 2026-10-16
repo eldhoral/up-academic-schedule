@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import ExcelJS from 'exceljs'
 import JSZip from 'jszip'
 import { buildExamRows, EXAM_COLUMNS, type PrintExam, type TableRow } from '../src/app/[prodi]/ujian/exam-rows'
 import { buildUjianXlsx } from '../src/app/[prodi]/ujian/cetak/build-ujian-xlsx'
@@ -147,6 +148,14 @@ async function main() {
   assert.equal(merges.length, 3 + 2 + 8 + 1, merges.join(' '))
   assert.ok(merges.some((m) => /^F\d+:K\d+$/.test(m)), 'UNIVERSITAS spans JAM..KETERANGAN')
   assert.ok(xml.includes('landscape'), 'A4 landscape')
+  // Every table cell (header and body) is centred both ways.
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(buf.buffer)
+  const off: string[] = []
+  wb.worksheets[0].eachRow((r) => r.eachCell((c) => {
+    if (c.border?.top && (c.alignment?.horizontal !== 'center' || c.alignment?.vertical !== 'middle')) off.push(`${c.address} ${JSON.stringify(c.alignment)}`)
+  }))
+  assert.deepEqual(off, [], 'table cells not centred')
   // exceljs keeps cell text in sharedStrings, not in the sheet XML
   assert.ok((await zip.file('xl/sharedStrings.xml')!.async('string')).includes('Tidak ada data jadwal'), 'an empty semester says so')
   const rx = await JSZip.loadAsync(

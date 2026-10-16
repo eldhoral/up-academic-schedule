@@ -5,7 +5,6 @@ import { KETERANGAN_LABEL, type KeteranganUjian } from './exam-types'
 // builder so the two cannot drift. Pure: names are already resolved by the caller.
 
 export const EXAM_COLUMNS = ['KODE MK', 'MATA KULIAH', 'SKS', 'HARI', 'TANGGAL', 'JAM', 'DOSEN PENGAMPU', 'KELAS', 'PENGAWAS', 'RUANGAN', 'KETERANGAN']
-export const EXAM_ALIGN: ('left' | 'center')[] = ['center', 'left', 'center', 'center', 'center', 'center', 'left', 'center', 'left', 'center', 'center']
 // Excel character-width units, from the faculty's ETS template.
 export const EXAM_WIDTHS = [11.6, 30, 5.4, 10.4, 12.3, 12.7, 28, 13, 32, 11.6, 15.3]
 

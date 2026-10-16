@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs'
 import { groupSchedulesByKelas } from './schedule-rows'
-import { COLUMN_ALIGN, COLUMN_LABELS, COLUMN_WIDTHS, SIGNATURE_START_COLUMN } from './columns'
+import { COLUMN_LABELS, COLUMN_WIDTHS, SIGNATURE_START_COLUMN } from './columns'
 import { BORDER_ALL, mergedText as sharedMergedText, setRowHeightForContent } from '@/lib/xlsx'
 import type { ScheduleRow } from '../penjadwalan-types'
 
@@ -92,7 +92,7 @@ function addSheet(
       values.forEach((value, i) => {
         const cell = sheet.getCell(r, i + 1)
         cell.value = value
-        cell.alignment = { vertical: 'middle', horizontal: COLUMN_ALIGN[i], wrapText: true }
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
         cell.border = BORDER_ALL
       })
       r++

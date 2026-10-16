@@ -1,6 +1,6 @@
 import type { Prodi } from '@/lib/prodi'
 import { BandRow, DocFacts, PreviewLayout, PreviewTable, cell } from '@/components/preview'
-import { COLUMN_ALIGN, COLUMN_LABELS } from './columns'
+import { COLUMN_LABELS } from './columns'
 import type { PrintRow } from './schedule-rows'
 
 export type PreviewSheet = {
@@ -22,7 +22,7 @@ export type CetakDoc = {
   orientasi: string
 }
 
-const COLUMNS = COLUMN_LABELS.map((label, i) => ({ label, align: COLUMN_ALIGN[i] }))
+const COLUMNS = COLUMN_LABELS.map((label) => ({ label, align: 'center' as const }))
 const MONO_COLUMNS = new Set([0, 2, 4, 7]) // KODE MK, SKS, JAM, BOR ZOOM
 
 export function CetakPreview({ sheets, doc, prodi }: { sheets: PreviewSheet[]; doc: CetakDoc; prodi: Prodi }) {
@@ -94,7 +94,7 @@ function KelasRows({ kelas, rows }: { kelas: string; rows: PrintRow[] }) {
             className={`h-[2.6rem] border-t ${sameDay ? 'border-[var(--garis)]' : 'border-[var(--garis-kuat)]'} ${r.override ? 'bg-[var(--merah-lembut)]' : ''}`}
           >
             {values.map((value, col) => (
-              <td key={col} className={`${cell(COLUMN_ALIGN[col])} ${MONO_COLUMNS.has(col) ? 'mono' : ''} ${col === 3 ? 'font-medium' : ''}`}>
+              <td key={col} className={`${cell('center')} ${MONO_COLUMNS.has(col) ? 'mono' : ''} ${col === 3 ? 'font-medium' : ''}`}>
                 {col === 3 && sameDay ? <span className="sr-only">{r.hari}</span> : value}
               </td>
             ))}

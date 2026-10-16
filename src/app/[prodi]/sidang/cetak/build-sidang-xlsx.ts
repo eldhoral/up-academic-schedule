@@ -75,7 +75,7 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, kelompo
     const cell = sheet.getCell(r, i + 1)
     cell.value = c.header
     cell.font = font(true)
-    cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true }
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
     cell.border = BORDER_ALL
   })
   const headerRow = r
@@ -87,7 +87,7 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, kelompo
       const cell = sheet.getCell(r, i + 1)
       cell.value = v // NPM stays text: no leading-zero loss, no scientific notation
       cell.font = font()
-      cell.alignment = { vertical: 'top', horizontal: columns[i].center ? 'center' : 'left', wrapText: true }
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
       cell.border = BORDER_ALL
     })
     r++

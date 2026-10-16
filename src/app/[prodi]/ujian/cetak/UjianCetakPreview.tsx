@@ -1,9 +1,9 @@
 import type { Prodi } from '@/lib/prodi'
 import { DocFacts, PreviewLayout, PreviewTable, cell } from '@/components/preview'
-import { EXAM_ALIGN, EXAM_COLUMNS } from '../exam-rows'
+import { EXAM_COLUMNS } from '../exam-rows'
 import type { UjianSheet } from './ujian-cetak-data'
 
-const COLUMNS = EXAM_COLUMNS.map((label, i) => ({ label, align: EXAM_ALIGN[i] }))
+const COLUMNS = EXAM_COLUMNS.map((label) => ({ label, align: 'center' as const }))
 const MONO_COLUMNS = new Set([0, 2, 4, 5, 7]) // KODE MK, SKS, TANGGAL, JAM, KELAS
 
 export function UjianCetakPreview({ sheets, doc, prodi }: { sheets: UjianSheet[]; doc: { namaPenandatangan: string; jabatanPenandatangan: string }; prodi: Prodi }) {
@@ -45,7 +45,7 @@ function SheetSection({ sheet }: { sheet: UjianSheet }) {
                   key={col}
                   rowSpan={c.rowSpan}
                   colSpan={c.colSpan}
-                  className={`${cell(c.colSpan > 1 ? 'center' : EXAM_ALIGN[col])} whitespace-pre-line ${MONO_COLUMNS.has(col) ? 'mono' : ''} ${
+                  className={`${cell('center')} whitespace-pre-line ${MONO_COLUMNS.has(col) ? 'mono' : ''} ${
                     c.colSpan > 1 ? 'bg-[var(--cekung)] font-medium text-[var(--tinta-2)]' : ''
                   } ${col === 1 || col === 3 ? 'font-medium' : ''}`}
                 >
