@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { humanDbError } from '@/lib/db-error'
+import { managerOnly } from '@/lib/prodi-server'
 import { saveAcademicYear, type SaveStep } from './save-year'
 
 export type FormState = { error: string } | { success: true } | null
@@ -22,6 +23,8 @@ function kuliahDatesError(mulai: string | null, selesai: string | null): string 
 }
 
 export async function createAcademicYearAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
   const { id, label, is_active, mulai_kuliah, selesai_kuliah } = readForm(formData)
   if (!id) return { error: 'ID wajib diisi.' }
   if (!label) return { error: 'Label wajib diisi.' }
@@ -36,6 +39,8 @@ export async function createAcademicYearAction(_prev: FormState, formData: FormD
 }
 
 export async function updateAcademicYearAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
   const { label, is_active, mulai_kuliah, selesai_kuliah } = readForm(formData)
   if (!label) return { error: 'Label wajib diisi.' }
 
@@ -55,6 +60,8 @@ function saveErrorMessage({ step, error }: { step: SaveStep; error: Parameters<t
 }
 
 export async function deleteAcademicYearAction(id: string): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
   const supabase = await createClient()
   const { error } = await supabase.from('academic_years').delete().eq('id', id)
   if (error) return { error: humanDbError(error) }

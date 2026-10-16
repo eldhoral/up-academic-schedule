@@ -14,7 +14,7 @@ export type Room = {
   active: boolean
 }
 
-export function RuanganClient({ rooms }: { rooms: Room[] }) {
+export function RuanganClient({ rooms, canEdit }: { rooms: Room[]; canEdit: boolean }) {
   const router = useRouter()
   const [editing, setEditing] = useState<Room | 'new' | null>(null)
 
@@ -28,13 +28,15 @@ export function RuanganClient({ rooms }: { rooms: Room[] }) {
               {rooms.length} ruangan
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditing('new')}
-            className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
-          >
-            Tambah Ruangan
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setEditing('new')}
+              className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
+            >
+              Tambah Ruangan
+            </button>
+          )}
         </div>
 
         <div className="overflow-x-auto border border-[var(--garis)] rounded-[var(--r-kecil)]">
@@ -64,13 +66,15 @@ export function RuanganClient({ rooms }: { rooms: Room[] }) {
                     </span>
                   </Td>
                   <Td className="text-right">
-                    <button
-                      type="button"
-                      onClick={() => setEditing(r)}
-                      className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
-                    >
-                      Ubah
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing(r)}
+                        className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
+                      >
+                        Ubah
+                      </button>
+                    )}
                   </Td>
                 </tr>
               ))}
@@ -86,7 +90,7 @@ export function RuanganClient({ rooms }: { rooms: Room[] }) {
         </div>
       </div>
 
-      <ImportPanel tableSlug="rooms" label="Ruangan" onCommitted={() => router.refresh()} />
+      {canEdit && <ImportPanel tableSlug="rooms" label="Ruangan" onCommitted={() => router.refresh()} />}
 
       {editing && <RoomFormModal room={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>

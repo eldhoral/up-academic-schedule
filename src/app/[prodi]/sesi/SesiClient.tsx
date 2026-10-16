@@ -38,12 +38,14 @@ export function SesiClient({
   jamMulaiRegsus,
   jedaMenit,
   defaultPattern,
+  canEdit,
 }: {
   sessions: SessionRow[]
   jamMulaiReguler: string
   jamMulaiRegsus?: string // S2 has no Reguler Khusus
   jedaMenit: number
   defaultPattern: string
+  canEdit: boolean
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState<SessionRow | null>(null)
@@ -58,13 +60,15 @@ export function SesiClient({
 
   return (
     <div className="space-y-[1.2rem]">
-      <GeneratorPanel
-        jamMulaiReguler={jamMulaiReguler}
-        jamMulaiRegsus={jamMulaiRegsus}
-        jedaMenit={jedaMenit}
-        defaultPattern={defaultPattern}
-        onSaved={() => router.refresh()}
-      />
+      {canEdit && (
+        <GeneratorPanel
+          jamMulaiReguler={jamMulaiReguler}
+          jamMulaiRegsus={jamMulaiRegsus}
+          jedaMenit={jedaMenit}
+          defaultPattern={defaultPattern}
+          onSaved={() => router.refresh()}
+        />
+      )}
 
       <div className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem]">
         <div className="flex items-center justify-between pb-[1rem] border-b border-[var(--garis)] mb-[1.2rem]">
@@ -117,13 +121,15 @@ export function SesiClient({
                                   </span>
                                 </Td>
                                 <Td className="text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditing(s)}
-                                    className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
-                                  >
-                                    Ubah
-                                  </button>
+                                  {canEdit && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditing(s)}
+                                      className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
+                                    >
+                                      Ubah
+                                    </button>
+                                  )}
                                 </Td>
                               </tr>
                             ))}

@@ -1,6 +1,6 @@
 import { AppHeader } from '@/components/AppHeader'
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentUser, canWrite } from '@/lib/roles'
+import { getCurrentUser, canManage } from '@/lib/roles'
 import { prodiParam } from '@/lib/prodi-server'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { PengaturanClient, type SettingRow } from './PengaturanClient'
@@ -25,7 +25,7 @@ export default async function PengaturanPage(props: PageProps<'/[prodi]/pengatur
         </div>
         <PengaturanClient
           settings={(data as SettingRow[]) ?? []}
-          canEditShared={!!user && canWrite(user.role) && user.prodiAccess === 'all'}
+          canEdit={!!user && canManage(user.role)}
         />
       </main>
     </div>

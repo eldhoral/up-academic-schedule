@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { humanDbError } from '@/lib/db-error'
+import { managerOnly } from '@/lib/prodi-server'
 import { canWrite, getCurrentUser } from '@/lib/roles'
 import { newJadwalToken } from '../jadwal-dosen/token'
 
@@ -18,6 +19,8 @@ function readLecturerForm(formData: FormData) {
 }
 
 export async function createLecturerAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
   const row = readLecturerForm(formData)
   if (!row.kode_dosen || !row.nama) return { error: 'Kode dosen dan nama wajib diisi.' }
 
@@ -30,6 +33,8 @@ export async function createLecturerAction(_prev: FormState, formData: FormData)
 }
 
 export async function updateLecturerAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
   const row = readLecturerForm(formData)
   if (!row.kode_dosen) return { error: 'Kode dosen wajib diisi.' }
   if (!row.nama) return { error: 'Nama wajib diisi.' }
@@ -46,6 +51,8 @@ export async function updateLecturerAction(_prev: FormState, formData: FormData)
 }
 
 export async function deleteLecturerAction(kodeDosen: string): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
   const supabase = await createClient()
 
   // Pengawas on an exam is a jsonb list with no foreign key, so the database won't stop this.
@@ -68,7 +75,8 @@ export type LinkState = { token: string } | { error: string }
 /**
  * The lecturer's jadwal link token. Without `reset`, an existing token is returned as is (any signed-in
  * role may copy it) and a missing one is created; with `reset`, a new token replaces the old one,
- * which stops working at once. Creating and resetting are for SCHEDULER and SUPERADMIN (RLS agrees).
+ * which stops working at once. Creating and resetting are for SCHEDULER and SUPERADMIN, through
+ * set_jadwal_token: the Penjadwal shares jadwal but cannot write lecturers itself.
  */
 export async function jadwalLinkAction(kodeDosen: string, reset: boolean): Promise<LinkState> {
   const supabase = await createClient()
@@ -81,19 +89,11 @@ export async function jadwalLinkAction(kodeDosen: string, reset: boolean): Promi
   const user = await getCurrentUser()
   if (!user || !canWrite(user.role)) return { error: 'Hanya Scheduler atau Superadmin yang dapat membuat atau mengganti link jadwal.' }
 
-  const token = newJadwalToken()
-  // Creating never replaces a link someone else just made; only a reset does.
-  let update = supabase.from('lecturers').update({ jadwal_token: token }).eq('kode_dosen', kodeDosen)
-  if (!reset) update = update.is('jadwal_token', null)
-  const { data, error } = await update.select('kode_dosen')
+  // Creating never replaces a link someone else just made (the function returns theirs); only a reset does.
+  const { data, error } = await supabase.rpc('set_jadwal_token', { p_kode_dosen: kodeDosen, p_token: newJadwalToken(), p_reset: reset })
   if (error) return { error: humanDbError(error) }
-  if (!data?.length) {
-    if (reset) return { error: 'Dosen tidak ditemukan.' }
-    const { data: existing, error: readError } = await supabase.from('lecturers').select('jadwal_token').eq('kode_dosen', kodeDosen).maybeSingle()
-    if (readError) return { error: humanDbError(readError) }
-    return existing?.jadwal_token ? { token: existing.jadwal_token as string } : { error: 'Dosen tidak ditemukan.' }
-  }
+  if (!data) return { error: 'Dosen tidak ditemukan.' }
 
   revalidatePath('/dosen')
-  return { token }
+  return { token: data as string }
 }

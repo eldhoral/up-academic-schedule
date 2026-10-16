@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { humanDbError } from '@/lib/db-error'
 import { parseProdi, type Prodi } from '@/lib/prodi'
-import { writableProdi } from '@/lib/prodi-server'
+import { manageableProdi } from '@/lib/prodi-server'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -23,7 +23,7 @@ function invalid(row: { npm: string; nama: string }): string | null {
 
 export async function createStudentAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { prodi: rawProdi, ...row } = readStudentForm(formData)
-  const gate = await writableProdi(rawProdi)
+  const gate = await manageableProdi(rawProdi)
   if ('error' in gate) return { error: gate.error }
   const error = invalid(row)
   if (error) return { error }
@@ -38,7 +38,7 @@ export async function createStudentAction(_prev: FormState, formData: FormData):
 
 export async function updateStudentAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const { prodi: rawProdi, ...row } = readStudentForm(formData)
-  const gate = await writableProdi(rawProdi)
+  const gate = await manageableProdi(rawProdi)
   if ('error' in gate) return { error: gate.error }
   const error = invalid(row)
   if (error) return { error }
@@ -52,7 +52,7 @@ export async function updateStudentAction(id: string, _prev: FormState, formData
 }
 
 export async function deleteStudentAction(prodi: Prodi, id: string): Promise<FormState> {
-  const gate = await writableProdi(prodi)
+  const gate = await manageableProdi(prodi)
   if ('error' in gate) return { error: gate.error }
   const supabase = await createClient()
   const { error } = await supabase.from('students').delete().eq('id', id).eq('prodi', gate.prodi)

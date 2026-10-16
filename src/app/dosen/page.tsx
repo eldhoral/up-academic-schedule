@@ -1,5 +1,6 @@
 import { AppHeader } from '@/components/AppHeader'
 import { createClient } from '@/lib/supabase/server'
+import { canManage, getCurrentRole } from '@/lib/roles'
 import { DosenClient, type Lecturer } from './DosenClient'
 
 export default async function DosenPage() {
@@ -10,7 +11,7 @@ export default async function DosenPage() {
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <AppHeader active="/dosen" />
       <main className="flex-1 p-[1.3rem] max-w-[1400px] w-full mx-auto">
-        <DosenClient lecturers={(data as Lecturer[]) ?? []} />
+        <DosenClient lecturers={(data as Lecturer[]) ?? []} canEdit={canManage(await getCurrentRole())} />
       </main>
     </div>
   )

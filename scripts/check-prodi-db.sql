@@ -92,7 +92,7 @@ begin
     assert n = 0, 'S2-only user must not change shared settings';
     update settings set value = value where key = 'nama_prodi' and prodi = 's2';
     get diagnostics n = row_count;
-    assert n = 1, 'S2 user changes S2 settings';
+    assert n = 0, 'Penjadwal must not change even its own prodi settings';
     select id into s1_schedule from schedules where prodi = 's1' limit 1;
     begin
         insert into schedule_lecturers (schedule_id, kode_dosen)
@@ -120,20 +120,94 @@ end $$;
 reset role;
 
 -- RLS: Semua, Super Admin (whatever its column says), Viewer --------------------------------
+-- Penjadwal manages jadwal only: with access Semua it still cannot touch data master,
+-- settings, the login photos or anything else Super Admin keeps.
+insert into lecturers (kode_dosen, nama) values ('PJTOK', 'Penjadwal Token');
 select set_config('request.jwt.claim.sub', :'semua', false);
 set role authenticated;
+do $$
+declare n int; ay text := (select id from academic_years order by id limit 1);
+begin
+    insert into schedules (academic_year_id, jenis_kelas, semester_ke, kode_mk, kelas, hari, jam_mulai, jam_selesai, prodi)
+    values (ay, 'reguler', 1, 'S2TEST01', 'B', 'SELASA', '08:00', '10:00', 's2');
+    update schedules set kelas = kelas where kode_mk = 'S2TEST01';
+    get diagnostics n = row_count;
+    assert n = 2, 'Penjadwal Semua changes schedules';
+
+    update settings set value = value where key = 'bentrok_dosen';
+    get diagnostics n = row_count;
+    assert n = 0, 'Penjadwal must not change shared settings';
+    update courses set nama_mk = nama_mk;
+    get diagnostics n = row_count;
+    assert n = 0, 'Penjadwal must not change courses';
+    update sessions set active = active;
+    get diagnostics n = row_count;
+    assert n = 0, 'Penjadwal must not change sesi';
+    update lecturers set nama = nama;
+    get diagnostics n = row_count;
+    assert n = 0, 'Penjadwal must not change dosen';
+    update rooms set nama = nama;
+    get diagnostics n = row_count;
+    assert n = 0, 'Penjadwal must not change ruangan';
+    update academic_years set label = label;
+    get diagnostics n = row_count;
+    assert n = 0, 'Penjadwal must not change tahun akademik';
+    delete from courses where kode_mk = 'S2TEST01';
+    get diagnostics n = row_count;
+    assert n = 0, 'Penjadwal must not delete courses';
+    begin
+        insert into courses (kode_mk, nama_mk, sks, smt, jenis_mk, prodi) values ('PJTEST01', 'X', 2, 1, 'A', 's2');
+        raise exception 'FAIL: Penjadwal inserted a course';
+    exception when insufficient_privilege then null;
+    end;
+    begin
+        insert into students (npm, nama, prodi) values ('9990001', 'X', 's2');
+        raise exception 'FAIL: Penjadwal inserted a mahasiswa';
+    exception when insufficient_privilege then null;
+    end;
+    begin
+        insert into rooms (nama, kapasitas) values ('PJ Room', 10);
+        raise exception 'FAIL: Penjadwal inserted a ruangan';
+    exception when insufficient_privilege then null;
+    end;
+    begin
+        insert into storage.objects (bucket_id, name) values ('up_kiprat', 'login/pj.jpg');
+        raise exception 'FAIL: Penjadwal uploaded a login photo';
+    exception when insufficient_privilege then null;
+    end;
+
+    -- The dosen's jadwal link stays with the Penjadwal: it shares the jadwal, not the dosen record.
+    assert (select set_jadwal_token('PJTOK', 'pj-token-1', false)) = 'pj-token-1', 'Penjadwal creates a jadwal link';
+    assert (select set_jadwal_token('PJTOK', 'pj-token-2', false)) = 'pj-token-1', 'creating keeps an existing link';
+    assert (select set_jadwal_token('PJTOK', 'pj-token-3', true)) = 'pj-token-3', 'Penjadwal resets a jadwal link';
+    assert (select set_jadwal_token('NOSUCH', 'x', true)) is null, 'unknown dosen: no token';
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'viewer', false);
+set role authenticated;
+do $$ begin
+    assert (select set_jadwal_token('PJTOK', 'viewer-token', true)) is null, 'a viewer cannot reset a jadwal link';
+end $$;
+reset role;
+do $$ begin
+    assert (select jadwal_token from lecturers where kode_dosen = 'PJTOK') = 'pj-token-3', 'viewer reset changed nothing';
+end $$;
+
+select set_config('request.jwt.claim.sub', :'super', false);
+set role authenticated;
+insert into courses (kode_mk, nama_mk, sks, smt, jenis_mk, prodi) values ('S2TEST02', 'Super', 2, 1, 'A', 's2');
+insert into storage.objects (bucket_id, name) values ('up_kiprat', 'login/super.jpg');
 do $$
 declare n int;
 begin
     update settings set value = value where key = 'bentrok_dosen';
     get diagnostics n = row_count;
-    assert n = 1, 'Semua user changes shared settings';
+    assert n = 1, 'Super Admin changes shared settings';
+    update rooms set nama = nama;
+    get diagnostics n = row_count;
+    assert n > 0, 'Super Admin changes ruangan';
 end $$;
-reset role;
-
-select set_config('request.jwt.claim.sub', :'super', false);
-set role authenticated;
-insert into courses (kode_mk, nama_mk, sks, smt, jenis_mk, prodi) values ('S2TEST02', 'Super', 2, 1, 'A', 's2');
 reset role;
 
 select set_config('request.jwt.claim.sub', :'viewer', false);

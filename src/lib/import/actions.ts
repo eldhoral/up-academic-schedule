@@ -6,7 +6,7 @@ import { importTables, type ImportTableSlug } from './tables'
 import type { ImportPreview } from './engine'
 import { humanDbError } from '@/lib/db-error'
 import { parseProdi, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
-import { writableProdi } from '@/lib/prodi-server'
+import { manageableProdi, managerOnly } from '@/lib/prodi-server'
 
 export type PreviewState =
   | { ok: true; preview: ImportPreview<Record<string, unknown>> }
@@ -81,9 +81,12 @@ export async function commitImportAction(
   const def = importTables[tableSlug]
   let payload = rows
   if (def.prodiScoped) {
-    const gate = await writableProdi(prodi)
+    const gate = await manageableProdi(prodi)
     if ('error' in gate) return { ok: false, error: gate.error }
     payload = rows.map((r) => ({ ...r, prodi: gate.prodi }))
+  } else {
+    const denied = await managerOnly()
+    if (denied) return { ok: false, error: denied.error }
   }
   const supabase = await createClient()
 

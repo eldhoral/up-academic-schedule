@@ -16,7 +16,7 @@ export type Lecturer = {
   jadwal_token?: string | null
 }
 
-export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
+export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; canEdit: boolean }) {
   const router = useRouter()
   const [editing, setEditing] = useState<Lecturer | 'new' | null>(null)
   const [query, setQuery] = useState('')
@@ -38,13 +38,15 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
               {lecturers.length} dosen
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditing('new')}
-            className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
-          >
-            Tambah dosen
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setEditing('new')}
+              className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
+            >
+              Tambah dosen
+            </button>
+          )}
         </div>
 
         {linkMessage && (
@@ -85,13 +87,15 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
                   <Td>{lecturerDisplayName(l)}</Td>
                   <Td className="text-right whitespace-nowrap">
                     <JadwalLinkButtons kodeDosen={l.kode_dosen} hasLink={!!l.jadwal_token} onMessage={setLinkMessage} />
-                    <button
-                      type="button"
-                      onClick={() => setEditing(l)}
-                      className="ml-[0.8rem] text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
-                    >
-                      Ubah
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing(l)}
+                        className="ml-[0.8rem] text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
+                      >
+                        Ubah
+                      </button>
+                    )}
                   </Td>
                 </tr>
               ))}
@@ -109,7 +113,7 @@ export function DosenClient({ lecturers }: { lecturers: Lecturer[] }) {
         </div>
       </div>
 
-      <ImportPanel tableSlug="lecturers" label="Dosen" onCommitted={() => router.refresh()} />
+      {canEdit && <ImportPanel tableSlug="lecturers" label="Dosen" onCommitted={() => router.refresh()} />}
 
       {editing && <LecturerFormModal lecturer={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>

@@ -1,6 +1,7 @@
 import { AppHeader } from '@/components/AppHeader'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
+import { canManage, getCurrentRole } from '@/lib/roles'
 import { getSettings, settingInt, settingText } from '@/lib/settings'
 import { SesiClient, type SessionRow } from './SesiClient'
 
@@ -23,6 +24,7 @@ export default async function SesiPage(props: PageProps<'/[prodi]/sesi'>) {
           jedaMenit={settingInt(settings, 'jeda_menit', 10)}
           // S2 starts at 18:00; five slots would run past midnight
           defaultPattern={prodi === 's2' ? '2,3' : '2,2,3,2,2'}
+          canEdit={canManage(await getCurrentRole())}
         />
       </main>
     </div>
