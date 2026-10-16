@@ -25,6 +25,7 @@ import {
   type IRunOptions,
 } from 'docx'
 import { lecturerDisplayName } from '@/lib/import/tables'
+import { parseImageDataUri } from '@/lib/print'
 import { LOGO_UP_PNG_BASE64 } from './logo-up'
 import { FOOTER_BANNER_PNG_BASE64 } from './footer-banner'
 import { TABLE_HEADER, rowTexts, sortByHariJam, sumSks, titleCase } from './letter-rows'
@@ -62,13 +63,11 @@ const THICK_THIN = { style: BorderStyle.THICK_THIN_SMALL_GAP, size: 24, color: '
 
 const DOCX_IMAGE_TYPES: Record<string, 'png' | 'jpg' | 'gif' | 'bmp'> = { png: 'png', jpeg: 'jpg', jpg: 'jpg', gif: 'gif', bmp: 'bmp' }
 
-/** Parses a "data:image/png;base64,..." string from the settings' image upload field. */
-function parseImageDataUri(dataUri: string): { type: 'png' | 'jpg' | 'gif' | 'bmp'; data: Buffer } | null {
-  const match = /^data:image\/(\w+);base64,(.+)$/.exec(dataUri)
-  if (!match) return null
-  const type = DOCX_IMAGE_TYPES[match[1].toLowerCase()]
-  if (!type) return null
-  return { type, data: Buffer.from(match[2], 'base64') }
+/** The Dekan's signature upload as docx wants it; null when absent or not an image docx can embed. */
+function signatureImage(dataUri: string): { type: 'png' | 'jpg' | 'gif' | 'bmp'; data: Buffer } | null {
+  const image = parseImageDataUri(dataUri)
+  const type = image && DOCX_IMAGE_TYPES[image.format]
+  return type ? { type, data: Buffer.from(image.base64, 'base64') } : null
 }
 
 function bodyParagraph(
@@ -356,7 +355,7 @@ function buildLetter(
   tanggal: string,
   letterIndex: number,
 ): (Paragraph | Table)[] {
-  const signature = data.gambarTandaTanganDekan ? parseImageDataUri(data.gambarTandaTanganDekan) : null
+  const signature = data.gambarTandaTanganDekan ? signatureImage(data.gambarTandaTanganDekan) : null
   const text = run
   const intro = `Berikut disampaikan jadwal mengajar Bapak/Ibu/Sdr. pada Semester ${titleCase(data.term)} Tahun Akademik ${data.tahun} :`
 

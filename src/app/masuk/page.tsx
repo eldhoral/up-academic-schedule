@@ -75,7 +75,7 @@ function MasukForm() {
           Penjadwalan Perkuliahan
         </h1>
         <p className="mt-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
-          Fakultas Psikologi &middot; Program Sarjana
+          Fakultas Psikologi &middot; Program Sarjana &amp; Magister
         </p>
       </div>
 

@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import { groupSchedulesByKelas } from './schedule-rows'
 import { COLUMN_LABELS, COLUMN_WIDTHS, SIGNATURE_START_COLUMN } from './columns'
-import { BORDER_ALL, mergedText as sharedMergedText, setRowHeightForContent } from '@/lib/xlsx'
+import { BORDER_ALL, addSignatureImage, mergedText as sharedMergedText, setRowHeightForContent } from '@/lib/xlsx'
 import type { ScheduleRow } from '../penjadwalan-types'
 
 const COLUMN_COUNT = COLUMN_WIDTHS.length
@@ -20,6 +20,7 @@ export async function buildXlsx(props: {
   keteranganLines: string[]
   namaPenandatangan: string
   jabatanPenandatangan: string
+  gambarTandaTangan?: string
   namaWakilDekan: string
   jabatanWakilDekan: string
   ukuranKertas: string
@@ -124,6 +125,7 @@ function addSheet(
   r += 4
   signatureText(r, ...left, props.jabatanWakilDekan, {})
   signatureText(r, ...right, props.jabatanPenandatangan, {})
+  addSignatureImage(workbook, sheet, props.gambarTandaTangan ?? '', { from: right[0], to: right[1], jabatanRow: r })
   r += 4
   signatureText(r, ...left, props.namaWakilDekan, { bold: true, underline: true })
   signatureText(r, ...right, props.namaPenandatangan, { bold: true, underline: true })

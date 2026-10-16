@@ -89,7 +89,7 @@ export function classifyRows<T extends Record<string, unknown>>(params: {
     }
     const { key, data, notes } = parsedResult
     if (seenKeys.has(key)) {
-      outcomes.push({ status: 'rejected', key, reason: `Duplicate key "${key}" within this file.`, rowNumber })
+      outcomes.push({ status: 'rejected', key, reason: `"${key}" muncul lebih dari sekali di file ini.`, rowNumber })
       return
     }
     if (params.otherProdiKeys?.has(key)) {

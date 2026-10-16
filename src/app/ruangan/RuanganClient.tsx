@@ -158,8 +158,8 @@ function RoomFormModal({ room, onClose }: { room: Room | null; onClose: () => vo
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {room && (
               <ConfirmDeleteButton
-                onConfirm={async () => {
-                  await deleteRoomAction(room.id)
+                onConfirm={() => deleteRoomAction(room.id)}
+                onDeleted={() => {
                   router.refresh()
                   onClose()
                 }}

@@ -106,8 +106,8 @@ export function PenggunaClient({ users, currentUserId }: { users: Profile[]; cur
                   <Td className="text-right">
                     {u.id !== currentUserId && (
                       <ConfirmDeleteButton
-                        onConfirm={async () => {
-                          await deleteUserAction(u.id)
+                        onConfirm={() => deleteUserAction(u.id)}
+                        onDeleted={() => {
                           router.refresh()
                         }}
                       />

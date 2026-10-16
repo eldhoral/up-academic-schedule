@@ -11,6 +11,13 @@ const HARI_LABEL_ID: Record<HariDb, string> = {
   MINGGU: 'Minggu',
 }
 
+/** The "Hari aktif kuliah" setting (e.g. 'SENIN,SELASA') as days in week order; empty or unreadable means every day. */
+export function hariAktif(setting: string | undefined): HariDb[] {
+  const on = new Set((setting ?? '').split(',').map((s) => s.trim().toUpperCase()))
+  const days = HARI_DB.filter((h) => on.has(h))
+  return days.length ? days : [...HARI_DB]
+}
+
 /** Title-case Indonesian label for the admin UI. Falls back to the raw value for unknown input. */
 export function hariLabel(hari: string): string {
   return HARI_LABEL_ID[hari as HariDb] ?? hari

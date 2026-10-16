@@ -7,10 +7,10 @@ import type { RowOutcome } from '@/lib/import/engine'
 import type { Prodi } from '@/lib/prodi'
 
 const STATUS_LABEL: Record<RowOutcome<Record<string, unknown>>['status'], string> = {
-  new: 'New',
-  changed: 'Changed',
-  unchanged: 'Unchanged',
-  rejected: 'Rejected',
+  new: 'Baru',
+  changed: 'Berubah',
+  unchanged: 'Tetap',
+  rejected: 'Ditolak',
 }
 
 const STATUS_CLASS: Record<RowOutcome<Record<string, unknown>>['status'], string> = {
@@ -63,7 +63,7 @@ export function ImportPanel({
     startCommit(async () => {
       const result = await commitImportAction(tableSlug, rows, prodi)
       if (result.ok) {
-        setCommitMessage(`${result.written} row${result.written === 1 ? '' : 's'} written.`)
+        setCommitMessage(`${result.written} baris tersimpan.`)
         setPreview(null)
         if (fileInputRef.current) fileInputRef.current.value = ''
         onCommitted()
@@ -80,9 +80,9 @@ export function ImportPanel({
     <div className="border border-[var(--garis)] rounded-[var(--r-sedang)] bg-[var(--lembar)] p-[1.2rem]">
       <div className="flex items-center justify-between gap-[1rem] flex-wrap mb-[0.8rem]">
         <div>
-          <h3 className="m-0 text-[1rem] font-semibold">Import {label}</h3>
+          <h3 className="m-0 text-[1rem] font-semibold">Impor {label}</h3>
           <p className="mt-[0.2rem] text-[0.87rem] text-[var(--tinta-3)]">
-            Download the template, fill it in Excel, then upload to preview before committing.
+            Unduh template, isi di Excel, lalu unggah filenya untuk melihat pratinjau sebelum disimpan.
           </p>
         </div>
         <div className="flex gap-[0.5rem] shrink-0">
@@ -91,14 +91,14 @@ export function ImportPanel({
             download
             className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] font-medium text-[var(--tinta-2)] hover:bg-[var(--cekung)] transition-colors"
           >
-            Export data
+            Ekspor data
           </a>
           <a
             href={`/api/import/${tableSlug}/template`}
             download
             className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] font-medium text-[var(--tinta-2)] hover:bg-[var(--cekung)] transition-colors"
           >
-            Download template
+            Unduh template
           </a>
         </div>
       </div>
@@ -111,7 +111,7 @@ export function ImportPanel({
           onChange={handleFileChange}
           className="text-[0.87rem] text-[var(--tinta-2)] file:mr-[0.6rem] file:px-[0.6rem] file:py-[0.4rem] file:rounded-[var(--r-kecil)] file:border file:border-[var(--garis-kuat)] file:bg-[var(--cekung)] file:text-[var(--tinta-2)] file:cursor-pointer cursor-pointer"
         />
-        {isPreviewing && <span className="text-[0.87rem] text-[var(--tinta-3)]">Reading file…</span>}
+        {isPreviewing && <span className="text-[0.87rem] text-[var(--tinta-3)]">Membaca file…</span>}
       </div>
 
       {preview && !preview.ok && (
@@ -124,10 +124,10 @@ export function ImportPanel({
       {preview?.ok && counts && (
         <div className="mt-[1rem]">
           <div className="flex items-center gap-[0.6rem] flex-wrap mb-[0.8rem] text-[0.87rem]">
-            <CountBadge label="New" count={counts.new} statusKey="new" />
-            <CountBadge label="Changed" count={counts.changed} statusKey="changed" />
-            <CountBadge label="Unchanged" count={counts.unchanged} statusKey="unchanged" />
-            <CountBadge label="Rejected" count={counts.rejected} statusKey="rejected" />
+            <CountBadge label={STATUS_LABEL.new} count={counts.new} statusKey="new" />
+            <CountBadge label={STATUS_LABEL.changed} count={counts.changed} statusKey="changed" />
+            <CountBadge label={STATUS_LABEL.unchanged} count={counts.unchanged} statusKey="unchanged" />
+            <CountBadge label={STATUS_LABEL.rejected} count={counts.rejected} statusKey="rejected" />
           </div>
 
           <div className="max-h-[20rem] overflow-y-auto border border-[var(--garis)] rounded-[var(--r-kecil)]">
@@ -135,8 +135,8 @@ export function ImportPanel({
               <thead className="sticky top-0 bg-[var(--cekung)]">
                 <tr>
                   <th className="text-left px-[0.6rem] py-[0.4rem] font-medium text-[var(--tinta-3)]">Status</th>
-                  <th className="text-left px-[0.6rem] py-[0.4rem] font-medium text-[var(--tinta-3)]">Key</th>
-                  <th className="text-left px-[0.6rem] py-[0.4rem] font-medium text-[var(--tinta-3)]">Detail</th>
+                  <th className="text-left px-[0.6rem] py-[0.4rem] font-medium text-[var(--tinta-3)]">Kode/Nama</th>
+                  <th className="text-left px-[0.6rem] py-[0.4rem] font-medium text-[var(--tinta-3)]">Keterangan</th>
                 </tr>
               </thead>
               <tbody>
@@ -161,7 +161,7 @@ export function ImportPanel({
                             </ul>
                           )}
                           {row.notes.length === 0 && row.status === 'unchanged' && (
-                            <span className="text-[var(--tinta-3)]">No change.</span>
+                            <span className="text-[var(--tinta-3)]">Tidak ada perubahan.</span>
                           )}
                         </>
                       )}
@@ -178,7 +178,7 @@ export function ImportPanel({
             disabled={writable === 0 || isCommitting}
             className="mt-[0.8rem] px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer transition-colors hover:bg-[var(--biru-hover)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-default"
           >
-            {isCommitting ? 'Writing…' : `Commit ${writable} row${writable === 1 ? '' : 's'}`}
+            {isCommitting ? 'Menyimpan…' : `Simpan ${writable} baris`}
           </button>
         </div>
       )}

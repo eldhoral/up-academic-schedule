@@ -41,6 +41,12 @@ export async function AppHeader({ active, prodi }: { active: string; prodi?: Pro
         <div className="flex min-w-0 items-center gap-[0.8rem] pl-[0.8rem] border-l border-[var(--garis-kuat)] text-[0.87rem]">
           {/* On a phone the email gives way so Keluar always fits; it stays in Keluar's tooltip. */}
           <span className="hidden sm:block text-[var(--tinta)] truncate max-w-[12rem]">{user?.email || 'Admin'}</span>
+          <Link
+            href="/atur-kata-sandi"
+            className="shrink-0 text-[var(--biru)] hover:underline whitespace-nowrap"
+          >
+            Ganti kata sandi
+          </Link>
           <form action={signOutAction} className="shrink-0">
             <button
               type="submit"

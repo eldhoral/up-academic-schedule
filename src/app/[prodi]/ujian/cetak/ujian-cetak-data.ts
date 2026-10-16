@@ -23,7 +23,7 @@ export async function buildUjianCetakData(prodi: Prodi, params: { ay?: string | 
   const [{ data: academicYears }, { data: lecturers }, settings] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
-    getSettings(prodi),
+    getSettings(prodi, true),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []
@@ -103,9 +103,10 @@ export async function buildUjianCetakData(prodi: Prodi, params: { ay?: string | 
     jabatanPenandatangan: settingText(settings, 'jabatan_penandatangan', ''),
     namaWakilDekan: settingText(settings, 'nama_wakil_dekan', ''),
     jabatanWakilDekan: settingText(settings, 'jabatan_wakil_dekan', ''),
+    gambarTandaTangan: settingText(settings, 'gambar_tanda_tangan', ''),
   }
 }
 
-export type Signers = { namaPenandatangan: string; jabatanPenandatangan: string; namaWakilDekan: string; jabatanWakilDekan: string }
+export type Signers = { namaPenandatangan: string; jabatanPenandatangan: string; namaWakilDekan: string; jabatanWakilDekan: string; gambarTandaTangan?: string }
 
 export type UjianCetakData = Awaited<ReturnType<typeof buildUjianCetakData>>

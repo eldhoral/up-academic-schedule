@@ -316,8 +316,8 @@ function CourseFormModal({
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {course && (
               <ConfirmDeleteButton
-                onConfirm={async () => {
-                  await deleteCourseAction(prodi, course.kode_mk)
+                onConfirm={() => deleteCourseAction(prodi, course.kode_mk)}
+                onDeleted={() => {
                   router.refresh()
                   onClose()
                 }}

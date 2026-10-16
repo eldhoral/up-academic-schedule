@@ -22,7 +22,8 @@ async function main() {
     assert.equal(r.headers.get('location'), null, `${path} passes through`)
   }
   // ...but only under that exact prefix.
-  for (const path of ['/jadwal-dosenx', '/jadwal-dosen']) {
+  // ...and the password page is for a signed-in user (the reset link signs them in first).
+  for (const path of ['/jadwal-dosenx', '/jadwal-dosen', '/atur-kata-sandi']) {
     const r = await updateSession(new NextRequest(`http://localhost${path}`))
     assert.equal(new URL(r.headers.get('location')!).pathname, '/masuk', `${path} still needs login`)
   }

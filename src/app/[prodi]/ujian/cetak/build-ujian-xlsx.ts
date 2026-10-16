@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs'
-import { BORDER_ALL, estimateLines, mergedText } from '@/lib/xlsx'
+import { BORDER_ALL, addSignatureImage, estimateLines, mergedText } from '@/lib/xlsx'
 import { EXAM_COLUMNS, EXAM_WIDTHS, PENGAWAS_NOTE } from '../exam-rows'
 import type { Signers, UjianSheet } from './ujian-cetak-data'
 
@@ -104,6 +104,7 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: Ujian
   r += 1 // one blank row under the note
   signature(r, 1, WAKIL_DEKAN_TO, props.jabatanWakilDekan, false)
   signature(r, SIGNATURE_FROM, SIGNATURE_TO, props.jabatanPenandatangan, false)
+  addSignatureImage(workbook, sheet, props.gambarTandaTangan ?? '', { from: SIGNATURE_FROM, to: SIGNATURE_TO, jabatanRow: r })
   r += 5
   signature(r, 1, WAKIL_DEKAN_TO, props.namaWakilDekan, true)
   signature(r, SIGNATURE_FROM, SIGNATURE_TO, props.namaPenandatangan, true)

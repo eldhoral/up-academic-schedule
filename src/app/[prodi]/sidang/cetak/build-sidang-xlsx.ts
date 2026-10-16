@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs'
-import { BORDER_ALL, estimateLines, mergedText } from '@/lib/xlsx'
+import { BORDER_ALL, addSignatureImage, estimateLines, mergedText } from '@/lib/xlsx'
 import { defenseColumns } from '../defense-blocks'
 import type { Prodi } from '@/lib/prodi'
 import type { DefenseJenis } from '../defense-types'
@@ -8,7 +8,11 @@ import type { SidangCetakData } from './sidang-cetak-data'
 const MIN_ROW_HEIGHT = 22
 const LINE = 16
 
-type Props = Pick<SidangCetakData, 'sheets' | 'zoomId' | 'zoomPasscode' | 'namaWakilDekan' | 'jabatanWakilDekan' | 'namaPenandatangan' | 'jabatanPenandatangan'> & { jenis: DefenseJenis; prodi: Prodi }
+type Props = Pick<SidangCetakData, 'sheets' | 'zoomId' | 'zoomPasscode' | 'namaWakilDekan' | 'jabatanWakilDekan' | 'namaPenandatangan' | 'jabatanPenandatangan'> & {
+  jenis: DefenseJenis
+  prodi: Prodi
+  gambarTandaTangan?: string
+}
 
 /** One worksheet per block (date x room, or date x kelompok), so a PDF is one page run per block. */
 export async function buildSidangXlsx(props: Props): Promise<Uint8Array<ArrayBuffer>> {
@@ -102,6 +106,7 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, kelompo
   if (props.jenis === 'prasidang') merged(r++, leftFrom, 3, 'MENGETAHUI,', false, 'center')
   merged(r, leftFrom, 3, props.jabatanWakilDekan, false, 'center')
   merged(r, rightFrom, rightTo, props.jabatanPenandatangan, false, 'center')
+  addSignatureImage(workbook, sheet, props.gambarTandaTangan ?? '', { from: rightFrom, to: rightTo, jabatanRow: r })
   r += props.jenis === 'sidang' ? 5 : 4
   merged(r, leftFrom, 3, props.namaWakilDekan, true, 'center')
   merged(r, rightFrom, rightTo, props.namaPenandatangan, true, 'center')

@@ -51,6 +51,7 @@ function sectionOf(active: string, prodi: Prodi | undefined): Section | null {
   if (MASTER_SHARED.some((t) => t.href === active)) return { title: 'Data Bersama', tabs: MASTER_SHARED }
   if (active === '/pengguna') return { title: 'Manajemen Pengguna', tabs: [] }
   if (active === '/log-aktivitas') return { title: 'Audit Log', tabs: [] }
+  if (active === '/atur-kata-sandi') return { title: 'Ganti Kata Sandi', tabs: [] }
   return null
 }
 

@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs'
-import { BORDER_ALL, estimateLines, mergedText } from '@/lib/xlsx'
+import { BORDER_ALL, addSignatureImage, estimateLines, mergedText } from '@/lib/xlsx'
 import type { RekapPengawasData } from './rekap-pengawas-data'
 
 const DETAIL = ['NO', 'NAMA PENGAWAS', 'HARI', 'TANGGAL', 'JAM', 'KODE MK', 'MATA KULIAH', 'KELAS', 'PROGRAM', 'RUANGAN', 'KETERANGAN']
@@ -14,7 +14,7 @@ const font = (bold = false, size = 11): Partial<ExcelJS.Font> => ({ name: 'Arial
 
 /** One sheet: a summary (who, how many), then every assignment grouped by person. */
 export async function buildRekapPengawasXlsx(
-  data: Pick<RekapPengawasData, 'headerLines' | 'groups' | 'totalTugas' | 'namaPenandatangan' | 'jabatanPenandatangan'>,
+  data: Pick<RekapPengawasData, 'headerLines' | 'groups' | 'totalTugas' | 'namaPenandatangan' | 'jabatanPenandatangan'> & { gambarTandaTangan?: string },
 ): Promise<Uint8Array<ArrayBuffer>> {
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet('Rekap Pengawas', {
@@ -99,6 +99,7 @@ export async function buildRekapPengawasXlsx(
   }
   r += 2
   signature(r, data.jabatanPenandatangan, false)
+  addSignatureImage(workbook, sheet, data.gambarTandaTangan ?? '', { from: SIGNATURE_FROM, to: SIGNATURE_TO, jabatanRow: r })
   r += 5
   signature(r, data.namaPenandatangan, true)
 

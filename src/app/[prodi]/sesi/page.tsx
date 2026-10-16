@@ -3,6 +3,7 @@ import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
 import { canManage, getCurrentRole } from '@/lib/roles'
 import { getSettings, settingInt, settingText } from '@/lib/settings'
+import { hariAktif } from '@/lib/hari'
 import { SesiClient, type SessionRow } from './SesiClient'
 
 export default async function SesiPage(props: PageProps<'/[prodi]/sesi'>) {
@@ -22,6 +23,7 @@ export default async function SesiPage(props: PageProps<'/[prodi]/sesi'>) {
           jamMulaiReguler={settingText(settings, 'jam_mulai_reguler', '07:30')}
           jamMulaiRegsus={prodi === 's1' ? settingText(settings, 'jam_mulai_regsus', '18:00') : undefined}
           jedaMenit={settingInt(settings, 'jeda_menit', 10)}
+          hariAktif={hariAktif(settings.hari_aktif)}
           // S2 starts at 18:00; five slots would run past midnight
           defaultPattern={prodi === 's2' ? '2,3' : '2,2,3,2,2'}
           canEdit={canManage(await getCurrentRole())}

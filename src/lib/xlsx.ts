@@ -1,4 +1,5 @@
 import type ExcelJS from 'exceljs'
+import { parseImageDataUri } from './print'
 
 // Helpers shared by every exceljs document builder (kuliah, ujian, sidang).
 
@@ -24,6 +25,43 @@ export function estimateLines(value: unknown, widthUnits: number): number {
 export function setRowHeightForContent(sheet: ExcelJS.Worksheet, rowIndex: number, values: unknown[], widths: number[]) {
   const lines = Math.max(...values.map((value, i) => estimateLines(value, widths[i])))
   sheet.getRow(rowIndex).height = lines * 16
+}
+
+const EXCEL_IMAGE_TYPES: Record<string, 'png' | 'jpeg' | 'gif'> = { png: 'png', jpeg: 'jpeg', jpg: 'jpeg', gif: 'gif' }
+// ponytail: a fixed box like the Dekan's on the Surat (120x60); a non-2:1 upload is stretched. Read the image's own size if that shows.
+const SIGNATURE_PX = { width: 120, height: 60 }
+// One copy of the image per workbook, however many semester sheets show it.
+const signatureIds = new WeakMap<ExcelJS.Workbook, number>()
+
+/**
+ * The penandatangan's signature image (Pengaturan "Gambar Tanda Tangan"), if one is uploaded, centred over
+ * columns from..to (1-based) in the blank rows that start right under the jabatan row. No image, no change.
+ */
+export function addSignatureImage(
+  workbook: ExcelJS.Workbook,
+  sheet: ExcelJS.Worksheet,
+  dataUri: string,
+  at: { from: number; to: number; jabatanRow: number },
+) {
+  const image = parseImageDataUri(dataUri)
+  const extension = image && EXCEL_IMAGE_TYPES[image.format]
+  if (!extension) return
+  // Excel column width units to pixels, for the default 11pt font.
+  const px = (col: number) => Math.round((sheet.getColumn(col).width ?? 9) * 7 + 5)
+  let col = at.from
+  let left = 0
+  for (let c = at.from; c <= at.to; c++) left += px(c)
+  left = Math.max(0, (left - SIGNATURE_PX.width) / 2)
+  while (col < at.to && left >= px(col)) left -= px(col++)
+  // A native anchor (0-based, offsets in EMU, 9525 per pixel): exceljs's fractional `col` scales offsets by its own column units, not pixels.
+  const tl = { nativeCol: col - 1, nativeColOff: Math.round(left * 9525), nativeRow: at.jabatanRow, nativeRowOff: 0 }
+  let id = signatureIds.get(workbook)
+  if (id === undefined) signatureIds.set(workbook, (id = workbook.addImage({ base64: image.base64, extension })))
+  sheet.addImage(id, {
+    tl: tl as unknown as { col: number; row: number },
+    ext: SIGNATURE_PX,
+    editAs: 'oneCell',
+  })
 }
 
 /** One full-width merged line (titles, notes). */

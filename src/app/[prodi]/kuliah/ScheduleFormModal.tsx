@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { createScheduleAction, deleteScheduleAction, updateScheduleAction, type FormState } from './penjadwalan-actions'
 import { checkScheduleClashes, type BebanSummary, type ClashCheckResult } from './clash-actions'
@@ -20,6 +21,7 @@ export function ScheduleFormModal({
   kelasOptions,
   maksMahasiswaPerKelas,
   minMahasiswaPilihan,
+  hariAktif,
   editing,
   onClose,
   onSaved,
@@ -32,6 +34,7 @@ export function ScheduleFormModal({
   kelasOptions: string[]
   maksMahasiswaPerKelas: number
   minMahasiswaPilihan: number
+  hariAktif: string[] // Pengaturan "Hari aktif kuliah": the only days offered for a class
   editing: ScheduleRow | null
   onClose: () => void
   onSaved: () => void
@@ -39,7 +42,6 @@ export function ScheduleFormModal({
   const action = editing ? updateScheduleAction.bind(null, editing.id) : createScheduleAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
   const router = useRouter()
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   useEffect(() => {
     if (state && 'success' in state) {
@@ -80,7 +82,7 @@ export function ScheduleFormModal({
   const [jamMulai, setJamMulai] = useState(editing?.jam_mulai?.slice(0, 5) ?? '')
   const [jamSelesai, setJamSelesai] = useState(editing?.jam_selesai?.slice(0, 5) ?? '')
 
-  const activeSessions = sessions.filter((s) => s.active && s.jenis_kelas === context.jenis_kelas)
+  const activeSessions = sessions.filter((s) => s.active && s.jenis_kelas === context.jenis_kelas && hariAktif.includes(s.hari))
   const visibleSessions =
     showAllSessions || !selectedCourse ? activeSessions : activeSessions.filter((s) => s.sks === selectedCourse.sks)
 
@@ -247,7 +249,8 @@ export function ScheduleFormModal({
                     required
                     placeholder="— hari —"
                     ariaLabel="Hari"
-                    options={HARI.map((h) => ({ value: h, label: hariLabel(h) }))}
+                    // A row saved before its day was switched off keeps that day, so it still edits as is.
+                    options={HARI.filter((h) => hariAktif.includes(h) || h === editing?.hari).map((h) => ({ value: h, label: hariLabel(h) }))}
                     className="flex-1 bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
                   />
                   <input
@@ -442,28 +445,15 @@ export function ScheduleFormModal({
           )}
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem] border-t border-[var(--garis)]">
-            {editing &&
-              (!confirmingDelete ? (
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDelete(true)}
-                  className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.87rem] text-[var(--merah)] cursor-pointer hover:bg-[var(--merah-lembut)]"
-                >
-                  Hapus
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await deleteScheduleAction(context.prodi, editing.id)
-                    router.refresh()
-                    onSaved()
-                  }}
-                  className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--merah)] text-white text-[0.87rem] font-medium cursor-pointer"
-                >
-                  Konfirmasi hapus?
-                </button>
-              ))}
+            {editing && (
+              <ConfirmDeleteButton
+                onConfirm={() => deleteScheduleAction(context.prodi, editing.id)}
+                onDeleted={() => {
+                  router.refresh()
+                  onSaved()
+                }}
+              />
+            )}
             <div className="flex gap-[0.6rem] ml-auto">
               <button
                 type="button"

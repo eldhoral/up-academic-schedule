@@ -181,8 +181,8 @@ function AcademicYearFormModal({ year, onClose }: { year: AcademicYearRow | null
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {year && (
               <ConfirmDeleteButton
-                onConfirm={async () => {
-                  await deleteAcademicYearAction(year.id)
+                onConfirm={() => deleteAcademicYearAction(year.id)}
+                onDeleted={() => {
                   router.refresh()
                   onClose()
                 }}

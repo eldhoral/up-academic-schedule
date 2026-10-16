@@ -13,7 +13,7 @@ export async function buildRekapPengawasData(prodi: Prodi, params: { ay?: string
   const [{ data: academicYears }, { data: lecturers }, settings] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
-    getSettings(prodi),
+    getSettings(prodi, true),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []
@@ -44,6 +44,7 @@ export async function buildRekapPengawasData(prodi: Prodi, params: { ay?: string
     totalTugas: groups.reduce((sum, g) => sum + g.jumlah, 0),
     namaPenandatangan: settingText(settings, 'nama_penandatangan', ''),
     jabatanPenandatangan: settingText(settings, 'jabatan_penandatangan', ''),
+    gambarTandaTangan: settingText(settings, 'gambar_tanda_tangan', ''),
   }
 }
 

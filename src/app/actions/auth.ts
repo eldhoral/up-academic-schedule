@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { humanDbError } from '@/lib/db-error'
 
 export type AuthState = {
   error?: string
@@ -13,7 +14,12 @@ export type AuthState = {
 
 /** Best-effort: sign-in/out never fails because logging failed (e.g. service
  *  role key not configured yet), but the failure is logged so it's visible. */
-async function logAuthEvent(action: 'LOGIN' | 'LOGOUT', userId: string, email: string) {
+async function logAuthEvent(
+  action: 'LOGIN' | 'LOGOUT' | 'UPDATE',
+  userId: string,
+  email: string,
+  newData?: Record<string, unknown>
+) {
   try {
     const admin = createAdminClient()
     const { error } = await admin.from('audit_log').insert({
@@ -21,6 +27,7 @@ async function logAuthEvent(action: 'LOGIN' | 'LOGOUT', userId: string, email: s
       actor_email: email,
       action,
       table_name: 'auth',
+      ...(newData && { record_id: userId, new_data: newData }),
     })
     if (error) console.error(`audit_log ${action} insert failed:`, error.message)
   } catch (err) {
@@ -96,7 +103,7 @@ export async function resetPasswordAction(email: string): Promise<AuthState> {
 
   const supabase = await createClient()
   await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${origin}/auth/callback?next=/`,
+    redirectTo: `${origin}/auth/callback?next=/atur-kata-sandi`,
   })
 
   // Same confirmation regardless of whether email exists (per PLAN.md §3.1c)
@@ -104,6 +111,39 @@ export async function resetPasswordAction(email: string): Promise<AuthState> {
     success: true,
     message: 'Jika alamat email tersebut terdaftar, tautan atur ulang kata sandi telah dikirim. Silakan periksa kotak masuk Anda.',
   }
+}
+
+/** Matches the Pengguna page's rule for a new account's first password. */
+const MIN_PASSWORD = 8
+
+export async function updatePasswordAction(
+  _prevState: AuthState | null,
+  formData: FormData
+): Promise<AuthState> {
+  const password = (formData.get('password') as string) ?? ''
+  const confirm = (formData.get('confirm') as string) ?? ''
+
+  if (password.length < MIN_PASSWORD) return { error: `Kata sandi minimal ${MIN_PASSWORD} karakter.` }
+  if (password !== confirm) return { error: 'Kedua kata sandi tidak sama. Ketik ulang kata sandi baru.' }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Sesi Anda telah berakhir. Silakan masuk kembali.' }
+
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) {
+    if (error.code === 'same_password') return { error: 'Kata sandi baru harus berbeda dari kata sandi lama.' }
+    if (error.code === 'weak_password') return { error: 'Kata sandi terlalu lemah. Gunakan kombinasi huruf dan angka yang lebih panjang.' }
+    if (error.code === 'reauthentication_needed') return { error: 'Demi keamanan, silakan keluar lalu masuk kembali sebelum mengganti kata sandi.' }
+    return { error: humanDbError(error) }
+  }
+
+  // ponytail: audit_log's action CHECK only allows INSERT/UPDATE/DELETE/LOGIN/LOGOUT, so a
+  // password change is an UPDATE on "auth"; add a PASSWORD action with a migration if it needs its own filter.
+  await logAuthEvent('UPDATE', user.id, user.email ?? '', { kata_sandi: 'diganti' })
+  return { success: true, message: 'Kata sandi berhasil disimpan.' }
 }
 
 export async function signOutAction() {

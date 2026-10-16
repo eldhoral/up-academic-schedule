@@ -3,6 +3,7 @@ import { clampSemester, parseJenisKelas } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
 import { getSettings, settingInt, settingText } from '@/lib/settings'
+import { hariAktif } from '@/lib/hari'
 import { PenjadwalanClient } from './PenjadwalanClient'
 import { fetchSchedulesForContext } from './schedule-query'
 import { checkKuliahFindings } from './clash-actions'
@@ -62,6 +63,7 @@ export default async function DashboardPage(props: PageProps<'/[prodi]/kuliah'>)
         kelasOptions={classLetters(settingText(settings, 'kelas_maksimal', 'Z'))}
         maksMahasiswaPerKelas={settingInt(settings, 'maks_mahasiswa_per_kelas', 50)}
         minMahasiswaPilihan={settingInt(settings, 'min_mahasiswa_pilihan', 10)}
+        hariAktif={hariAktif(settings.hari_aktif)}
         context={context}
         canEdit={canWrite(role)}
       />

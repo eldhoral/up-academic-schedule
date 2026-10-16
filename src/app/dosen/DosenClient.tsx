@@ -242,8 +242,8 @@ function LecturerFormModal({ lecturer, onClose }: { lecturer: Lecturer | null; o
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {lecturer && (
               <ConfirmDeleteButton
-                onConfirm={async () => {
-                  await deleteLecturerAction(lecturer.kode_dosen)
+                onConfirm={() => deleteLecturerAction(lecturer.kode_dosen)}
+                onDeleted={() => {
                   router.refresh()
                   onClose()
                 }}

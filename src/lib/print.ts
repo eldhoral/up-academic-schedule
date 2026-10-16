@@ -18,6 +18,12 @@ export function computeAngkatan(academicYearId: string, semesterKe: number): num
   return startYear - Math.floor((semesterKe - 1) / 2)
 }
 
+/** Splits a Pengaturan image upload ("data:image/png;base64,...") into its format ("png") and base64 payload. */
+export function parseImageDataUri(dataUri: string): { format: string; base64: string } | null {
+  const match = /^data:image\/(\w+);base64,(.+)$/.exec(dataUri)
+  return match ? { format: match[1].toLowerCase(), base64: match[2] } : null
+}
+
 /** Substitutes {placeholder} tokens in a settings template string. */
 export function substituteTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, key) => vars[key] ?? match)

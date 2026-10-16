@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { loadSettings } from '../src/lib/settings'
+import { hariAktif } from '../src/lib/hari'
 
 type Row = { key: string; value: string; type: string; prodi: string }
 const rows: Row[] = [
@@ -35,6 +36,11 @@ async function main() {
 
   // A prodi sees its own rows plus the shared ones, never the other prodi's.
   assert.equal((await loadSettings(fakeClient() as never, 's2', false)).jam_mulai_reguler, '18:00')
+
+  // "Hari aktif kuliah" limits the days offered for a class, in week order; an empty setting must not leave no day at all.
+  assert.deepEqual(hariAktif('RABU, senin'), ['SENIN', 'RABU'])
+  assert.equal(hariAktif('').length, 7)
+  assert.equal(hariAktif(undefined).length, 7)
 
   console.log('settings: all checks passed')
 }

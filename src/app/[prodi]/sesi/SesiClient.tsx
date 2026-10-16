@@ -37,6 +37,7 @@ export function SesiClient({
   jamMulaiReguler,
   jamMulaiRegsus,
   jedaMenit,
+  hariAktif,
   defaultPattern,
   canEdit,
 }: {
@@ -44,6 +45,7 @@ export function SesiClient({
   jamMulaiReguler: string
   jamMulaiRegsus?: string // S2 has no Reguler Khusus
   jedaMenit: number
+  hariAktif: string[]
   defaultPattern: string
   canEdit: boolean
 }) {
@@ -65,6 +67,7 @@ export function SesiClient({
           jamMulaiReguler={jamMulaiReguler}
           jamMulaiRegsus={jamMulaiRegsus}
           jedaMenit={jedaMenit}
+          hariAktif={hariAktif}
           defaultPattern={defaultPattern}
           onSaved={() => router.refresh()}
         />
@@ -153,17 +156,19 @@ function GeneratorPanel({
   jamMulaiReguler,
   jamMulaiRegsus,
   jedaMenit,
+  hariAktif,
   defaultPattern,
   onSaved,
 }: {
   jamMulaiReguler: string
   jamMulaiRegsus?: string
   jedaMenit: number
+  hariAktif: string[]
   defaultPattern: string
   onSaved: () => void
 }) {
   const prodi = useProdi()
-  const [hari, setHari] = useState('SENIN')
+  const [hari, setHari] = useState(hariAktif[0])
   const [jenis, setJenis] = useState<JenisKelas>('reguler')
   const jenisStart = (j: JenisKelas) => (j === 'regsus' && jamMulaiRegsus ? jamMulaiRegsus : jamMulaiReguler).slice(0, 5)
   const [startJam, setStartJam] = useState(jenisStart('reguler'))
@@ -223,7 +228,7 @@ function GeneratorPanel({
           <Select
             value={hari}
             onValueChange={setHari}
-            options={HARI.map((h) => ({ value: h, label: hariLabel(h) }))}
+            options={hariAktif.map((h) => ({ value: h, label: hariLabel(h) }))}
             ariaLabel="Hari"
             className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
           />
@@ -423,8 +428,8 @@ function SessionFormModal({ session, hasRegsus, onClose }: { session: SessionRow
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             <ConfirmDeleteButton
-              onConfirm={async () => {
-                await deleteSessionAction(prodi, session.id)
+              onConfirm={() => deleteSessionAction(prodi, session.id)}
+              onDeleted={() => {
                 router.refresh()
                 onClose()
               }}

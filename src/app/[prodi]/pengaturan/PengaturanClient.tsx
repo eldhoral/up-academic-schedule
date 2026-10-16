@@ -61,6 +61,10 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
 }
 
+// ponytail: hidden, not deleted — no print, letter or page reads these, so editing them changed nothing.
+// The rows stay in the database (no migration); show them again once an output uses them.
+const HIDDEN_KEYS = new Set(['nama_universitas', 'nama_prodi'])
+
 const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'tembusan'])
 
 export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]; canEdit: boolean }) {
@@ -70,7 +74,7 @@ export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]
 
   const groups = GROUP_ORDER.map((g) => ({
     group: g,
-    rows: settings.filter((s) => s.group === g).sort((a, b) => a.urutan - b.urutan),
+    rows: settings.filter((s) => s.group === g && !HIDDEN_KEYS.has(s.key)).sort((a, b) => a.urutan - b.urutan),
   })).filter((g) => g.rows.length > 0)
 
   return (

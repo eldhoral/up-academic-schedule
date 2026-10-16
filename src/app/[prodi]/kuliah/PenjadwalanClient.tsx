@@ -68,6 +68,7 @@ export function PenjadwalanClient({
   kelasOptions,
   maksMahasiswaPerKelas,
   minMahasiswaPilihan,
+  hariAktif,
   context: initialContext,
   canEdit,
 }: {
@@ -81,6 +82,7 @@ export function PenjadwalanClient({
   kelasOptions: string[]
   maksMahasiswaPerKelas: number
   minMahasiswaPilihan: number
+  hariAktif: string[]
   context: KuliahContext
   canEdit: boolean // VIEWER (Pemantau) can read but not change; RLS enforces it, this just hides the controls
 }) {
@@ -257,9 +259,11 @@ export function PenjadwalanClient({
               Semester {context.semester_ke}
               {PRODI_CONFIG[context.prodi].jenisKelas.length > 1 && <> &middot; {context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'}</>}
             </h1>
-            <p className="mt-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
-              Pilih mata kuliah di sebelah kanan; tabel akan bertambah di bawah, dikelompokkan per kelas.
-            </p>
+            {canEdit && (
+              <p className="mt-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
+                Klik “Tambah mata kuliah” lalu isi jendela yang muncul; tabel di bawah bertambah, dikelompokkan per kelas.
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-[0.53rem] flex-wrap">
             <input
@@ -423,6 +427,7 @@ export function PenjadwalanClient({
           kelasOptions={kelasOptions}
           maksMahasiswaPerKelas={maksMahasiswaPerKelas}
           minMahasiswaPilihan={minMahasiswaPilihan}
+          hariAktif={hariAktif}
           editing={modalOpen === 'new' ? null : modalOpen}
           onClose={() => setModalOpen(null)}
           onSaved={() => setModalOpen(null)}

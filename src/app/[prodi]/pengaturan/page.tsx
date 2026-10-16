@@ -20,7 +20,7 @@ export default async function PengaturanPage(props: PageProps<'/[prodi]/pengatur
         <div className="mb-[1.2rem]">
           <h1 className="text-[1.3rem] font-semibold">Pengaturan {PRODI_CONFIG[prodi].label}</h1>
           <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">
-            Every rule the scheduler depends on — nothing is hardcoded.
+            Semua aturan yang dipakai penjadwalan diatur di sini, tidak ada yang tertanam di sistem.
           </p>
         </div>
         <PengaturanClient
