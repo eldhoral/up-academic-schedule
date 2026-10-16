@@ -18,7 +18,7 @@ export type AcademicYearRow = {
   selesai_kuliah: string | null
 }
 
-export function TahunAkademikClient({ years }: { years: AcademicYearRow[] }) {
+export function TahunAkademikClient({ years, canEdit }: { years: AcademicYearRow[]; canEdit: boolean }) {
   const [editing, setEditing] = useState<AcademicYearRow | 'new' | null>(null)
 
   return (
@@ -31,13 +31,15 @@ export function TahunAkademikClient({ years }: { years: AcademicYearRow[] }) {
               {years.length} tahun akademik
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditing('new')}
-            className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
-          >
-            Tambah Tahun Akademik
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setEditing('new')}
+              className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
+            >
+              Tambah Tahun Akademik
+            </button>
+          )}
         </div>
 
         <div className="overflow-x-auto border border-[var(--garis)] rounded-[var(--r-kecil)]">
@@ -65,13 +67,15 @@ export function TahunAkademikClient({ years }: { years: AcademicYearRow[] }) {
                     </span>
                   </Td>
                   <Td className="text-right">
-                    <button
-                      type="button"
-                      onClick={() => setEditing(y)}
-                      className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
-                    >
-                      Ubah
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing(y)}
+                        className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
+                      >
+                        Ubah
+                      </button>
+                    )}
                   </Td>
                 </tr>
               ))}

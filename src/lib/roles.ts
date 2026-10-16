@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { Role } from '@/lib/role-types'
 import type { ProdiAccess } from '@/lib/prodi'
 
-export { ROLES, ROLE_LABEL, canWrite, type Role } from '@/lib/role-types'
+export { ROLES, ROLE_LABEL, canWrite, canManage, type Role } from '@/lib/role-types'
 
 /** Null means signed out, or the account somehow has no profiles row yet. A SUPERADMIN always has access 'all'. */
 export async function loadCurrentUser(supabase: SupabaseClient): Promise<{ id: string; email: string; role: Role; prodiAccess: ProdiAccess } | null> {

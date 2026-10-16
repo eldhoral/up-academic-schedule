@@ -17,7 +17,7 @@ export type Student = {
 
 const INPUT = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]'
 
-export function MahasiswaClient({ students }: { students: Student[] }) {
+export function MahasiswaClient({ students, canEdit }: { students: Student[]; canEdit: boolean }) {
   const router = useRouter()
   const prodi = useProdi()
   const [editing, setEditing] = useState<Student | 'new' | null>(null)
@@ -34,13 +34,15 @@ export function MahasiswaClient({ students }: { students: Student[] }) {
             <h1 className="text-[1.3rem] font-semibold">Mahasiswa</h1>
             <p className="text-[0.93rem] text-[var(--tinta-3)] mt-[0.2rem]">{students.length} mahasiswa · dipakai untuk {PRODI_CONFIG[prodi].defense.section.toLowerCase()}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditing('new')}
-            className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
-          >
-            Tambah mahasiswa
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setEditing('new')}
+              className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors"
+            >
+              Tambah mahasiswa
+            </button>
+          )}
         </div>
 
         <input
@@ -68,13 +70,15 @@ export function MahasiswaClient({ students }: { students: Student[] }) {
                   <Td className="whitespace-nowrap">{s.nama}</Td>
                   <Td className="text-[var(--tinta-2)]">{s.judul_skripsi || '—'}</Td>
                   <Td className="text-right">
-                    <button
-                      type="button"
-                      onClick={() => setEditing(s)}
-                      className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
-                    >
-                      Ubah
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing(s)}
+                        className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]"
+                      >
+                        Ubah
+                      </button>
+                    )}
                   </Td>
                 </tr>
               ))}
@@ -92,7 +96,7 @@ export function MahasiswaClient({ students }: { students: Student[] }) {
         </div>
       </div>
 
-      <ImportPanel tableSlug="students" label="Mahasiswa" prodi={prodi} onCommitted={() => router.refresh()} />
+      {canEdit && <ImportPanel tableSlug="students" label="Mahasiswa" prodi={prodi} onCommitted={() => router.refresh()} />}
 
       {editing && <StudentFormModal student={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>

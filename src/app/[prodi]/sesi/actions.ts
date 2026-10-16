@@ -7,7 +7,7 @@ import { getSettings, settingInt, settingText } from '@/lib/settings'
 import { HARI_DB as HARI_VALUES } from '@/lib/hari'
 import { humanDbError } from '@/lib/db-error'
 import { parseJenisKelas, type JenisKelas, type Prodi } from '@/lib/prodi'
-import { writableProdi } from '@/lib/prodi-server'
+import { manageableProdi } from '@/lib/prodi-server'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -74,7 +74,7 @@ export async function commitGeneratedSessions(
   replaceDay: boolean,
   slots: GeneratedSlot[]
 ): Promise<GeneratorResult> {
-  const gate = await writableProdi(prodi)
+  const gate = await manageableProdi(prodi)
   if ('error' in gate) return { ok: false, error: gate.error }
   const jenis_kelas = parseJenisKelas(gate.prodi, jenisKelas)
   if (slots.length === 0) return { ok: false, error: 'Tidak ada yang disimpan.' }
@@ -121,7 +121,7 @@ function readSessionForm(prodi: Prodi, formData: FormData) {
 }
 
 export async function updateSessionAction(prodi: Prodi, id: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const gate = await writableProdi(prodi)
+  const gate = await manageableProdi(prodi)
   if ('error' in gate) return { error: gate.error }
   const row = readSessionForm(gate.prodi, formData)
   if (!row.jam_mulai || !row.jam_selesai) return { error: 'jam_mulai dan jam_selesai wajib diisi.' }
@@ -136,7 +136,7 @@ export async function updateSessionAction(prodi: Prodi, id: string, _prev: FormS
 }
 
 export async function deleteSessionAction(prodi: Prodi, id: string): Promise<FormState> {
-  const gate = await writableProdi(prodi)
+  const gate = await manageableProdi(prodi)
   if ('error' in gate) return { error: gate.error }
   const supabase = await createClient()
   const { error } = await supabase.from('sessions').delete().eq('id', id).eq('prodi', gate.prodi)

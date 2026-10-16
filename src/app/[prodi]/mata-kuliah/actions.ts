@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { humanDbError } from '@/lib/db-error'
 import { parseProdi, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
-import { writableProdi } from '@/lib/prodi-server'
+import { manageableProdi } from '@/lib/prodi-server'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -21,7 +21,7 @@ function readCourseForm(formData: FormData) {
 
 export async function createCourseAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { prodi: rawProdi, ...row } = readCourseForm(formData)
-  const gate = await writableProdi(rawProdi)
+  const gate = await manageableProdi(rawProdi)
   if ('error' in gate) return { error: gate.error }
   if (!row.kode_mk || !row.nama_mk) return { error: 'Kode MK dan Nama MK wajib diisi.' }
   if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'SKS harus berupa angka positif.' }
@@ -39,7 +39,7 @@ export async function createCourseAction(_prev: FormState, formData: FormData): 
 
 export async function updateCourseAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { prodi: rawProdi, ...row } = readCourseForm(formData)
-  const gate = await writableProdi(rawProdi)
+  const gate = await manageableProdi(rawProdi)
   if ('error' in gate) return { error: gate.error }
   if (!row.kode_mk) return { error: 'Kode MK wajib diisi.' }
   if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'SKS harus berupa angka positif.' }
@@ -59,7 +59,7 @@ export async function updateCourseAction(_prev: FormState, formData: FormData): 
 }
 
 export async function deleteCourseAction(prodi: Prodi, kodeMk: string): Promise<FormState> {
-  const gate = await writableProdi(prodi)
+  const gate = await manageableProdi(prodi)
   if ('error' in gate) return { error: gate.error }
   const supabase = await createClient()
   const { error } = await supabase.from('courses').delete().eq('kode_mk', kodeMk).eq('prodi', gate.prodi)

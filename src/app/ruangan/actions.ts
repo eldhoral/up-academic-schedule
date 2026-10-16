@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { humanDbError } from '@/lib/db-error'
+import { managerOnly } from '@/lib/prodi-server'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -15,6 +16,8 @@ function readRoomForm(formData: FormData) {
 }
 
 export async function createRoomAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
   const row = readRoomForm(formData)
   if (!row.nama) return { error: 'Nama wajib diisi.' }
 
@@ -27,6 +30,8 @@ export async function createRoomAction(_prev: FormState, formData: FormData): Pr
 }
 
 export async function updateRoomAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
   const row = readRoomForm(formData)
   if (!row.nama) return { error: 'Nama wajib diisi.' }
 
@@ -39,6 +44,8 @@ export async function updateRoomAction(id: string, _prev: FormState, formData: F
 }
 
 export async function deleteRoomAction(id: string): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
   const supabase = await createClient()
   const { error } = await supabase.from('rooms').delete().eq('id', id)
   if (error) return { error: humanDbError(error) }

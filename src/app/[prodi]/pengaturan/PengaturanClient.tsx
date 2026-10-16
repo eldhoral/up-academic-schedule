@@ -63,7 +63,7 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
 
 const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'tembusan'])
 
-export function PengaturanClient({ settings, canEditShared }: { settings: SettingRow[]; canEditShared: boolean }) {
+export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]; canEdit: boolean }) {
   const prodi = useProdi()
   const groupLabel = (g: string) => (g === 'sidang' ? `Jadwal ${PRODI_CONFIG[prodi].defense.section}` : GROUP_LABEL[g])
   const [state, formAction, isPending] = useActionState<FormState, FormData>(saveSettingsAction, null)
@@ -76,6 +76,7 @@ export function PengaturanClient({ settings, canEditShared }: { settings: Settin
   return (
     <form action={formAction} className="space-y-[1.2rem]">
       <input type="hidden" name="prodi" value={prodi} />
+      {!canEdit && <p className="m-0 text-[0.87rem] text-[var(--tinta-3)]">Hanya Super Admin yang dapat mengubah pengaturan.</p>}
       {state && 'error' in state && (
         <div className="bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.7rem] text-[0.87rem] text-[var(--merah)]">
           {state.error}
@@ -100,17 +101,17 @@ export function PengaturanClient({ settings, canEditShared }: { settings: Settin
           </h2>
           <div className="space-y-[1rem]">
             {rows.map((row) => (
-              <SettingField key={`${row.prodi}:${row.key}`} row={row} canEditShared={canEditShared} />
+              <SettingField key={`${row.prodi}:${row.key}`} row={row} canEdit={canEdit} />
             ))}
           </div>
         </section>
       ))}
 
-      <FotoLoginSection />
+      <FotoLoginSection canEdit={canEdit} />
 
       <button
         type="submit"
-        disabled={isPending || settings.length === 0}
+        disabled={isPending || settings.length === 0 || !canEdit}
         className="px-[1rem] py-[0.6rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.93rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] disabled:opacity-60 transition-colors"
       >
         {isPending ? 'Menyimpan…' : 'Simpan pengaturan'}
@@ -119,10 +120,10 @@ export function PengaturanClient({ settings, canEditShared }: { settings: Settin
   )
 }
 
-function SettingField({ row, canEditShared }: { row: SettingRow; canEditShared: boolean }) {
+function SettingField({ row, canEdit }: { row: SettingRow; canEdit: boolean }) {
   const shared = row.prodi === 'all'
   const name = `${shared ? 'shared' : 'setting'}:${row.key}`
-  const disabled = shared && !canEditShared
+  const disabled = !canEdit
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[16rem_1fr] gap-[0.3rem_1.2rem] items-start">
@@ -133,7 +134,7 @@ function SettingField({ row, canEditShared }: { row: SettingRow; canEditShared: 
         {row.help && <p className="mt-[0.15rem] text-[0.8rem] text-[var(--tinta-3)] leading-[1.4]">{row.help}</p>}
         {shared && (
           <span className="block text-[0.8rem] text-[var(--tinta-3)]">
-            Berlaku untuk S1 dan S2{disabled && ' · hanya akun dengan akses Semua yang dapat mengubah'}
+            Berlaku untuk S1 dan S2
           </span>
         )}
       </div>
@@ -278,7 +279,7 @@ function ImageField({ name, value }: { name: string; value: string }) {
 
 type FotoLogin = { name: string; url: string }
 
-function FotoLoginSection() {
+function FotoLoginSection({ canEdit }: { canEdit: boolean }) {
   const [photos, setPhotos] = useState<FotoLogin[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -377,14 +378,16 @@ function FotoLoginSection() {
                 alt=""
                 className="w-full h-full object-cover rounded-[var(--r-kecil)] border border-[var(--garis-kuat)]"
               />
-              <button
-                type="button"
-                onClick={() => handleDelete(p.name)}
-                className="absolute top-[0.25rem] right-[0.25rem] w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-black/60 text-white text-[0.8rem] leading-none cursor-pointer hover:bg-black/80"
-                aria-label="Hapus foto"
-              >
-                &times;
-              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(p.name)}
+                  className="absolute top-[0.25rem] right-[0.25rem] w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-black/60 text-white text-[0.8rem] leading-none cursor-pointer hover:bg-black/80"
+                  aria-label="Hapus foto"
+                >
+                  &times;
+                </button>
+              )}
             </div>
           ))}
           {photos.length === 0 && <p className="text-[0.87rem] text-[var(--tinta-3)]">Belum ada foto.</p>}
@@ -395,7 +398,7 @@ function FotoLoginSection() {
         type="file"
         accept="image/png,image/jpeg,image/webp"
         onChange={handleUpload}
-        disabled={uploading}
+        disabled={uploading || !canEdit}
         className="text-[0.87rem] text-[var(--tinta-2)] file:mr-[0.6rem] file:px-[0.6rem] file:py-[0.4rem] file:rounded-[var(--r-kecil)] file:border file:border-[var(--garis-kuat)] file:bg-[var(--cekung)] file:cursor-pointer cursor-pointer disabled:opacity-60"
       />
       {uploading && <p className="mt-[0.4rem] text-[0.8rem] text-[var(--tinta-3)]">Mengunggah…</p>}

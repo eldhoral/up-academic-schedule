@@ -1,6 +1,7 @@
 import { AppHeader } from '@/components/AppHeader'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
+import { canManage, getCurrentRole } from '@/lib/roles'
 import { MataKuliahClient, type Course } from './MataKuliahClient'
 
 export default async function MataKuliahPage(props: PageProps<'/[prodi]/mata-kuliah'>) {
@@ -12,7 +13,7 @@ export default async function MataKuliahPage(props: PageProps<'/[prodi]/mata-kul
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <AppHeader active="/mata-kuliah" prodi={prodi} />
       <main className="flex-1 p-[1.3rem] max-w-[1400px] w-full mx-auto">
-        <MataKuliahClient courses={(data as Course[]) ?? []} />
+        <MataKuliahClient courses={(data as Course[]) ?? []} canEdit={canManage(await getCurrentRole())} />
       </main>
     </div>
   )
