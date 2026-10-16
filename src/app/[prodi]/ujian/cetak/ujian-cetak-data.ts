@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { parseJenisKelas, type Prodi } from '@/lib/prodi'
 import { getSettings, settingText } from '@/lib/settings'
 import { lecturerDisplayName } from '@/lib/import/tables'
-import { angkatanTa, romanSemester, substituteTemplate } from '@/lib/print'
+import { computeAngkatan, romanSemester, substituteTemplate } from '@/lib/print'
 import { fetchExamsForPrint } from '../exam-query'
 import { buildExamRows, type PrintExam, type TableRow } from '../exam-rows'
 import { needsRoom } from '../exam-types'
@@ -11,7 +11,7 @@ import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 export type UjianSheet = {
   name: string // "Semester 3"
   semester: string // roman
-  angkatan: string // "2024/2025"
+  angkatan: string // "2024"
   headerLines: string[]
   rows: TableRow[]
   mataKuliah: number
@@ -77,7 +77,8 @@ export async function buildUjianCetakData(prodi: Prodi, params: { ay?: string | 
       ujian: context.jenis_ujian === 'uts' ? 'TENGAH' : 'AKHIR',
       semester: romanSemester(semesterKe),
       program: context.jenis_kelas === 'regsus' ? ' REGULER KHUSUS' : '',
-      angkatan_ta: angkatanTa(context.academic_year_id, semesterKe),
+      // The stored header template's name for it; prints the entry year alone ("2026").
+      angkatan_ta: String(computeAngkatan(context.academic_year_id, semesterKe)),
       term: space === -1 ? '' : label.slice(space + 1).toUpperCase(),
       tahun: space === -1 ? label : label.slice(0, space),
     }
