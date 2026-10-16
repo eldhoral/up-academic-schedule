@@ -292,9 +292,20 @@ Kuliah's (`src/components/TimeGrid.tsx`, shared by all three, with
   done: undated exams, a defense missing an examiner); only then a `--hijau`
   "✓ bersih". A schedule with no rows gets "Belum ada jadwal" and no tally;
   a status that can't be read gets "Status belum bisa dibaca" — never a bare "—".
-- **Admin links** — "Lainnya: Data Master · Manajemen Pengguna (SUPERADMIN only) ·
-  Audit Log" as a plain `--tinta-3` line under the register: secondary to the
-  three schedules, not a fourth row.
+- **Admin links** — "Lainnya: Data Master · Manajemen Pengguna · Reset Jadwal ·
+  Audit Log" as a plain `--tinta-3` line under the register (the middle two are
+  SUPERADMIN only): secondary to the three schedules, not a fourth row. Reset Jadwal
+  is a button in the same link style; its hover is `--merah`, not `--tinta`.
+- **Reset Jadwal modal** (`src/components/ResetJadwalButton.tsx`) — the one
+  destructive bulk action. Step 1: tahun akademik `Select`, then a ledger grid of
+  jadwal (Mata Kuliah & Dosen, UTS & UAS, Sidang & Seminar) × prodi, each cell a
+  whole-cell checkbox label with its row count (`mono`); a ticked cell with rows
+  tints `--merah-lembut` (red means "will be erased"), an empty cell is disabled.
+  Focal number: the total to delete, `1.87rem` `--merah` `mono` (the findings-bar
+  size). Step 2 is the danger pop-up: a `--merah-lembut` band ("TINDAKAN
+  BERBAHAYA") on top of the modal, the list of what goes, and the year label typed
+  to unlock a solid `--merah` "Hapus N jadwal". `reset_jadwal()` runs it as one
+  transaction.
 - **Section nav** — `HeaderNav` shows nothing on the menu; elsewhere it shows
   "‹ Menu", the section's name (`.93rem`/600) and that section's tabs (nav-active
   look for the current one). Sections: kuliah (Penjadwalan, Kalender, Cetak
@@ -303,8 +314,10 @@ Kuliah's (`src/components/TimeGrid.tsx`, shared by all three, with
   Akademik, Pengaturan); Pengguna and Audit Log show just their title. Adding a
   page means adding its tab to that section's constant in `HeaderNav.tsx`, and a
   new schedule gets its row on the menu.
-- **Roles** — VIEWER (Pemantau) reads, previews and downloads; entry screens get
-  a `canEdit` prop that hides Tambah/Ubah/Isi controls. The database (RLS) is the
+- **Roles** — VIEWER (Pemantau) reads, previews and downloads; SCHEDULER
+  (Penjadwal) also edits the three schedules; only SUPERADMIN edits data master,
+  Pengaturan and Pengguna. Entry screens get a `canEdit` prop that hides
+  Tambah/Ubah/Isi/Import controls. The database (RLS) is the
   real enforcement; hiding is courtesy. Pengguna redirects non-SUPERADMIN.
 
 ## Ujian (UTS/UAS)

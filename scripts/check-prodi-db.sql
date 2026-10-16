@@ -247,3 +247,53 @@ do $$ begin
     assert (select value from settings where key = 'bentrok_beban' and prodi = 'all') = 'peringatan', 'bentrok_beban shared, peringatan by default';
     assert not exists (select 1 from settings where key in ('maks_sks_dosen', 'bentrok_beban') and prodi <> 'all'), 'a dosen''s load spans both prodi: one shared row each';
 end $$;
+
+-- Reset jadwal: Super Admin only, one academic year, only the ticked jadwal × prodi ---------------
+insert into academic_years (id, label) values ('R0001', 'Reset A'), ('R0002', 'Reset B');
+insert into courses (kode_mk, nama_mk, sks, smt, jenis_mk, prodi) values ('S1RST01', 'Reset S1', 2, 1, 'A', 's1');
+insert into schedules (academic_year_id, jenis_kelas, semester_ke, kode_mk, kelas, hari, jam_mulai, jam_selesai, prodi) values
+    ('R0001', 'reguler', 1, 'S1RST01', 'A', 'SENIN', '08:00', '10:00', 's1'),
+    ('R0001', 'reguler', 1, 'S2TEST01', 'A', 'SENIN', '08:00', '10:00', 's2'),
+    ('R0002', 'reguler', 1, 'S1RST01', 'A', 'SENIN', '08:00', '10:00', 's1');
+insert into schedule_lecturers (schedule_id, kode_dosen)
+    select id, 'TOKCHK' from schedules where academic_year_id = 'R0001' and prodi = 's1';
+insert into exams (academic_year_id, jenis_ujian, jenis_kelas, semester_ke, kode_mk, kelas, prodi) values
+    ('R0001', 'uts', 'reguler', 1, 'S1RST01', 'A', 's1'),
+    ('R0001', 'uas', 'reguler', 1, 'S2TEST01', 'A', 's2');
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, prodi) values
+    ('R0001', 'prasidang', '2026-11-02', '08:00', '09:00', 1, '1001', 'Satu', 's1'),
+    ('R0001', 'prasidang', '2026-11-02', '08:00', '09:00', 1, '2001', 'Dua', 's2');
+
+select set_config('request.jwt.claim.sub', :'semua', false);
+set role authenticated;
+do $$ begin
+    begin
+        perform reset_jadwal('R0001', array['s1', 's2'], array['s1', 's2'], array['s1', 's2']);
+        raise exception 'FAIL: a Penjadwal reset jadwal';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
+do $$ begin
+    assert (select count(*) from schedules where academic_year_id = 'R0001') = 2, 'Penjadwal reset deleted nothing';
+end $$;
+
+select set_config('request.jwt.claim.sub', :'super', false);
+set role authenticated;
+do $$
+declare r jsonb;
+begin
+    -- Kuliah S1 and both prodi's sidang; UTS/UAS and kuliah S2 kept.
+    r := reset_jadwal('R0001', array['s1'], array[]::text[], array['s1', 's2']);
+    assert r = '{"kuliah": 1, "ujian": 0, "sidang": 2}'::jsonb, 'reset returns what it deleted: ' || r::text;
+end $$;
+reset role;
+do $$ begin
+    assert (select count(*) from schedules where academic_year_id = 'R0001' and prodi = 's1') = 0, 'kuliah S1 reset';
+    assert (select count(*) from schedules where academic_year_id = 'R0001' and prodi = 's2') = 1, 'kuliah S2 kept';
+    assert (select count(*) from schedules where academic_year_id = 'R0002') = 1, 'another year kept';
+    assert not exists (select 1 from schedule_lecturers sl where not exists (select 1 from schedules s where s.id = sl.schedule_id)), 'dosen rows go with their jadwal';
+    assert (select count(*) from exams where academic_year_id = 'R0001') = 2, 'UTS/UAS kept';
+    assert (select count(*) from defenses where academic_year_id = 'R0001') = 0, 'sidang and seminar reset';
+    assert exists (select 1 from audit_log where table_name = 'schedules' and action = 'DELETE'), 'reset is in the audit log';
+end $$;

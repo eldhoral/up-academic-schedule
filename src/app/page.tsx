@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { AppHeader } from '@/components/AppHeader'
+import { ResetJadwalButton } from '@/components/ResetJadwalButton'
 import { getCurrentUser } from '@/lib/roles'
 import { accessibleProdi, PRODI_CONFIG } from '@/lib/prodi'
 import { createClient } from '@/lib/supabase/server'
@@ -86,6 +87,8 @@ export default async function MenuPage() {
             <>
               <span aria-hidden="true">·</span>
               <AdminLink href="/pengguna">Manajemen Pengguna</AdminLink>
+              <span aria-hidden="true">·</span>
+              <ResetJadwalButton years={years} />
             </>
           )}
           <span aria-hidden="true">·</span>
