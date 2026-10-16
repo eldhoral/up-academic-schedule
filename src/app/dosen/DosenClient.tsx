@@ -9,7 +9,7 @@ import { createLecturerAction, deleteLecturerAction, jadwalLinkAction, updateLec
 
 export type Lecturer = {
   kode_dosen: string
-  nidn: string
+  nidn: string | null
   nama: string
   gelar_depan: string
   gelar_belakang: string
@@ -25,7 +25,7 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
   const filtered = lecturers.filter((l) => {
     const q = query.trim().toLowerCase()
     if (!q) return true
-    return l.kode_dosen.toLowerCase().includes(q) || l.nama.toLowerCase().includes(q) || l.nidn.includes(q)
+    return l.kode_dosen.toLowerCase().includes(q) || l.nama.toLowerCase().includes(q) || !!l.nidn?.includes(q)
   })
 
   return (
@@ -208,7 +208,7 @@ function LecturerFormModal({ lecturer, onClose }: { lecturer: Lecturer | null; o
           <Field label="NIDN">
             <input
               name="nidn"
-              defaultValue={lecturer?.nidn}
+              defaultValue={lecturer?.nidn ?? ''}
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mono"
             />
           </Field>
