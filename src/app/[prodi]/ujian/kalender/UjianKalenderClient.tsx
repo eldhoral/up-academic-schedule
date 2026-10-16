@@ -209,4 +209,4 @@ export function UjianKalenderClient({
 }
 
 /** Each kelas has its own keterangan; a block shows the distinct ones. */
-const keteranganOf = (rows: ExamView[]) => [...new Set(rows.map((r) => KETERANGAN_LABEL[r.keterangan_ujian]))].join(', ')
+const keteranganOf = (rows: ExamView[]) => [...new Set(rows.map((r) => KETERANGAN_LABEL[r.keterangan_ujian]))].filter(Boolean).join(', ')

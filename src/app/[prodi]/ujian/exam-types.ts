@@ -1,9 +1,11 @@
 import type { JenisKelas, Prodi } from '@/lib/prodi'
 
-export const KETERANGAN_UJIAN = ['offline', 'online', 'take_home', 'project', 'ujian_lisan'] as const
+// '' is no keterangan: the default, printed as an empty cell.
+export const KETERANGAN_UJIAN = ['', 'offline', 'online', 'take_home', 'project', 'ujian_lisan'] as const
 export type KeteranganUjian = (typeof KETERANGAN_UJIAN)[number]
 
 export const KETERANGAN_LABEL: Record<KeteranganUjian, string> = {
+  '': '',
   offline: 'Offline',
   online: 'Online',
   take_home: 'Take Home',
@@ -11,12 +13,12 @@ export const KETERANGAN_LABEL: Record<KeteranganUjian, string> = {
   ujian_lisan: 'Ujian Lisan',
 }
 
-/** Only a sit-down exam in a room needs a ruangan; online/take home/project have none. */
-export const needsRoom = (k: KeteranganUjian) => k === 'offline' || k === 'ujian_lisan'
+/** Only a sit-down exam in a room needs a ruangan; online/take home/project have none. No keterangan counts as sit-down. */
+export const needsRoom = (k: KeteranganUjian) => k === '' || k === 'offline' || k === 'ujian_lisan'
 
-/** Default for a new exam row: a kuliah class held only on Zoom (ruangan daring, no ruangan luring) sits its exam online. */
+/** Default for a new exam row: a kuliah class held only on Zoom (ruangan daring, no ruangan luring) sits its exam online; anything else starts empty. */
 export const keteranganFromKuliah = (schedules: { room_id: string | null; zoom_id: string }[]): KeteranganUjian =>
-  schedules.length > 0 && schedules.every((s) => !s.room_id && !!s.zoom_id.trim()) ? 'online' : 'offline'
+  schedules.length > 0 && schedules.every((s) => !s.room_id && !!s.zoom_id.trim()) ? 'online' : ''
 
 /** Pengawas: a dosen from the master, or free text (e.g. AKADEMIK). */
 export type PengawasItem = { kode_dosen: string } | { nama: string }

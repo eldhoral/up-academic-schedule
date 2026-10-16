@@ -140,6 +140,7 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
   assert.equal(run([exam('m1', { kelas: 'A', pengawas: [{ nama: 'Pak  Joko' }] }), exam('m2', { kelas: 'B', pengawas: [{ nama: 'PAK JOKO' }] })]).length, 1, 'free text matches ignoring case and spacing')
   assert.equal(run([exam('m1', { pengawas: [{ kode_dosen: 'D1' }], keterangan_ujian: 'take_home' }), exam('m2', { kelas: 'B', pengawas: [{ kode_dosen: 'D1' }] })]).length, 0, 'take home occupies nothing')
   assert.deepEqual(examKeys(exam('m', { keterangan_ujian: 'online', room_id: 'r1' }), kelasMap, cadangan), ['kelas:s1/reguler/1/A'], 'online has no room')
+  assert.ok(examKeys(exam('m', { keterangan_ujian: '', room_id: 'r1' }), kelasMap, cadangan).includes('ruang:r1'), 'empty keterangan sits in its room like offline')
   assert.equal(run([exam('m1', { room_id: 'r1' }), exam('m2', { kelas: 'B', room_id: 'r1' })]).some((c) => c.type === 'ruangan'), true)
 
   // GABUNGAN sits every kelas of the semester, so it clashes with a single-kelas exam.

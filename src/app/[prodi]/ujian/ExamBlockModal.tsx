@@ -21,6 +21,7 @@ type RowState = { kelas: string; room_id: string; pengawas: PersonValue[]; keter
 
 const CONTROL = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]'
 const NO_ROOM = '__none__'
+const NO_KETERANGAN = '__kosong__' // Radix Select reserves '' for its placeholder
 const CLASH_LABEL = { pengawas: 'Pengawas', ruangan: 'Ruangan', kelas: 'Kelas' }
 const UJIAN_LABEL = { uts: 'UTS', uas: 'UAS' }
 const dot = (t: string) => t.replace(':', '.')
@@ -217,10 +218,10 @@ export function ExamBlockModal({
 
                 <Field label="Keterangan">
                   <Select
-                    value={r.keterangan_ujian}
-                    onValueChange={(v) => patchRow(i, { keterangan_ujian: v as KeteranganUjian })}
+                    value={r.keterangan_ujian || NO_KETERANGAN}
+                    onValueChange={(v) => patchRow(i, { keterangan_ujian: (v === NO_KETERANGAN ? '' : v) as KeteranganUjian })}
                     ariaLabel={`Keterangan ujian kelas ${r.kelas}`}
-                    options={KETERANGAN_UJIAN.map((k) => ({ value: k, label: KETERANGAN_LABEL[k] }))}
+                    options={KETERANGAN_UJIAN.map((k) => ({ value: k || NO_KETERANGAN, label: KETERANGAN_LABEL[k] || '— kosong —' }))}
                     className={CONTROL}
                   />
                 </Field>

@@ -173,10 +173,11 @@ async function main() {
 }
 main()
 
-// Default keterangan from the kuliah class: online only when every meeting is Zoom-only.
+// Default keterangan from the kuliah class: online only when every meeting is Zoom-only, else empty.
 {
   assert.equal(keteranganFromKuliah([{ room_id: null, zoom_id: '560 278 1304' }]), 'online')
-  assert.equal(keteranganFromKuliah([{ room_id: null, zoom_id: '1' }, { room_id: 'r1', zoom_id: '1' }]), 'offline', 'one meeting in a room keeps it offline')
-  assert.equal(keteranganFromKuliah([{ room_id: null, zoom_id: ' ' }]), 'offline', 'no zoom is not online')
-  assert.equal(keteranganFromKuliah([]), 'offline')
+  assert.equal(keteranganFromKuliah([{ room_id: null, zoom_id: '1' }, { room_id: 'r1', zoom_id: '1' }]), '', 'one meeting in a room is not online')
+  assert.equal(keteranganFromKuliah([{ room_id: null, zoom_id: ' ' }]), '', 'no zoom is not online')
+  assert.equal(keteranganFromKuliah([]), '', 'starts empty, not offline')
+  assert.equal(buildExamRows([exam({ keterangan: '' })])[0].cells[10]?.text, '', 'an empty keterangan prints empty')
 }

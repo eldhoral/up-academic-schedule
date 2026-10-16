@@ -324,3 +324,15 @@ begin
     exception when check_violation then null;
     end;
 end $$;
+
+-- Keterangan ujian starts empty; the old values still pass, nothing else does.
+do $$
+begin
+    assert (select column_default from information_schema.columns where table_name = 'exams' and column_name = 'keterangan_ujian') = '''''::character varying', 'keterangan_ujian defaults to empty';
+    assert (select count(*) from pg_constraint where conrelid = 'exams'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%keterangan_ujian%') = 1, 'one keterangan check, the old one dropped';
+    begin
+        update exams set keterangan_ujian = 'luring' where id = (select id from exams limit 1);
+        raise exception 'FAIL: an unknown keterangan saved';
+    exception when check_violation then null;
+    end;
+end $$;
