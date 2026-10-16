@@ -101,7 +101,11 @@ export async function buildUjianCetakData(prodi: Prodi, params: { ay?: string | 
     sheets,
     namaPenandatangan: settingText(settings, 'nama_penandatangan', ''),
     jabatanPenandatangan: settingText(settings, 'jabatan_penandatangan', ''),
+    namaWakilDekan: settingText(settings, 'nama_wakil_dekan', ''),
+    jabatanWakilDekan: settingText(settings, 'jabatan_wakil_dekan', ''),
   }
 }
+
+export type Signers = { namaPenandatangan: string; jabatanPenandatangan: string; namaWakilDekan: string; jabatanWakilDekan: string }
 
 export type UjianCetakData = Awaited<ReturnType<typeof buildUjianCetakData>>

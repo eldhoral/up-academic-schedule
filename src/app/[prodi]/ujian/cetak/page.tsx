@@ -22,7 +22,7 @@ export default async function UjianCetakPage(props: PageProps<'/[prodi]/ujian/ce
         context={{ ...data.context, dosen: data.dosen?.value ?? '' }}
         dosenOptions={data.dosenOptions}
         sheets={data.sheets}
-        doc={{ namaPenandatangan: data.namaPenandatangan, jabatanPenandatangan: data.jabatanPenandatangan }}
+        doc={{ namaPenandatangan: data.namaPenandatangan, jabatanPenandatangan: data.jabatanPenandatangan, namaWakilDekan: data.namaWakilDekan, jabatanWakilDekan: data.jabatanWakilDekan }}
       />
     </div>
   )

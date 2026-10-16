@@ -5,7 +5,7 @@ import { DownloadButtons } from '@/components/DownloadButtons'
 import { EmptySheet } from '@/components/EmptySheet'
 import { Select } from '@/components/Select'
 import { UjianCetakPreview } from './UjianCetakPreview'
-import type { UjianSheet } from './ujian-cetak-data'
+import type { Signers, UjianSheet } from './ujian-cetak-data'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 import { PRODI_CONFIG, semesterList, type JenisKelas, type Prodi } from '@/lib/prodi'
 
@@ -25,7 +25,7 @@ export function UjianCetakClient({
   context: Context
   dosenOptions: { value: string; label: string }[]
   sheets: UjianSheet[]
-  doc: { namaPenandatangan: string; jabatanPenandatangan: string }
+  doc: Signers
 }) {
   const { prodi } = context
   const router = useRouter()

@@ -4,6 +4,9 @@ import { KETERANGAN_LABEL, type KeteranganUjian } from './exam-types'
 // What a printed UTS/UAS sheet says, shared by the on-screen preview and the Excel
 // builder so the two cannot drift. Pure: names are already resolved by the caller.
 
+/** Printed right under every UTS/UAS table. */
+export const PENGAWAS_NOTE = 'Note: Jika Dosen Pengawas berhalangan hadir mohon memberikan info ke akademik maksimal H-2 dari jadwal ujian'
+
 export const EXAM_COLUMNS = ['KODE MK', 'MATA KULIAH', 'SKS', 'HARI', 'TANGGAL', 'JAM', 'DOSEN PENGAMPU', 'KELAS', 'PENGAWAS', 'RUANGAN', 'KETERANGAN']
 // Excel character-width units, from the faculty's ETS template.
 export const EXAM_WIDTHS = [11.6, 30, 5.4, 10.4, 12.3, 12.7, 28, 13, 32, 11.6, 15.3]

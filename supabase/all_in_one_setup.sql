@@ -2069,3 +2069,11 @@ alter table exams drop constraint if exists exams_keterangan_ujian_check;
 alter table exams add constraint exams_keterangan_ujian_check
     check (keterangan_ujian in ('', 'offline', 'online', 'take_home', 'project', 'ujian_lisan'));
 alter table exams alter column keterangan_ujian set default '';
+
+-- ==============================================================================
+-- Migration: 20261017000002_wakil_dekan_semua_jadwal.sql
+-- Description: Wakil Dekan I now also signs the jadwal kuliah and UTS/UAS sheets;
+-- the settings help says so. Text only, no schema change.
+-- ==============================================================================
+
+update settings set help = 'Penandatangan "Mengetahui" pada jadwal kuliah, UTS/UAS, prasidang dan sidang' where key = 'nama_wakil_dekan';

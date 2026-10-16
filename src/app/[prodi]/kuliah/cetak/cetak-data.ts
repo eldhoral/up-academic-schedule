@@ -61,6 +61,8 @@ export async function buildCetakData(prodi: Prodi, params: { ay?: string | null;
     keteranganLines,
     namaPenandatangan: settingText(settings, 'nama_penandatangan', ''),
     jabatanPenandatangan: settingText(settings, 'jabatan_penandatangan', ''),
+    namaWakilDekan: settingText(settings, 'nama_wakil_dekan', ''),
+    jabatanWakilDekan: settingText(settings, 'jabatan_wakil_dekan', ''),
     gambarTandaTangan: settingText(settings, 'gambar_tanda_tangan', ''),
     ukuranKertas: settingText(settings, 'ukuran_kertas', 'A4'),
     orientasi: settingText(settings, 'orientasi', 'portrait'),

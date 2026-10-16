@@ -1,29 +1,26 @@
 import ExcelJS from 'exceljs'
 import { BORDER_ALL, estimateLines, mergedText } from '@/lib/xlsx'
-import { EXAM_COLUMNS, EXAM_WIDTHS } from '../exam-rows'
-import type { UjianSheet } from './ujian-cetak-data'
+import { EXAM_COLUMNS, EXAM_WIDTHS, PENGAWAS_NOTE } from '../exam-rows'
+import type { Signers, UjianSheet } from './ujian-cetak-data'
 
 const COLUMN_COUNT = EXAM_COLUMNS.length
 const TITLE_HEIGHT = 15 // points, as in the template
 const MIN_ROW_HEIGHT = 14.45 // the template's one-line row
 const LINE = 14.45
-const SIGNATURE_FROM = 7 // 1-based: the jabatan/nama block sits over DOSEN PENGAMPU..PENGAWAS, as in the template
+const SIGNATURE_FROM = 7 // 1-based: the Kaprodi block sits over DOSEN PENGAMPU..PENGAWAS, as in the template
 const SIGNATURE_TO = 9
+const WAKIL_DEKAN_TO = 3 // Wakil Dekan I on the left, over KODE MK..SKS
 
 const font = (bold = false): Partial<ExcelJS.Font> => ({ name: 'Arial', size: 11, bold })
 
-export async function buildUjianXlsx(props: {
-  sheets: UjianSheet[]
-  namaPenandatangan: string
-  jabatanPenandatangan: string
-}): Promise<Uint8Array<ArrayBuffer>> {
+export async function buildUjianXlsx(props: Signers & { sheets: UjianSheet[] }): Promise<Uint8Array<ArrayBuffer>> {
   const workbook = new ExcelJS.Workbook()
   // Each semester is its own sheet, so "Semua semester" converts to one PDF with every semester.
   for (const sheet of props.sheets) addSheet(workbook, sheet, props)
   return new Uint8Array(await workbook.xlsx.writeBuffer())
 }
 
-function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: UjianSheet, props: { namaPenandatangan: string; jabatanPenandatangan: string }) {
+function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: UjianSheet, props: Signers) {
   const sheet = workbook.addWorksheet(name, {
     pageSetup: {
       paperSize: 9, // A4
@@ -93,17 +90,23 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: Ujian
   })
   r = first + rows.length
 
-  const signature = (row: number, text: string, bold: boolean) => {
-    sheet.mergeCells(row, SIGNATURE_FROM, row, SIGNATURE_TO)
-    const cell = sheet.getCell(row, SIGNATURE_FROM)
+  // The pengawas note sits right under the table, as in the faculty's sheet.
+  const note = mergedText(sheet, r++, COLUMN_COUNT, PENGAWAS_NOTE, { bold: true })
+  note.font = { ...font(true), size: 9 }
+
+  const signature = (row: number, from: number, to: number, text: string, bold: boolean) => {
+    sheet.mergeCells(row, from, row, to)
+    const cell = sheet.getCell(row, from)
     cell.value = text
     cell.font = font(bold)
     cell.alignment = { horizontal: 'center', vertical: 'top' }
   }
-  r += 1 // one blank row under the table, as in the template
-  signature(r, props.jabatanPenandatangan, false)
+  r += 1 // one blank row under the note
+  signature(r, 1, WAKIL_DEKAN_TO, props.jabatanWakilDekan, false)
+  signature(r, SIGNATURE_FROM, SIGNATURE_TO, props.jabatanPenandatangan, false)
   r += 5
-  signature(r, props.namaPenandatangan, true)
+  signature(r, 1, WAKIL_DEKAN_TO, props.namaWakilDekan, true)
+  signature(r, SIGNATURE_FROM, SIGNATURE_TO, props.namaPenandatangan, true)
 
   // Repeats the column header row on every printed page (Excel's "Print Titles").
   sheet.pageSetup.printTitlesRow = `${headerRow}:${headerRow}`

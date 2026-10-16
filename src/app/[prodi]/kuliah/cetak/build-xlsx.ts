@@ -5,6 +5,7 @@ import { BORDER_ALL, mergedText as sharedMergedText, setRowHeightForContent } fr
 import type { ScheduleRow } from '../penjadwalan-types'
 
 const COLUMN_COUNT = COLUMN_WIDTHS.length
+const WAKIL_DEKAN_TO = 3
 
 const heightFor = (sheet: ExcelJS.Worksheet, rowIndex: number, values: unknown[]) => setRowHeightForContent(sheet, rowIndex, values, COLUMN_WIDTHS)
 const mergedText = (sheet: ExcelJS.Worksheet, row: number, text: string, opts?: Parameters<typeof sharedMergedText>[4]) =>
@@ -19,6 +20,8 @@ export async function buildXlsx(props: {
   keteranganLines: string[]
   namaPenandatangan: string
   jabatanPenandatangan: string
+  namaWakilDekan: string
+  jabatanWakilDekan: string
   ukuranKertas: string
   orientasi: string
 }): Promise<Uint8Array<ArrayBuffer>> {
@@ -107,19 +110,23 @@ function addSheet(
     r++
   }
 
-  const signatureCol = SIGNATURE_START_COLUMN + 1
-  const signatureText = (row: number, text: string, opts: { bold?: boolean; underline?: boolean }) => {
-    sheet.mergeCells(row, signatureCol, row, COLUMN_COUNT)
-    const cell = sheet.getCell(row, signatureCol)
+  // Wakil Dekan I on the left (KODE MK..SKS), Kaprodi on the right.
+  const signatureText = (row: number, from: number, to: number, text: string, opts: { bold?: boolean; underline?: boolean }) => {
+    sheet.mergeCells(row, from, row, to)
+    const cell = sheet.getCell(row, from)
     cell.value = text
     cell.font = { bold: opts.bold ?? false, underline: opts.underline ?? false }
     cell.alignment = { horizontal: 'center' }
   }
+  const left = [1, WAKIL_DEKAN_TO] as const
+  const right = [SIGNATURE_START_COLUMN + 1, COLUMN_COUNT] as const
 
   r += 4
-  signatureText(r, props.jabatanPenandatangan, {})
+  signatureText(r, ...left, props.jabatanWakilDekan, {})
+  signatureText(r, ...right, props.jabatanPenandatangan, {})
   r += 4
-  signatureText(r, props.namaPenandatangan, { bold: true, underline: true })
+  signatureText(r, ...left, props.namaWakilDekan, { bold: true, underline: true })
+  signatureText(r, ...right, props.namaPenandatangan, { bold: true, underline: true })
 
   // Repeats the column header row on every printed page (Excel's "Print Titles").
   sheet.pageSetup.printTitlesRow = `${headerRowIndex}:${headerRowIndex}`

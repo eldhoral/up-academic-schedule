@@ -139,13 +139,13 @@ assert.equal(ani.jumlah, 2)
 async function main() {
   const rows = buildExamRows([exam({ kelas: 'A' }), exam({ kelas: 'B' }), exam({ kode_mk: 'U1', dosen: [], pengawas: [], ruangan: '', mkwu: true, tanggal: '2025-10-28' })])
   const sheet = { name: 'Semester 1', semester: 'I', angkatan: '2025/2026', headerLines: ['JADWAL', 'SEMESTER I', 'TA 2025/2026'], rows, mataKuliah: 2 }
-  const buf = await buildUjianXlsx({ sheets: [sheet, { ...sheet, name: 'Semester 3', rows: [] }], namaPenandatangan: 'Nama', jabatanPenandatangan: 'Kaprodi' })
+  const buf = await buildUjianXlsx({ sheets: [sheet, { ...sheet, name: 'Semester 3', rows: [] }], namaPenandatangan: 'Nama', jabatanPenandatangan: 'Kaprodi', namaWakilDekan: 'DR. VINAYA, M.SI', jabatanWakilDekan: 'WAKIL DEKAN I' })
   const zip = await JSZip.loadAsync(buf)
   const xml = await zip.file('xl/worksheets/sheet1.xml')!.async('string')
   const merges = [...xml.matchAll(/<mergeCell ref="([^"]+)"/g)].map((m) => m[1])
-  // 3 title lines + 2 signature lines + A MK's 6 spans (kode, mk, sks, hari, tanggal, jam) + dosen + keterangan + UNIVERSITAS cell
+  // 3 title lines + the pengawas note + 2 Wakil Dekan and 2 Kaprodi signature lines + A MK's 6 spans (kode, mk, sks, hari, tanggal, jam) + dosen + keterangan + UNIVERSITAS cell
   // + the MKWU row's own hari/tanggal are single-row, so no merge
-  assert.equal(merges.length, 3 + 2 + 8 + 1, merges.join(' '))
+  assert.equal(merges.length, 3 + 1 + 4 + 8 + 1, merges.join(' '))
   assert.ok(merges.some((m) => /^F\d+:K\d+$/.test(m)), 'UNIVERSITAS spans JAM..KETERANGAN')
   assert.ok(xml.includes('landscape'), 'A4 landscape')
   // Every table cell (header and body) is centred both ways.
@@ -157,7 +157,10 @@ async function main() {
   }))
   assert.deepEqual(off, [], 'table cells not centred')
   // exceljs keeps cell text in sharedStrings, not in the sheet XML
-  assert.ok((await zip.file('xl/sharedStrings.xml')!.async('string')).includes('Tidak ada data jadwal'), 'an empty semester says so')
+  const ujianStrings = await zip.file('xl/sharedStrings.xml')!.async('string')
+  assert.ok(ujianStrings.includes('Tidak ada data jadwal'), 'an empty semester says so')
+  assert.ok(ujianStrings.includes('WAKIL DEKAN I') && ujianStrings.includes('DR. VINAYA, M.SI'), 'Wakil Dekan I signs')
+  assert.ok(ujianStrings.includes('Note: Jika Dosen Pengawas berhalangan hadir'), 'pengawas note under the table')
   const rx = await JSZip.loadAsync(
     await buildRekapPengawasXlsx({ headerLines: ['REKAP', 'TA'], groups: rekap, totalTugas: rekap.reduce((n, g) => n + g.jumlah, 0), namaPenandatangan: 'Nama', jabatanPenandatangan: 'Kaprodi' }),
   )

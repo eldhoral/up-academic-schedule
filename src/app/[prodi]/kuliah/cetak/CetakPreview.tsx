@@ -17,6 +17,8 @@ export type CetakDoc = {
   keteranganLines: string[]
   namaPenandatangan: string
   jabatanPenandatangan: string
+  namaWakilDekan: string
+  jabatanWakilDekan: string
   hasTandaTangan: boolean
   ukuranKertas: string
   orientasi: string
@@ -38,6 +40,7 @@ export function CetakPreview({ sheets, doc, prodi }: { sheets: PreviewSheet[]; d
           items={[
             { label: 'Bor Zoom', value: [doc.zoomId && `ID ${doc.zoomId}`, doc.zoomPasscode && `Passcode ${doc.zoomPasscode}`] },
             { label: 'Keterangan', value: doc.keteranganLines },
+            { label: 'Mengetahui', value: [doc.jabatanWakilDekan, doc.namaWakilDekan] },
             {
               label: 'Penandatangan',
               value: [doc.jabatanPenandatangan, doc.namaPenandatangan, doc.hasTandaTangan ? 'Tanda tangan terpasang' : 'Tanda tangan belum diunggah'],

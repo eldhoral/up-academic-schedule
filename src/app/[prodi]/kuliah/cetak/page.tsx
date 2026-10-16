@@ -35,6 +35,8 @@ export default async function CetakPage(props: PageProps<'/[prodi]/kuliah/cetak'
           keteranganLines: data.keteranganLines,
           namaPenandatangan: data.namaPenandatangan,
           jabatanPenandatangan: data.jabatanPenandatangan,
+          namaWakilDekan: data.namaWakilDekan,
+          jabatanWakilDekan: data.jabatanWakilDekan,
           hasTandaTangan: Boolean(data.gambarTandaTangan),
           ukuranKertas: data.ukuranKertas,
           orientasi: data.orientasi,
