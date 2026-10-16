@@ -42,7 +42,6 @@ export function DefenseFormModal({
   lecturers,
   rooms,
   sesi,
-  externalNames,
   students,
   onClose,
 }: {
@@ -51,7 +50,6 @@ export function DefenseFormModal({
   lecturers: Option[]
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
-  externalNames: string[]
   students: Student[]
   onClose: () => void
 }) {
@@ -74,6 +72,8 @@ export function DefenseFormModal({
   const judul = kept ? row.judul_skripsi : (student?.judul_skripsi ?? '')
   const [pembimbing, setPembimbing] = useState(row?.pembimbing_kode ?? '')
   const [penguji, setPenguji] = useState(row?.penguji_kode ?? '')
+  const [eksternalKode, setEksternalKode] = useState(row?.penguji_eksternal_kode ?? '')
+  // Penguji I typed as free text before the dropdown: kept until a dosen is picked.
   const [eksternal, setEksternal] = useState(row?.penguji_eksternal ?? '')
   const [filledFrom, setFilledFrom] = useState<string | null>(null)
 
@@ -103,6 +103,7 @@ export function DefenseFormModal({
       judul_skripsi: judul,
       pembimbing_kode: pembimbing || null,
       penguji_kode: penguji || null,
+      penguji_eksternal_kode: eksternalKode || null,
       penguji_eksternal: eksternal,
       confirmOverride: overrideConfirmed,
       overrideReason,
@@ -114,7 +115,7 @@ export function DefenseFormModal({
     const t = setTimeout(() => startCheck(async () => setLive(await checkDefenseClashes(buildInput()))), 300)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [complete, tanggal, jamMulai, jamSelesai, roomId, kelompok, pembimbing, penguji, eksternal])
+  }, [complete, tanggal, jamMulai, jamSelesai, roomId, kelompok, pembimbing, penguji, eksternalKode, eksternal])
 
   // A sidang starts from the student's prasidang: the pembimbing comes from there if still blank.
   async function pick(s: Student) {
@@ -267,13 +268,17 @@ export function DefenseFormModal({
                 <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Ketua sidang" options={dosenOptions} className={CONTROL} />
               </Field>
               <Field label="Anggota penguji I (penguji eksternal)">
-                <input type="text" list="eksternal-pilihan" value={eksternal} onChange={(e) => setEksternal(e.target.value)} className={CONTROL} />
-                {/* Names typed before, and the dosen master: pick or type anyone. */}
-                <datalist id="eksternal-pilihan">
-                  {[...new Set([...externalNames, ...lecturers.map((l) => l.label)])].map((n) => (
-                    <option key={n} value={n} />
-                  ))}
-                </datalist>
+                <Select
+                  value={eksternalKode}
+                  onValueChange={(v) => {
+                    setEksternalKode(v === NONE ? '' : v)
+                    setEksternal('')
+                  }}
+                  placeholder={eksternal || '— pilih dosen —'}
+                  ariaLabel="Anggota penguji I"
+                  options={dosenOptions}
+                  className={CONTROL}
+                />
               </Field>
               <Field label="Anggota penguji II (dosen pembimbing)">
                 <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Anggota penguji II" options={dosenOptions} className={CONTROL} />

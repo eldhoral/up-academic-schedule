@@ -23,7 +23,6 @@ export function SidangClient({
   lecturers,
   rooms,
   sesi,
-  externalNames,
   students,
   initialTanggal,
   canEdit,
@@ -35,7 +34,6 @@ export function SidangClient({
   lecturers: Option[]
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
-  externalNames: string[]
   students: Student[]
   initialTanggal: string | null
   canEdit: boolean
@@ -319,7 +317,6 @@ export function SidangClient({
           lecturers={lecturers}
           rooms={rooms}
           sesi={sesi}
-          externalNames={externalNames}
           students={students}
           onClose={() => setDraft(null)}
         />
@@ -400,7 +397,7 @@ function Card({
   const roles: [string, string][] = sidang
     ? [
         ['K', name(d.penguji_kode)],
-        ['P I', d.penguji_eksternal || '—'],
+        ['P I', d.penguji_eksternal_kode ? name(d.penguji_eksternal_kode) : d.penguji_eksternal || '—'],
         ['P II', name(d.pembimbing_kode)],
       ]
     : [

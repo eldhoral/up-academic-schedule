@@ -84,7 +84,7 @@ export function buildDefenseBlocks(rows: DefenseRow[], names: Map<string, string
             r.nama_mahasiswa,
             r.judul_skripsi,
             ...(r.jenis === 'sidang'
-              ? [name(r.penguji_kode), r.penguji_eksternal, name(r.pembimbing_kode)] // Ketua, Penguji I, Penguji II
+              ? [name(r.penguji_kode), name(r.penguji_eksternal_kode) || r.penguji_eksternal, name(r.pembimbing_kode)] // Ketua, Penguji I, Penguji II
               : [name(r.pembimbing_kode), name(r.penguji_kode)]), // Pembimbing Pendamping, Pembahas
           ],
         })),

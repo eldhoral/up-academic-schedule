@@ -297,3 +297,30 @@ do $$ begin
     assert (select count(*) from defenses where academic_year_id = 'R0001') = 0, 'sidang and seminar reset';
     assert exists (select 1 from audit_log where table_name = 'schedules' and action = 'DELETE'), 'reset is in the audit log';
 end $$;
+
+-- Penguji I from the dosen master: a sidang only, never a dosen already on that sidang.
+do $$
+declare d text := (select kode_dosen from lecturers order by kode_dosen limit 1);
+declare d2 text := (select kode_dosen from lecturers order by kode_dosen offset 1 limit 1);
+begin
+    insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, pembimbing_kode, penguji_eksternal_kode)
+    values ('R0002', 'sidang', '2026-11-09', '08:00', '10:00', '99001', 'P1', d2, d);
+    begin
+        insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, penguji_eksternal_kode)
+        values ('R0002', 'prasidang', '2026-11-09', '08:00', '10:00', 1, '99002', 'P2', d);
+        raise exception 'FAIL: a prasidang took a Penguji I';
+    exception when check_violation then null;
+    end;
+    begin
+        insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, pembimbing_kode, penguji_eksternal_kode)
+        values ('R0002', 'sidang', '2026-11-09', '08:00', '10:00', '99003', 'P3', d, d);
+        raise exception 'FAIL: one dosen as Penguji I and II';
+    exception when check_violation then null;
+    end;
+    begin
+        insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, penguji_eksternal, penguji_eksternal_kode)
+        values ('R0002', 'sidang', '2026-11-09', '08:00', '10:00', '99004', 'P4', 'Prof. X', d);
+        raise exception 'FAIL: Penguji I both typed and picked';
+    exception when check_violation then null;
+    end;
+end $$;

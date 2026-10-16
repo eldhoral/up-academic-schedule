@@ -7,7 +7,7 @@ import type { DefenseRow } from '../src/app/[prodi]/sidang/defense-types'
 
 const row = (o: Partial<DefenseRow>): DefenseRow => ({
   id: 'x', academic_year_id: '20252', prodi: 's1', jenis: 'sidang', tanggal: '2026-02-03', jam_mulai: '08:00', jam_selesai: '10:00', room_id: 'r301', room_nama: '301', kelompok: null,
-  npm: '2210001', nama_mahasiswa: 'Alfia', judul_skripsi: 'Judul', pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal: 'Prof. Farida', is_override: false, ...o,
+  npm: '2210001', nama_mahasiswa: 'Alfia', judul_skripsi: 'Judul', pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal_kode: null, penguji_eksternal: 'Prof. Farida', is_override: false, ...o,
 })
 const names = new Map([['D1', 'Dr. Budi'], ['D2', 'Dr. Ani']])
 
@@ -39,6 +39,8 @@ assert.equal(tanggalPanjang('2025-11-24', false), 'Senin, 24 November 2025')
   assert.equal(day.rows[0].cells[1], '08.00-10.00')
   assert.deepEqual(day.rows[0].cells.slice(5), ['Dr. Ani', 'Prof. Farida', 'Dr. Budi'], 'Ketua, Penguji I (eksternal), Penguji II (pembimbing)')
   assert.equal(blocks[2].rows[0].cells[0], '1', 'a new block restarts SESI')
+  const dosenP1 = buildDefenseBlocks([row({ pembimbing_kode: 'D3', penguji_eksternal_kode: 'D1', penguji_eksternal: '' })], names)
+  assert.equal(dosenP1[0].rows[0].cells[6], 'Dr. Budi', 'a dosen as Penguji I prints by name')
 }
 
 // --- prasidang blocks: date x kelompok, kelompok in numeric order ---------------------------------

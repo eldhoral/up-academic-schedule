@@ -25,7 +25,8 @@ export type DefenseRow = {
   judul_skripsi: string
   pembimbing_kode: string | null // prasidang: Pembimbing Pendamping · sidang: Anggota Penguji II
   penguji_kode: string | null // prasidang: Pembahas · sidang: Ketua Sidang
-  penguji_eksternal: string // sidang: Anggota Penguji I
+  penguji_eksternal_kode: string | null // sidang: Anggota Penguji I, a dosen from the master
+  penguji_eksternal: string // sidang: Anggota Penguji I typed before the dropdown; '' once a dosen is picked
   is_override: boolean
 }
 

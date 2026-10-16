@@ -32,13 +32,6 @@ export async function fetchDefenses(academicYearId: string, jenis: DefenseJenis,
   return ((data ?? []) as unknown as Raw[]).map(toRow)
 }
 
-/** External examiners entered before, in any year: quick picks for the form. */
-export async function fetchExternalNames(): Promise<string[]> {
-  const supabase = await createClient()
-  const { data } = await supabase.from('defenses').select('penguji_eksternal').neq('penguji_eksternal', '')
-  return [...new Set((data ?? []).map((r) => r.penguji_eksternal as string))].sort((a, b) => a.localeCompare(b))
-}
-
 type Sched = {
   prodi: Prodi
   hari: string
@@ -73,6 +66,7 @@ export async function loadDefenseWorld(academicYearId: string, prodi: Prodi) {
     nama_mahasiswa: d.nama_mahasiswa,
     pembimbing_kode: d.pembimbing_kode,
     penguji_kode: d.penguji_kode,
+    penguji_eksternal_kode: d.penguji_eksternal_kode,
     penguji_eksternal: d.penguji_eksternal,
   }))
 

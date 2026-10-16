@@ -17,6 +17,7 @@ export type DefenseClashInput = {
   nama_mahasiswa: string
   pembimbing_kode: string | null
   penguji_kode: string | null
+  penguji_eksternal_kode: string | null
   penguji_eksternal: string
 }
 
@@ -24,9 +25,11 @@ export type DefenseClashType = 'dosen' | 'eksternal' | 'ruangan'
 
 export type DefenseClash = { type: DefenseClashType; a: DefenseClashInput; b: DefenseClashInput; overlapMinutes: number; detail: string }
 
-/** What a defense occupies: its two dosen, the external examiner, and its room or breakout group. */
+const dosenOf = (d: DefenseClashInput) => [d.pembimbing_kode, d.penguji_kode, d.penguji_eksternal_kode]
+
+/** What a defense occupies: its dosen, a typed external examiner, and its room or breakout group. */
 export function defenseKeys(d: DefenseClashInput): string[] {
-  const keys = [d.pembimbing_kode, d.penguji_kode].filter((k): k is string => !!k).map((k) => `dosen:${k}`)
+  const keys = dosenOf(d).filter((k): k is string => !!k).map((k) => `dosen:${k}`)
   if (d.penguji_eksternal.trim()) keys.push(`nama:${normalizeName(d.penguji_eksternal)}`)
   if (d.jenis === 'sidang' && d.room_id) keys.push(`ruang:${d.room_id}`)
   // Each prodi has its own Zoom meeting, so kelompok 1 of S1 and of S2 are different breakout rooms.
@@ -63,7 +66,7 @@ export function findTeachingOverlaps(defenses: DefenseClashInput[], teaching: Te
       if (t.hari !== hari) continue
       const overlapMinutes = timeOverlapMinutes(d.jam_mulai, d.jam_selesai, t.jam_mulai, t.jam_selesai)
       if (overlapMinutes <= 0) continue
-      for (const kode of new Set([d.pembimbing_kode, d.penguji_kode])) {
+      for (const kode of new Set(dosenOf(d))) {
         if (kode && t.dosenCodes.includes(kode)) out.push({ defense: d, kode_dosen: kode, teaching: t, overlapMinutes })
       }
     }

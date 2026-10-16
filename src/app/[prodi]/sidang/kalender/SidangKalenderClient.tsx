@@ -129,7 +129,7 @@ export function SidangKalenderClient({
             ...(selected.jenis === 'sidang'
               ? ([
                   ['Ketua sidang', name(selected.penguji_kode)],
-                  ['Penguji I (eksternal)', selected.penguji_eksternal || '—'],
+                  ['Penguji I (eksternal)', selected.penguji_eksternal_kode ? name(selected.penguji_eksternal_kode) : selected.penguji_eksternal || '—'],
                   ['Penguji II (pembimbing)', name(selected.pembimbing_kode)],
                 ] as [string, React.ReactNode][])
               : ([

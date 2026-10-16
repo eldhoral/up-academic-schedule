@@ -29,14 +29,14 @@ export type RawExam = {
 }
 export type RawDefense = {
   id: string; prodi: Prodi; jenis: 'prasidang' | 'sidang'; tanggal: string; jam_mulai: string; jam_selesai: string
-  kelompok: number | null; nama_mahasiswa: string; pembimbing_kode: string | null; penguji_kode: string | null
+  kelompok: number | null; nama_mahasiswa: string; pembimbing_kode: string | null; penguji_kode: string | null; penguji_eksternal_kode: string | null
   rooms: Joined<{ nama: string }>
 }
 export type RawJadwal = { lecturer: RawLecturer; term: RawTerm | null; schedules: RawSchedule[]; exams: RawExam[]; defenses: RawDefense[] }
 
 const SCHEDULE_COLS = 'id, prodi, jenis_kelas, kode_mk, kelas, hari, jam_mulai, jam_selesai, minggu, zoom_id, courses(nama_mk), rooms(nama)'
 const EXAM_COLS = 'id, prodi, jenis_kelas, jenis_ujian, kode_mk, kelas, tanggal, jam_mulai, jam_selesai, keterangan_ujian, pengawas, courses(nama_mk), rooms(nama)'
-const DEFENSE_COLS = 'id, prodi, jenis, tanggal, jam_mulai, jam_selesai, kelompok, nama_mahasiswa, pembimbing_kode, penguji_kode, rooms(nama)'
+const DEFENSE_COLS = 'id, prodi, jenis, tanggal, jam_mulai, jam_selesai, kelompok, nama_mahasiswa, pembimbing_kode, penguji_kode, penguji_eksternal_kode, rooms(nama)'
 
 const byDateTime = (a: { tanggal: string; jam_mulai: string }, b: { tanggal: string; jam_mulai: string }) =>
   a.tanggal.localeCompare(b.tanggal) || a.jam_mulai.localeCompare(b.jam_mulai)
@@ -88,7 +88,8 @@ export function toJadwal(raw: RawJadwal): JadwalDosen {
 
   const sidang: SidangItem[] = raw.defenses
     .flatMap((d) => {
-      const peran: SidangPeran | null = d.pembimbing_kode === kode ? 'pembimbing' : d.penguji_kode === kode ? 'penguji' : null
+      const peran: SidangPeran | null =
+        d.pembimbing_kode === kode ? 'pembimbing' : d.penguji_kode === kode ? 'penguji' : d.penguji_eksternal_kode === kode ? 'eksternal' : null
       if (!peran) return []
       return [{
         id: d.id,
@@ -139,13 +140,14 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
   if (!term) return toJadwal({ lecturer, term: null, schedules: [], exams: [], defenses: [] })
 
   const kode = lecturer.kode_dosen
-  const [taught, exams, asPembimbing, asPenguji] = await Promise.all([
+  const [taught, exams, asPembimbing, asPenguji, asEksternal] = await Promise.all([
     db.from('schedule_lecturers').select(`schedules!inner(${SCHEDULE_COLS})`).eq('kode_dosen', kode).eq('schedules.academic_year_id', term.id),
     db.from('exams').select(EXAM_COLS).eq('academic_year_id', term.id).not('tanggal', 'is', null),
     db.from('defenses').select(DEFENSE_COLS).eq('academic_year_id', term.id).eq('pembimbing_kode', kode),
     db.from('defenses').select(DEFENSE_COLS).eq('academic_year_id', term.id).eq('penguji_kode', kode),
+    db.from('defenses').select(DEFENSE_COLS).eq('academic_year_id', term.id).eq('penguji_eksternal_kode', kode),
   ])
-  for (const r of [taught, exams, asPembimbing, asPenguji]) if (r.error) throw r.error
+  for (const r of [taught, exams, asPembimbing, asPenguji, asEksternal]) if (r.error) throw r.error
 
   const schedules = ((taught.data ?? []) as unknown as { schedules: Joined<RawSchedule> }[])
     .map((r) => one(r.schedules))
@@ -156,6 +158,6 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
     term,
     schedules,
     exams: (exams.data ?? []) as unknown as RawExam[],
-    defenses: [...(asPembimbing.data ?? []), ...(asPenguji.data ?? [])] as unknown as RawDefense[],
+    defenses: [...(asPembimbing.data ?? []), ...(asPenguji.data ?? []), ...(asEksternal.data ?? [])] as unknown as RawDefense[],
   })
 }

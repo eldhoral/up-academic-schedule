@@ -116,8 +116,9 @@ assert.equal(
       ex({ id: 'e6', kode_mk: 'M3', tanggal: '2026-10-22', pengawas: [null, { kode_dosen: 'D1' }] as unknown as RawExam['pengawas'] }), // a malformed element must not break the page
     ],
     defenses: [
-      { id: 'd2', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-03', jam_mulai: '08:00:00', jam_selesai: '10:00:00', kelompok: null, nama_mahasiswa: 'Alfia', pembimbing_kode: 'D3', penguji_kode: 'D1', rooms: { nama: '302' } },
-      { id: 'd1', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-02', jam_mulai: '09:00:00', jam_selesai: '10:00:00', kelompok: 2, nama_mahasiswa: 'Yuyun', pembimbing_kode: 'D1', penguji_kode: 'D2', rooms: null },
+      { id: 'd2', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-03', jam_mulai: '08:00:00', jam_selesai: '10:00:00', kelompok: null, nama_mahasiswa: 'Alfia', pembimbing_kode: 'D3', penguji_kode: 'D1', penguji_eksternal_kode: null, rooms: { nama: '302' } },
+      { id: 'd3', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-04', jam_mulai: '08:00:00', jam_selesai: '10:00:00', kelompok: null, nama_mahasiswa: 'Ezra', pembimbing_kode: 'D3', penguji_kode: 'D2', penguji_eksternal_kode: 'D1', rooms: { nama: '202' } },
+      { id: 'd1', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-02', jam_mulai: '09:00:00', jam_selesai: '10:00:00', kelompok: 2, nama_mahasiswa: 'Yuyun', pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal_kode: null, rooms: null },
     ],
   })
   assert.equal(j.kodeDosen, 'D1')
@@ -132,7 +133,7 @@ assert.equal(
   assert.deepEqual(j.ujian.map((x) => x.tempat), ['Ruang 201', 'Take Home', 'Ruang 201', 'Ruang 201'])
   assert.equal(j.ujian[0].jam_mulai, '08:00')
   assert.equal(j.examDays.length, 6, 'every dated exam pauses kuliah, not only this lecturer’s')
-  assert.deepEqual(j.sidang.map((x) => [x.id, x.peran, x.tempat]), [['d1', 'pembimbing', 'Kelompok 2 (Zoom)'], ['d2', 'penguji', 'Ruang 302']])
+  assert.deepEqual(j.sidang.map((x) => [x.id, x.peran, x.tempat]), [['d1', 'pembimbing', 'Kelompok 2 (Zoom)'], ['d2', 'penguji', 'Ruang 302'], ['d3', 'eksternal', 'Ruang 202']])
 }
 
 console.log('jadwal dosen: all checks passed')

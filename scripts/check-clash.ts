@@ -154,7 +154,7 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
 {
   const d = (id: string, o: Partial<DefenseClashInput>): DefenseClashInput => ({
     id, prodi: 's1', jenis: 'sidang', tanggal: '2026-02-03', jam_mulai: '08:00', jam_selesai: '10:00', room_id: 'r301', kelompok: null, npm: id, nama_mahasiswa: id,
-    pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal: 'Prof. Farida', ...o,
+    pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal_kode: null, penguji_eksternal: 'Prof. Farida', ...o,
   })
   const names = new Map([['D1', 'Dr. Budi'], ['D3', 'Dr. Ani']])
   const rooms = new Map([['r301', '301']])
@@ -172,6 +172,9 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
   assert.deepEqual(types([d('a', { pembimbing_kode: 'D1', penguji_kode: 'D2' }), d('b', { pembimbing_kode: 'D3', penguji_kode: 'D4', penguji_eksternal: 'Y' })]), ['ruangan'], 'same room, different people')
   assert.deepEqual(types([d('a', { room_id: 'r301' }), d('b', { room_id: 'r302', pembimbing_kode: 'D3', penguji_kode: 'D4' })]), ['eksternal'], 'same external examiner in two rooms')
   assert.equal(run([d('a', { penguji_eksternal: 'Prof.  FARIDA', room_id: 'r301' }), d('b', { room_id: 'r302', pembimbing_kode: 'D3', penguji_kode: 'D4', penguji_eksternal: 'prof. farida' })]).filter((c) => c.type === 'eksternal').length, 1, 'external names match ignoring case and spacing')
+  // A dosen from the master as Penguji I clashes as that dosen, wherever else they sit.
+  assert.deepEqual(defenseKeys(d('a', { penguji_eksternal_kode: 'D3', penguji_eksternal: '' })), ['dosen:D1', 'dosen:D2', 'dosen:D3', 'ruang:r301'])
+  assert.deepEqual(types([d('a', { penguji_eksternal_kode: 'D3', penguji_eksternal: '' }), d('b', { room_id: 'r302', pembimbing_kode: 'D3', penguji_kode: 'D4', penguji_eksternal: 'Y' })]), ['dosen'], 'Penguji I dosen also Penguji II elsewhere')
   // A dosen cannot be at a prasidang and a sidang at the same time.
   assert.ok(types([d('a', {}), d('b', { jenis: 'prasidang', room_id: null, kelompok: 1, penguji_eksternal: '' })]).includes('dosen'))
   assert.equal(run([d('a', {}), d('b', { jam_mulai: '10:00', jam_selesai: '12:00' })]).length, 0, 'back-to-back does not clash')
@@ -186,6 +189,7 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
   assert.equal(on({ tanggal: '2025-10-28' }).length, 0, 'a Tuesday')
   assert.equal(on({ jam_mulai: '10:00', jam_selesai: '12:00' }).length, 0, 'after class')
   assert.equal(on({ pembimbing_kode: 'D3' }).length, 0, 'the teaching dosen is not on this defense')
+  assert.equal(on({ pembimbing_kode: 'D3', penguji_eksternal_kode: 'D1', penguji_eksternal: '' }).length, 1, 'teaching dosen sits as Penguji I')
 }
 
 // --- cross-prodi: a dosen and a room are shared, a kelas and a kelompok are not -------------------
@@ -221,7 +225,7 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
 {
   const d = (id: string, o: Partial<DefenseClashInput>): DefenseClashInput => ({
     id, prodi: 's1', jenis: 'prasidang', tanggal: '2026-02-03', jam_mulai: '08:00', jam_selesai: '10:00', room_id: null, kelompok: 1, npm: id, nama_mahasiswa: id,
-    pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal: '', ...o,
+    pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal_kode: null, penguji_eksternal: '', ...o,
   })
   const run = (rows: DefenseClashInput[]) => findDefenseClashes(rows, new Map(), new Map())
   assert.equal(run([d('a', {}), d('b', { prodi: 's2', pembimbing_kode: 'D3', penguji_kode: 'D4' })]).length, 0, 'kelompok 1 of S1 and of S2 are different Zoom rooms')

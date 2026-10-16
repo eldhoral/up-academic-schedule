@@ -26,6 +26,7 @@ export type DefenseInput = {
   judul_skripsi: string
   pembimbing_kode: string | null
   penguji_kode: string | null
+  penguji_eksternal_kode: string | null
   penguji_eksternal: string
   confirmOverride: boolean
   overrideReason: string
@@ -62,7 +63,8 @@ function candidateOf(i: DefenseInput): DefenseClashInput {
     nama_mahasiswa: i.nama_mahasiswa,
     pembimbing_kode: i.pembimbing_kode,
     penguji_kode: i.penguji_kode,
-    penguji_eksternal: i.jenis === 'sidang' ? i.penguji_eksternal : '',
+    penguji_eksternal_kode: i.jenis === 'sidang' ? i.penguji_eksternal_kode : null,
+    penguji_eksternal: i.jenis === 'sidang' && !i.penguji_eksternal_kode ? i.penguji_eksternal : '',
   }
 }
 
@@ -152,7 +154,8 @@ function validate(i: DefenseInput): string | null {
   if (!/^\d+$/.test(i.npm.trim())) return 'Pilih mahasiswa dari Data Master Mahasiswa.'
   if (i.jenis === 'sidang' && !i.room_id) return `Pilih ruang ${jenisLabel(i.prodi, 'sidang').toLowerCase()}.`
   if (i.jenis === 'prasidang' && !(i.kelompok && i.kelompok > 0)) return `Kelompok ${jenisLabel(i.prodi, 'prasidang').toLowerCase()} wajib diisi.`
-  if (i.pembimbing_kode && i.pembimbing_kode === i.penguji_kode) return 'Satu dosen tidak boleh memegang dua peran pada mahasiswa yang sama.'
+  const dosen = [i.pembimbing_kode, i.penguji_kode, i.jenis === 'sidang' ? i.penguji_eksternal_kode : null].filter(Boolean)
+  if (new Set(dosen).size < dosen.length) return 'Satu dosen tidak boleh memegang dua peran pada mahasiswa yang sama.'
   return null
 }
 
@@ -193,7 +196,8 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
     ...(student && { nama_mahasiswa: student.nama, judul_skripsi: student.judul_skripsi }),
     pembimbing_kode: input.pembimbing_kode || null,
     penguji_kode: input.penguji_kode || null,
-    penguji_eksternal: sidang ? input.penguji_eksternal.trim() : '',
+    penguji_eksternal_kode: sidang ? input.penguji_eksternal_kode || null : null,
+    penguji_eksternal: sidang && !input.penguji_eksternal_kode ? input.penguji_eksternal.trim() : '',
     is_override: overridden,
     override_reason: overridden ? input.overrideReason.trim() : '',
     override_by: overridden ? ((await supabase.auth.getUser()).data.user?.id ?? null) : null,

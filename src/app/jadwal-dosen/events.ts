@@ -9,7 +9,7 @@ export type Minggu = 'setiap' | 'ganjil' | 'genap'
 export type KuliahItem = { id: string; prodi: Prodi; jenis_kelas: JenisKelas; nama_mk: string; kelas: string; hari: string; jam_mulai: string; jam_selesai: string; minggu: Minggu; tempat: string }
 export type UjianPeran = 'pengawas' | 'pengampu'
 export type UjianItem = { id: string; prodi: Prodi; jenis_kelas: JenisKelas; jenis_ujian: 'uts' | 'uas'; nama_mk: string; kelas: string; tanggal: string; jam_mulai: string; jam_selesai: string; keterangan: string; tempat: string; peran: UjianPeran[] }
-export type SidangPeran = 'pembimbing' | 'penguji'
+export type SidangPeran = 'pembimbing' | 'penguji' | 'eksternal'
 export type SidangItem = { id: string; prodi: Prodi; jenis: 'prasidang' | 'sidang'; tanggal: string; jam_mulai: string; jam_selesai: string; nama_mahasiswa: string; peran: SidangPeran; tempat: string }
 export type Term = { id: string; label: string; mulai: string | null; selesai: string | null }
 export type ExamDay = { prodi: Prodi; jenis_kelas: JenisKelas; tanggal: string }
@@ -27,9 +27,10 @@ export type JadwalDosen = {
 export const PROGRAM_LABEL: Record<JenisKelas, string> = { reguler: 'Reguler', regsus: 'Reguler Khusus' }
 const UJIAN_PERAN_LABEL: Record<UjianPeran, string> = { pengawas: 'Pengawas', pengampu: 'Pengampu' }
 // Which column each lecturer field fills (see defense-types.ts); the same wording for S1 and S2.
+// A prasidang has no Penguji I (the DB allows it on a sidang only); its label is there for the type.
 export const SIDANG_PERAN_LABEL: Record<'prasidang' | 'sidang', Record<SidangPeran, string>> = {
-  sidang: { penguji: 'Ketua Sidang', pembimbing: 'Anggota Penguji II (Dosen Pembimbing)' },
-  prasidang: { pembimbing: 'Dosen Pembimbing Pendamping', penguji: 'Dosen Pembahas' },
+  sidang: { penguji: 'Ketua Sidang', eksternal: 'Anggota Penguji I (Penguji Eksternal)', pembimbing: 'Anggota Penguji II (Dosen Pembimbing)' },
+  prasidang: { pembimbing: 'Dosen Pembimbing Pendamping', penguji: 'Dosen Pembahas', eksternal: 'Anggota Penguji I' },
 }
 
 export const ujianPeranText = (peran: UjianPeran[]) => peran.map((p) => UJIAN_PERAN_LABEL[p]).join(' & ')
