@@ -1,12 +1,13 @@
 import { kuliahDates, type Minggu } from '@/app/jadwal-dosen/events'
 import { mondayOf } from '@/lib/week'
+import type { KeteranganUjian } from '@/app/[prodi]/ujian/exam-types'
 
 // The main calendar's pieces: everything one lecturer's feed knew about, widened to the
 // whole faculty (both prodi, all semesters and programs, all three schedule types).
 // Pure: no I/O, heavy on the jadwal-dosen term math — kuliah meetings expand to real
 // dates and pause each prodi/program's own exam weeks, exactly like the .ics feed.
 
-export type Term = { label: string; mulai: string | null; selesai: string | null } | null
+export type KalTerm = { label: string; mulai: string | null; selesai: string | null } | null
 
 /** A weekly meeting, pre-named by the page: dosen names resolved, room or Zoom computed. */
 export type KalKuliah = {
@@ -39,7 +40,7 @@ export type KalUjian = {
   tanggal: string
   jam_mulai: string
   jam_selesai: string
-  keterangan: string // the stored value: 'offline' | 'online' | 'take_home' | 'project' | 'ujian_lisan'
+  keterangan: KeteranganUjian // the stored value, not the label
   room_nama: string | null
   pengawas: string[] // display names, staff free-text kept as typed
   is_override: boolean
@@ -61,6 +62,7 @@ export type KalSidang = {
   penguji: string
   eksternal: string
   is_override: boolean
+  override_reason: string
   link: string
 }
 
@@ -82,7 +84,7 @@ export type AnyKalEvent = KalEventKuliah | KalEventUjian | KalEventSidang
 export type ExamDay = { prodi: 's1' | 's2'; jenis_kelas: 'reguler' | 'regsus'; tanggal: string }
 
 /** A weekly meeting over the term, one event per real date, minus its program's exam weeks. */
-export function expandKuliah(rows: KalKuliah[], term: Term, examDays: ExamDay[]): KalEventKuliah[] {
+export function expandKuliah(rows: KalKuliah[], term: KalTerm, examDays: ExamDay[]): KalEventKuliah[] {
   const mulai = term?.mulai
   const selesai = term?.selesai
   if (!mulai || !selesai) return []
@@ -98,7 +100,7 @@ export function expandKuliah(rows: KalKuliah[], term: Term, examDays: ExamDay[])
 }
 
 /** The whole year's dated events, ready for the grid and the week picker. */
-export function allEvents(kuliahRows: KalKuliah[], ujian: KalUjian[], sidang: KalSidang[], term: Term, examDays: ExamDay[]): AnyKalEvent[] {
+export function allEvents(kuliahRows: KalKuliah[], ujian: KalUjian[], sidang: KalSidang[], term: KalTerm, examDays: ExamDay[]): AnyKalEvent[] {
   return [
     ...expandKuliah(kuliahRows, term, examDays),
     ...ujian.map((row) => ({ jenis: 'ujian' as const, id: `u-${row.id}`, tanggal: row.tanggal, jam_mulai: row.jam_mulai, jam_selesai: row.jam_selesai, row })),

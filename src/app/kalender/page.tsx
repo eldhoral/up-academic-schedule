@@ -2,7 +2,7 @@ import { AppHeader } from '@/components/AppHeader'
 import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { lecturerDisplayName } from '@/lib/import/tables'
-import { KETERANGAN_LABEL } from '@/app/[prodi]/ujian/exam-types'
+import { type KeteranganUjian } from '@/app/[prodi]/ujian/exam-types'
 import { KalenderClient } from './KalenderClient'
 import { type KalKuliah, type KalSidang, type KalTerm, type KalUjian } from './items'
 
@@ -95,14 +95,14 @@ export default async function KalenderPage(props: PageProps<'/kalender'>) {
         tanggal: e.tanggal,
         jam_mulai: hm(e.jam_mulai),
         jam_selesai: hm(e.jam_selesai),
-        keterangan: e.keterangan_ujian,
+        keterangan: e.keterangan_ujian as KeteranganUjian,
         room_nama: e.rooms?.nama ?? null,
         pengawas: (e.pengawas ?? [])
-          .map((p) =>
-            p && typeof p === 'object' && 'kode_dosen' in p
-              ? names.get(p.kode_dosen) ?? p.kode_dosen
-              : (p as { nama?: string })?.nama ?? '',
-          )
+          .map((p) => {
+            const row = p as { kode_dosen?: string; nama?: string }
+            if (row && typeof row === 'object' && row.kode_dosen) return names.get(row.kode_dosen) ?? row.kode_dosen
+            return row?.nama ?? ''
+          })
           .filter(Boolean),
         is_override: e.is_override,
       }))

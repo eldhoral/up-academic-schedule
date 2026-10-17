@@ -258,6 +258,37 @@ Kuliah's (`src/components/TimeGrid.tsx`, shared by all three, with
 - Week arithmetic lives in `src/lib/week.ts` (UTC dates), covered by
   `check:calendar`.
 
+### Kalender Gabungan (`/kalender`)
+
+The faculty-wide sibling of the three dated calendars: one academic year's
+**kuliah (both prodi) + UTS/UAS + prasidang/sidang** on the same
+`TimeGrid`/`WeekNav`/`DetailModal` stack, reached from the menu hub's
+"Lainnya" line and its own HeaderNav section (no tabs — it has no filters of
+its own to tab between).
+
+- **No filter stack.** The per-prodi/per-type kalenders are where filtering
+  lives; the Gabungan view answers "what's on Monday 3 Nov across the whole
+  faculty", so the context bar carries only a year `Select` + the term dates
+  + `WeekNav`. Pushing prodi/jenis/semester selects here would rebuild the
+  three kalenders inside one page.
+- Kuliah meetings expand to real dates with the same term math as the public
+  .ics feed (`kuliahDates` from `jadwal-dosen/events`) and **pause only in
+  their own prodi+program's exam weeks** — S2 keeps meeting while S1
+  reguler sits its UTS. Pure expansion lives in
+  `src/app/kalender/items.ts`, self-checked by `check:kalender`.
+- Type is carried by the badge, colour stays status-only + per-course:
+  kuliah badge `3A` (`semester`+kelas), ujian `UTS · III · A`, sidang the
+  jenis label with the mahasiswa's name; distinct `colorKey` prefixes
+  (`K|`/`U|`/`S|`) keep one mata kuliah's kuliah and exam cards from
+  sharing a hue — they are different events even when the colours rhyme.
+- `is_override` tints red and shows the same ⚠/warning banner on all three
+  kinds, same meaning as the Penjadwalan row tint.
+- If the year's `mulai_kuliah`/`selesai_kuliah` are unset, kuliah silently
+  has no dates — the page says so in `--kuning` rather than showing an
+  inexplicably exam-only grid.
+- The sidang detail modal keeps the materi link ("Lihat Materi ↗", new
+  tab) that the public jadwal-dosen page shows; staff click it here too.
+
 ## Menu hub and sections
 
 `/` is a menu, not a dashboard. Same Bilah ledger, no card grid:
