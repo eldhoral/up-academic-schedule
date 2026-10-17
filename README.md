@@ -10,7 +10,7 @@ S1 and S2 each have the three schedules, under `/s1/...` and `/s2/...` (S2's thi
 
 Each schedule has a calendar view and a live clash check (dosen/pengawas, ruangan, kelas). Each clash type can be set to block, warn or be ignored in Pengaturan, and a blocked save can be overridden with a written reason.
 
-The UI is in Indonesian. The design rationale and data model are in [`PLAN.md`](PLAN.md); the visual system is in [`.interface-design/system.md`](.interface-design/system.md).
+The UI is in Indonesian. The design rationale and data model are in [`PLAN.md`](PLAN.md); the technical specification is in [`TSD.md`](TSD.md); the visual system is in [`.interface-design/system.md`](.interface-design/system.md).
 
 ## Stack
 
