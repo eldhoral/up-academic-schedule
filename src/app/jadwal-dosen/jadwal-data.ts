@@ -152,11 +152,9 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
     db.from('defenses').select(DEFENSE_COLS).eq('academic_year_id', term.id).eq('penguji_kode', kode),
     db.from('defenses').select(DEFENSE_COLS).eq('academic_year_id', term.id).eq('penguji_eksternal_kode', kode),
     // Faculty-wide, a handful of rows: no term filter needed, the skip itself checks dates.
-    (async () => {
-      const { libur, error } = await fetchHariLibur(db)
-      if (error) throw error
-      return libur
-    })(),
+    // Holidays are an enhancement: if the table can't be read (the migration hasn't run,
+    // a hiccup), the feed must still load — kuliah will simply show on those dates.
+    (async () => (await fetchHariLibur(db)).libur)(),
   ])
   for (const r of [taught, exams, asPembimbing, asPenguji, asEksternal]) if (r.error) throw r.error
 

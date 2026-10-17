@@ -45,7 +45,7 @@ export default async function KalenderPage(props: PageProps<'/kalender'>) {
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     fetchHariLibur(supabase),
   ])
-  const firstError = yearsQuery.error ?? scheduleQuery.error ?? examQuery.error ?? defenseQuery.error ?? lecturerQuery.error ?? liburQuery.error
+  const firstError = yearsQuery.error ?? scheduleQuery.error ?? examQuery.error ?? defenseQuery.error ?? lecturerQuery.error
 
   type Year = { id: string; label: string; is_active: boolean; mulai_kuliah: string | null; selesai_kuliah: string | null }
   const years = (yearsQuery.data as Year[] | null) ?? []
@@ -154,6 +154,7 @@ export default async function KalenderPage(props: PageProps<'/kalender'>) {
         ujian={ujian}
         sidang={sidang}
         libur={liburQuery.libur}
+        liburLoadError={liburQuery.error ? `Daftar hari libur gagal dimuat (${humanDbError(liburQuery.error)}) — kuliah belum diskip pada tanggal libur.` : null}
         initialWeek={mingguParam}
         loadError={firstError ? `Kalender gagal dimuat: ${humanDbError(firstError)}` : null}
       />

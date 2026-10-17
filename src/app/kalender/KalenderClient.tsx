@@ -57,6 +57,7 @@ export function KalenderClient({
   ujian,
   sidang,
   libur,
+  liburLoadError,
   initialWeek,
   loadError,
 }: {
@@ -67,6 +68,7 @@ export function KalenderClient({
   ujian: KalUjian[]
   sidang: KalSidang[]
   libur: HariLibur[]
+  liburLoadError: string | null
   initialWeek: string | null
   loadError: string | null
 }) {
@@ -202,6 +204,9 @@ export function KalenderClient({
           </p>
         ) : (
           <>
+            {liburLoadError && (
+              <p className="m-0 mb-[1rem] text-[0.87rem] text-[var(--kuning)]">{liburLoadError}</p>
+            )}
             {termMissing && (
               <p className="m-0 mb-[1rem] text-[0.87rem] text-[var(--kuning)]">
                 Kuliah tidak ikut tampil: tanggal mulai dan selesai perkuliahan tahun ini belum diatur di Tahun Akademik.
