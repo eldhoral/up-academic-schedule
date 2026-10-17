@@ -35,11 +35,26 @@ export type RawDefense = {
   link: string
   rooms: Joined<{ nama: string }>
 }
-export type RawJadwal = { lecturer: RawLecturer; term: RawTerm | null; schedules: RawSchedule[]; exams: RawExam[]; defenses: RawDefense[]; libur?: HariLibur[] }
+export type RawJadwal = { lecturer: RawLecturer; term: RawTerm | null; schedules: RawSchedule[]; exams: RawExam[]; defenses: RawDefense[]; libur?: HariLibur[]; zoom?: ZoomPerProdi }
+
+/** The prasidang Zoom meeting of a program, from that program's settings ('prasidang_zoom_*'). */
+export type ZoomRoom = { id: string; passcode: string }
+export type ZoomPerProdi = Partial<Record<'s1' | 's2', ZoomRoom>>
+
+/** Tempat on the board: prasidang sits in its own breakout room, sidang in a room. */
+export function prasidangTempat(kelompok: number | null, zoom: ZoomRoom | undefined): string {
+  const kelompokLabel = `Kelompok ${kelompok ?? ''}`
+  if (!zoom?.id.trim()) return `${kelompokLabel} (Zoom)`
+  const id = zoom.id.trim()
+  return `${kelompokLabel} · Zoom ${id}${zoom.passcode.trim() ? ` · Passcode ${zoom.passcode.trim()}` : ''}`
+}
 
 const SCHEDULE_COLS = 'id, prodi, jenis_kelas, kode_mk, kelas, hari, jam_mulai, jam_selesai, minggu, zoom_id, courses(nama_mk), rooms(nama)'
 const EXAM_COLS = 'id, prodi, jenis_kelas, jenis_ujian, kode_mk, kelas, tanggal, jam_mulai, jam_selesai, keterangan_ujian, pengawas, courses(nama_mk), rooms(nama)'
 const DEFENSE_COLS = 'id, prodi, jenis, tanggal, jam_mulai, jam_selesai, kelompok, nama_mahasiswa, pembimbing_kode, penguji_kode, penguji_eksternal_kode, link, rooms(nama)'
+// A deploy can reach prod before its migration does: without the link column the feed still
+// loads (minus the Lihat Materi buttons) instead of erroring the whole schedule.
+const DEFENSE_COLS_NO_LINK = 'id, prodi, jenis, tanggal, jam_mulai, jam_selesai, kelompok, nama_mahasiswa, pembimbing_kode, penguji_kode, penguji_eksternal_kode, rooms(nama)'
 
 const byDateTime = (a: { tanggal: string; jam_mulai: string }, b: { tanggal: string; jam_mulai: string }) =>
   a.tanggal.localeCompare(b.tanggal) || a.jam_mulai.localeCompare(b.jam_mulai)
@@ -103,7 +118,7 @@ export function toJadwal(raw: RawJadwal): JadwalDosen {
         jam_selesai: hm(d.jam_selesai),
         nama_mahasiswa: d.nama_mahasiswa,
         peran,
-        tempat: d.jenis === 'prasidang' ? `Kelompok ${d.kelompok ?? ''} (Zoom)` : ruang(one(d.rooms)),
+        tempat: d.jenis === 'prasidang' ? prasidangTempat(d.kelompok, raw.zoom?.[d.prodi]) : ruang(one(d.rooms)),
         link: d.link?.trim() ?? '',
       }]
     })
@@ -145,7 +160,7 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
   if (!term) return toJadwal({ lecturer, term: null, schedules: [], exams: [], defenses: [] })
 
   const kode = lecturer.kode_dosen
-  const [taught, exams, asPembimbing, asPenguji, asEksternal, libur] = await Promise.all([
+  const [taught, exams, asPembimbing, asPenguji, asEksternal, libur, zoomQuery] = await Promise.all([
     db.from('schedule_lecturers').select(`schedules!inner(${SCHEDULE_COLS})`).eq('kode_dosen', kode).eq('schedules.academic_year_id', term.id),
     db.from('exams').select(EXAM_COLS).eq('academic_year_id', term.id).not('tanggal', 'is', null),
     db.from('defenses').select(DEFENSE_COLS).eq('academic_year_id', term.id).eq('pembimbing_kode', kode),
@@ -155,8 +170,28 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
     // Holidays are an enhancement: if the table can't be read (the migration hasn't run,
     // a hiccup), the feed must still load — kuliah will simply show on those dates.
     (async () => (await fetchHariLibur(db)).libur)(),
+    // The prasidang Zoom meeting (id + passcode) is per-program settings, not on the defense row.
+    db.from('settings').select('prodi, key, value').in('key', ['prasidang_zoom_id', 'prasidang_zoom_passcode']),
   ])
-  for (const r of [taught, exams, asPembimbing, asPenguji, asEksternal]) if (r.error) throw r.error
+  for (const r of [taught, exams]) if (r.error) throw r.error
+
+  const zoom: ZoomPerProdi = {}
+  for (const row of (zoomQuery.data ?? []) as { prodi: string; key: string; value: string }[]) {
+    const prodi = row.prodi as 's1' | 's2'
+    if (prodi !== 's1' && prodi !== 's2') continue
+    ;(zoom[prodi] ??= { id: '', passcode: '' })
+    if (row.key === 'prasidang_zoom_id') zoom[prodi]!.id = row.value ?? ''
+    if (row.key === 'prasidang_zoom_passcode') zoom[prodi]!.passcode = row.value ?? ''
+  }
+
+  // The three role queries read the same table with link; if that one column is behind a
+  // migration, refetch without it — the materi buttons just won't show on this deploy.
+  const missingLink = [asPembimbing, asPenguji, asEksternal].some((r) => r.error && r.error.message.includes("'link'"))
+  const onMenu = (col: string, cols = DEFENSE_COLS) => db.from('defenses').select(cols).eq('academic_year_id', term.id).eq(col, kode)
+  const roles = (missingLink
+    ? await Promise.all([onMenu('pembimbing_kode', DEFENSE_COLS_NO_LINK), onMenu('penguji_kode', DEFENSE_COLS_NO_LINK), onMenu('penguji_eksternal_kode', DEFENSE_COLS_NO_LINK)])
+    : [asPembimbing, asPenguji, asEksternal]) as typeof asPembimbing[]
+  for (const r of roles) if (r.error) throw r.error
 
   const schedules = ((taught.data ?? []) as unknown as { schedules: Joined<RawSchedule> }[])
     .map((r) => one(r.schedules))
@@ -167,7 +202,8 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
     term,
     schedules,
     exams: (exams.data ?? []) as unknown as RawExam[],
-    defenses: [...(asPembimbing.data ?? []), ...(asPenguji.data ?? []), ...(asEksternal.data ?? [])] as unknown as RawDefense[],
+    defenses: roles.flatMap((r) => (r.data ?? []) as unknown as RawDefense[]),
     libur,
+    zoom,
   })
 }
