@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { buildEvents, kuliahDates, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
-import { toJadwal, type RawExam } from '../src/app/jadwal-dosen/jadwal-data'
+import { prasidangTempat, toJadwal, type RawExam } from '../src/app/jadwal-dosen/jadwal-data'
 import { isJadwalToken, newJadwalToken } from '../src/app/jadwal-dosen/token'
 
 // Term: mulai Rabu 2026-09-02 (week 1 = Senin 2026-08-31), selesai Jumat 2026-12-18.
@@ -104,6 +104,25 @@ assert.equal(
 )
 assert.equal(buildEvents(base({ sidang: [sd({ link: 'https://drive.google.com/file/9' })] }))[0].description, 'https://drive.google.com/file/9', 'the material link rides in the description')
 assert.equal(buildEvents(base({ sidang: [sd({ link: ' ' })] }))[0].description, undefined, 'a blank link is no description')
+
+// --- prasidang tempat: the Zoom id and passcode ride along when settings declare them -----------
+assert.equal(prasidangTempat(1, { id: '812 3456 789', passcode: 'p3l' }), 'Kelompok 1 · Zoom 812 3456 789 · Passcode p3l', 'both id and passcode show, as typed by the admin')
+assert.equal(prasidangTempat(2, { id: '8123456789', passcode: '  ' }), 'Kelompok 2 · Zoom 8123456789', 'an empty passcode adds no part')
+assert.equal(prasidangTempat(3, { id: '   ', passcode: 'p' }), 'Kelompok 3 (Zoom)', 'no id: the old plain label')
+assert.equal(prasidangTempat(null, undefined), 'Kelompok  (Zoom)', 'no settings row keeps the fallback')
+{
+  const j = toJadwal({
+    lecturer: { kode_dosen: 'D1', nama: 'Budi', gelar_depan: '', gelar_belakang: '' },
+    term: { id: '20261', label: '2026/2027 Gasal', mulai_kuliah: null, selesai_kuliah: null },
+    schedules: [],
+    exams: [],
+    defenses: [
+      { id: 'd1', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-02', jam_mulai: '09:00', jam_selesai: '10:00', kelompok: 1, nama_mahasiswa: 'Nicolas', pembimbing_kode: 'D1', penguji_kode: null, penguji_eksternal_kode: null, link: '', rooms: null },
+    ],
+    zoom: { s1: { id: '8123456789', passcode: 'p3l' }, s2: { id: '', passcode: '' } },
+  })
+  assert.equal(j.sidang[0]!.tempat, 'Kelompok 1 · Zoom 8123456789 · Passcode p3l', 'the zoom for that row program applies')
+}
 
 // --- token ----------------------------------------------------------------------------------------
 {

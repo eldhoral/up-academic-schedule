@@ -432,6 +432,12 @@ examiner are fields on the row (no mahasiswa master).
   sidang together. A dosen teaching at the hour of a defense is always a warning
   (kuliah weeks may alternate, so it can't be proven).
 - **Material link (`link`)** — a link to the prasidang/sidang **material** (Google Drive), typed in the standard sidang form modal ("Link Materi (opsional)") for both jenis, stored on the defense row (`chk_defenses_link` keeps it `''`-or-http(s) — the field renders as a `target=_blank` button on a public page, so `javascript:`/`data:`/scheme-less values are rejected in the form's `validate()` too). `normalizeDefenseLink()` + `defenseLinkLabel()` live in `defense-types.ts` (covered by `check:defense-link`): the label is "Lihat Materi" on drive/docs.google.com hosts, "Buka Tautan" elsewhere, with a `↗` and the Langganan-kalender primary look at row size (`text-[0.8rem]`, `--r-kecil`, `active:scale-[0.97]`). Display surface is the public `/jadwal-dosen` Sidang rows only — not the admin kalender modal, and not the Cetak sheet (a printed URL is dead paper). The `.ics` feed carries the link in the event's `description`, so a subscribed calendar offers it too.
+- **Prasidang Zoom on the feed** — a prasidang sits in its program's breakout meeting, so the
+  public Sidang row reads `Kelompok 1 · Zoom 8123456789 · Passcode p3l` (id + passcode straight
+  from the program's `prasidang_zoom_*` settings, typed as-is), falling back to the old plain
+  `Kelompok 1 (Zoom)` when those settings are empty. This is display data, not a join: the feed
+  reads the two settings once per load and never blocks on them. The `.ics` `location` gets the
+  same string.
 - **Print** — `/sidang/cetak`: one section per date × room or kelompok, SESI
   numbered per block, only the slots in use. Prasidang carries the Zoom row and the
   "MENGETAHUI," line; sidang does not.
