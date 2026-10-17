@@ -75,6 +75,7 @@ export function DefenseFormModal({
   const [eksternalKode, setEksternalKode] = useState(row?.penguji_eksternal_kode ?? '')
   // Penguji I typed as free text before the dropdown: kept until a dosen is picked.
   const [eksternal, setEksternal] = useState(row?.penguji_eksternal ?? '')
+  const [link, setLink] = useState(row?.link ?? '')
   const [filledFrom, setFilledFrom] = useState<string | null>(null)
 
   const [live, setLive] = useState<DefenseClashResult | null>(null)
@@ -105,6 +106,7 @@ export function DefenseFormModal({
       penguji_kode: penguji || null,
       penguji_eksternal_kode: eksternalKode || null,
       penguji_eksternal: eksternal,
+      link,
       confirmOverride: overrideConfirmed,
       overrideReason,
     }
@@ -294,6 +296,19 @@ export function DefenseFormModal({
               </Field>
             </div>
           )}
+
+          {/* Both jenis get the same optional field: a prasidang sits on Zoom, but the link may just be anything. */}
+          <Field label="Link (opsional)">
+            <input
+              type="text"
+              inputMode="url"
+              spellCheck={false}
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="Tautan Zoom — https://zoom.us/j/…"
+              className={`${CONTROL} mono`}
+            />
+          </Field>
 
           {visibleClashes.length > 0 && <ClashList clashes={visibleClashes} />}
 

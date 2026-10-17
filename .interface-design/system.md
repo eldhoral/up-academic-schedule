@@ -368,9 +368,19 @@ examiner are fields on the row (no mahasiswa master).
 - **Clash model** — dosen, external examiner and room or kelompok, prasidang and
   sidang together. A dosen teaching at the hour of a defense is always a warning
   (kuliah weeks may alternate, so it can't be proven).
+- **Meeting link (`link`)** — an optional meeting URL (Zoom/Meet/Teams/…), typed in the standard sidang form modal ("Link (opsional)") for both jenis, stored on the defense row (`chk_defenses_link` keeps it `''`-or-http(s) — the field renders as a `target=_blank` button on a public page, so `javascript:`/`data:`/scheme-less values are rejected in the form's `validate()` too). `normalizeDefenseLink()` + `defenseLinkLabel()` live in `defense-types.ts` (covered by `check:defense-link`): "Gabung Zoom" / "Gabung Meet" / "Buka Teams" by host, else "Buka Tautan", with a `↗` and the Langganan-kalender primary look at row size (`text-[0.8rem]`, `--r-kecil`, `active:scale-[0.97]`). Display surface is the public `/jadwal-dosen` Sidang rows only — not the admin kalender modal, and not the Cetak sheet (a printed URL is dead paper; the Zoom row there stays informational). The `.ics` feed carries the link in the event's `description`, so a subscribed calendar offers it too.
 - **Print** — `/sidang/cetak`: one section per date × room or kelompok, SESI
   numbered per block, only the slots in use. Prasidang carries the Zoom row and the
   "MENGETAHUI," line; sidang does not.
+
+## Riwayat (per-record history)
+
+`/log-aktivitas/riwayat?tabel=…&id=…` — one record's change trail (`src/app/log-aktivitas/riwayat/`, helpers in `src/lib/audit-history.ts`, covered by `check:audit-log`). Reached from the Log Aktivitas Detail modal ("Riwayat rekaman →"); the URL params are bookmarkable and validated (an unknown table or malformed id redirects to the log, never an error page). Fully server-rendered — no client JS; `HISTORY_LIMIT` 200 with a `--kuning` banner when a record has more.
+
+- **Signature: the change-ladder.** A vertical rail (`w-px` `--garis`) with action-coloured dots (`10px`, `bg biru/hijau/merah`, punched out of the rail with a `2px` `--lembar` border; `--garis-kuat` for LOGOUT) per revision, entries newest first. Timeline of what happened to a ledger row — the history counterpart to the calendar's "overlap-as-layout".
+- **Values read as words, never as keys.** Every diff value resolves through the `audit-history.ts` lookups (courses, lecturers, rooms — rooms fetched unfiltered: a retired room still has to carry its name). `kode_dosen` → "dr. Ani Widiastuti", a `pengawas` jsonb list → a comma list of names, `reguler`/`regsus` → the same `PROGRAM_LABEL` vocabulary as everywhere else, `SENIN` → "Senin" (title-case for display only — the uppercase DB values rule is untouched). An unknown id falls back to the raw value, never blank.
+- **Old → new chips carry the diff.** UPDATE shows `--merah-lembut`/`--merah-teks` old → `→` `--hijau-lembut`/`--hijau` new (the app's status colours, reused as change semantics: red = what was, green = what is). INSERT renders its birth state as plain values (no tint — it is the record's state, not a delta); DELETE renders the old values tinted red. Missing values in a birth/death entry are omitted (`—`, `(kosong)`, `''`, and timestamps); an UPDATE with no real change says so in one quiet line.
+- **Identity strip** — the record in a scheduler's words (`PSI-101 · Pengantar Psikologi` + context chips `Kelas A · Reguler · Semester 3 · 2025/2026`), built from the newest snapshot in the log itself, so deleted records still resolve. A trail ending in DELETE gets a `--merah-garis` "Dihapus" pill in the strip. Record id stays in the footer in `mono`, out of the reading path.
 
 ## Excel documents
 

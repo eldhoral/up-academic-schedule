@@ -259,7 +259,17 @@ function DetailModal({ row, onClose }: { row: AuditRow; onClose: () => void }) {
           </div>
         )}
 
-        <div className="flex justify-end pt-[1.2rem]">
+        <div className="flex items-center justify-between gap-[0.8rem] pt-[1.2rem]">
+          {row.record_id ? (
+            <Link
+              href={`/log-aktivitas/riwayat?tabel=${encodeURIComponent(row.table_name)}&id=${encodeURIComponent(row.record_id)}`}
+              className="text-[0.87rem] text-[var(--biru)] hover:underline"
+            >
+              Riwayat rekaman &rarr;
+            </Link>
+          ) : (
+            <span aria-hidden />
+          )}
           <button
             type="button"
             onClick={onClose}

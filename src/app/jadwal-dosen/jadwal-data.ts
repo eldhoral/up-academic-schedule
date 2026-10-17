@@ -30,13 +30,14 @@ export type RawExam = {
 export type RawDefense = {
   id: string; prodi: Prodi; jenis: 'prasidang' | 'sidang'; tanggal: string; jam_mulai: string; jam_selesai: string
   kelompok: number | null; nama_mahasiswa: string; pembimbing_kode: string | null; penguji_kode: string | null; penguji_eksternal_kode: string | null
+  link: string
   rooms: Joined<{ nama: string }>
 }
 export type RawJadwal = { lecturer: RawLecturer; term: RawTerm | null; schedules: RawSchedule[]; exams: RawExam[]; defenses: RawDefense[] }
 
 const SCHEDULE_COLS = 'id, prodi, jenis_kelas, kode_mk, kelas, hari, jam_mulai, jam_selesai, minggu, zoom_id, courses(nama_mk), rooms(nama)'
 const EXAM_COLS = 'id, prodi, jenis_kelas, jenis_ujian, kode_mk, kelas, tanggal, jam_mulai, jam_selesai, keterangan_ujian, pengawas, courses(nama_mk), rooms(nama)'
-const DEFENSE_COLS = 'id, prodi, jenis, tanggal, jam_mulai, jam_selesai, kelompok, nama_mahasiswa, pembimbing_kode, penguji_kode, penguji_eksternal_kode, rooms(nama)'
+const DEFENSE_COLS = 'id, prodi, jenis, tanggal, jam_mulai, jam_selesai, kelompok, nama_mahasiswa, pembimbing_kode, penguji_kode, penguji_eksternal_kode, link, rooms(nama)'
 
 const byDateTime = (a: { tanggal: string; jam_mulai: string }, b: { tanggal: string; jam_mulai: string }) =>
   a.tanggal.localeCompare(b.tanggal) || a.jam_mulai.localeCompare(b.jam_mulai)
@@ -101,6 +102,7 @@ export function toJadwal(raw: RawJadwal): JadwalDosen {
         nama_mahasiswa: d.nama_mahasiswa,
         peran,
         tempat: d.jenis === 'prasidang' ? `Kelompok ${d.kelompok ?? ''} (Zoom)` : ruang(one(d.rooms)),
+        link: d.link?.trim() ?? '',
       }]
     })
     .sort(byDateTime)

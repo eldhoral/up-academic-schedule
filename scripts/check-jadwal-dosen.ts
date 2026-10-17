@@ -17,7 +17,7 @@ const u = (o: Partial<UjianItem> = {}): UjianItem => ({
 })
 const sd = (o: Partial<SidangItem> = {}): SidangItem => ({
   id: 'd1', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-03', jam_mulai: '08:00', jam_selesai: '10:00',
-  nama_mahasiswa: 'Alfia', peran: 'penguji', tempat: 'Ruang 301', ...o,
+  nama_mahasiswa: 'Alfia', peran: 'penguji', tempat: 'Ruang 301', link: '', ...o,
 })
 const base = (o: Partial<JadwalDosen> = {}): JadwalDosen => ({ kodeDosen: 'D1', nama: 'Dr. Budi', term, kuliah: [], ujian: [], sidang: [], examDays: [], ...o })
 
@@ -81,6 +81,8 @@ assert.equal(
   buildEvents(base({ sidang: [sd({ prodi: 's2', jenis: 'prasidang', peran: 'pembimbing', tempat: 'Kelompok 2 (Zoom)' })] }))[0].summary,
   'Seminar Proposal · Dosen Pembimbing Pendamping · Alfia · S2',
 )
+assert.equal(buildEvents(base({ sidang: [sd({ link: 'https://zoom.us/j/9' })] }))[0].description, 'https://zoom.us/j/9', 'the meeting link rides in the description')
+assert.equal(buildEvents(base({ sidang: [sd({ link: ' ' })] }))[0].description, undefined, 'a blank link is no description')
 
 // --- token ----------------------------------------------------------------------------------------
 {
@@ -116,9 +118,9 @@ assert.equal(
       ex({ id: 'e6', kode_mk: 'M3', tanggal: '2026-10-22', pengawas: [null, { kode_dosen: 'D1' }] as unknown as RawExam['pengawas'] }), // a malformed element must not break the page
     ],
     defenses: [
-      { id: 'd2', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-03', jam_mulai: '08:00:00', jam_selesai: '10:00:00', kelompok: null, nama_mahasiswa: 'Alfia', pembimbing_kode: 'D3', penguji_kode: 'D1', penguji_eksternal_kode: null, rooms: { nama: '302' } },
-      { id: 'd3', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-04', jam_mulai: '08:00:00', jam_selesai: '10:00:00', kelompok: null, nama_mahasiswa: 'Ezra', pembimbing_kode: 'D3', penguji_kode: 'D2', penguji_eksternal_kode: 'D1', rooms: { nama: '202' } },
-      { id: 'd1', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-02', jam_mulai: '09:00:00', jam_selesai: '10:00:00', kelompok: 2, nama_mahasiswa: 'Yuyun', pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal_kode: null, rooms: null },
+      { id: 'd2', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-03', jam_mulai: '08:00:00', jam_selesai: '10:00:00', kelompok: null, nama_mahasiswa: 'Alfia', pembimbing_kode: 'D3', penguji_kode: 'D1', penguji_eksternal_kode: null, link: 'https://zoom.us/j/777', rooms: { nama: '302' } },
+      { id: 'd3', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-04', jam_mulai: '08:00:00', jam_selesai: '10:00:00', kelompok: null, nama_mahasiswa: 'Ezra', pembimbing_kode: 'D3', penguji_kode: 'D2', penguji_eksternal_kode: 'D1', link: '', rooms: { nama: '202' } },
+      { id: 'd1', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-02', jam_mulai: '09:00:00', jam_selesai: '10:00:00', kelompok: 2, nama_mahasiswa: 'Yuyun', pembimbing_kode: 'D1', penguji_kode: 'D2', penguji_eksternal_kode: null, link: '', rooms: null },
     ],
   })
   assert.equal(j.kodeDosen, 'D1')
@@ -134,6 +136,7 @@ assert.equal(
   assert.equal(j.ujian[0].jam_mulai, '08:00')
   assert.equal(j.examDays.length, 6, 'every dated exam pauses kuliah, not only this lecturer’s')
   assert.deepEqual(j.sidang.map((x) => [x.id, x.peran, x.tempat]), [['d1', 'pembimbing', 'Kelompok 2 (Zoom)'], ['d2', 'penguji', 'Ruang 302'], ['d3', 'eksternal', 'Ruang 202']])
+  assert.equal(j.sidang[1].link, 'https://zoom.us/j/777')
 }
 
 console.log('jadwal dosen: all checks passed')

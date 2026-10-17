@@ -7,6 +7,7 @@ import { orientFinding } from '@/lib/clash'
 import { parseProdi, prodiTag, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 import { writableProdi } from '@/lib/prodi-server'
 import { findDefenseClashes, findTeachingOverlaps, type DefenseClashInput, type DefenseClashType } from './defense-clash'
+import { normalizeDefenseLink } from './defense-types'
 import { loadDefenseWorld } from './defense-query'
 import { jenisLabel, type DefenseJenis } from './defense-types'
 import type { ClashPolicy } from '../kuliah/clash-actions'
@@ -28,6 +29,7 @@ export type DefenseInput = {
   penguji_kode: string | null
   penguji_eksternal_kode: string | null
   penguji_eksternal: string
+  link: string // optional meeting link (Zoom/Meet/…); '' = none
   confirmOverride: boolean
   overrideReason: string
 }
@@ -156,6 +158,9 @@ function validate(i: DefenseInput): string | null {
   if (i.jenis === 'prasidang' && !(i.kelompok && i.kelompok > 0)) return `Kelompok ${jenisLabel(i.prodi, 'prasidang').toLowerCase()} wajib diisi.`
   const dosen = [i.pembimbing_kode, i.penguji_kode, i.jenis === 'sidang' ? i.penguji_eksternal_kode : null].filter(Boolean)
   if (new Set(dosen).size < dosen.length) return 'Satu dosen tidak boleh memegang dua peran pada mahasiswa yang sama.'
+  // normalizeDefenseLink: '' stays '', a real URL is trimmed, everything else is invalid —
+  // this field becomes a target=_blank button on a public page, so only http(s) may pass.
+  if (normalizeDefenseLink(i.link) === null) return 'Link harus dimulai dengan http:// atau https://.'
   return null
 }
 
@@ -198,6 +203,7 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
     penguji_kode: input.penguji_kode || null,
     penguji_eksternal_kode: sidang ? input.penguji_eksternal_kode || null : null,
     penguji_eksternal: sidang && !input.penguji_eksternal_kode ? input.penguji_eksternal.trim() : '',
+    link: normalizeDefenseLink(input.link) ?? '',
     is_override: overridden,
     override_reason: overridden ? input.overrideReason.trim() : '',
     override_by: overridden ? ((await supabase.auth.getUser()).data.user?.id ?? null) : null,

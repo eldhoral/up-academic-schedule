@@ -10,7 +10,7 @@ export type KuliahItem = { id: string; prodi: Prodi; jenis_kelas: JenisKelas; na
 export type UjianPeran = 'pengawas' | 'pengampu'
 export type UjianItem = { id: string; prodi: Prodi; jenis_kelas: JenisKelas; jenis_ujian: 'uts' | 'uas'; nama_mk: string; kelas: string; tanggal: string; jam_mulai: string; jam_selesai: string; keterangan: string; tempat: string; peran: UjianPeran[] }
 export type SidangPeran = 'pembimbing' | 'penguji' | 'eksternal'
-export type SidangItem = { id: string; prodi: Prodi; jenis: 'prasidang' | 'sidang'; tanggal: string; jam_mulai: string; jam_selesai: string; nama_mahasiswa: string; peran: SidangPeran; tempat: string }
+export type SidangItem = { id: string; prodi: Prodi; jenis: 'prasidang' | 'sidang'; tanggal: string; jam_mulai: string; jam_selesai: string; nama_mahasiswa: string; peran: SidangPeran; tempat: string; link: string }
 export type Term = { id: string; label: string; mulai: string | null; selesai: string | null }
 export type ExamDay = { prodi: Prodi; jenis_kelas: JenisKelas; tanggal: string }
 
@@ -96,6 +96,8 @@ export function buildEvents(j: JadwalDosen): IcsEvent[] {
       uid: `sidang-${s.id}@krs`,
       summary: `${sidangJudul(s)} · ${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${s.nama_mahasiswa} · ${short(s.prodi)}`,
       location: s.tempat || undefined,
+      // The meeting link rides in the description, so the subscribed calendar offers it too.
+      description: s.link.trim() || undefined,
       date: s.tanggal,
       start: s.jam_mulai,
       end: s.jam_selesai,
