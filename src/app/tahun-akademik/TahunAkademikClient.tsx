@@ -1,14 +1,17 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import {
   createAcademicYearAction,
+  createHolidayAction,
   deleteAcademicYearAction,
+  deleteHolidayAction,
   updateAcademicYearAction,
   type FormState,
 } from './actions'
+import { hariFromTanggal, hariLabel } from '@/lib/hari'
 
 export type AcademicYearRow = {
   id: string
@@ -18,7 +21,17 @@ export type AcademicYearRow = {
   selesai_kuliah: string | null
 }
 
-export function TahunAkademikClient({ years, canEdit }: { years: AcademicYearRow[]; canEdit: boolean }) {
+export type HolidayRow = { id: string; tanggal: string; label: string }
+
+export function TahunAkademikClient({
+  years,
+  libur,
+  canEdit,
+}: {
+  years: AcademicYearRow[]
+  libur: HolidayRow[]
+  canEdit: boolean
+}) {
   const [editing, setEditing] = useState<AcademicYearRow | 'new' | null>(null)
 
   return (
@@ -93,6 +106,100 @@ export function TahunAkademikClient({ years, canEdit }: { years: AcademicYearRow
 
       {editing && (
         <AcademicYearFormModal year={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />
+      )}
+
+      <HariLiburSection libur={libur} canEdit={canEdit} />
+    </div>
+  )
+}
+
+/** Faculty-wide dates with no classes: the .ics feed and the Kalender Gabungan skip kuliah on them. */
+function HariLiburSection({ libur, canEdit }: { libur: HolidayRow[]; canEdit: boolean }) {
+  const [state, formAction, isPending] = useActionState<FormState, FormData>(createHolidayAction, null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    if (state && 'success' in state && formRef.current) {
+      formRef.current.reset()
+      router.refresh()
+    }
+  }, [state, router])
+
+  const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
+
+  return (
+    <div className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem]">
+      <div className="pb-[1rem] border-b border-[var(--garis)] mb-[1.2rem]">
+        <h2 className="text-[1.07rem] font-semibold m-0">Hari Libur</h2>
+        <p className="text-[0.87rem] text-[var(--tinta-3)] mt-[0.2rem] mb-0">
+          Tanggal tanpa kuliah, untuk kedua prodi: kuliah tidak tampil di jadwal dosen dan Kalender Gabungan. Ujian
+          dan sidang yang tetap diadakan di tanggal ini mendapat peringatan saat dientri.
+        </p>
+      </div>
+
+      {libur.length === 0 ? (
+        <p className="text-[0.93rem] text-[var(--tinta-3)] m-0">Belum ada hari libur tercatat.</p>
+      ) : (
+        <div className="overflow-x-auto border border-[var(--garis)] rounded-[var(--r-kecil)]">
+          <table className="w-full text-[0.87rem] border-collapse">
+            <thead className="bg-[var(--cekung)]">
+              <tr>
+                <Th>Tanggal</Th>
+                <Th>Label</Th>
+                <Th className="text-right">&nbsp;</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {libur.map((h) => (
+                <tr key={h.id} className="border-t border-[var(--garis)] h-[2.4rem]">
+                  <Td className="mono whitespace-nowrap">
+                    {h.tanggal} · {hariLabel(hariFromTanggal(h.tanggal))}
+                  </Td>
+                  <Td>{h.label}</Td>
+                  <Td className="text-right">
+                    {canEdit && (
+                      <ConfirmDeleteButton
+                        onConfirm={() => deleteHolidayAction(h.id)}
+                        onDeleted={() => router.refresh()}
+                      />
+                    )}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {canEdit && (
+        <form ref={formRef} action={formAction} className="mt-[1rem] flex items-end gap-[0.53rem] flex-wrap">
+          <div>
+            <span className="block text-[0.8rem] font-medium text-[var(--tinta-2)] mb-[0.25rem]">Tanggal</span>
+            <input type="date" name="tanggal" required className={`${CONTROL} mono`} />
+          </div>
+          <div className="min-w-[14rem] flex-1">
+            <span className="block text-[0.8rem] font-medium text-[var(--tinta-2)] mb-[0.25rem]">Label</span>
+            <input
+              name="label"
+              required
+              maxLength={120}
+              placeholder="Idul Fitri 1448 H (cuti bersama)"
+              className={`${CONTROL} w-full`}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="min-h-[2.4rem] px-[0.8rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors disabled:opacity-60"
+          >
+            Tambah
+          </button>
+        </form>
+      )}
+
+      {state && 'error' in state && (
+        <p className="mt-[0.53rem] text-[0.87rem] text-[var(--merah)] mb-0">{state.error}</p>
       )}
     </div>
   )

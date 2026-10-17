@@ -9,6 +9,7 @@ import { checkAllExamClashes } from './actions'
 import { fetchExamPage } from './exam-query'
 import { normalizeName } from './exam-clash'
 import { parseSesiList, type ExamContext } from './exam-types'
+import { fetchHariLibur } from '@/lib/hari-libur'
 import { UjianClient } from './UjianClient'
 import { LECTURER_COLUMNS, type AcademicYear, type Lecturer, type Room } from '../kuliah/penjadwalan-types'
 
@@ -17,12 +18,13 @@ export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
   const searchParams = await props.searchParams
   const supabase = await createClient()
 
-  const [{ data: academicYears }, { data: lecturers }, { data: rooms }, settings, role] = await Promise.all([
+  const [{ data: academicYears }, { data: lecturers }, { data: rooms }, settings, role, { libur }] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select(LECTURER_COLUMNS).order('nama'),
     supabase.from('rooms').select('*').eq('active', true).order('nama'),
     getSettings(prodi),
     getCurrentRole(),
+    fetchHariLibur(supabase),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []
@@ -52,6 +54,7 @@ export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
         rooms={((rooms as Room[]) ?? []).map((r) => ({ value: r.id, label: r.nama }))}
         sesi={parseSesiList(settingText(settings, context.jenis_kelas === 'reguler' ? 'sesi_ujian_reguler' : 'sesi_ujian_regsus'))}
         fixedNames={settingList(settings, 'pengawas_cadangan').map(normalizeName)}
+        libur={libur}
         canEdit={canWrite(role)}
       />
     </div>

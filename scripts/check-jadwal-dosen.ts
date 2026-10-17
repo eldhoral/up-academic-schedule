@@ -19,7 +19,7 @@ const sd = (o: Partial<SidangItem> = {}): SidangItem => ({
   id: 'd1', prodi: 's1', jenis: 'sidang', tanggal: '2027-02-03', jam_mulai: '08:00', jam_selesai: '10:00',
   nama_mahasiswa: 'Alfia', peran: 'penguji', tempat: 'Ruang 301', link: '', ...o,
 })
-const base = (o: Partial<JadwalDosen> = {}): JadwalDosen => ({ kodeDosen: 'D1', nama: 'Dr. Budi', term, kuliah: [], ujian: [], sidang: [], examDays: [], ...o })
+const base = (o: Partial<JadwalDosen> = {}): JadwalDosen => ({ kodeDosen: 'D1', nama: 'Dr. Budi', term, kuliah: [], ujian: [], sidang: [], examDays: [], libur: [], ...o })
 
 // --- term weeks: the Senin..Minggu week containing mulai is week 1 -----------------------------
 assert.equal(termWeek('2026-08-31', M), 1)
@@ -56,6 +56,27 @@ assert.deepEqual(kuliahDates(k({ hari: 'BUKAN' }), M, S), [], 'unknown hari: no 
   assert.equal(byUid['kuliah-k1@krs'].summary, 'Kuliah · Psikologi Klinis (A) · S1')
   assert.equal(byUid['kuliah-k1@krs'].location, 'Ruang 301')
   assert.equal(byUid['kuliah-k1@krs'].start, '08:00')
+}
+
+// --- hari libur: a faculty-wide date is skipped by every program ---------------------------------
+{
+  const events = buildEvents(
+    base({
+      kuliah: [k({ hari: 'RABU' }), k({ id: 'k2', prodi: 's2', hari: 'RABU' })],
+      ujian: [u()],
+      libur: ['2026-09-09'],
+    }),
+  )
+  assert.deepEqual(
+    events.filter((e) => e.uid.startsWith('kuliah-')).map((e) => e.exdates),
+    [['2026-09-09'], ['2026-09-09']],
+    'both prodi skip the holiday, while exams and defenses stay put',
+  )
+  assert.ok(events.some((e) => e.uid === 'ujian-u1@krs'), 'a libur date never filters ujian itself')
+  // The skip rides the same exdates as exam weeks when both hit one term.
+  const both = buildEvents(base({ kuliah: [k({ hari: 'RABU' })], examDays: [{ prodi: 's1', jenis_kelas: 'reguler', tanggal: '2026-10-21' }], libur: ['2026-09-09'] }))
+  const kuliahEvent = both.find((e) => e.uid.startsWith('kuliah-'))!
+  assert.deepEqual(kuliahEvent.exdates?.sort(), ['2026-09-09', '2026-10-21'], 'exam-week and holiday skips ride the same exdates, as real dates')
 }
 
 // --- no term dates, or no active term: no kuliah events ----------------------------------------

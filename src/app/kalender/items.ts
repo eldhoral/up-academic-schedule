@@ -1,5 +1,6 @@
 import { kuliahDates, type Minggu } from '@/app/jadwal-dosen/events'
 import { mondayOf } from '@/lib/week'
+import type { HariLibur } from '@/lib/hari-libur'
 import type { KeteranganUjian } from '@/app/[prodi]/ujian/exam-types'
 
 // The main calendar's pieces: everything one lecturer's feed knew about, widened to the
@@ -83,16 +84,17 @@ export type AnyKalEvent = KalEventKuliah | KalEventUjian | KalEventSidang
 /** Dated UTS/UAS of the term, any lecturer: the weeks a program's kuliah pauses. */
 export type ExamDay = { prodi: 's1' | 's2'; jenis_kelas: 'reguler' | 'regsus'; tanggal: string }
 
-/** A weekly meeting over the term, one event per real date, minus its program's exam weeks. */
-export function expandKuliah(rows: KalKuliah[], term: KalTerm, examDays: ExamDay[]): KalEventKuliah[] {
+/** A weekly meeting over the term, one event per real date, minus its program's exam weeks (and hari libur). */
+export function expandKuliah(rows: KalKuliah[], term: KalTerm, examDays: ExamDay[], libur: HariLibur[] = []): KalEventKuliah[] {
   const mulai = term?.mulai
   const selesai = term?.selesai
   if (!mulai || !selesai) return []
   const paused = new Set(examDays.map((e) => `${e.prodi}|${e.jenis_kelas}|${mondayOf(e.tanggal)}`))
+  const holiday = new Set(libur.map((h) => h.tanggal))
   const out: KalEventKuliah[] = []
   for (const k of rows) {
     for (const tanggal of kuliahDates({ hari: k.hari, minggu: k.minggu }, mulai, selesai)) {
-      if (paused.has(`${k.prodi}|${k.jenis_kelas}|${mondayOf(tanggal)}`)) continue
+      if (holiday.has(tanggal) || paused.has(`${k.prodi}|${k.jenis_kelas}|${mondayOf(tanggal)}`)) continue
       out.push({ jenis: 'kuliah', id: `${k.id}-${tanggal}`, tanggal, jam_mulai: k.jam_mulai, jam_selesai: k.jam_selesai, row: k })
     }
   }
@@ -100,9 +102,16 @@ export function expandKuliah(rows: KalKuliah[], term: KalTerm, examDays: ExamDay
 }
 
 /** The whole year's dated events, ready for the grid and the week picker. */
-export function allEvents(kuliahRows: KalKuliah[], ujian: KalUjian[], sidang: KalSidang[], term: KalTerm, examDays: ExamDay[]): AnyKalEvent[] {
+export function allEvents(
+  kuliahRows: KalKuliah[],
+  ujian: KalUjian[],
+  sidang: KalSidang[],
+  term: KalTerm,
+  examDays: ExamDay[],
+  libur: HariLibur[] = [],
+): AnyKalEvent[] {
   return [
-    ...expandKuliah(kuliahRows, term, examDays),
+    ...expandKuliah(kuliahRows, term, examDays, libur),
     ...ujian.map((row) => ({ jenis: 'ujian' as const, id: `u-${row.id}`, tanggal: row.tanggal, jam_mulai: row.jam_mulai, jam_selesai: row.jam_selesai, row })),
     ...sidang.map((row) => ({ jenis: 'sidang' as const, id: `s-${row.id}`, tanggal: row.tanggal, jam_mulai: row.jam_mulai, jam_selesai: row.jam_selesai, row })),
   ]

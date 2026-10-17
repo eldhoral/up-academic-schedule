@@ -5,15 +5,36 @@ import { getCurrentUser } from '@/lib/roles'
 import { accessibleProdi, PRODI_CONFIG } from '@/lib/prodi'
 import { createClient } from '@/lib/supabase/server'
 import { getCampusPhoto, getKuliahStatus, getSidangStatus, getUjianStatus, type ScheduleStatus } from './hub-status'
+import { ACTION_LABEL, tableLabel, type AuditAction, type AuditRow } from '@/lib/audit-log'
+import { historyIdentity, historySummary, type LookupMaps } from '@/lib/audit-history'
 import type { AcademicYear } from './[prodi]/kuliah/penjadwalan-types'
+
+// The schedule tables a kaprodi edits: news from anything else (logins, settings) is not noise for the home page.
+const LOG_TABLES = ['schedules', 'schedule_lecturers', 'exams', 'defenses']
 
 export default async function MenuPage() {
   const supabase = await createClient()
-  const [{ data: academicYears }, user, photo] = await Promise.all([
+  const [{ data: academicYears }, user, photo, recentRaw, courses, lecturers, rooms] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     getCurrentUser(),
     getCampusPhoto(),
+    supabase
+      .from('audit_log')
+      .select('id, at, actor_id, actor_email, action, table_name, record_id, old_data, new_data')
+      .in('table_name', LOG_TABLES)
+      .order('at', { ascending: false })
+      .limit(5),
+    supabase.from('courses').select('kode_mk, nama_mk'),
+    supabase.from('lecturers').select('kode_dosen, nama'),
+    supabase.from('rooms').select('id, nama'),
   ])
+
+  const lookups: LookupMaps = {
+    courses: new Map((courses.data as { kode_mk: string; nama_mk: string }[] | null)?.map((c) => [c.kode_mk, c.nama_mk]) ?? []),
+    lecturers: new Map((lecturers.data as { kode_dosen: string; nama: string }[] | null)?.map((d) => [d.kode_dosen, d.nama]) ?? []),
+    rooms: new Map((rooms.data as { id: string; nama: string }[] | null)?.map((r) => [r.id, r.nama]) ?? []),
+  }
+  const recent = ((recentRaw.data as AuditRow[]) ?? []).filter((r) => r.record_id && r.table_name && r.action in ACTION_LABEL)
 
   const years = (academicYears as (AcademicYear & { mulai_kuliah: string | null; selesai_kuliah: string | null })[]) ?? []
   const year = years.find((y) => y.is_active) ?? years[0]
@@ -78,6 +99,48 @@ export default async function MenuPage() {
             </section>
           )
         })}
+
+        {recent.length > 0 && (
+          <section aria-label="Perubahan terbaru" className="mb-[1.2rem]">
+            <div className="flex items-baseline justify-between gap-[1rem] mb-[0.4rem]">
+              <h2 className="m-0 text-[1.07rem] font-semibold tracking-[-0.01em]">Perubahan Terbaru</h2>
+              <AdminLink href="/log-aktivitas">Log Aktivitas</AdminLink>
+            </div>
+            <div className="bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)]">
+              {recent.map((r) => {
+                const identity = historyIdentity(r.table_name, [r], lookups)
+                return (
+                  <Link
+                    key={r.id}
+                    href={`/log-aktivitas/riwayat?tabel=${r.table_name}&id=${encodeURIComponent(r.record_id ?? '')}`}
+                    className="block px-[1rem] py-[0.6rem] border-b border-[var(--garis)] last:border-b-0 no-underline text-[var(--tinta)] hover:bg-[var(--cekung)] transition-colors"
+                  >
+                    <div className="flex items-baseline justify-between gap-[1rem] flex-wrap">
+                      <p className="m-0 min-w-0">
+                        <span className={`px-[0.4rem] py-[0.05rem] rounded-full text-[0.73rem] font-medium mr-[0.4rem] ${
+                          r.action === 'DELETE'
+                            ? 'bg-[var(--merah-lembut)] text-[var(--merah)]'
+                            : r.action === 'INSERT'
+                              ? 'bg-[var(--hijau-lembut)] text-[var(--hijau)]'
+                              : 'bg-[var(--biru-lembut)] text-[var(--biru)]'
+                        }`}>
+                          {ACTION_LABEL[r.action as AuditAction]}
+                        </span>
+                        <span className="font-semibold text-[var(--tinta)]">{identity.title}</span>
+                        <span className="text-[0.87rem] text-[var(--tinta-3)]"> · {tableLabel(r.table_name)}</span>
+                      </p>
+                      <span className="mono text-[0.8rem] text-[var(--tinta-3)] whitespace-nowrap">{waktuLog(r.at)}</span>
+                    </div>
+                    <p className="m-0 mt-[0.13rem] text-[0.87rem] text-[var(--tinta-2)] min-w-0">
+                      {historySummary(r, lookups)}
+                      <span className="text-[var(--tinta-3)]"> — {logAktor(r)}</span>
+                    </p>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Secondary on purpose: a quiet line of links, not a row competing with the schedules. */}
         <nav aria-label="Lainnya" className="mt-[1rem] flex flex-wrap items-center gap-x-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
@@ -201,6 +264,18 @@ function Tally({ status }: { status: ScheduleStatus }) {
       </span>
     )
   return <span className={`${cell} text-[0.93rem] font-medium text-[var(--hijau)]`}>✓ bersih</span>
+}
+
+/** "10.52"; a Jakarta-relative day on the front, since the staff read a log by day, not by UTC. */
+function waktuLog(at: string): string {
+  const opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }
+  return new Date(at).toLocaleString('id-ID', opts)
+}
+
+/** The person behind the change: the email's front, or 'Sistem' for trigger rows. */
+function logAktor(r: AuditRow): string {
+  const email = r.actor_email ?? ''
+  return email ? email.split('@')[0]! : 'Sistem'
 }
 
 /** "1 Sep 2026"; a date not set yet reads "—". */

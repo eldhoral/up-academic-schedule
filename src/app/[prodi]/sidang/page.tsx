@@ -7,6 +7,7 @@ import { lecturerDisplayName } from '@/lib/import/tables'
 import { parseSesiList } from '../ujian/exam-types'
 import { checkAllDefenseClashes } from './actions'
 import { fetchDefenses } from './defense-query'
+import { fetchHariLibur } from '@/lib/hari-libur'
 import type { DefenseContext, Student } from './defense-types'
 import { SidangClient } from './SidangClient'
 import { LECTURER_COLUMNS, type AcademicYear, type Lecturer, type Room } from '../kuliah/penjadwalan-types'
@@ -16,13 +17,14 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
   const searchParams = await props.searchParams
   const supabase = await createClient()
 
-  const [{ data: academicYears }, { data: lecturers }, { data: rooms }, { data: students }, settings, role] = await Promise.all([
+  const [{ data: academicYears }, { data: lecturers }, { data: rooms }, { data: students }, settings, role, { libur }] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
     supabase.from('lecturers').select(LECTURER_COLUMNS).order('nama'),
     supabase.from('rooms').select('*').eq('active', true).order('nama'),
     supabase.from('students').select('npm, nama, judul_skripsi').eq('prodi', prodi).order('npm'),
     getSettings(prodi),
     getCurrentRole(),
+    fetchHariLibur(supabase),
   ])
 
   const years = (academicYears as AcademicYear[]) ?? []
@@ -50,6 +52,7 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
         rooms={((rooms as Room[]) ?? []).map((r) => ({ value: r.id, label: r.nama }))}
         sesi={parseSesiList(settingText(settings, context.jenis === 'sidang' ? 'sesi_sidang' : 'sesi_prasidang'))}
         students={(students as Student[]) ?? []}
+        libur={libur}
         initialTanggal={tanggal}
         canEdit={canWrite(role)}
       />

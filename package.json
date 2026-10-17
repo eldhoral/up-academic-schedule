@@ -26,8 +26,9 @@
     "check:copy-year": "tsx scripts/check-copy-year.ts",
     "check:audit-log": "tsx scripts/check-audit-log.ts",
     "check:defense-link": "tsx scripts/check-defense-link.ts",
+    "check:hari-libur": "tsx scripts/check-hari-libur.ts",
     "check:kalender": "tsx scripts/check-kalender.ts",
-    "check": "npm run -s check:sesi && npm run -s check:clash && npm run -s check:print && npm run -s check:calendar && npm run -s check:surat && npm run -s check:ujian && npm run -s check:sidang && npm run -s check:prodi && npm run -s check:import && npm run -s check:jadwal-dosen && npm run -s check:proxy && npm run -s check:settings && npm run -s check:roles && npm run -s check:ics && npm run -s check:tahun-akademik && npm run -s check:copy-year && npm run -s check:audit-log && npm run -s check:defense-link && npm run -s check:kalender"
+    "check": "npm run -s check:sesi && npm run -s check:clash && npm run -s check:print && npm run -s check:calendar && npm run -s check:surat && npm run -s check:ujian && npm run -s check:sidang && npm run -s check:prodi && npm run -s check:import && npm run -s check:jadwal-dosen && npm run -s check:proxy && npm run -s check:settings && npm run -s check:roles && npm run -s check:ics && npm run -s check:tahun-akademik && npm run -s check:copy-year && npm run -s check:audit-log && npm run -s check:defense-link && npm run -s check:hari-libur && npm run -s check:kalender"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.7",

@@ -7,6 +7,7 @@ import { Select } from '@/components/Select'
 import { FindingsBar } from '@/components/FindingsBar'
 import { BandRow, PreviewTable, cell } from '@/components/preview'
 import { hariFromTanggal, hariLabel } from '@/lib/hari'
+import type { HariLibur } from '@/lib/hari-libur'
 import { addExamRowAction, seedExamsFromKuliahAction, type ExamFinding, type ExamSide } from './actions'
 import { ExamBlockModal } from './ExamBlockModal'
 import {
@@ -40,6 +41,7 @@ export function UjianClient({
   rooms,
   sesi,
   fixedNames,
+  libur,
   canEdit,
 }: {
   academicYears: AcademicYear[]
@@ -52,6 +54,7 @@ export function UjianClient({
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
   fixedNames: string[]
+  libur: HariLibur[]
   canEdit: boolean
 }) {
   const { prodi } = context
@@ -342,6 +345,7 @@ export function UjianClient({
           rooms={rooms}
           sesi={sesi}
           fixedNames={fixedNames}
+          libur={libur}
           onClose={() => setEditing(null)}
         />
       )}

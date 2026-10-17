@@ -11,6 +11,7 @@ import { dayLabel, defaultWeek, mondayOf, weekDays } from '@/lib/week'
 import { PROGRAM_LABEL, SIDANG_PERAN_LABEL } from '@/app/jadwal-dosen/events'
 import { jenisLabel } from '@/app/[prodi]/sidang/defense-types'
 import { type Prodi } from '@/lib/prodi'
+import { liburOn, type HariLibur } from '@/lib/hari-libur'
 import { GABUNGAN, KETERANGAN_LABEL, needsRoom } from '@/app/[prodi]/ujian/exam-types'
 import {
   allEvents,
@@ -55,6 +56,7 @@ export function KalenderClient({
   kuliahRows,
   ujian,
   sidang,
+  libur,
   initialWeek,
   loadError,
 }: {
@@ -64,6 +66,7 @@ export function KalenderClient({
   kuliahRows: KalKuliah[]
   ujian: KalUjian[]
   sidang: KalSidang[]
+  libur: HariLibur[]
   initialWeek: string | null
   loadError: string | null
 }) {
@@ -71,8 +74,8 @@ export function KalenderClient({
   const today = new Date().toISOString().slice(0, 10)
 
   const events = useMemo(
-    () => allEvents(kuliahRows, ujian, sidang, term, ujian.map((e) => ({ prodi: e.prodi, jenis_kelas: e.jenis_kelas, tanggal: e.tanggal }))),
-    [kuliahRows, ujian, sidang, term],
+    () => allEvents(kuliahRows, ujian, sidang, term, ujian.map((e) => ({ prodi: e.prodi, jenis_kelas: e.jenis_kelas, tanggal: e.tanggal })), libur),
+    [kuliahRows, ujian, sidang, term, libur],
   )
   const { weeks, counts } = useMemo(() => weekCounts(events), [events])
   const [week, setWeek] = useState(initialWeek ? mondayOf(initialWeek) : defaultWeek(events.map((e) => e.tanggal), today))
@@ -115,10 +118,12 @@ export function KalenderClient({
     return [...new Set(taught.flatMap((k) => k.dosen))].join(', ') || 'MKWU'
   }
 
-  const columns: GridColumn[] = days.map((d) => ({
+  const columns: GridColumn[] = days.map((d) => {
+    const liburHari = liburOn(libur, d)
+    return {
     key: d,
     label: dayLabel(d),
-    sub: `${kuliahOf(d).length + ujianOf(d).length + sidangOf(d).length} jadwal`,
+    sub: `${kuliahOf(d).length + ujianOf(d).length + sidangOf(d).length} jadwal${liburHari ? ` · libur: ${liburHari.label}` : ''}`,
     today: d === today,
     events: [
       ...kuliahOf(d).map((e) => ({
@@ -163,7 +168,8 @@ export function KalenderClient({
         onClick: () => setSelected({ kind: 'sidang', sidang: e }),
       })),
     ],
-  }))
+    }
+  })
 
   const termMissing = kuliahRows.length > 0 && !term?.mulai
 

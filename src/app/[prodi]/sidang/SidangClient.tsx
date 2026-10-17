@@ -9,6 +9,7 @@ import { DefenseFormModal, type DefenseDraft } from './DefenseFormModal'
 import { jenisLabel, slotLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import type { AcademicYear } from '../kuliah/penjadwalan-types'
 import { useProdi } from '@/lib/use-prodi'
+import type { HariLibur } from '@/lib/hari-libur'
 
 type Option = { value: string; label: string }
 
@@ -25,6 +26,7 @@ export function SidangClient({
   sesi,
   students,
   initialTanggal,
+  libur,
   canEdit,
 }: {
   academicYears: AcademicYear[]
@@ -36,6 +38,7 @@ export function SidangClient({
   sesi: { mulai: string; selesai: string }[]
   students: Student[]
   initialTanggal: string | null
+  libur: HariLibur[]
   canEdit: boolean
 }) {
   const prodi = useProdi()
@@ -318,6 +321,7 @@ export function SidangClient({
           rooms={rooms}
           sesi={sesi}
           students={students}
+          libur={libur}
           onClose={() => setDraft(null)}
         />
       )}

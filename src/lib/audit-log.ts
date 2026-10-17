@@ -26,6 +26,7 @@ export const TABLE_LABEL: Record<string, string> = {
   settings: 'Pengaturan',
   profiles: 'Pengguna',
   auth: 'Autentikasi',
+  holidays: 'Hari Libur',
 }
 
 export const ACTION_LABEL: Record<AuditAction, string> = {

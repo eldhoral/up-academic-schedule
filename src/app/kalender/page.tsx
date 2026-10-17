@@ -2,6 +2,7 @@ import { AppHeader } from '@/components/AppHeader'
 import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { lecturerDisplayName } from '@/lib/import/tables'
+import { fetchHariLibur } from '@/lib/hari-libur'
 import { type KeteranganUjian } from '@/app/[prodi]/ujian/exam-types'
 import { KalenderClient } from './KalenderClient'
 import { type KalKuliah, type KalSidang, type KalTerm, type KalUjian } from './items'
@@ -23,7 +24,7 @@ export default async function KalenderPage(props: PageProps<'/kalender'>) {
   const ay = typeof rawParams.ay === 'string' ? rawParams.ay : ''
   const supabase = await createClient()
 
-  const [yearsQuery, scheduleQuery, examQuery, defenseQuery, lecturerQuery] = await Promise.all([
+  const [yearsQuery, scheduleQuery, examQuery, defenseQuery, lecturerQuery, liburQuery] = await Promise.all([
     supabase.from('academic_years').select('id, label, is_active, mulai_kuliah, selesai_kuliah').order('id', { ascending: false }),
     supabase
       .from('schedules')
@@ -42,8 +43,9 @@ export default async function KalenderPage(props: PageProps<'/kalender'>) {
       .order('tanggal')
       .order('jam_mulai'),
     supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
+    fetchHariLibur(supabase),
   ])
-  const firstError = yearsQuery.error ?? scheduleQuery.error ?? examQuery.error ?? defenseQuery.error ?? lecturerQuery.error
+  const firstError = yearsQuery.error ?? scheduleQuery.error ?? examQuery.error ?? defenseQuery.error ?? lecturerQuery.error ?? liburQuery.error
 
   type Year = { id: string; label: string; is_active: boolean; mulai_kuliah: string | null; selesai_kuliah: string | null }
   const years = (yearsQuery.data as Year[] | null) ?? []
@@ -151,6 +153,7 @@ export default async function KalenderPage(props: PageProps<'/kalender'>) {
         kuliahRows={kuliah}
         ujian={ujian}
         sidang={sidang}
+        libur={liburQuery.libur}
         initialWeek={mingguParam}
         loadError={firstError ? `Kalender gagal dimuat: ${humanDbError(firstError)}` : null}
       />

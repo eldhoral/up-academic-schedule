@@ -69,3 +69,35 @@ export async function deleteAcademicYearAction(id: string): Promise<FormState> {
   revalidatePath('/tahun-akademik')
   return { success: true }
 }
+
+// --- Hari libur -----------------------------------------------------------------
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+export async function createHolidayAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
+  const tanggal = ((formData.get('tanggal') as string) || '').trim()
+  const label = ((formData.get('label') as string) || '').trim()
+  if (!DATE_RE.test(tanggal)) return { error: 'Tanggal wajib diisi.' }
+  if (!label) return { error: 'Label wajib diisi.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('holidays').insert({ tanggal, label })
+  if (error?.code === '23505') return { error: 'Tanggal itu sudah tercatat sebagai hari libur.' }
+  if (error) return { error: humanDbError(error) }
+
+  revalidatePath('/tahun-akademik')
+  return { success: true }
+}
+
+export async function deleteHolidayAction(id: string): Promise<FormState> {
+  const denied = await managerOnly()
+  if (denied) return denied
+  const supabase = await createClient()
+  const { error } = await supabase.from('holidays').delete().eq('id', id)
+  if (error) return { error: humanDbError(error) }
+
+  revalidatePath('/tahun-akademik')
+  return { success: true }
+}

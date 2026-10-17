@@ -22,6 +22,7 @@ export type JadwalDosen = {
   ujian: UjianItem[]
   sidang: SidangItem[]
   examDays: ExamDay[] // every dated UTS/UAS of the term, any lecturer: the weeks kuliah pauses
+  libur: string[] // faculty-wide holiday dates: kuliah meetings on them are dropped
 }
 
 export const PROGRAM_LABEL: Record<JenisKelas, string> = { reguler: 'Reguler', regsus: 'Reguler Khusus' }
@@ -62,9 +63,13 @@ export function buildEvents(j: JadwalDosen): IcsEvent[] {
   const selesai = j.term?.selesai
   if (mulai && selesai) {
     const examWeeks = new Set(j.examDays.map((e) => `${e.prodi}|${e.jenis_kelas}|${mondayOf(e.tanggal)}`))
+    const liburSet = new Set(j.libur)
     for (const k of j.kuliah) {
       const dates = kuliahDates(k, mulai, selesai)
-      const skipped = dates.filter((d) => examWeeks.has(`${k.prodi}|${k.jenis_kelas}|${mondayOf(d)}`))
+      // Exam weeks pause one program's classes; holidays pause everyone, faculty-wide.
+      const skipped = dates.filter(
+        (d) => liburSet.has(d) || examWeeks.has(`${k.prodi}|${k.jenis_kelas}|${mondayOf(d)}`),
+      )
       if (skipped.length === dates.length) continue // never meets (or only in exam weeks)
       events.push({
         uid: `kuliah-${k.id}@krs`,

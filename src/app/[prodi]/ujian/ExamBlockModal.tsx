@@ -6,6 +6,7 @@ import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { PersonField, type PersonValue } from '@/components/PersonField'
 import { Select } from '@/components/Select'
 import { hariFromTanggal, hariLabel } from '@/lib/hari'
+import { liburOn, type HariLibur } from '@/lib/hari-libur'
 import {
   checkExamBlockClashes,
   deleteExamBlockAction,
@@ -39,6 +40,7 @@ export function ExamBlockModal({
   rooms,
   sesi,
   fixedNames,
+  libur,
   onClose,
 }: {
   context: ExamContext
@@ -51,6 +53,7 @@ export function ExamBlockModal({
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
   fixedNames: string[]
+  libur: HariLibur[]
   onClose: () => void
 }) {
   const router = useRouter()
@@ -153,6 +156,11 @@ export function ExamBlockModal({
           <div className="grid gap-[0.8rem] sm:grid-cols-[12rem_1fr]">
             <Field label={tanggal ? `Tanggal · ${hariLabel(hariFromTanggal(tanggal))}` : 'Tanggal'}>
               <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className={`${CONTROL} mono`} />
+              {tanggal && liburOn(libur, tanggal) && (
+                <p className="m-0 mt-[0.33rem] text-[0.8rem] text-[var(--kuning)]">
+                  Tercatat hari libur: {liburOn(libur, tanggal)!.label} — tetap menyimpan bila memang diadakan.
+                </p>
+              )}
             </Field>
 
             <Field label="Jam">

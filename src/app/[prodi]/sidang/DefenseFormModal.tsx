@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { Select } from '@/components/Select'
 import { hariFromTanggal, hariLabel } from '@/lib/hari'
+import { liburOn, type HariLibur } from '@/lib/hari-libur'
 import {
   checkDefenseClashes,
   deleteDefenseAction,
@@ -43,6 +44,7 @@ export function DefenseFormModal({
   rooms,
   sesi,
   students,
+  libur,
   onClose,
 }: {
   context: DefenseContext
@@ -51,6 +53,7 @@ export function DefenseFormModal({
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
   students: Student[]
+  libur: HariLibur[]
   onClose: () => void
 }) {
   const prodi = useProdi()
@@ -172,6 +175,11 @@ export function DefenseFormModal({
           <div className="grid gap-[0.8rem] sm:grid-cols-2">
             <Field label={tanggal ? `Tanggal · ${hariLabel(hariFromTanggal(tanggal))}` : 'Tanggal'}>
               <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className={`${CONTROL} mono`} />
+              {tanggal && liburOn(libur, tanggal) && (
+                <p className="m-0 mt-[0.33rem] text-[0.8rem] text-[var(--kuning)]">
+                  Tercatat hari libur: {liburOn(libur, tanggal)!.label} — tetap menyimpan bila memang diadakan.
+                </p>
+              )}
             </Field>
             {sidang ? (
               <Field label="Ruang">

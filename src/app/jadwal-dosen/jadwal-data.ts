@@ -1,10 +1,12 @@
 import { GABUNGAN, KETERANGAN_LABEL, needsRoom, type KeteranganUjian, type PengawasItem } from '@/app/[prodi]/ujian/exam-types'
+import { fetchHariLibur } from '@/lib/hari-libur'
 import { HARI_DB } from '@/lib/hari'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import type { JenisKelas, Prodi } from '@/lib/prodi'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { JadwalDosen, KuliahItem, Minggu, SidangItem, SidangPeran, UjianItem, UjianPeran } from './events'
 import { isJadwalToken } from './token'
+import type { HariLibur } from '@/lib/hari-libur'
 
 // The public jadwal dosen link: one lecturer, the active term, both prodi. Reads through the
 // service role (no session on this route), so every query is narrowed to that one lecturer.
@@ -33,7 +35,7 @@ export type RawDefense = {
   link: string
   rooms: Joined<{ nama: string }>
 }
-export type RawJadwal = { lecturer: RawLecturer; term: RawTerm | null; schedules: RawSchedule[]; exams: RawExam[]; defenses: RawDefense[] }
+export type RawJadwal = { lecturer: RawLecturer; term: RawTerm | null; schedules: RawSchedule[]; exams: RawExam[]; defenses: RawDefense[]; libur?: HariLibur[] }
 
 const SCHEDULE_COLS = 'id, prodi, jenis_kelas, kode_mk, kelas, hari, jam_mulai, jam_selesai, minggu, zoom_id, courses(nama_mk), rooms(nama)'
 const EXAM_COLS = 'id, prodi, jenis_kelas, jenis_ujian, kode_mk, kelas, tanggal, jam_mulai, jam_selesai, keterangan_ujian, pengawas, courses(nama_mk), rooms(nama)'
@@ -115,6 +117,7 @@ export function toJadwal(raw: RawJadwal): JadwalDosen {
     ujian,
     sidang,
     examDays: raw.exams.map((e) => ({ prodi: e.prodi, jenis_kelas: e.jenis_kelas, tanggal: e.tanggal })),
+    libur: (raw.libur ?? []).map((h) => h.tanggal),
   }
 }
 
@@ -142,12 +145,18 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
   if (!term) return toJadwal({ lecturer, term: null, schedules: [], exams: [], defenses: [] })
 
   const kode = lecturer.kode_dosen
-  const [taught, exams, asPembimbing, asPenguji, asEksternal] = await Promise.all([
+  const [taught, exams, asPembimbing, asPenguji, asEksternal, libur] = await Promise.all([
     db.from('schedule_lecturers').select(`schedules!inner(${SCHEDULE_COLS})`).eq('kode_dosen', kode).eq('schedules.academic_year_id', term.id),
     db.from('exams').select(EXAM_COLS).eq('academic_year_id', term.id).not('tanggal', 'is', null),
     db.from('defenses').select(DEFENSE_COLS).eq('academic_year_id', term.id).eq('pembimbing_kode', kode),
     db.from('defenses').select(DEFENSE_COLS).eq('academic_year_id', term.id).eq('penguji_kode', kode),
     db.from('defenses').select(DEFENSE_COLS).eq('academic_year_id', term.id).eq('penguji_eksternal_kode', kode),
+    // Faculty-wide, a handful of rows: no term filter needed, the skip itself checks dates.
+    (async () => {
+      const { libur, error } = await fetchHariLibur(db)
+      if (error) throw error
+      return libur
+    })(),
   ])
   for (const r of [taught, exams, asPembimbing, asPenguji, asEksternal]) if (r.error) throw r.error
 
@@ -161,5 +170,6 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
     schedules,
     exams: (exams.data ?? []) as unknown as RawExam[],
     defenses: [...(asPembimbing.data ?? []), ...(asPenguji.data ?? []), ...(asEksternal.data ?? [])] as unknown as RawDefense[],
+    libur,
   })
 }

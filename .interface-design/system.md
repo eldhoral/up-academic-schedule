@@ -289,6 +289,30 @@ its own to tab between).
 - The sidang detail modal keeps the materi link ("Lihat Materi ↗", new
   tab) that the public jadwal-dosen page shows; staff click it here too.
 
+## Hari libur
+
+Faculty-wide dates with no classes (`holidays` table, declared on the
+Tahun Akademik page under the years card: list + inline add row + delete,
+managed by the same `canManage` gate as the years). One date is either libur
+or it isn't — the DB holds `tanggal UNIQUE` + a label.
+
+- **One rule, every surface.** Kuliah meetings on a libur date are dropped
+  everywhere the term math runs: the .ics feed (`exdates`, same array exam
+  weeks ride in — a holiday pauses both prodi while an exam week pauses only
+  its own program) and the Kalender Gabungan (`expandKuliah` skips it; the
+  column header still says `libur: <label>` so the emptiness reads as "no
+  classes on purpose", not a bug). Pure logic lives in
+  `src/app/jadwal-dosen/events.ts` + `src/app/kalender/items.ts`, covered by
+  `check:hari-libur` plus the feed/kalender suites.
+- **Warn, never block.** Ujian and sidang can deliberately be held on a
+  declared holiday — their form modals show a `--kuning` line under the
+  Tanggal field ("Tercatat hari libur: <label> — tetap menyimpan bila memang
+  diadakan"), threaded as a plain `libur` prop page → client → modal. The
+  events themselves stay in feeds, boards and prints; only kuliah vanishes.
+- On a repeating kuliah event the holiday appears as *absence with a name*: the
+  feeds skip silently, but wherever a day column exists the label travels
+  with it. Visibility lives on the marking surface, not on blocking.
+
 ## Menu hub and sections
 
 `/` is a menu, not a dashboard. Same Bilah ledger, no card grid:
@@ -350,7 +374,15 @@ its own to tab between).
   Pengaturan and Pengguna. Entry screens get a `canEdit` prop that hides
   Tambah/Ubah/Isi/Import controls. The database (RLS) is the
   real enforcement; hiding is courtesy. Pengguna redirects non-SUPERADMIN.
-
+- **Perubahan Terbaru** — the last 5 schedule-table entries from `audit_log`
+  (schedules, schedule_lecturers, exams, defenses only — logins and settings
+  are not noise for the home page) as a bordered list under the register, above
+  the "Lainnya" line. Each row: an action badge (Tambah `--hijau-lembut`, Ubah
+  `--biru-lembut`, Hapus `--merah-lembut`) + the record's Riwayat-style title
+  (`historyIdentity`, one row) + the table label, a first-field diff summary
+  (`historySummary`) with the actor's email front, and a Jakarta-time stamp on
+  the right. Every row clicks through to that record's `/log-aktivitas/riwayat`
+  — the strip answers "what changed since I was here", the log answers it all.
 ## Ujian (UTS/UAS)
 
 `src/app/ujian/` — one row per mata kuliah × kelas (or kelas `GABUNGAN`), per
