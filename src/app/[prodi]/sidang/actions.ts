@@ -29,7 +29,7 @@ export type DefenseInput = {
   penguji_kode: string | null
   penguji_eksternal_kode: string | null
   penguji_eksternal: string
-  link: string // optional meeting link (Zoom/Meet/…); '' = none
+  link: string // optional material link (Google Drive); '' = none
   confirmOverride: boolean
   overrideReason: string
 }

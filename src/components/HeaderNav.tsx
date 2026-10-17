@@ -49,6 +49,7 @@ function sectionOf(active: string, prodi: Prodi | undefined): Section | null {
     if (MASTER_PRODI.some((t) => t.href === active)) return own('Data Master', MASTER_PRODI)
   }
   if (MASTER_SHARED.some((t) => t.href === active)) return { title: 'Data Bersama', tabs: MASTER_SHARED }
+  if (active === '/kalender') return { title: 'Kalender Gabungan', tabs: [] }
   if (active === '/pengguna') return { title: 'Manajemen Pengguna', tabs: [] }
   if (active === '/log-aktivitas') return { title: 'Audit Log', tabs: [] }
   if (active === '/atur-kata-sandi') return { title: 'Ganti Kata Sandi', tabs: [] }

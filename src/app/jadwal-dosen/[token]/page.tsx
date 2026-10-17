@@ -131,7 +131,7 @@ function Row({ when, what, detail, past = false, link }: { when: string; what: s
       <p className="m-0 mt-[0.1rem] text-[0.87rem] text-[var(--tinta-2)]">{detail}</p>
       {link && (
         <p className="m-0 mt-[0.45rem]">
-          {/* Opens the meeting in a new tab, always through http(s) — the column's DB check keeps javascript: out. */}
+          {/* Opens the material in a new tab, always through http(s) — the column's DB check keeps javascript: out. */}
           <a
             href={link}
             target="_blank"

@@ -38,7 +38,7 @@ export const FIELD_LABEL: Record<string, string> = {
   jenis_ujian: 'Jenis Ujian',
   pengawas: 'Pengawas',
   keterangan_ujian: 'Mode Ujian',
-  link: 'Link',
+  link: 'Link Materi',
   jenis: 'Jenis',
   kelompok: 'Kelompok',
   npm: 'NPM',

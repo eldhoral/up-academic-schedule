@@ -82,6 +82,8 @@ export default async function MenuPage() {
         {/* Secondary on purpose: a quiet line of links, not a row competing with the schedules. */}
         <nav aria-label="Lainnya" className="mt-[1rem] flex flex-wrap items-center gap-x-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
           <span className="mr-[0.27rem]">Lainnya:</span>
+          <AdminLink href="/kalender">Kalender Gabungan</AdminLink>
+          <span aria-hidden="true">·</span>
           <AdminLink href="/dosen">Data Bersama</AdminLink>
           {user?.role === 'SUPERADMIN' && (
             <>

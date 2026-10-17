@@ -96,7 +96,7 @@ export function buildEvents(j: JadwalDosen): IcsEvent[] {
       uid: `sidang-${s.id}@krs`,
       summary: `${sidangJudul(s)} · ${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${s.nama_mahasiswa} · ${short(s.prodi)}`,
       location: s.tempat || undefined,
-      // The meeting link rides in the description, so the subscribed calendar offers it too.
+      // The material link rides in the description, so the subscribed calendar offers it too.
       description: s.link.trim() || undefined,
       date: s.tanggal,
       start: s.jam_mulai,

@@ -297,15 +297,15 @@ export function DefenseFormModal({
             </div>
           )}
 
-          {/* Both jenis get the same optional field: a prasidang sits on Zoom, but the link may just be anything. */}
-          <Field label="Link (opsional)">
+          {/* Material for both jenis (Drive link), optional: an empty field is simply no button on the public page. */}
+          <Field label="Link Materi (opsional)">
             <input
               type="text"
               inputMode="url"
               spellCheck={false}
               value={link}
               onChange={(e) => setLink(e.target.value)}
-              placeholder="Tautan Zoom — https://zoom.us/j/…"
+              placeholder="Tautan Google Drive — https://drive.google.com/…"
               className={`${CONTROL} mono`}
             />
           </Field>
