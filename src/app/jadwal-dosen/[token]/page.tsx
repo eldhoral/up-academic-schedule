@@ -33,16 +33,9 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
           <p className="m-0 text-[0.8rem] font-semibold uppercase tracking-[0.04em] text-[var(--tinta-3)]">Jadwal Dosen</p>
           <h1 className="m-0 mt-[0.2rem] text-[1.3rem] font-semibold">{jadwal.nama}</h1>
           <p className="m-0 mt-[0.3rem] text-[0.93rem] text-[var(--tinta-2)]">
-            {term ? term.label : 'Belum ada tahun akademik aktif.'}
-            {hasTermDates && ` · Perkuliahan ${tanggalPanjang(term!.mulai!, false)} – ${tanggalPanjang(term!.selesai!, false)}`}
+            {term ? `Tahun akademik ${term.label}` : 'Belum ada tahun akademik aktif.'}
           </p>
           <div className="flex flex-wrap gap-[0.6rem] mt-[1rem]">
-            <a
-              href={`webcal://${host}${feedPath}`}
-              className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium no-underline hover:bg-[var(--biru-hover)]"
-            >
-              Langganan kalender
-            </a>
             <a
               href={`${feedPath}?unduh=1`}
               className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.87rem] font-medium no-underline hover:bg-[var(--cekung)]"
@@ -58,9 +51,6 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
               Google Calendar
             </a>
           </div>
-          <p className="m-0 mt-[0.6rem] text-[0.8rem] text-[var(--tinta-3)]">
-            Kalender yang dilanggan diperbarui otomatis (bisa tertunda beberapa jam). Jangan bagikan link ini ke orang lain.
-          </p>
         </header>
 
         <Section title="Kuliah" empty={jadwal.kuliah.length === 0 ? 'Tidak ada jadwal kuliah semester ini.' : null}>
