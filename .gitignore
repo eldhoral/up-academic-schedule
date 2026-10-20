@@ -45,3 +45,6 @@ next-env.d.ts
 
 # supabase CLI cache
 /supabase/.temp
+
+# security audit artifacts
+/security-audit

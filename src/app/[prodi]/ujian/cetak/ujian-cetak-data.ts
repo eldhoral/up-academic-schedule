@@ -4,7 +4,7 @@ import { getSettings, settingText } from '@/lib/settings'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { computeAngkatan, romanSemester, substituteTemplate } from '@/lib/print'
 import { fetchExamsForPrint } from '../exam-query'
-import { buildExamRows, type PrintExam, type TableRow } from '../exam-rows'
+import { PENGAWAS_NOTE, buildExamRows, type PrintExam, type TableRow } from '../exam-rows'
 import { needsRoom } from '../exam-types'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 
@@ -104,9 +104,13 @@ export async function buildUjianCetakData(prodi: Prodi, params: { ay?: string | 
     namaWakilDekan: settingText(settings, 'nama_wakil_dekan', ''),
     jabatanWakilDekan: settingText(settings, 'jabatan_wakil_dekan', ''),
     gambarTandaTangan: settingText(settings, 'gambar_tanda_tangan', ''),
+    catatanUjian: settingText(settings, 'catatan_ujian', PENGAWAS_NOTE),
+    ukuranKertas: settingText(settings, 'ukuran_kertas_ujian', 'A4'),
+    orientasi: settingText(settings, 'orientasi_ujian', 'landscape'),
   }
 }
 
 export type Signers = { namaPenandatangan: string; jabatanPenandatangan: string; namaWakilDekan: string; jabatanWakilDekan: string; gambarTandaTangan?: string }
+export type UjianDoc = Signers & { catatanUjian: string; ukuranKertas: string; orientasi: string }
 
 export type UjianCetakData = Awaited<ReturnType<typeof buildUjianCetakData>>

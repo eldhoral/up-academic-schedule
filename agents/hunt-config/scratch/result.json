@@ -1,0 +1,431 @@
+{
+  "units": [
+    {
+      "coverage_id": "src%2Flib%2Fsupabase%2Fadmin.ts%23createAdminClient::src%2Flib%2Fsupabase%2Fadmin.ts%23service-role%20usage%20contract::src%2Flib%2Fsupabase::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+      "disposition": "covered",
+      "reviewed_paths": [
+        "src/lib/supabase/admin.ts",
+        "src/lib/supabase/server.ts",
+        "src/lib/supabase/client.ts",
+        "src/app/actions/auth.ts",
+        "src/app/pengguna/actions.ts",
+        "src/app/jadwal-dosen/jadwal-data.ts",
+        ".env.example",
+        ".github/workflows/checks.yml",
+        ".gitignore",
+        "src/lib/aspose.ts",
+        "src/app/jadwal-dosen/token.ts"
+      ],
+      "checks": [
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": ["src/lib/supabase/admin.ts", "src/lib/supabase/server.ts", "src/lib/supabase/client.ts"],
+          "invariant": "the service-role credential is read only in the server-only admin client and never reaches client-visible code or a third-party destination",
+          "method": "source",
+          "result": "admin.ts reads SUPABASE_SERVICE_ROLE_KEY (line 11), throws when it is missing (13-17), and builds the client with autoRefreshToken/persistSession disabled (19-21). The anon SSR/browser clients use only NEXT_PUBLIC_* values (server.ts:6-7, client.ts:4-5). Import trace of createAdminClient over the whole repo: only src/app/actions/auth.ts, src/app/pengguna/actions.ts and src/app/jadwal-dosen/jadwal-data.ts, all server-only modules; no 'use client' file imports the admin client, server client or aspose module, and the service key name/value appears in no other source file except .env.example. The admin.ts placeholder-URL fallback (line 10) can only ever point at the provider-owned placeholder.supabase.co host (recorded as hardening, not a third-party leak).",
+          "artifact": null
+        },
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": ["src/lib/supabase/admin.ts", "src/app/actions/auth.ts", "src/app/pengguna/actions.ts", "src/app/jadwal-dosen/jadwal-data.ts"],
+          "invariant": "every createAdminClient() call site sits behind the caller-side gate the usage-contract comment requires (role check by the caller, never a Client Component)",
+          "method": "source",
+          "result": "admin.ts:5-7 documents the contract: only server actions that already checked the caller's own role, never from a Client Component. Call sites: pengguna/actions.ts wraps all four functions in requireSuperadmin() (11-17) before the admin client use (54, 81, 102, 119); actions/auth.ts uses it only inside logAuthEvent (17-36), reached after a successful signInWithPassword (81), an authenticated updatePassword (129-145) or getUser on sign-out (150-154); jadwal-dosen/jadwal-data.ts gates on the 43-char token shape (141) and a single-row jadwal_token lookup (144-150) before the service-role reads (164-175). No un-gated or client-side call site found. Per-row scoping of the jadwal-dosen reads belongs to the peer jadwal-dosen access-control unit and is not asserted here.",
+          "artifact": null
+        },
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": [".env.example", ".github/workflows/checks.yml", ".gitignore", "src/lib/aspose.ts"],
+          "invariant": "no real secret material is tracked in the repository, CI never receives real credentials, and Aspose secrets are presented only to the provider token endpoint",
+          "method": "source",
+          "result": "git ls-files matches exactly one env-style file (.env.example, placeholder values only: your-project-id, your-anon-key-here, your-service-role-key-here, your-aspose-*); a whole-history diff-filter=A sweep finds no .env/.pem/.key/credentials file ever added. .gitignore covers .env* (34), *.pem (25), /docs (44) and /supabase/.temp (47). checks.yml sets only literal placeholder Supabase values (12-15) and installs with npm ci (22), so no secret is required at CI runtime. aspose.ts keeps ASPOSE_CLIENT_ID/SECRET in the client_credentials POST body to api.aspose.cloud (10-18) and attaches the resulting token only to the api.aspose.cloud conversion call (32-36); failures throw and no error path falls back to unauthenticated or no-crypto behaviour.",
+          "artifact": null
+        },
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": ["src/app/jadwal-dosen/token.ts"],
+          "invariant": "security-critical token values are generated with a CSPRNG and never from predictable sources",
+          "method": "source",
+          "result": "newJadwalToken() is 32 random bytes from node:crypto randomBytes rendered base64url (token.ts:1-4) and the lookup gate is the 43-char base64url shape (7). A repo-wide source scan finds no Math.random, timestamp-derived, counter-derived or user-influenced secret generation. The token's access-control semantics (who may create/reset it) belong to the peer dosen/jadwalLinkAction unit; this check covers randomness only.",
+          "artifact": null
+        }
+      ],
+      "candidate_fingerprints": [],
+      "unresolved": []
+    },
+    {
+      "coverage_id": "src%2Fapp%2Flog-aktivitas%2Fpage.tsx::supabase%2Fmigrations%2F20260924000005_audit_log.sql%23audit_log%20policies::supabase%2Fmigrations::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+      "disposition": "candidate",
+      "reviewed_paths": [
+        "src/app/log-aktivitas/page.tsx",
+        "src/app/log-aktivitas/riwayat/page.tsx",
+        "src/lib/audit-log.ts",
+        "src/lib/audit-history.ts",
+        "scripts/check-audit-log.ts",
+        "supabase/migrations/20260924000005_audit_log.sql",
+        "supabase/migrations/20260924000006_audit_log_auth_events.sql",
+        "supabase/migrations/20260924000010_grant_service_role_audit_log.sql",
+        "supabase/migrations/20261008000003_jadwal_dosen.sql",
+        "supabase/migrations/20260924000007_audit_log_retention.sql",
+        "supabase/all_in_one_setup.sql",
+        "scripts/check-prodi-db.sh",
+        "supabase/migrations/20260924000003_user_roles.sql",
+        "README.md"
+      ],
+      "checks": [
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": ["src/app/log-aktivitas/page.tsx", "src/app/log-aktivitas/riwayat/page.tsx", "src/lib/audit-log.ts", "src/lib/audit-history.ts", "scripts/check-audit-log.ts"],
+          "invariant": "the audit-log UI pages do not widen RLS access, cannot be used as a filter oracle, and surface attribution faithfully",
+          "method": "source",
+          "result": "Both pages build their own session client (page.tsx:20, riwayat/page.tsx:47) and query audit_log directly under RLS; no role check exists on either page, so reachability is exactly 'authenticated'. Riwayat validates tabel against TABLE_LABEL and the record id against a character class before querying (riwayat:44-45). parseLogFilters whitelists tables/actions via Object.hasOwn and caps pages at MAX_LOG_PAGE=10000 (audit-log.ts:44-70); logSearchFilter strips everything except [\\w@.-], so the PostgREST or() string cannot gain extra conditions (72-76; regression-tested in scripts/check-audit-log.ts:22-27). Null actors render as 'Sistem' in the history view (riwayat:72, 139) — the display counterpart of the attribution candidate linked below.",
+          "artifact": null
+        },
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": ["supabase/migrations/20260924000005_audit_log.sql", "supabase/migrations/20260924000006_audit_log_auth_events.sql", "supabase/migrations/20260924000010_grant_service_role_audit_log.sql", "supabase/migrations/20261008000003_jadwal_dosen.sql"],
+          "invariant": "audit_log is append-only for interactive roles (select-only policy, no write policy), the trigger strips the jadwal_token, and LOGIN/LOGOUT rows are written explicitly",
+          "method": "source",
+          "result": "The only policy is audit_log_select_authenticated for select to authenticated using (true) (05:28-31); the migration comments record that no insert/update/delete policy is defined on purpose (05:33-35) and only select is granted (05:36). The action CHECK is extended for LOGIN/LOGOUT (06:4-6); service_role gets select+insert so auth events can be written explicitly (10:5). audit_row() records actor := auth.uid() (05:53, redefined at 20261008000003:18-45) and now strips jadwal_token from both snapshots (20261008000003:25-26); scripts/check-prodi-db.sql:240 asserts the token never lands in the log. The append-only property holds; the two gaps are the linked actor-attribution and retention candidates.",
+          "artifact": null
+        },
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": ["supabase/migrations/20260924000007_audit_log_retention.sql", "supabase/all_in_one_setup.sql", "scripts/check-prodi-db.sh"],
+          "invariant": "audit retention runs only through the 03:00 scheduled job, and the purge function is not callable by lower-privilege or anonymous roles",
+          "method": "source",
+          "result": "purge_old_audit_log() is created security definer with set search_path = public (07:6-13) and is the exact function the nightly cron.schedule at 03:00 invokes (07:22). No migration revokes execute from public or grants it narrowly for this function — the only revoke/grant pairs in the whole migrations tree are set_jadwal_token (20261016000001:74-75) and reset_jadwal (20261016000002:28-29) — so the Postgres default EXECUTE-to-PUBLIC grant stands and any PostgREST caller (anon or any authenticated account) can trigger the delete via RPC. supabase/all_in_one_setup.sql repeats the same un-revoked definition (1201-1217). The repo's own DB suite skips this file entirely (*audit_log_retention* in check-prodi-db.sh:20, pg_cron absent in Docker), so no existing test asserts the function's privileges. Linked fingerprint: audit-log/purge_old_audit_log/public-execute.",
+          "artifact": null
+        },
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": ["supabase/migrations/20260924000003_user_roles.sql", "README.md"],
+          "invariant": "the authenticated tier that audit_log's select policy trusts is limited to provisioned staff accounts",
+          "method": "source",
+          "result": "handle_new_user() inserts a profiles row with default role VIEWER for every new auth.users row (03:11, 40-42) through an after-insert trigger (03:48-50); profiles is readable by any authenticated account (03:24-27). README.md:56 states only that 'There is no sign-up page' — a UI statement; the repository contains no supabase/config.toml and no allowed-domain rule, so whether arbitrary internet users can mint a VIEWER account through the provider's signup endpoint is an external project setting. Linked fingerprint: audit-log/select-authenticated/public-signup-exposure.",
+          "artifact": null
+        }
+      ],
+      "candidate_fingerprints": [
+        "audit-log/purge_old_audit_log/public-execute",
+        "audit-log/service-role-writes/unattributed-actor",
+        "audit-log/select-authenticated/public-signup-exposure"
+      ],
+      "unresolved": []
+    },
+    {
+      "coverage_id": "next.config.ts%23configuration::next.config.ts%23redirects%20and%20headers::next.config.ts::ATTACK-CLASSES.md%23Obvious%20things",
+      "disposition": "covered",
+      "reviewed_paths": [
+        "next.config.ts",
+        ".gitignore",
+        "package.json",
+        "package-lock.json",
+        ".github/workflows/checks.yml",
+        ".env.example",
+        "src/lib/db-error.ts",
+        "src/app/jadwal-dosen/[token]/error.tsx",
+        "src/app/jadwal-dosen/[token]/not-found.tsx",
+        "src/app/actions/auth.ts"
+      ],
+      "checks": [
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": ["next.config.ts"],
+          "invariant": "config-level redirects cannot become an open redirect and configured headers preserve the token-page protections",
+          "method": "source",
+          "result": "All 15 redirects are static literal source/destination pairs (root query-presence matchers and bare legacy paths to /s1/...) with permanent:false; no request value is interpolated into any destination, so no parameter can steer a target (9-27). headers() adds X-Robots-Tag: noindex, nofollow and Referrer-Policy: no-referrer for /jadwal-dosen/:path* (29-39). No CORS/Access-Control-* configuration exists anywhere in the repository (grep: zero matches outside a base64 image literal).",
+          "artifact": null
+        },
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": [".gitignore", "package.json", "package-lock.json", ".github/workflows/checks.yml", ".env.example"],
+          "invariant": "baseline hygiene: no tracked secrets, no default/seed credentials, dependencies pinned, CI credential-free, no eval/exec/child_process, no unprotected debug endpoints",
+          "method": "source",
+          "result": "git ls-files matches only .env.example (placeholders) for secret-file patterns; .gitignore covers .env* (34), *.pem (25), /docs (44), /supabase/.temp (47). Singletons incl. next 16.3.8 and the toolchain are version-pinned; package-lock.json is committed and CI installs with npm ci. No /debug, /admin, /status, /health, /metrics, /env endpoints exist (src/app/api contains exactly export, import template, schedules, clashes routes); no eval(), exec, child_process, Function(), or vm usage in src/ (the single NODE_ENV conditional is the peer-owned auth-callback local-development branch); no TODO/FIXME/HACK/XXX security markers in src/ (only benign 'ponytail' design notes). No CVE data was available offline for the pinned dependency tree (recorded as hardening).",
+          "artifact": null
+        },
+        {
+          "agent_id": "hunt-config",
+          "reviewed_paths": ["src/lib/db-error.ts", "src/app/jadwal-dosen/[token]/error.tsx", "src/app/jadwal-dosen/[token]/not-found.tsx", "src/app/actions/auth.ts"],
+          "invariant": "production error responses do not leak stack traces, SQL/driver text, internal paths, or account-existence signals",
+          "method": "source",
+          "result": "humanDbError maps known Postgres error codes to fixed Indonesian text and replaces every unrecognised shape with a generic message, explicitly hiding raw SQL/driver text (db-error.ts:14-37). Sign-in returns one generic credential message for bad credentials (auth.ts:76-78) and a fixed rate-limit message (69-72); reset-password returns the same 'if registered' response either way (109-113). The only error boundary files in the app are the public jadwal-dosen ones, which render static copy plus a retry button with no error detail (error.tsx:4-19, not-found.tsx:6-9). The assignment's starting paths src/app/error.tsx and src/app/not-found.tsx do not exist in this repository (verified by glob; no root or global error boundary file is present).",
+          "artifact": null
+        }
+      ],
+      "candidate_fingerprints": [],
+      "unresolved": []
+    }
+  ],
+  "candidates": [
+    {
+      "proposed_verdict": "needs_validation",
+      "fingerprint": "audit-log/purge_old_audit_log/public-execute",
+      "title": "audit_log purge function is executable by any PostgREST caller, turning the documented nightly-only, append-only retention into an on-demand deletion",
+      "description": "purge_old_audit_log() is created as a security-definer function in the public schema and never revoked from PUBLIC in any migration, so the Postgres default EXECUTE grant lets the anon and authenticated API roles invoke it through PostgREST RPC (POST /rest/v1/rpc/purge_old_audit_log). The function deletes every audit_log row older than one month with the owner's rights, so a lower-privilege or even unauthenticated caller can delete audit history ahead of the 03:00 schedule, contradicting both the append-only invariant ('nobody can edit or delete entries') and the documented retention design (nightly pg_cron only).",
+      "claimed_root_cause": "The 20260924000007 migration installs the purge function without any privilege control: unlike its siblings set_jadwal_token (20261016000001:74-75) and reset_jadwal (20261016000002:28-29), it neither revokes execute from public nor grants it narrowly, so Postgres leaves the default EXECUTE-to-PUBLIC in place; security definer + set search_path = public then runs the delete with owner rights, bypassing audit_log's select-only RLS and grants.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "supabase/migrations/20260924000007_audit_log_retention.sql",
+          "line": 6,
+          "scope": "database function privilege",
+          "description": "create or replace function purge_old_audit_log() with no revoke from public and no narrow grant; Postgres default EXECUTE to PUBLIC makes it callable by anon and authenticated PostgREST clients."
+        },
+        {
+          "kind": "propagation",
+          "file": "supabase/migrations/20260924000007_audit_log_retention.sql",
+          "line": 9,
+          "scope": "security definer",
+          "description": "security definer + set search_path = public executes the body with the migration owner's privileges, bypassing RLS and the select-only grant on audit_log."
+        },
+        {
+          "kind": "propagation",
+          "file": "supabase/migrations/20260924000007_audit_log_retention.sql",
+          "line": 22,
+          "scope": "scheduled job",
+          "description": "The same function is what the nightly 03:00 cron job invokes, confirming the intended invocation channel is scheduler-only, not RPC."
+        },
+        {
+          "kind": "sink",
+          "file": "supabase/migrations/20260924000007_audit_log_retention.sql",
+          "line": 12,
+          "scope": "retention delete",
+          "description": "delete from audit_log where at < now() - interval '1 month' — a caller-triggered invocation removes audit rows ahead of the night's schedule and outside any role gate."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "supabase/migrations/20260924000007_audit_log_retention.sql",
+          "line": 6,
+          "description": "Function definition; the file ends at the cron.schedule call with no accompanying revoke/grant."
+        },
+        {
+          "file": "supabase/migrations/20261016000001_penjadwal_jadwal_only.sql",
+          "line": 74,
+          "description": "Sibling security-definer function explicitly revokes execute from public (line 74) and grants only to authenticated (line 75) — the control missing on the purge function."
+        },
+        {
+          "file": "supabase/migrations/20261016000002_reset_jadwal.sql",
+          "line": 28,
+          "description": "Second sibling (reset_jadwal) repeats the revoke-from-public / grant-to-authenticated pattern (28-29)."
+        },
+        {
+          "file": "supabase/migrations/20260924000005_audit_log.sql",
+          "line": 33,
+          "description": "Comment: no insert/update/delete policy for authenticated on purpose, the log is append-only for everyone else — an exposed delete function contradicts this invariant."
+        },
+        {
+          "file": "TSD.md",
+          "line": 318,
+          "description": "Documented design: 'Nightly pg_cron job purges entries older than 1 month' (also 645: retention is a nightly pg_cron purge)."
+        },
+        {
+          "file": "supabase/all_in_one_setup.sql",
+          "line": 1201,
+          "description": "The one-shot setup script embeds the same un-revoked definition (1201-1217)."
+        },
+        {
+          "file": "scripts/check-prodi-db.sh",
+          "line": 20,
+          "description": "The repo's Docker DB suite skips *audit_log_retention*, so no existing test asserts the function's privileges."
+        }
+      ],
+      "blockers": [
+        "No OS-enforced sandbox on this host (no network isolation, empty-environment guarantee, read-only mounts or resource limits): no target code, PostgREST or local Postgres may be started, so has_function_privilege() and an actual anon-role invocation could not be observed.",
+        "Even the repo's own Docker harness skips the retention migration (*audit_log_retention* in check-prodi-db.sh:20) because pg_cron does not exist in plain Postgres; a local confirmation needs a cron-schema stub.",
+        "Whether the migration is applied as-is on the deployed project and whether PostgREST RPC exposure of the public schema is enabled are deployment facts not visible in the repository (no supabase/config.toml)."
+      ],
+      "validation_plan": {
+        "local": "In the required OS sandbox: start a throwaway Postgres 16, apply scripts/db-stub.sql, create a minimal cron stub (no-op cron.schedule/unschedule), apply 20260924000007_audit_log_retention.sql, then assert has_function_privilege('anon','public.purge_old_audit_log()','EXECUTE') and has_function_privilege('authenticated', ...); insert two dummy audit_log rows (one older, one newer than 1 month), set an anon request context with no sub claim, call the function, and verify only the older row is deleted.",
+        "deployment": "Owner-observed on a controlled project: in the Supabase SQL editor run select proacl from pg_proc where proname='purge_old_audit_log' (null proacl means default PUBLIC EXECUTE → issue present) or has_function_privilege('anon','public.purge_old_audit_log()','EXECUTE'), and confirm whether a revoke/grant migration has been applied."
+      }
+    },
+    {
+      "proposed_verdict": "needs_validation",
+      "fingerprint": "audit-log/service-role-writes/unattributed-actor",
+      "title": "User-management changes written through the service-role client are logged with a null actor and read as 'Sistem', defeating who-changed-what attribution",
+      "description": "SUPERADMIN user management (create user, change role, change prodi access, delete user) executes through createAdminClient(), whose requests carry the service key instead of a user session. The audit_row() trigger derives the actor from auth.uid(), which is null on those requests, so the resulting audit_log rows for the most privilege-sensitive changes (role grants/revocations) store actor_id and actor_email as null and render as 'Sistem', even though the audit log is documented to record who changed what.",
+      "claimed_root_cause": "The audit trigger derives the actor solely from auth.uid() (20260924000005:53, redefined at 20261008000003:33), while the pengguna actions perform profiles writes with the service-role client (pengguna/actions.ts:54, 62, 81, 86, 102, 103, 119, 124), whose JWT has no sub — so the trigger stores null actor for exactly the operations an audit log exists to attribute, and the UI then labels them 'Sistem'.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "src/app/pengguna/actions.ts",
+          "line": 86,
+          "scope": "server action",
+          "description": "updateUserRoleAction (behind requireSuperadmin) updates profiles.role through the admin client; the same pattern covers create (62), prodi access (103) and delete (124)."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/lib/supabase/admin.ts",
+          "line": 19,
+          "scope": "service-role client",
+          "description": "createAdminClient() sends SUPABASE_SERVICE_ROLE_KEY; the request carries no authenticated user session, so no user subject reaches the database session."
+        },
+        {
+          "kind": "propagation",
+          "file": "supabase/migrations/20261008000003_jadwal_dosen.sql",
+          "line": 33,
+          "scope": "trigger function",
+          "description": "actor := auth.uid() — null for service-role requests (same pattern as 20260924000005:53)."
+        },
+        {
+          "kind": "sink",
+          "file": "supabase/migrations/20260924000005_audit_log.sql",
+          "line": 60,
+          "scope": "audit row insert",
+          "description": "insert into audit_log (actor_id, actor_email, ...) values (null, null, ...) — the row becomes unattributed and the UI renders null actor as 'Sistem' (riwayat/page.tsx:72, 139)."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "src/app/pengguna/actions.ts",
+          "line": 54,
+          "description": "Account creation uses the admin client (auth.admin.createUser, 55), and the resulting profiles insert arrives via handle_new_user with no JWT at all."
+        },
+        {
+          "file": "src/app/pengguna/actions.ts",
+          "line": 86,
+          "description": "Role grant/revoke update written with the admin client."
+        },
+        {
+          "file": "src/lib/supabase/admin.ts",
+          "line": 19,
+          "description": "Service-role client construction — the only credential on these requests is the service key."
+        },
+        {
+          "file": "supabase/migrations/20260924000005_audit_log.sql",
+          "line": 53,
+          "description": "actor uuid := auth.uid() in the trigger."
+        },
+        {
+          "file": "supabase/migrations/20260924000005_audit_log.sql",
+          "line": 3,
+          "description": "Header states the log records 'who changed what' — attribution is the documented purpose."
+        },
+        {
+          "file": "TSD.md",
+          "line": 357,
+          "description": "Design doc: 'It records actor (from auth.uid()), action, table, record id...' (also 361: the browser filters by actor)."
+        },
+        {
+          "file": "src/app/log-aktivitas/riwayat/page.tsx",
+          "line": 139,
+          "description": "The UI displays row.actor_email ?? 'Sistem' — unattributed rows read as an anonymous system actor (also the actor count at 72)."
+        },
+        {
+          "file": "src/app/actions/auth.ts",
+          "line": 25,
+          "description": "Contrast: LOGIN/LOGOUT rows pass actor_id/actor_email explicitly, so the gap is specific to data-table writes executed with the service role."
+        }
+      ],
+      "blockers": [
+        "No OS-enforced sandbox on this host: a database (or PostgREST/GoTrue stack) cannot be started to execute a service-role profiles update and read back the resulting audit row.",
+        "The decisive comparison needs the Supabase auth semantics (auth.uid() over a service JWT with no sub); the repo stub models only request.jwt.claim.sub, so the local check must reproduce the no-subject context faithfully.",
+        "No source-visible wrapper adds actor context around createAdminClient; confirming no deployment-level hook does so requires owner observation."
+      ],
+      "validation_plan": {
+        "local": "In the required OS sandbox: reuse the repo's harness pattern (scripts/db-stub.sql + migrations) on a throwaway Postgres; insert a dummy profiles row, then set role service_role with request.jwt.claim.sub='' (no subject) and update the profiles row; assert the new audit_log row has actor_id IS NULL and actor_email IS NULL, while the same update under set_config('request.jwt.claim.sub', <dummy uuid>) records that actor.",
+        "deployment": "Owner-observed on a staging project: change one dummy account's role through /pengguna as SUPERADMIN, then open Log Aktivitas → Riwayat for table profiles and confirm whether the new row shows 'Sistem' instead of the SUPERADMIN's email."
+      }
+    },
+    {
+      "proposed_verdict": "needs_validation",
+      "fingerprint": "audit-log/select-authenticated/public-signup-exposure",
+      "title": "Full audit-log read is granted to every authenticated account while account creation depends on an unpinned provider signup setting",
+      "description": "audit_log's only policy grants SELECT with using (true) to the authenticated role, and any account — including one created through the provider's signup endpoint — receives a VIEWER profile automatically and lands on that same authenticated tier. If the Supabase project allows new-user signup (a dashboard setting the repository does not pin), any internet user holding the public anon key can mint a session and read the entire audit history — actor emails, before/after snapshots of schedules, settings and user management — through PostgREST or /log-aktivitas, contradicting the staff-only assumption the open-read policy relies on.",
+      "claimed_root_cause": "The staff-only assumption behind audit_log_select_authenticated (using (true)) has no source-level enforcement: handle_new_user() creates a VIEWER profile for any auth.users row, and the repository contains no supabase/config.toml, allowed-domain rule, or app-side signup that pins who may create accounts — the signup gate lives only in the Supabase dashboard, outside source control.",
+      "trace": [
+        {
+          "kind": "entrypoint",
+          "file": "supabase/migrations/20260924000003_user_roles.sql",
+          "line": 41,
+          "scope": "account provisioning",
+          "description": "handle_new_user() inserts a profiles row with role 'VIEWER' for every new auth.users row; the provider's signup endpoint (project setting external to the repo) is the account source."
+        },
+        {
+          "kind": "propagation",
+          "file": "supabase/migrations/20260924000003_user_roles.sql",
+          "line": 48,
+          "scope": "trigger attachment",
+          "description": "The after-insert trigger on auth.users makes the VIEWER provisioning automatic for any account-creation path."
+        },
+        {
+          "kind": "propagation",
+          "file": "src/app/log-aktivitas/page.tsx",
+          "line": 23,
+          "scope": "read surface",
+          "description": "The page queries audit_log with the session client and applies no role check, so any authenticated session reaches the full log UI."
+        },
+        {
+          "kind": "sink",
+          "file": "supabase/migrations/20260924000005_audit_log.sql",
+          "line": 31,
+          "scope": "RLS policy",
+          "description": "using (true) for the authenticated role returns every audit row (all actors, all before/after snapshots) to that account via PostgREST or the UI."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "supabase/migrations/20260924000003_user_roles.sql",
+          "line": 11,
+          "description": "profiles.role defaults to 'VIEWER' — the least privileged role, but still authenticated-tier access."
+        },
+        {
+          "file": "supabase/migrations/20260924000005_audit_log.sql",
+          "line": 31,
+          "description": "The select policy body: using (true), scoped only by the authenticated role."
+        },
+        {
+          "file": "README.md",
+          "line": 56,
+          "description": "'There is no sign-up page' — a UI statement only; the provider-level signup setting is not recorded anywhere in the repo (no supabase/config.toml exists)."
+        },
+        {
+          "file": "src/app/log-aktivitas/page.tsx",
+          "line": 24,
+          "description": "select('*') against audit_log with the session client, no role gate."
+        },
+        {
+          "file": "src/app/log-aktivitas/riwayat/page.tsx",
+          "line": 53,
+          "description": "Per-record history view selects full snapshots ('*') from audit_log for the same audience, exposing values meant for staff eyes (settings, user emails, thesis titles in defenses snapshots)."
+        }
+      ],
+      "blockers": [
+        "The decisive fact is provider-side: the Supabase Auth 'Allow new users to sign up' (and email-confirmation) setting of the deployed project; no supabase/config.toml exists to pin it and the hosted project cannot be inspected in this run.",
+        "No OS-enforced sandbox on this host: a local Supabase/PostgREST stack cannot be started to demonstrate signup → VIEWER profile → full audit_log read.",
+        "Whether POST /auth/v1/signup (or another enabled provider) is reachable on the deployed project is deployment state not visible in the repository."
+      ],
+      "validation_plan": {
+        "local": "In the required OS sandbox: apply the migrations on the stub Postgres, insert a dummy auth.users row with no prior profile (simulating the signup trigger), then set role authenticated with that new user's sub and query audit_log and profiles to show the new account gets role VIEWER and can read every audit row in the table.",
+        "deployment": "Owner-observed on the deployed project: record the Supabase dashboard state at Authentication → Sign In / Providers → Email ('Allow new users to sign up'); if enabled, verify on a controlled staging project (then delete the test account) that POST /auth/v1/signup with the public anon key yields a session that can load /log-aktivitas; if disabled, this candidate collapses into the general provisioning uncovered item."
+      }
+    }
+  ],
+  "hardening": [
+    "supabase/README.md:9 promises all_in_one_setup.sql is 'Every migration in migrations/, joined in order', but the copy stops at 20261017000002_wakil_dekan_semua_jadwal: 20261012000001_sessions_jenis_kelas (sessions jenis_kelas split), 20261017000003_defense_link (defenses.link + http(s) enforcement) and 20261017000004_hari_libur (holidays table) are missing — a fresh one-shot setup loses those features (and the holidays warnings) while every security control (roles, RLS, audit log, retention, grants) is present. The same README (line 61) still describes the obsolete USING(true) WITH CHECK(true) policy model.",
+    "A gitlink .claude/worktrees/perf-and-features (mode 160000) is tracked without any .gitmodules entry: a stray submodule reference to a local workspace that breaks submodule tooling on fresh clones and is not covered by .gitignore — remove it or ignore the path.",
+    "next.config.ts configures no Content-Security-Policy, X-Frame-Options/frame-ancestors, X-Content-Type-Options or HSTS headers; only the jadwal-dosen noindex/referrer header pair exists (29-39). Add baseline security headers at the config or edge layer.",
+    "createAdminClient() falls back to https://placeholder.supabase.co when NEXT_PUBLIC_SUPABASE_URL is unset while the real service key is present (admin.ts:10-11), so a misconfigured deploy would send the credential to the provider's default host instead of failing closed; make the URL required like the service key.",
+    "The repo's DB suite skips the retention migration (check-prodi-db.sh:20, pg_cron absent in Docker) and check:audit-log only tests pure filter/formatting helpers, so purge_old_audit_log's existence, schedule and privileges are never asserted; add a cron-stubbed apply with has_function_privilege assertions.",
+    "Dependencies are pinned via package-lock.json and installed with npm ci, but no offline advisory data was available in this run to check next 16.3.8, @supabase/supabase-js, @supabase/ssr, exceljs and docx against known CVEs; run an advisory scan as a networked maintenance check.",
+    "Provenance note: repository HEAD moved from the run-pinned f721504 to 3ca6a4f during this review; the only tracked delta is UI copy in the peer-owned src/app/jadwal-dosen/[token]/page.tsx, so every path reviewed by this hunter is byte-identical across both revisions."
+  ],
+  "uncovered": [
+    {
+      "surface": "authenticated-principal provisioning (who may become an authenticated account)",
+      "boundary": "the tier that every 'to authenticated using (true)' SELECT policy trusts across all data tables",
+      "subsystem": "supabase/migrations",
+      "attack_class": "ATTACK-CLASSES.md#Access control",
+      "starting_paths": [
+        "supabase/migrations/20260924000003_user_roles.sql",
+        "supabase/migrations/20260924000005_audit_log.sql",
+        "supabase/migrations/20260924000006_audit_log_auth_events.sql",
+        "README.md"
+      ],
+      "reason": "Every data-table read policy is 'using (true)' to authenticated and depends on the undocumented, unenforced assumption that only staff hold accounts, while handle_new_user auto-provisions VIEWER for any auth.users row and account creation is controlled by the provider's signup setting (no supabase/config.toml in the repo). The audit-log-scoped effect is only candidate audit-log/select-authenticated/public-signup-exposure in unit 2; the repository-wide variant (schedules, lecturers, student names/thesis titles, settings, profiles) has no coverage unit and needs one deterministic unit that pins the provisioning path."
+    }
+  ]
+}

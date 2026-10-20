@@ -487,9 +487,10 @@ Settings live in the `settings` table and are edited per prodi in **Pengaturan**
 | `waktu` (Waktu & Sesi) | Session grid generation | `menit_per_sks`, `jeda_menit`, `jam_mulai_reguler`, `jam_mulai_regsus`, `jam_istirahat_mulai`, `jam_istirahat_selesai`, `hari_aktif` |
 | `kelas` | Class-size advice | `kelas_maksimal`, `maks_mahasiswa_per_kelas`, `min_mahasiswa_pilihan` |
 | `bentrok` | Clash policies & load | `bentrok_dosen`, `bentrok_kelas`, `bentrok_ruangan` (`blok`/`peringatan`/`abaikan`), `izinkan_override`, `bentrok_beban`, `maks_sks_dosen` |
-| `cetak` | Institution identity & sheet layout | `nama_universitas`, `nama_fakultas`, `kota`, `nama_prodi`, `header_baris`, `keterangan_cetak`, `nama_penandatangan`, `jabatan_penandatangan`, `gambar_tanda_tangan`, `ukuran_kertas`, `orientasi`, `zoom_id`, `zoom_passcode` |
-| `surat` | Surat Penugasan document | `nomor_surat`, `perihal_surat`, `lampiran_surat`, `catatan_perkuliahan`, `nama_dekan`, `jabatan_dekan`, `gambar_tanda_tangan_dekan`, `nama_wakil_dekan`, `jabatan_wakil_dekan` |
-| `ujian` | Exam slots & invigilation | `sesi_ujian_reguler`, `sesi_ujian_regsus` |
+| `cetak` | Institution identity & kuliah sheet layout | `nama_universitas`, `nama_fakultas`, `kota`, `nama_prodi`, `header_baris`, `keterangan_cetak`, `ukuran_kertas`, `orientasi`, `zoom_id`, `zoom_passcode` |
+| `tanda_tangan` | Signers & signature image | `nama_wakil_dekan`, `jabatan_wakil_dekan`, `nama_penandatangan`, `jabatan_penandatangan`, `gambar_tanda_tangan` |
+| `surat` | Surat Penugasan document | `nomor_surat`, `perihal_surat`, `lampiran_surat`, `catatan_perkuliahan`, `nama_dekan`, `jabatan_dekan`, `gambar_tanda_tangan_dekan` |
+| `ujian` | Exam slots, invigilation, print note & paper | `sesi_ujian_reguler`, `sesi_ujian_regsus`, `pengawas_cadangan`, `ujian_header_baris`, `catatan_ujian`, `ukuran_kertas_ujian`, `orientasi_ujian` |
 | `sidang` | Defense slots & Zoom | `sesi_prasidang`, `sesi_sidang`, `prasidang_zoom_id`, `prasidang_zoom_passcode`, `prasidang_header_baris`, `sidang_header_baris` |
 
 Notes:

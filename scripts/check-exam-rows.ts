@@ -139,7 +139,12 @@ assert.equal(ani.jumlah, 2)
 async function main() {
   const rows = buildExamRows([exam({ kelas: 'A' }), exam({ kelas: 'B' }), exam({ kode_mk: 'U1', dosen: [], pengawas: [], ruangan: '', mkwu: true, tanggal: '2025-10-28' })])
   const sheet = { name: 'Semester 1', semester: 'I', angkatan: '2025/2026', headerLines: ['JADWAL', 'SEMESTER I', 'TA 2025/2026'], rows, mataKuliah: 2 }
-  const buf = await buildUjianXlsx({ sheets: [sheet, { ...sheet, name: 'Semester 3', rows: [] }], namaPenandatangan: 'Nama', jabatanPenandatangan: 'Kaprodi', namaWakilDekan: 'DR. VINAYA, M.SI', jabatanWakilDekan: 'WAKIL DEKAN I' })
+  const catatan = 'Catatan pengawas dari Pengaturan'
+  const buf = await buildUjianXlsx({
+    sheets: [sheet, { ...sheet, name: 'Semester 3', rows: [] }],
+    namaPenandatangan: 'Nama', jabatanPenandatangan: 'Kaprodi', namaWakilDekan: 'DR. VINAYA, M.SI', jabatanWakilDekan: 'WAKIL DEKAN I',
+    catatanUjian: catatan, ukuranKertas: 'A4', orientasi: 'landscape',
+  })
   const zip = await JSZip.loadAsync(buf)
   const xml = await zip.file('xl/worksheets/sheet1.xml')!.async('string')
   const merges = [...xml.matchAll(/<mergeCell ref="([^"]+)"/g)].map((m) => m[1])
@@ -147,7 +152,15 @@ async function main() {
   // + the MKWU row's own hari/tanggal are single-row, so no merge
   assert.equal(merges.length, 3 + 1 + 4 + 8 + 1, merges.join(' '))
   assert.ok(merges.some((m) => /^F\d+:K\d+$/.test(m)), 'UNIVERSITAS spans JAM..KETERANGAN')
-  assert.ok(xml.includes('landscape'), 'A4 landscape')
+  assert.ok(xml.includes('landscape') && xml.includes('paperSize="9"'), 'A4 landscape from Pengaturan')
+  const portrait = await JSZip.loadAsync(
+    await buildUjianXlsx({
+      sheets: [sheet], namaPenandatangan: 'N', jabatanPenandatangan: 'J', namaWakilDekan: 'W', jabatanWakilDekan: 'WD',
+      catatanUjian: '', ukuranKertas: 'Letter', orientasi: 'portrait',
+    }),
+  )
+  const portraitXml = await portrait.file('xl/worksheets/sheet1.xml')!.async('string')
+  assert.ok(portraitXml.includes('orientation="portrait"'), 'orientation follows Pengaturan')
   // Every table cell (header and body) is centred both ways.
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(buf.buffer)
@@ -160,7 +173,7 @@ async function main() {
   const ujianStrings = await zip.file('xl/sharedStrings.xml')!.async('string')
   assert.ok(ujianStrings.includes('Tidak ada data jadwal'), 'an empty semester says so')
   assert.ok(ujianStrings.includes('WAKIL DEKAN I') && ujianStrings.includes('DR. VINAYA, M.SI'), 'Wakil Dekan I signs')
-  assert.ok(ujianStrings.includes('Note: Jika Dosen Pengawas berhalangan hadir'), 'pengawas note under the table')
+  assert.ok(ujianStrings.includes(catatan), 'the note comes from Pengaturan, not a constant')
   const rx = await JSZip.loadAsync(
     await buildRekapPengawasXlsx({ headerLines: ['REKAP', 'TA'], groups: rekap, totalTugas: rekap.reduce((n, g) => n + g.jumlah, 0), namaPenandatangan: 'Nama', jabatanPenandatangan: 'Kaprodi' }),
   )

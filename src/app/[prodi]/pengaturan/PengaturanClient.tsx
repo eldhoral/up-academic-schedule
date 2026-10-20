@@ -24,12 +24,13 @@ export type SettingRow = {
   urutan: number
 }
 
-const GROUP_ORDER = ['waktu', 'kelas', 'bentrok', 'cetak', 'surat', 'ujian', 'sidang']
+const GROUP_ORDER = ['waktu', 'kelas', 'bentrok', 'cetak', 'tanda_tangan', 'surat', 'ujian', 'sidang']
 const GROUP_LABEL: Record<string, string> = {
   waktu: 'Waktu & Sesi',
   kelas: 'Kelas',
   bentrok: 'Bentrok',
   cetak: 'Cetak',
+  tanda_tangan: 'Tanda Tangan',
   surat: 'Surat Penugasan',
   ujian: 'Jadwal Ujian',
 }
@@ -59,13 +60,31 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: 'ya', label: 'Ya' },
     { value: 'tidak', label: 'Tidak' },
   ],
+  ukuran_kertas: [
+    { value: 'A4', label: 'A4' },
+    { value: 'Letter', label: 'Letter' },
+    { value: 'Legal', label: 'Legal' },
+  ],
+  ukuran_kertas_ujian: [
+    { value: 'A4', label: 'A4' },
+    { value: 'Letter', label: 'Letter' },
+    { value: 'Legal', label: 'Legal' },
+  ],
+  orientasi: [
+    { value: 'portrait', label: 'Potret' },
+    { value: 'landscape', label: 'Lanskap' },
+  ],
+  orientasi_ujian: [
+    { value: 'landscape', label: 'Lanskap' },
+    { value: 'portrait', label: 'Potret' },
+  ],
 }
 
 // ponytail: hidden, not deleted — no print, letter or page reads these, so editing them changed nothing.
 // The rows stay in the database (no migration); show them again once an output uses them.
 const HIDDEN_KEYS = new Set(['nama_universitas', 'nama_prodi'])
 
-const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'tembusan'])
+const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'catatan_ujian', 'tembusan'])
 
 export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]; canEdit: boolean }) {
   const prodi = useProdi()

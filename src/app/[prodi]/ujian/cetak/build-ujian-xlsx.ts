@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import { BORDER_ALL, addSignatureImage, estimateLines, mergedText } from '@/lib/xlsx'
-import { EXAM_COLUMNS, EXAM_WIDTHS, PENGAWAS_NOTE } from '../exam-rows'
-import type { Signers, UjianSheet } from './ujian-cetak-data'
+import { EXAM_COLUMNS, EXAM_WIDTHS } from '../exam-rows'
+import type { UjianDoc, UjianSheet } from './ujian-cetak-data'
 
 const COLUMN_COUNT = EXAM_COLUMNS.length
 const TITLE_HEIGHT = 15 // points, as in the template
@@ -13,18 +13,20 @@ const WAKIL_DEKAN_TO = 3 // Wakil Dekan I on the left, over KODE MK..SKS
 
 const font = (bold = false): Partial<ExcelJS.Font> => ({ name: 'Arial', size: 11, bold })
 
-export async function buildUjianXlsx(props: Signers & { sheets: UjianSheet[] }): Promise<Uint8Array<ArrayBuffer>> {
+export async function buildUjianXlsx(props: UjianDoc & { sheets: UjianSheet[] }): Promise<Uint8Array<ArrayBuffer>> {
   const workbook = new ExcelJS.Workbook()
   // Each semester is its own sheet, so "Semua semester" converts to one PDF with every semester.
   for (const sheet of props.sheets) addSheet(workbook, sheet, props)
   return new Uint8Array(await workbook.xlsx.writeBuffer())
 }
 
-function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: UjianSheet, props: Signers) {
+function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: UjianSheet, props: UjianDoc) {
+  // exceljs paper-size codes: 5 = Legal, 9 = A4, undefined = Letter (its default)
+  const paperSize = props.ukuranKertas === 'Legal' ? 5 : props.ukuranKertas === 'Letter' ? undefined : 9
   const sheet = workbook.addWorksheet(name, {
     pageSetup: {
-      paperSize: 9, // A4
-      orientation: 'landscape',
+      paperSize,
+      orientation: props.orientasi === 'portrait' ? 'portrait' : 'landscape',
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
@@ -91,7 +93,7 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows }: Ujian
   r = first + rows.length
 
   // The pengawas note sits right under the table, as in the faculty's sheet.
-  const note = mergedText(sheet, r++, COLUMN_COUNT, PENGAWAS_NOTE, { bold: true })
+  const note = mergedText(sheet, r++, COLUMN_COUNT, props.catatanUjian, { bold: true })
   note.font = { ...font(true), size: 9 }
 
   const signature = (row: number, from: number, to: number, text: string, bold: boolean) => {

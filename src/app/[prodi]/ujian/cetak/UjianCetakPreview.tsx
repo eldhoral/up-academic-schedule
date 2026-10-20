@@ -1,12 +1,12 @@
 import type { Prodi } from '@/lib/prodi'
 import { DocFacts, PreviewLayout, PreviewTable, cell } from '@/components/preview'
-import { EXAM_COLUMNS, PENGAWAS_NOTE } from '../exam-rows'
-import type { Signers, UjianSheet } from './ujian-cetak-data'
+import { EXAM_COLUMNS } from '../exam-rows'
+import type { UjianDoc, UjianSheet } from './ujian-cetak-data'
 
 const COLUMNS = EXAM_COLUMNS.map((label) => ({ label, align: 'center' as const }))
 const MONO_COLUMNS = new Set([0, 2, 4, 5, 7]) // KODE MK, SKS, TANGGAL, JAM, KELAS
 
-export function UjianCetakPreview({ sheets, doc, prodi }: { sheets: UjianSheet[]; doc: Signers; prodi: Prodi }) {
+export function UjianCetakPreview({ sheets, doc, prodi }: { sheets: UjianSheet[]; doc: UjianDoc; prodi: Prodi }) {
   return (
     <PreviewLayout
       main={sheets.map((sheet) => (
@@ -19,8 +19,8 @@ export function UjianCetakPreview({ sheets, doc, prodi }: { sheets: UjianSheet[]
           items={[
             { label: 'Mengetahui', value: [doc.jabatanWakilDekan, doc.namaWakilDekan] },
             { label: 'Penandatangan', value: [doc.jabatanPenandatangan, doc.namaPenandatangan] },
-            { label: 'Catatan', value: PENGAWAS_NOTE },
-            { label: 'Kertas', value: 'A4 · Lanskap' },
+            { label: 'Catatan', value: doc.catatanUjian },
+            { label: 'Kertas', value: `${doc.ukuranKertas} · ${doc.orientasi === 'portrait' ? 'Potret' : 'Lanskap'}` },
           ]}
         />
       }
