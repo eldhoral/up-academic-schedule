@@ -1,0 +1,18 @@
+# Everything the build doesn't need — keeps the build context small and prevents
+# host state (a stale .next here, node_modules there) leaking into the image.
+node_modules
+.next
+.git
+.gitignore
+Dockerfile
+.dockerignore
+
+# Local dev / tooling
+.vscode
+.idea
+*.log
+
+# Local env files are never baked into images — runtime supplies them
+.env
+.env.*
+!.env.example

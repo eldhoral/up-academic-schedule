@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Emit a self-contained server (`.next/standalone/server.js + server.js + traced
+  // node_modules`) so the Docker image only needs those files, not a full `npm ci`.
+  output: "standalone",
   // "/" became the menu, then every schedule moved under its prodi (/s1, /s2). Old bookmarks
   // keep working and land on S1, the only prodi before S2 existed; query strings pass through.
   // No redirect for /kalender: that path is now the Kalender Gabungan (every prodi and type in

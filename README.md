@@ -79,6 +79,25 @@ Every account also has an **Akses Prodi** (S1, S2 or Semua; Super Admin is alway
 
 Akses Prodi is set per account in **Manajemen Pengguna**. Shared data (Dosen, Ruangan, Tahun Akademik) is editable by any Penjadwal, whatever the Akses Prodi. Shared Pengaturan (clash policies, university/faculty/dekan) needs Semua.
 
+### Docker
+
+The Dockerfile is a three-stage build (deps → builder → runner): the final image copies only the traced standalone server, `.next/static` and `public`, runs as the unprivileged `node` user, and listens on port 3000. It needs no full `node_modules` install.
+
+Build — the `NEXT_PUBLIC_*` values are inlined into the browser bundle at build time, so they must be passed as build args (the `sed` extraction passes them without echoing them into shell history):
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_SUPABASE_URL="$(sed -n 's/^NEXT_PUBLIC_SUPABASE_URL=//p' .env.local)" \
+  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$(sed -n 's/^NEXT_PUBLIC_SUPABASE_ANON_KEY=//p' .env.local)" \
+  -t krs-scheduling .
+```
+
+Run — the server-only variables (`SUPABASE_SERVICE_ROLE_KEY`, `ASPOSE_*`) are read at runtime, so they come as a plain env file and changing them needs no rebuild:
+
+```bash
+docker run --rm -p 3000:3000 --env-file .env.local krs-scheduling
+```
+
 ## Using it
 
 1. In **Data Master**, set up each prodi's Mata Kuliah, Mahasiswa (for prasidang/sidang or seminar/tesis), Sesi and Pengaturan (clash policies, print header, signatories), and the shared Data Bersama: Dosen, Ruangan and Tahun Akademik. Mata Kuliah, Dosen, Ruangan and Mahasiswa can be imported from Excel: download the template, or export the current data, fill it in, upload it, check the dry-run preview, then commit.
