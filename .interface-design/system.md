@@ -348,7 +348,7 @@ or it isn't — the DB holds `tanggal UNIQUE` + a label.
   "✓ bersih". A schedule with no rows gets "Belum ada jadwal" and no tally;
   a status that can't be read gets "Status belum bisa dibaca" — never a bare "—".
 - **Admin links** — "Lainnya: Data Master · Manajemen Pengguna · Reset Jadwal ·
-  Audit Log" as a plain `--tinta-3` line under the register (the middle two are
+  Log Aktivitas" as a plain `--tinta-3` line under the register (the middle two are
   SUPERADMIN only): secondary to the three schedules, not a fourth row. Reset Jadwal
   is a button in the same link style; its hover is `--merah`, not `--tinta`.
 - **Reset Jadwal modal** (`src/components/ResetJadwalButton.tsx`) — the one
@@ -374,15 +374,6 @@ or it isn't — the DB holds `tanggal UNIQUE` + a label.
   Pengaturan and Pengguna. Entry screens get a `canEdit` prop that hides
   Tambah/Ubah/Isi/Import controls. The database (RLS) is the
   real enforcement; hiding is courtesy. Pengguna redirects non-SUPERADMIN.
-- **Perubahan Terbaru** — the last 5 schedule-table entries from `audit_log`
-  (schedules, schedule_lecturers, exams, defenses only — logins and settings
-  are not noise for the home page) as a bordered list under the register, above
-  the "Lainnya" line. Each row: an action badge (Tambah `--hijau-lembut`, Ubah
-  `--biru-lembut`, Hapus `--merah-lembut`) + the record's Riwayat-style title
-  (`historyIdentity`, one row) + the table label, a first-field diff summary
-  (`historySummary`) with the actor's email front, and a Jakarta-time stamp on
-  the right. Every row clicks through to that record's `/log-aktivitas/riwayat`
-  — the strip answers "what changed since I was here", the log answers it all.
 ## Ujian (UTS/UAS)
 
 `src/app/ujian/` — one row per mata kuliah × kelas (or kelas `GABUNGAN`), per

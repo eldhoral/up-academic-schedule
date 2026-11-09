@@ -165,7 +165,7 @@ New routes require `npx next typegen` so the typed `PageProps<'/route'>` / `Rout
 
 | Route | Purpose | Who |
 |---|---|---|
-| `/` | Hub: per-prodi status tallies, nav, "Perubahan Terbaru" audit strip | Signed-in |
+| `/` | Hub: per-prodi status tallies, nav | Signed-in |
 | `/kalender` | Kalender Gabungan — one week grid, both prodi, all schedule types | Signed-in |
 | `/dosen` | Lecturer master data + import/export | Super Admin writes; all read |
 | `/ruangan` | Room master data | Super Admin writes |
@@ -357,10 +357,9 @@ UI mirrors the DB: `canWrite(role)` shows schedule controls, `canManage(role)` (
 - `audit_row()` — a single `security definer` trigger function attached to every data table (`schedules`, `schedule_lecturers`, `exams`, `defenses`, `courses`, `lecturers`, `rooms`, `students`, `sessions`, `settings`, `academic_years`, `holidays`, …). It records actor (from `auth.uid()`), action, table, record id, and before/after JSON.
 - `lecturers.jadwal_token` is stripped from both sides before writing — a token rotation is never visible in the log.
 - Auth events (login/logout) are appended via the service-role client.
-- Surfaced in three places:
+- Surfaced in two places:
   1. `/log-aktivitas` — filterable browser (table, action, actor, free-text search; 50 rows/page).
   2. `/log-aktivitas/riwayat?tabel=…&id=…` — per-record timeline with human values (course/lecturer/room names resolved by `audit-history.ts`), changed-field chips, and an identity strip.
-  3. Hub "Perubahan Terbaru" — the last 5 entries restricted to `schedules`, `schedule_lecturers`, `exams`, `defenses`, each row deep-linking to its Riwayat page.
 - Retention: nightly purge (`pg_cron`, 03:00) removes entries older than 1 month.
 
 ### 5.6 Migrations and schema evolution
@@ -474,7 +473,7 @@ Applies to four tables (`src/lib/import/tables.ts`): `courses`, `lecturers`, `ro
 ### 6.12 Audit surfacing
 
 - A change is attributed to the acting user (or, for public/token-driven changes, system actions), labelled through `TABLE_LABEL`, and rendered with human values (course names, lecturer display names, room names) everywhere it appears.
-- The Riwayat page answers "what happened to this record", the Log Aktivitas page answers "what happened lately", and the hub strip answers "did anything change since I last looked".
+- The Riwayat page answers "what happened to this record", and the Log Aktivitas page (linked from the hub's "Lainnya" line) answers "what happened lately".
 
 ---
 
@@ -660,11 +659,10 @@ Rule of thumb: **public, read-only surfaces must never 500 over an enhancement**
 
 These behaviors are recent and worth knowing when reading the code:
 
-- **Riwayat Perubahan**: `/log-aktivitas/riwayat?tabel=…&id=…`; helpers in `src/lib/audit-history.ts`; entry point from the Log Aktivitas detail modal and from the hub strip.
+- **Riwayat Perubahan**: `/log-aktivitas/riwayat?tabel=…&id=…`; helpers in `src/lib/audit-history.ts`; entry point from the Log Aktivitas detail modal.
 - **Materi link** on defenses: DB `chk_defenses_link`, form validation `normalizeDefenseLink`, render `defenseLinkLabel`, public page button ("Lihat Materi" on Drive hosts), ICS `description`; intentionally absent from Cetak.
 - **Kalender Gabungan**: `/kalender` (no filters, year + week navigation), pure builder in `src/app/kalender/items.ts`. Note: this path must not be added to legacy redirects.
 - **Hari Libur**: `holidays` table + `src/lib/hari-libur.ts`; kuliah skips in feed/calendar, ujian/sidang form warnings; management UI on `/tahun-akademik`.
-- **Perubahan Terbaru**: hub strip of the last 5 audit entries limited to the four schedule tables (`schedules`, `schedule_lecturers`, `exams`, `defenses`), each linking to Riwayat.
 - **Prasidang Zoom on the public feed**: `Kelompok N · Zoom <id> · Passcode <passcode>` from `prasidang_zoom_*` settings; falls back to `Kelompok N (Zoom)`.
 
 ## Appendix B — Document history
@@ -672,3 +670,4 @@ These behaviors are recent and worth knowing when reading the code:
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 2026-10-17 | Initial TSD, written against the working tree that includes Kalender Gabungan, Hari Libur, Riwayat Perubahan, the materi link and the public-feed hardening. |
+| 1.1 | 2026-11-09 | Hub "Perubahan Terbaru" strip removed; Log Aktivitas is reached from the hub's "Lainnya" line. |
