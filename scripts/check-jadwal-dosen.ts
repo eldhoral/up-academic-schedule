@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildEvents, kuliahDates, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
+import { buildEvents, kuliahDates, publicOrigin, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
 import { prasidangTempat, toJadwal, type RawExam } from '../src/app/jadwal-dosen/jadwal-data'
 import { isJadwalToken, newJadwalToken } from '../src/app/jadwal-dosen/token'
 
@@ -190,5 +190,11 @@ assert.equal(prasidangTempat(null, undefined), 'Kelompok  (Zoom)', 'no settings 
   assert.deepEqual(j.sidang.map((x) => [x.id, x.peran, x.tempat]), [['d1', 'pembimbing', 'Kelompok 2 (Zoom)'], ['d2', 'penguji', 'Ruang 302'], ['d3', 'eksternal', 'Ruang 202']])
   assert.equal(j.sidang[1].link, 'https://drive.google.com/file/1x')
 }
+
+// The public origin behind a proxy: x-forwarded-* first (the first hop when a list), else Host.
+assert.equal(publicOrigin(new Headers({ host: 'internal:3000', 'x-forwarded-host': 'krs.up.ac.id', 'x-forwarded-proto': 'https' })), 'https://krs.up.ac.id')
+assert.equal(publicOrigin(new Headers({ 'x-forwarded-host': 'a.id, b.id', 'x-forwarded-proto': 'https, http' })), 'https://a.id')
+assert.equal(publicOrigin(new Headers({ host: 'localhost:3000', 'x-forwarded-proto': 'http' })), 'http://localhost:3000')
+assert.equal(publicOrigin(new Headers({ host: 'krs.up.ac.id' })), 'https://krs.up.ac.id', 'no proto header: https')
 
 console.log('jadwal dosen: all checks passed')

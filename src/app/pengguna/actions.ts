@@ -175,15 +175,28 @@ export async function deleteUserAction(userId: string): Promise<FormState> {
 }
 
 export async function resetPasswordAction(userId: string): Promise<{ error: string } | { password: string }> {
+  let me
   try {
-    await requireSuperadmin()
+    me = await requireSuperadmin()
   } catch (e) {
     return { error: (e as Error).message }
   }
 
   const password = generatePassword()
-  const { error } = await createAdminClient().auth.admin.updateUserById(userId, { password })
+  const admin = createAdminClient()
+  const { data, error } = await admin.auth.admin.updateUserById(userId, { password })
   if (error) return { error: humanDbError(error) }
+
+  // Like the auth events in src/app/actions/auth.ts: an UPDATE on "auth", best-effort. Never the password.
+  const { error: logError } = await admin.from('audit_log').insert({
+    actor_id: me.id,
+    actor_email: me.email,
+    action: 'UPDATE',
+    table_name: 'auth',
+    record_id: userId,
+    new_data: { email: data.user?.email ?? null, kata_sandi: 'diatur ulang' },
+  })
+  if (logError) console.error('audit_log reset password insert failed:', logError.message)
 
   return { password }
 }

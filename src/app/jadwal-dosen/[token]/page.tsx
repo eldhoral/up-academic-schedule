@@ -6,7 +6,7 @@ import { hariLabel, tanggalPanjang } from '@/lib/hari'
 import { penilaianPath, todayJakarta } from '@/lib/penilaian/akses'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { defenseLinkLabel } from '@/app/[prodi]/sidang/defense-types'
-import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, bisaBeriNilai, sidangJudul, ujianPeranText } from '../events'
+import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, bisaBeriNilai, publicOrigin, sidangJudul, ujianPeranText } from '../events'
 import { loadJadwalDosen } from '../jadwal-data'
 
 export const metadata: Metadata = { title: 'Jadwal Dosen', robots: { index: false, follow: false } }
@@ -16,8 +16,7 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
   const jadwal = await loadJadwalDosen(token)
   if (!jadwal) notFound()
 
-  const h = await headers()
-  const host = h.get('x-forwarded-host') ?? h.get('host') ?? ''
+  const host = publicOrigin(await headers()).replace(/^[a-z]+:\/\//, '')
   const feedPath = `/jadwal-dosen/${token}/kalender.ics`
   const today = todayJakarta()
   // Upcoming first (soonest on top), then what has passed.

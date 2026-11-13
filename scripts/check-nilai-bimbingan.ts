@@ -6,6 +6,8 @@ import {
 } from '../src/lib/penilaian/aturan'
 import { aksesDosen, bisaDinilai, bolehInputLama, halamanDosen, penilaianPath, peranDosen, todayJakarta, type DefenseRef, type Peran } from '../src/lib/penilaian/akses'
 import { buildRekapBimbingan } from '../src/lib/penilaian/rekap'
+import { buildRekapBimbinganXlsx } from '../src/lib/penilaian/rekap-xlsx'
+import ExcelJS from 'exceljs'
 import { baris, formatNilai, ipkSebelum, nilaiBimbingan, nilaiDariSnapshot, parseAngka, round2, snapshotDariSkor, aspekSama } from '../src/lib/penilaian/nilai'
 
 // ---- validation
@@ -176,6 +178,8 @@ async function main() {
   // humanDbError: the dosen lock trigger and the nilai_bimbingan FK get their own wording
   const kunci = 'Dosen pembimbing tidak dapat diubah: prasidang ini sudah dinilai.'
   assert.equal(humanDbError({ code: 'P0001', message: kunci }), kunci)
+  const mhs = 'Mahasiswa tidak dapat diubah: prasidang ini sudah dinilai.'
+  assert.equal(humanDbError({ code: 'P0001', message: mhs }), mhs)
   const fk = { code: '23503', message: 'update or delete on table "defenses" violates foreign key constraint "nilai_bimbingan_defense_id_fkey" on table "nilai_bimbingan"', details: 'Key (id)=(x) is still referenced from table "nilai_bimbingan".' }
   assert.equal(humanDbError(fk), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
   assert.equal(humanDbError({ code: '23503', message: 'update or delete on table "defenses" violates foreign key constraint "nilai_bimbingan_defense_id_fkey" on table "nilai_bimbingan"' }), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
@@ -211,6 +215,14 @@ async function main() {
   assert.equal(rekap[2].bimbingan, null)
   assert.equal(rekap[3].dospem1.nama, '—') // no pembimbing chosen
   assert.equal(rekap[3].bimbingan, null)
+
+  // The Excel recap marks a manual grade on the dosen name; the grade cell stays a number.
+  const xlsx = new ExcelJS.Workbook()
+  await xlsx.xlsx.load((await buildRekapBimbinganXlsx([budi], tabel)).buffer)
+  const sel = xlsx.getWorksheet('Nilai Bimbingan')!.getRow(2)
+  assert.equal(sel.getCell(6).value, 'Dr. A')
+  assert.equal(sel.getCell(9).value, 'Dr. B (input manual)')
+  assert.equal(sel.getCell(10).value, 77)
 
   console.log('nilai-bimbingan: all checks passed')
 }

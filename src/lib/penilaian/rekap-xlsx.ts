@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs'
 import { BORDER_ALL } from '@/lib/xlsx'
 import type { BarisNilai } from './aturan'
 import { baris } from './nilai'
-import type { RekapBimbingan } from './rekap'
+import type { DosenNilai, RekapBimbingan } from './rekap'
 
 const KOLOM: [string, number][] = [
   ['No', 5], ['NPM', 14], ['Nama', 30], ['Judul Skripsi', 50], ['IPK', 8],
@@ -18,12 +18,14 @@ export async function buildRekapBimbinganXlsx(rows: RekapBimbingan[], tabel: Bar
   const sheet = workbook.addWorksheet('Nilai Bimbingan', { views: [{ state: 'frozen', ySplit: 1 }] })
   sheet.columns = KOLOM.map(([header, width]) => ({ header, width }))
   const huruf = (n: number | null) => (n === null ? null : baris(n, tabel).huruf)
+  // Marked on the name, not the grade, so the grade cell stays a number.
+  const dosen = (d: DosenNilai) => (d.manual ? `${d.nama} (input manual)` : d.nama)
 
   rows.forEach((r, i) => {
     sheet.addRow([
       i + 1, r.npm, r.nama, r.judul, r.ipk,
-      r.dospem1.nama, r.dospem1.nilai, huruf(r.dospem1.nilai),
-      r.dospem2.nama, r.dospem2.nilai, huruf(r.dospem2.nilai),
+      dosen(r.dospem1), r.dospem1.nilai, huruf(r.dospem1.nilai),
+      dosen(r.dospem2), r.dospem2.nilai, huruf(r.dospem2.nilai),
       r.bimbingan, huruf(r.bimbingan),
     ])
   })

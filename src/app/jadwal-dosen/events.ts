@@ -57,6 +57,12 @@ export function kuliahDates(item: { hari: string; minggu: Minggu }, mulai: strin
   return dates
 }
 
+/** The origin the visitor used. Behind a proxy the x-forwarded-* headers name it (first hop when a list), else Host. */
+export function publicOrigin(h: Headers): string {
+  const first = (name: string) => h.get(name)?.split(',')[0].trim() || null
+  return `${first('x-forwarded-proto') ?? 'https'}://${first('x-forwarded-host') ?? h.get('host') ?? ''}`
+}
+
 /** Pembimbing Pendamping (pembimbing) and Pembahas (penguji) of an S1 prasidang grade it online; eksternal does not. */
 export const bisaBeriNilai = (s: Pick<SidangItem, 'prodi' | 'jenis' | 'peran'>) => bisaDinilai(s) && (s.peran === 'pembimbing' || s.peran === 'penguji')
 

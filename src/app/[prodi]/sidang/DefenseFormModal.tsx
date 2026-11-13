@@ -237,18 +237,19 @@ export function DefenseFormModal({
             </div>
           </Field>
 
-          <Field label="Mahasiswa">
+          <Field label="Mahasiswa" hint={graded.length > 0 ? SUDAH_DINILAI : undefined}>
             <input
               type="search"
               list="mahasiswa-pilihan"
               value={cari}
+              disabled={graded.length > 0}
               placeholder={npm ? 'Ganti mahasiswa — cari NPM atau nama…' : 'Cari NPM atau nama…'}
               onChange={(e) => {
                 const s = students.find((x) => studentLabel(x) === e.target.value)
                 if (s) pick(s)
                 else setCari(e.target.value)
               }}
-              className={CONTROL}
+              className={`${CONTROL} disabled:cursor-default disabled:opacity-60`}
             />
             <datalist id="mahasiswa-pilihan">
               {students.map((s) => (
