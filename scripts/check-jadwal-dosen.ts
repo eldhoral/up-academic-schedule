@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildEvents, kuliahDates, publicOrigin, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
+import { buildEvents, kuliahDates, linkNilai, publicOrigin, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
 import { prasidangTempat, toJadwal, type RawExam } from '../src/app/jadwal-dosen/jadwal-data'
 import { isJadwalToken, newJadwalToken } from '../src/app/jadwal-dosen/token'
 
@@ -115,7 +115,16 @@ assert.equal(desc(pr({ link: 'https://drive.google.com/file/9' }), O), `https://
 assert.equal(desc(pr()), undefined, 'no origin: no penilaian line')
 assert.equal(desc(pr({ prodi: 's2' }), O), undefined, 'S2 prasidang (seminar proposal) is not graded online')
 assert.equal(desc(pr({ peran: 'eksternal' }), O), undefined, 'eksternal on prasidang is not a grader')
-assert.equal(desc(sd({ peran: 'pembimbing' }), O), undefined, 'sidang is not graded online')
+// --- sidang: all three examiners grade (Ketua = penguji, Anggota I = eksternal, Anggota II = pembimbing), S1 only ---
+for (const peran of ['penguji', 'eksternal', 'pembimbing'] as const) {
+  assert.equal(desc(sd({ prodi: 's1', peran }), O), `Penilaian: ${O}/nilai-sidang/d1`, `${peran} on S1 sidang: link to /nilai-sidang`)
+  assert.equal(desc(sd({ prodi: 's2', peran }), O), undefined, `${peran} on S2 sidang: no link`)
+}
+assert.equal(desc(sd({ prodi: 's1', peran: 'eksternal' })), undefined, 'sidang, no origin: no penilaian line')
+assert.equal(desc(sd({ prodi: 's1', peran: 'eksternal', link: 'https://x/y' }), O), `https://x/y\nPenilaian: ${O}/nilai-sidang/d1`, 'sidang: materi first, then Penilaian')
+assert.equal(linkNilai(sd({ prodi: 's1', peran: 'penguji' })), '/nilai-sidang/d1', 'page path for sidang')
+assert.equal(linkNilai(pr()), '/nilai-bimbingan/d1', 'page path for prasidang')
+assert.equal(linkNilai(sd({ prodi: 's2', peran: 'penguji' })), null, 'page path: S2 sidang none')
 
 // --- prasidang tempat: the Zoom id and passcode ride along when settings declare them -----------
 assert.equal(prasidangTempat(1, { id: '812 3456 789', passcode: 'p3l' }), 'Kelompok 1 · Zoom 812 3456 789 · Passcode p3l', 'both id and passcode show, as typed by the admin')

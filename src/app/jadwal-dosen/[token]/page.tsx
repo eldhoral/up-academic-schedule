@@ -3,10 +3,10 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { KETERANGAN_LABEL, type KeteranganUjian } from '@/app/[prodi]/ujian/exam-types'
 import { hariLabel, tanggalPanjang } from '@/lib/hari'
-import { penilaianPath, todayJakarta } from '@/lib/penilaian/akses'
+import { todayJakarta } from '@/lib/penilaian/akses'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { defenseLinkLabel } from '@/app/[prodi]/sidang/defense-types'
-import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, bisaBeriNilai, publicOrigin, sidangJudul, ujianPeranText } from '../events'
+import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, linkNilai, publicOrigin, sidangJudul, ujianPeranText } from '../events'
 import { loadJadwalDosen } from '../jadwal-data'
 
 export const metadata: Metadata = { title: 'Jadwal Dosen', robots: { index: false, follow: false } }
@@ -93,7 +93,7 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
                 what={`${sidangJudul(s)} · ${s.nama_mahasiswa}`}
                 detail={`${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${PRODI_CONFIG[s.prodi].short}${s.tempat ? ` · ${s.tempat}` : ''}`}
                 link={s.link || undefined}
-                nilaiHref={bisaBeriNilai(s) ? penilaianPath(s.id) : undefined}
+                nilaiHref={linkNilai(s) ?? undefined}
               />
             ))}
           </ul>

@@ -1,6 +1,6 @@
 import { hariFromTanggal } from '@/lib/hari'
 import type { IcsEvent } from '@/lib/ics'
-import { bisaDinilai, penilaianPath } from '@/lib/penilaian/akses'
+import { bisaDinilai, bisaDinilaiSidang, penilaianPath, penilaianSidangPath } from '@/lib/penilaian/akses'
 import { PRODI_CONFIG, type JenisKelas, type Prodi } from '@/lib/prodi'
 import { addDays, mondayOf } from '@/lib/week'
 
@@ -63,8 +63,13 @@ export function publicOrigin(h: Headers): string {
   return `${first('x-forwarded-proto') ?? 'https'}://${first('x-forwarded-host') ?? h.get('host') ?? ''}`
 }
 
-/** Pembimbing Pendamping (pembimbing) and Pembahas (penguji) of an S1 prasidang grade it online; eksternal does not. */
-export const bisaBeriNilai = (s: Pick<SidangItem, 'prodi' | 'jenis' | 'peran'>) => bisaDinilai(s) && (s.peran === 'pembimbing' || s.peran === 'penguji')
+/**
+ * Where this lecturer grades the item online, or null. One source for the page and the calendar.
+ * S1 prasidang: Pembimbing Pendamping (pembimbing) and Pembahas (penguji); eksternal does not.
+ * S1 sidang: all three examiners (Ketua, Anggota I = eksternal, Anggota II = pembimbing).
+ */
+export const linkNilai = (s: Pick<SidangItem, 'id' | 'prodi' | 'jenis' | 'peran'>): string | null =>
+  bisaDinilaiSidang(s) ? penilaianSidangPath(s.id) : bisaDinilai(s) && s.peran !== 'eksternal' ? penilaianPath(s.id) : null
 
 /** origin (e.g. https://host) makes the grading link absolute for the calendar; the page passes none. */
 export function buildEvents(j: JadwalDosen, origin?: string): IcsEvent[] {
@@ -113,7 +118,7 @@ export function buildEvents(j: JadwalDosen, origin?: string): IcsEvent[] {
       summary: `${sidangJudul(s)} · ${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${s.nama_mahasiswa} · ${short(s.prodi)}`,
       location: s.tempat || undefined,
       // The material and grading links ride in the description, so the subscribed calendar offers them too.
-      description: [s.link.trim(), origin && bisaBeriNilai(s) ? `Penilaian: ${origin}${penilaianPath(s.id)}` : ''].filter(Boolean).join('\n') || undefined,
+      description: [s.link.trim(), origin && linkNilai(s) ? `Penilaian: ${origin}${linkNilai(s)}` : ''].filter(Boolean).join('\n') || undefined,
       date: s.tanggal,
       start: s.jam_mulai,
       end: s.jam_selesai,
