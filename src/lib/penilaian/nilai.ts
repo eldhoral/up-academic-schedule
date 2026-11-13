@@ -45,13 +45,23 @@ export function formatNilai(n: number): string {
   return round2(n).toFixed(2).replace('.', ',')
 }
 
+/** The unique (defense_id, peran) answer to a double submit; the form refreshes into the read-only view on it. */
+export const SUDAH_DIKIRIM = 'Nilai sudah dikirim.'
+export const ASPEK_BERUBAH = 'Daftar aspek penilaian berubah. Muat ulang halaman lalu isi lagi.'
+
+/** The aspek list a form showed ([label, bobot] in order) still equals the current one. From the client, so shape-checked. */
+export function aspekSama(tampil: unknown, kini: { label: string; bobot: number }[]): boolean {
+  return Array.isArray(tampil) && tampil.length === kini.length &&
+    tampil.every((t, i) => Array.isArray(t) && t.length === 2 && t[0] === kini[i].label && t[1] === kini[i].bobot)
+}
+
 /**
  * The snapshot a grade stores: one typed skor per aspek row, in order. `skor` comes from the client,
  * so its shape is checked here too. The first bad row is named in the error.
  */
 export function snapshotDariSkor(aspek: { label: string; bobot: number }[], skor: unknown): { aspek: SkorAspek[] } | { error: string } {
   if (!Array.isArray(skor) || skor.length !== aspek.length || !skor.every((s) => typeof s === 'string')) {
-    return { error: 'Daftar aspek penilaian berubah. Muat ulang halaman lalu isi lagi.' }
+    return { error: ASPEK_BERUBAH }
   }
   const rows: SkorAspek[] = []
   for (const [i, a] of aspek.entries()) {

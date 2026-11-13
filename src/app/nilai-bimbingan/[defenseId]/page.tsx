@@ -32,6 +32,8 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
 
   const { defense, aturan } = data
   const tabel = aturan.tabelNilai
+  // What the form shows; the action refuses the grade if the list changed before submit.
+  const tampil = aturan.aspekBimbingan.map((a): [string, number] => [a.label, a.bobot])
   const fakta: [string, React.ReactNode][] = [
     ['NPM', <span key="npm" className="mono">{defense.npm}</span>],
     ['Nama', defense.nama_mahasiswa],
@@ -68,7 +70,7 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
           <NilaiForm
             aspek={aturan.aspekBimbingan}
             tabel={tabel}
-            aksi={submitNilaiAction.bind(null, defense.id, akses.peran)}
+            aksi={submitNilaiAction.bind(null, defense.id, akses.peran, tampil)}
             tombol="Kirim nilai"
             konfirmasi={{ judul: 'Kirim nilai?', isi: 'Setelah dikirim, nilai tidak bisa diubah.', tombol: 'Kirim nilai' }}
           />
@@ -108,7 +110,7 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
                     <NilaiForm
                       aspek={aturan.aspekBimbingan}
                       tabel={tabel}
-                      aksi={inputNilaiLamaAction.bind(null, defense.id, peran)}
+                      aksi={inputNilaiLamaAction.bind(null, defense.id, peran, tampil)}
                       tombol="Simpan nilai lama"
                       konfirmasi={{ judul: 'Simpan nilai lama?', isi: `Nilai dicatat sebagai input manual untuk ${data.dosen[peran]}.`, tombol: 'Simpan' }}
                     />

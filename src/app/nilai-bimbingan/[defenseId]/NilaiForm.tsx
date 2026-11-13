@@ -1,8 +1,9 @@
 'use client'
 
 import { useId, useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import type { BarisNilai } from '@/lib/penilaian/aturan'
-import { baris, formatNilai, nilaiDariSnapshot, parseAngka } from '@/lib/penilaian/nilai'
+import { baris, formatNilai, nilaiDariSnapshot, parseAngka, SUDAH_DIKIRIM } from '@/lib/penilaian/nilai'
 import type { Hasil } from '../actions'
 
 type Props = {
@@ -26,6 +27,7 @@ export function NilaiForm({ aspek, awal, tabel, aksi, tombol, konfirmasi }: Prop
   const [tersimpan, setTersimpan] = useState(false)
   const [pending, startTransition] = useTransition()
   const dialog = useRef<HTMLDialogElement>(null)
+  const router = useRouter()
   // Super Admin sees two forms on one page: ids must not collide.
   const uid = useId()
 
@@ -44,10 +46,19 @@ export function NilaiForm({ aspek, awal, tabel, aksi, tombol, konfirmasi }: Prop
 
   function kirim() {
     startTransition(async () => {
-      const hasil = await aksi(skor)
+      let hasil: Hasil
+      try {
+        hasil = await aksi(skor)
+      } catch {
+        // Network or server failure: nothing was saved, so the scores stay for another try.
+        hasil = { error: 'Tidak dapat menyimpan. Periksa koneksi lalu coba lagi.' }
+      }
       dialog.current?.close()
-      if ('error' in hasil) setError(hasil.error)
-      else setTersimpan(true)
+      if ('error' in hasil) {
+        setError(hasil.error)
+        // Graded in another tab: reload into the read-only view.
+        if (hasil.error === SUDAH_DIKIRIM) router.refresh()
+      } else setTersimpan(true)
     })
   }
 

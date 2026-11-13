@@ -7,19 +7,22 @@ import { humanDbError } from '@/lib/db-error'
 import { tanggalPanjang } from '@/lib/hari'
 import { aksesDosen, bolehInputLama, penilaianPath, todayJakarta, type Peran } from '@/lib/penilaian/akses'
 import { loadPenilaian } from '@/lib/penilaian/data'
-import { nilaiDariSnapshot, snapshotDariSkor, type SkorAspek } from '@/lib/penilaian/nilai'
+import { ASPEK_BERUBAH, SUDAH_DIKIRIM, aspekSama, nilaiDariSnapshot, snapshotDariSkor, type SkorAspek } from '@/lib/penilaian/nilai'
 
 export type Hasil = { error: string } | { ok: true }
 
 const TIDAK_ADA = 'Penilaian tidak ditemukan.'
-const SUDAH = 'Nilai sudah dikirim.'
+const SUDAH = SUDAH_DIKIRIM
 const PERAN: readonly string[] = ['pembimbing_1', 'pembimbing_2']
 
 /** The unique (defense_id, peran) is the last word on a double submit (two tabs). */
 const dbError = (e: { code?: string; message: string }) => (e.code === '23505' ? SUDAH : humanDbError(e))
 
+/** The aspek list the form showed, as [label, bobot]: a grade is refused if the rules changed while the form was open. */
+export type AspekTampil = [string, number][]
+
 /** A DOSEN grades its own peran, from the prasidang date, once. Every rule is re-checked here; RLS checks them again. */
-export async function submitNilaiAction(defenseId: string, peran: Peran, skor: string[]): Promise<Hasil> {
+export async function submitNilaiAction(defenseId: string, peran: Peran, tampil: AspekTampil, skor: string[]): Promise<Hasil> {
   const user = await getCurrentUser()
   if (!user || !isDosen(user.role) || !user.kodeDosen) return { error: TIDAK_ADA }
 
@@ -30,6 +33,7 @@ export async function submitNilaiAction(defenseId: string, peran: Peran, skor: s
   if (akses.kind === 'belum-dibuka') return { error: `Penilaian dibuka pada ${tanggalPanjang(akses.tanggal, false)}.` }
   if (akses.peran !== peran) return { error: TIDAK_ADA }
   if (akses.kind === 'terkirim') return { error: SUDAH }
+  if (!aspekSama(tampil, data.aturan.aspekBimbingan)) return { error: ASPEK_BERUBAH }
 
   const snap = snapshotDariSkor(data.aturan.aspekBimbingan, skor)
   if ('error' in snap) return snap
@@ -75,7 +79,7 @@ export async function editNilaiAction(nilaiId: string, skor: string[]): Promise<
 }
 
 /** Super Admin enters a missing grade from the old xlsx, only on a prasidang before tanggal mulai penilaian. */
-export async function inputNilaiLamaAction(defenseId: string, peran: Peran, skor: string[]): Promise<Hasil> {
+export async function inputNilaiLamaAction(defenseId: string, peran: Peran, tampil: AspekTampil, skor: string[]): Promise<Hasil> {
   const user = await getCurrentUser()
   if (!user || !canManage(user.role)) return { error: 'Hanya Super Admin yang dapat memasukkan nilai lama.' }
   if (!PERAN.includes(peran)) return { error: TIDAK_ADA }
@@ -89,6 +93,7 @@ export async function inputNilaiLamaAction(defenseId: string, peran: Peran, skor
   // The DB doesn't tie kode_dosen to the peran on a manual row, so it is taken from the defense here.
   const kode = peran === 'pembimbing_1' ? data.defense.pembimbing_kode : data.defense.penguji_kode
   if (!kode) return { error: 'Dosen untuk peran ini belum diisi di jadwal prasidang.' }
+  if (!aspekSama(tampil, data.aturan.aspekBimbingan)) return { error: ASPEK_BERUBAH }
 
   const snap = snapshotDariSkor(data.aturan.aspekBimbingan, skor)
   if ('error' in snap) return snap

@@ -28,6 +28,12 @@ async function main() {
     assert.equal(new URL(r.headers.get('location')!).pathname, '/masuk', `${path} still needs login`)
   }
 
+  // An extension on a dynamic segment is no way around the login (or the DOSEN gate behind it).
+  for (const path of ['/api/export/courses.pdf', '/api/export/courses.xlsx', '/s1/kuliah.js', '/x.css']) {
+    const r = await updateSession(new NextRequest(`http://localhost${path}`))
+    assert.equal(new URL(r.headers.get('location')!).pathname, '/masuk', `${path} still needs login`)
+  }
+
   // A DOSEN is kept to its grading pages: pages redirect to Penilaian Saya, exports and staff POSTs get 403.
   const req = (path: string, method = 'GET') => new NextRequest(`http://localhost${path}`, { method })
   for (const path of ['/', '/s1/kuliah', '/pengguna', '/api/export/courses', '/s1/sidang/cetak/xlsx', '/s1/kuliah/cetak/pdf', '/log-aktivitas', '/penilaianx', '/nilai-bimbingan', '/nilai-bimbingan/a/b']) {

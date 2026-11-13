@@ -12,13 +12,13 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Don't intercept static assets or API/auth callback routes
+  // Don't intercept static assets or API/auth callback routes. Images never reach here (config.matcher).
+  // No extension skip: a dynamic segment like /api/export/x.pdf would dodge the login and DOSEN gate.
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/jadwal-dosen/') || // the lecturer's secret link and calendar feed: no session
-    pathname === '/favicon.ico' ||
-    pathname.match(/\.(png|jpg|jpeg|svg|css|js|ico|xlsx|pdf)$/)
+    pathname === '/favicon.ico'
   ) {
     return supabaseResponse
   }

@@ -4,7 +4,7 @@ import {
   DEFAULT_ATURAN, loadAturan, validateAspek, validatePredikat, validateSks, validateTabelNilai,
 } from '../src/lib/penilaian/aturan'
 import { aksesDosen, bisaDinilai, bolehInputLama, halamanDosen, penilaianPath, peranDosen, todayJakarta, type DefenseRef, type Peran } from '../src/lib/penilaian/akses'
-import { baris, formatNilai, ipkSebelum, nilaiBimbingan, nilaiDariSnapshot, parseAngka, round2, snapshotDariSkor } from '../src/lib/penilaian/nilai'
+import { baris, formatNilai, ipkSebelum, nilaiBimbingan, nilaiDariSnapshot, parseAngka, round2, snapshotDariSkor, aspekSama } from '../src/lib/penilaian/nilai'
 
 // ---- validation
 assert.equal(validateAspek(DEFAULT_ATURAN.aspekBimbingan), null)
@@ -79,6 +79,17 @@ for (const bad of [['86', '78', '78'], ['86', '78', '78', '76', '1'], 'x', null,
 }
 const salah = snapshotDariSkor(empat, ['86', '101', '78', '76'])
 assert.ok('error' in salah && salah.error.startsWith('Pemahaman Penelitian:'), 'names the bad row')
+
+// the aspek list a form showed must still be the current one
+const tampil = empat.map((a): [string, number] => [a.label, a.bobot])
+assert.equal(aspekSama(tampil, empat), true)
+assert.equal(aspekSama(tampil.map(([l, b], i) => [i === 0 ? `${l} (baru)` : l, b]), empat), false, 'label changed')
+assert.equal(aspekSama(tampil.map(([l, b], i) => [l, i === 0 ? b + 5 : b]), empat), false, 'bobot changed')
+assert.equal(aspekSama([...tampil].reverse(), empat), false, 'order changed')
+assert.equal(aspekSama(tampil.slice(1), empat), false, 'row removed')
+for (const bad of [null, 'x', [['a']], tampil.map(([l]) => l), tampil.map(([l, b]) => [l, String(b)])]) {
+  assert.equal(aspekSama(bad, empat), false, `${JSON.stringify(bad)} refused`)
+}
 
 // ---- akses
 assert.equal(todayJakarta(new Date('2026-11-09T17:30:00Z')), '2026-11-10')
