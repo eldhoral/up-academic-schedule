@@ -86,7 +86,9 @@ silently win over Tailwind utilities again.
 - **AppHeader** (`src/components/AppHeader.tsx`) — logos (a link to the menu),
   the section nav (`HeaderNav`, below), text-size control, sign-out. It takes
   the page's own path as `active`; the section is derived from that, so no page
-  passes anything else.
+  passes anything else. For a DOSEN account the header is minimal: no section
+  nav, the logo links to Penilaian Saya, and a page outside the DOSEN allowlist
+  redirects there (the proxy does the same first).
   On a phone the header must never push the page wider than the screen: the
   "Ukuran teks" label and the email hide below `sm` (the email stays in Keluar's
   tooltip), and the right-hand group is `min-w-0` so Keluar always fits. Checked at
@@ -365,8 +367,9 @@ or it isn't — the DB holds `tanggal UNIQUE` + a label.
   "‹ Menu", the section's name (`.93rem`/600) and that section's tabs (nav-active
   look for the current one). Sections: kuliah (Penjadwalan, Kalender, Cetak
   Jadwal, Rekap Dosen), ujian (Jadwal Ujian, Cetak, Rekap Pengawas), sidang
-  (Jadwal Sidang, Cetak), master (Mata Kuliah, Dosen, Ruangan, Sesi, Tahun
-  Akademik, Pengaturan); Pengguna and Audit Log show just their title. Adding a
+  (Jadwal Sidang, Cetak, and on S1 only Nilai Bimbingan), master (Mata Kuliah,
+  Dosen, Ruangan, Sesi, Tahun Akademik, Pengaturan, and for Super Admin on S1
+  Penilaian); Pengguna and Audit Log show just their title. Adding a
   page means adding its tab to that section's constant in `HeaderNav.tsx`, and a
   new schedule gets its row on the menu.
 - **Roles** — VIEWER (Pemantau) reads, previews and downloads; SCHEDULER
@@ -374,6 +377,8 @@ or it isn't — the DB holds `tanggal UNIQUE` + a label.
   Pengaturan and Pengguna. Entry screens get a `canEdit` prop that hides
   Tambah/Ubah/Isi/Import controls. The database (RLS) is the
   real enforcement; hiding is courtesy. Pengguna redirects non-SUPERADMIN.
+  DOSEN (Dosen) is not a staff role: it sees only Penilaian Saya and its own
+  grading page, with a minimal header (see "Nilai Bimbingan" below).
 ## Ujian (UTS/UAS)
 
 `src/app/ujian/` — one row per mata kuliah × kelas (or kelas `GABUNGAN`), per
@@ -432,6 +437,27 @@ examiner are fields on the row (no mahasiswa master).
 - **Print** — `/sidang/cetak`: one section per date × room or kelompok, SESI
   numbered per block, only the slots in use. Prasidang carries the Zoom row and the
   "MENGETAHUI," line; sidang does not.
+
+## Nilai Bimbingan (online grading)
+
+S1 prasidang grading by the two dosen pembimbing. Pages: `/nilai-bimbingan/[defenseId]`, `/penilaian` (Penilaian Saya), `/[prodi]/sidang/nilai-bimbingan` (recap), `/[prodi]/pengaturan/penilaian` (rules). Same Bilah ledger; copy is Indonesian. Logic in `src/lib/penilaian/` (covered by `check:nilai-bimbingan`).
+
+- **Grading form** (`NilaiForm.tsx`, `max-w-[52rem]`). Under the `1.6rem`/600 title, a facts `dl` (`12rem | 1fr`; labels `.73rem` uppercase `--tinta-3`): NPM (`mono`), nama, judul, IPK sebelum sidang (`—` when missing), tanggal, "Peran Anda". The form is a ledger `ol` (`--lembar`, `--garis-kuat`, `--r-sedang`, rows divided by `--garis`): per aspek, the label `.93rem`/500 with its bobot as a `mono` `.8rem` `--tinta-3` chip, the sub-points as a `.8rem` `--tinta-3` bullet list, and a `7rem` score input (`mono`, right-aligned, `inputMode="decimal"`, placeholder `0–100`, comma or dot). An invalid cell gets a `--merah` border and a `.8rem` `--merah-teks` message under it, shown only after the first submit attempt.
+  - **Focal number**: the live total and letter ("80,00 · A"), `1.87rem` `mono`/600 with a "NILAI" caption, `aria-live="polite"`, `—` until every cell parses. The primary "Kirim nilai" button sits at the right of the same row.
+  - **Confirm** is a native `<dialog>` (`showModal`, `backdrop:bg-black/40`, `26rem`), not the fixed-overlay modal: title, one sentence ("Setelah dikirim, nilai tidak bisa diubah."), the total and letter again, Batal and a primary button. The same dialog serves the Super Admin edit and old-grade entry with their own copy.
+  - Errors come back as a `--merah-lembut` band under the form; success is a `--hijau` "Tersimpan." line. A "Nilai sudah dikirim." answer (graded in another tab) refreshes the page into the read-only view.
+- **Submitted view** (`Terkirim`). A read-only `--lembar` table of the grade's own snapshot rows (Aspek, Bobot, Skor), "Dikirim <waktu>" in `--tinta-3` (plus "(input manual)"), and the focal nilai and letter. It reads the stored snapshot, never the current aspek list. Before the prasidang date the page shows a bordered notice "Penilaian dibuka pada <tanggal>." instead of a form. A dosen never sees the other dosen's grade.
+- **Staff view of the same page.** One section per peran (`1.2rem`/600 heading, the dosen's name `.87rem` `--tinta-3`). Super Admin gets the prefilled form per submitted grade ("Simpan perubahan", confirm "Nilai sebelumnya diganti. Perubahan tercatat di Log Aktivitas."). An unsubmitted grade shows "Belum dinilai."; on a prasidang before the start date Super Admin also gets the explanatory line and a "Masukkan nilai lama" form ("Simpan nilai lama"). Penjadwal and Pemantau only read.
+- **Penilaian Saya** (`/penilaian`, `62rem`). One `--lembar` register, rows divided by `--garis`, hover `--cekung`: date (`11rem`), then a stretched link with the NPM in `mono` and the nama over a one-line peran and judul, then a status pill: "Belum dibuka" (`--cekung`, `--tinta-3`, `--garis-kuat`), "Belum dinilai" (`--kuning-lembut`, `--kuning`, `--kuning-garis`), "Terkirim" (`--hijau-lembut`, `--hijau`). Newest first, all years. The empty state is one sentence in a bordered box ("Belum ada prasidang S1 yang Anda bimbing.").
+- **Pengaturan Penilaian** (`max-w-[900px]`). Five cards (`Kartu`: `--lembar`, `--garis`, `--r-sedang`, `1.6rem` padding): aspek bimbingan, Tabel Nilai, predikat yudisium, SKS skripsi, tanggal mulai penilaian. Each has its own title (`1.07rem`/600), a `.87rem` `--tinta-3` help line over a `--garis` rule, its editor, then primary "Simpan", ghost "Kembalikan ke bawaan" and a status line. Every card saves alone.
+  - Validation is live and inline: the first problem is worded with its row ("Baris 2, Bobot: …") in `--merah-teks` beside the buttons, and Simpan is disabled while there is one. "Tersimpan." (`--hijau`) shows only for the exact content that was saved; editing hides it.
+  - Numbers are typed as text so a comma works (`2,75`) and are shown that way. Ordered rows carry ↑ ↓ × buttons with row-numbered `aria-label`s, and "+ Tambah …" under the list.
+  - Aspek rows: name, bobot (`6rem`, `mono`), controls, and a sub-aspek textarea (one per line) spanning the row; a "Total bobot N dari 100" line under the list. Tabel Nilai and predikat are column grids with `.73rem` uppercase heads that scroll sideways on a phone (`min-w-[30rem]` / `38rem`); predikat has a "Wajib tepat waktu" checkbox per row.
+- **Recap** (`/[prodi]/sidang/nilai-bimbingan`). A bar (`min-h-[3.2rem]`, `--lembar`, bottom `--garis`) with the tahun akademik `Select` and, right-aligned, the primary "Unduh Excel" (`--biru-disabled` and `cursor-not-allowed` with a title when there are no rows). Below, a `PreviewTable` "Rekap Nilai Bimbingan" with 13 columns (No, NPM, Nama, Judul, IPK, then Dosen/Nilai/Huruf for each dosen, then Nilai Bimbingan and Huruf). NPM and numbers are `mono`; numbers centered; the final nilai and letter `font-semibold`; a missing grade reads "belum dinilai" in `--tinta-3`; a manual one carries "(input manual)" in `.73rem` under its value. For Super Admin the nama and each nilai link to the grading page, and a missing grade on an old prasidang is a "Masukkan nilai lama" link. No prasidang in the year → `EmptySheet` "Belum ada prasidang" with a link to the board.
+- **Beri Nilai** on the public `/jadwal-dosen` sidang rows: a secondary button next to the primary materi button, same size (`.8rem`, `--r-kecil`, `active:scale-[0.97]`) but outlined (`--garis-kuat`, `--tinta`, hover `--cekung`), "Beri Nilai ↗". Only S1 prasidang rows where the dosen is pembimbing or pembahas get it.
+- **Master fields.** Mahasiswa: the list gains Email and a derived IPK column (`mono`, right, `—` when SKS or bobot is missing); the form gains Email, "SKS sebelum sidang" and "Bobot sebelum sidang" side by side (`mono`; bobot with a comma) and a "Lulus tepat waktu" checkbox. IPK is never an input. Dosen: Email and a "Dosen eksternal" checkbox.
+- **Sidang form.** Dosen eksternal never appear in the Pembimbing Pendamping, Pembahas, Ketua Sidang or Anggota Penguji II selects (one already saved there stays listed), and a `--kuning` banner on the board names rows saved before the rule. A graded pembimbing's select is disabled with the hint "Sudah dinilai". The Reset Jadwal Sidang cell of a prodi with graded prasidang is disabled, with a `--merah-teks` line "N prasidang sudah dinilai: tidak bisa direset".
+- **Pengguna.** Role "Dosen" replaces the Akses Prodi field with a Dosen picker (only non-eksternal lecturers without an account; helper line "Akses prodi: S1."). Changing an existing account to Dosen arms the same picker; nothing saves until a dosen is chosen. "Atur ulang kata sandi" on each row opens a small modal: a confirm sentence, then the new password in a `select-all` `<code>` box with a copy button and the line "Kata sandi ini tidak akan ditampilkan lagi. Bagikan ke pengguna secara langsung."
 
 ## Riwayat (per-record history)
 
