@@ -336,3 +336,69 @@ begin
     exception when check_violation then null;
     end;
 end $$;
+
+-- DOSEN: one lecturer, its own profile row only; every staff table reads empty -----------------
+\set dosen '00000000-0000-0000-0000-000000000006'
+\set dosen2 '00000000-0000-0000-0000-000000000007'
+insert into lecturers (kode_dosen, nama) values ('DSN01', 'Dosen Satu');
+insert into holidays (tanggal, label) values ('2026-12-25', 'Natal');
+insert into sessions (hari, sesi_ke, jam_mulai, jam_selesai, sks) values ('SENIN', 1, '07:30', '09:10', 2);
+insert into auth.users (id, email) values (:'dosen', 'dosen@test');
+update profiles set role = 'DOSEN', kode_dosen = 'DSN01' where id = :'dosen';
+
+-- The tables a DOSEN must not see; each holds rows, so "reads 0" proves the policy.
+create temp table dosen_hidden (t text);
+insert into dosen_hidden values ('academic_years'), ('courses'), ('lecturers'), ('rooms'), ('sessions'), ('schedules'),
+    ('schedule_lecturers'), ('settings'), ('holidays'), ('students'), ('exams'), ('defenses'), ('audit_log');
+grant select on dosen_hidden to authenticated;
+do $$
+declare t text; n int;
+begin
+    for t in select * from dosen_hidden loop
+        execute format('select count(*) from %I', t) into n;
+        assert n > 0, t || ' has rows to hide';
+    end loop;
+end $$;
+
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$
+declare t text; n int;
+begin
+    for t in select * from dosen_hidden loop
+        execute format('select count(*) from %I', t) into n;
+        assert n = 0, 'DOSEN reads ' || t || ': ' || n;
+    end loop;
+    assert (select count(*) from profiles) = 1, 'DOSEN reads only its own profile';
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'viewer', false);
+set role authenticated;
+do $$ begin
+    assert (select count(*) from lecturers) > 0, 'the viewer still reads lecturers';
+    assert (select count(*) from profiles) > 1, 'the viewer still reads the roster';
+end $$;
+reset role;
+
+do $$ begin
+    begin
+        update profiles set kode_dosen = null where id = '00000000-0000-0000-0000-000000000006';
+        raise exception 'FAIL: a DOSEN without kode_dosen';
+    exception when check_violation then null;
+    end;
+    begin
+        update profiles set kode_dosen = 'DSN01' where id = '00000000-0000-0000-0000-000000000005';
+        raise exception 'FAIL: a staff account with kode_dosen';
+    exception when check_violation then null;
+    end;
+end $$;
+
+insert into auth.users (id, email) values (:'dosen2', 'dosen2@test');
+do $$ begin
+    begin
+        update profiles set role = 'DOSEN', kode_dosen = 'DSN01' where id = '00000000-0000-0000-0000-000000000007';
+        raise exception 'FAIL: two DOSEN accounts for DSN01';
+    exception when unique_violation then null;
+    end;
+end $$;
