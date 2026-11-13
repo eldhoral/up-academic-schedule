@@ -5,6 +5,7 @@ const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
 
 export const GENERATED_PASSWORD_LENGTH = 12
 
-export function generatePassword(): string {
-  return Array.from({ length: GENERATED_PASSWORD_LENGTH }, () => ALPHABET[randomInt(ALPHABET.length)]).join('')
+/** rand(n) returns 0..n-1; injectable so checks can seed it. */
+export function generatePassword(length = GENERATED_PASSWORD_LENGTH, rand: (n: number) => number = randomInt): string {
+  return Array.from({ length }, () => ALPHABET[rand(ALPHABET.length)]).join('')
 }

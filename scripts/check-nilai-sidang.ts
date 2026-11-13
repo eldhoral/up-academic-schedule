@@ -205,3 +205,95 @@ import {
   for (const p of ['/nilai-sidang', '/nilai-sidang/a/b']) assert.equal(halamanDosen(p, 'DOSEN'), false, p)
   console.log('nilai-sidang akses: all checks passed')
 }
+
+// ---- akun penguji eksternal
+import { emailLogin, ensureAkunEksternal, passwordAcak, usernameEksternal } from '../src/lib/penilaian/akun-eksternal'
+{
+  assert.equal(usernameEksternal('EXT-01', '2026-11-20'), 'eks-ext01-201126')
+  assert.equal(usernameEksternal('ab_C 9', '2027-01-05'), 'eks-abc9-050127')
+  let seed = 42
+  const seeded = (n: number) => (seed = (seed * 1103515245 + 12345) % 2 ** 31) % n
+  for (let i = 0; i < 50; i++) {
+    const p = passwordAcak(10, seeded)
+    assert.equal(p.length, 10)
+    assert.ok(!/[0O1lI]/.test(p), p)
+  }
+  assert.equal(passwordAcak().length, 10)
+  assert.equal(emailLogin('eks-x-1'), 'eks-x-1@penguji.local')
+  assert.equal(emailLogin('a@b.id'), 'a@b.id')
+}
+
+// ensureAkunEksternal against a recording fake of the admin client.
+type Hasil = { data?: unknown; error?: { message: string; code?: string } | null }
+function fakeAdmin(r: { ada?: Hasil; create?: Hasil; profil?: Hasil; insert?: Hasil; hapus?: Hasil; pemilik?: Hasil }) {
+  const log: string[] = []
+  const chain = (nama: string, hasil: Hasil = {}) => {
+    type Chain = Record<string, (...a: unknown[]) => unknown>
+    const c: Chain = {}
+    for (const m of ['select', 'eq', 'lt', 'update', 'insert']) c[m] = (...a) => { log.push(`${nama}.${m}(${a.map((x) => JSON.stringify(x)).join(',')})`); return c }
+    c.maybeSingle = async () => ({ data: null, error: null, ...hasil })
+    c.then = (ok) => (ok as (v: unknown) => void)({ data: null, error: null, ...hasil })
+    return c
+  }
+  const admin = {
+    from: (t: string) => ({
+      select: (s: string) => (s === 'kode_dosen' ? chain(`${t}:pemilik`, r.pemilik) : chain(t, r.ada)).select(s),
+      update: (v: unknown) => chain(t, r.profil).update(v),
+      insert: (v: unknown) => chain(t, r.insert).insert(v),
+    }),
+    auth: { admin: {
+      createUser: async (v: { email: string }) => { log.push(`createUser(${v.email})`); return { data: { user: { id: 'u-baru' } }, error: null, ...r.create } },
+      deleteUser: async (id: string) => { log.push(`deleteUser(${id})`); return { data: null, error: null, ...r.hapus } },
+    } },
+  }
+  return { admin: admin as unknown as SupabaseClient, log }
+}
+async function cekEnsure() {
+  // New: one profile update with role + kode + berlaku_sampai = tanggal + 1, then the akun row.
+  {
+    const { admin, log } = fakeAdmin({})
+    const res = await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20')
+    assert.ok(res.created && res.username === 'eks-ext01-201126' && res.password.length === 10)
+    assert.ok(log.includes('createUser(eks-ext01-201126@penguji.local)'), log.join('\n'))
+    assert.ok(log.some((l) => l.startsWith('profiles.update(') && l.includes('"role":"EKSTERNAL"') && l.includes('"kode_dosen":"EXT-01"') && l.includes('"berlaku_sampai":"2026-11-21"')), log.join('\n'))
+    assert.ok(log.some((l) => l.startsWith('akun_eksternal.insert(') && l.includes('"username":"eks-ext01-201126"')), log.join('\n'))
+    assert.ok(!log.some((l) => l.startsWith('deleteUser')))
+  }
+  // Exists: no new user, berlaku_sampai only ever raised to tanggal + 1.
+  {
+    const { admin, log } = fakeAdmin({ ada: { data: { user_id: 'u-lama' } } })
+    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), { created: false })
+    assert.ok(!log.some((l) => l.startsWith('createUser')))
+    assert.ok(log.includes('profiles.lt("berlaku_sampai","2026-11-21")'), log.join('\n'))
+  }
+  // Profile update fails: the VIEWER user is deleted, the error surfaces.
+  {
+    const { admin, log } = fakeAdmin({ profil: { error: { message: 'boom' } } })
+    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'))
+    assert.ok(log.includes('deleteUser(u-baru)'))
+  }
+  // ...and a failed delete is reported too, naming the leftover login.
+  {
+    const { admin } = fakeAdmin({ profil: { error: { message: 'boom' } }, hapus: { error: { message: 'down' } } })
+    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), /eks-ext01-201126/)
+  }
+  // Race lost on the akun row (23505): clean up our user, treat as existing.
+  {
+    const { admin, log } = fakeAdmin({ insert: { error: { message: 'dup', code: '23505' } } })
+    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), { created: false })
+    assert.ok(log.includes('deleteUser(u-baru)'))
+  }
+  // Race lost on the login itself (same username): nothing to clean up, treat as existing.
+  {
+    const { admin, log } = fakeAdmin({ create: { data: null, error: { message: 'exists', code: 'email_exists' } } })
+    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), { created: false })
+    assert.ok(!log.some((l) => l.startsWith('deleteUser')))
+  }
+  // ...unless that username belongs to another dosen (kodes that normalize alike).
+  {
+    const { admin } = fakeAdmin({ create: { data: null, error: { message: 'exists', code: 'email_exists' } }, pemilik: { data: { kode_dosen: 'EXT01' } } })
+    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), /dosen lain/)
+  }
+  console.log('nilai-sidang akun eksternal: all checks passed')
+}
+cekEnsure().catch((e) => { console.error(e); process.exit(1) })

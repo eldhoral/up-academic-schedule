@@ -14,6 +14,7 @@ import {
   saveDefenseAction,
   type DefenseClashResult,
   type DefenseClashSummary,
+  type AkunBaru,
   type DefenseInput,
 } from './actions'
 import { jenisLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
@@ -92,6 +93,7 @@ export function DefenseFormModal({
   const [needsOverride, setNeedsOverride] = useState<DefenseClashSummary[] | null>(null)
   const [overrideConfirmed, setOverrideConfirmed] = useState(false)
   const [overrideReason, setOverrideReason] = useState('')
+  const [hasil, setHasil] = useState<{ akunBaru?: AkunBaru; akunError?: string } | null>(null)
 
   const complete = !!(tanggal && jamMulai && jamSelesai)
 
@@ -147,7 +149,8 @@ export function DefenseFormModal({
       else if ('needsOverride' in res) setNeedsOverride(res.clashes)
       else {
         router.refresh()
-        onClose()
+        if (res.akunBaru || res.akunError) setHasil(res)
+        else onClose()
       }
     })
   }
@@ -157,6 +160,9 @@ export function DefenseFormModal({
   // Dosen eksternal: Anggota Penguji I only. One already saved in another role stays listed so it shows; the save accepts it unchanged and refuses it in a role it was not in.
   const internalOptions = (current: string) => [{ value: NONE, label: '— kosong —' }, ...lecturers.filter((l) => !l.eksternal || l.value === current)]
   const pickDosen = (set: (v: string) => void) => (v: string) => set(v === NONE ? '' : v)
+
+  // Saved; the day login for the eksternal examiner was just made (or failed to be).
+  if (hasil) return <AkunDialog {...hasil} onClose={onClose} />
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-label={`${row ? 'Ubah' : 'Tambah'} ${jenisLabel(prodi, context.jenis)}`}>
@@ -405,6 +411,64 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       <span className="block text-[0.8rem] font-medium text-[var(--tinta-2)] mb-[0.25rem]">{label}</span>
       {children}
       {hint && <span className="block mt-[0.25rem] text-[0.73rem] text-[var(--tinta-3)]">{hint}</span>}
+    </div>
+  )
+}
+
+const BUTTON = 'px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]'
+
+/** The new day login, shown once: the password is not stored anywhere. */
+function AkunDialog({ akunBaru, akunError, onClose }: { akunBaru?: AkunBaru; akunError?: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState(false)
+
+  async function copy() {
+    if (!akunBaru) return
+    try {
+      await navigator.clipboard.writeText(`Username: ${akunBaru.username}\nKata sandi: ${akunBaru.password}`)
+      setCopied(true)
+    } catch {
+      setCopyError(true)
+    }
+  }
+
+  const judul = akunBaru ? 'Akun penguji eksternal dibuat — catat dan serahkan' : 'Jadwal tersimpan'
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="akun-judul">
+      <div className="w-full max-w-[28rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
+        <h3 id="akun-judul" className="m-0 text-[1.1rem] font-semibold mb-[0.6rem]">{judul}</h3>
+        {akunError && (
+          <div role="alert" className="bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.87rem] text-[var(--merah-teks)] mb-[0.8rem]">
+            {akunError}
+          </div>
+        )}
+        {akunBaru && (
+          <>
+            <p className="text-[0.93rem] text-[var(--tinta-2)] mb-[0.6rem]">
+              Login untuk <strong>{akunBaru.nama}</strong>, berlaku pada sidang {tanggalSingkat(akunBaru.tanggal)} sampai keesokan harinya.
+            </p>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-[0.8rem] gap-y-[0.4rem] items-center m-0 mb-[0.6rem] text-[0.87rem]">
+              <dt className="text-[var(--tinta-2)]">Username</dt>
+              <dd className="m-0"><code className="mono select-all">{akunBaru.username}</code></dd>
+              <dt className="text-[var(--tinta-2)]">Kata sandi</dt>
+              <dd className="m-0"><code className="mono select-all tracking-[0.05em]">{akunBaru.password}</code></dd>
+            </dl>
+            <p className="text-[0.8rem] text-[var(--tinta-3)] mb-[1rem]">
+              {copyError ? 'Tidak dapat menyalin. Catat secara manual. ' : ''}Kata sandi ini tidak akan ditampilkan lagi. Bila hilang, buat yang baru di Akun Penguji Eksternal.
+            </p>
+          </>
+        )}
+        <div className="flex gap-[0.6rem] justify-end">
+          {akunBaru && (
+            <button type="button" onClick={copy} className={BUTTON}>
+              {copied ? 'Tersalin' : 'Salin'}
+            </button>
+          )}
+          <button type="button" onClick={onClose} className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)]">
+            Tutup
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

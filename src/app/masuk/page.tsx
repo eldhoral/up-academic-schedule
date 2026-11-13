@@ -106,6 +106,8 @@ function MasukForm() {
               <b className="block font-semibold text-[var(--merah)] mb-[0.13rem]">
                 {errorMessage.includes('paused') || errorMessage.includes('rate limit')
                   ? 'Proses masuk sementara ditunda'
+                  : errorMessage.includes('tidak berlaku')
+                  ? 'Akun tidak berlaku'
                   : errorMessage.includes('Supabase is not configured')
                   ? 'Catatan Konfigurasi'
                   : 'Email dan kata sandi tidak cocok'}
@@ -124,14 +126,14 @@ function MasukForm() {
               htmlFor="email"
               className="block text-[0.93rem] font-medium mb-[0.33rem]"
             >
-              Email
+              Email atau username
             </label>
             <input
               id="email"
               name="email"
-              type="email"
+              type="text"
               autoComplete="username"
-              inputMode="email"
+              autoCapitalize="none"
               spellCheck="false"
               required
               placeholder="admin@univpancasila.ac.id"
@@ -139,7 +141,7 @@ function MasukForm() {
               aria-describedby="bantu-email"
             />
             <p className="mt-[0.33rem] text-[0.87rem] text-[var(--tinta-3)]" id="bantu-email">
-              Alamat yang telah didaftarkan oleh administrator Anda.
+              Alamat yang telah didaftarkan oleh administrator Anda. Penguji eksternal: username dari bagian akademik.
             </p>
           </div>
 

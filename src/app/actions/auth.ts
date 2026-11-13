@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { humanDbError } from '@/lib/db-error'
+import { emailLogin } from '@/lib/penilaian/akun-eksternal'
+import { eksternalAktif } from '@/lib/penilaian/akses'
 
 export type AuthState = {
   error?: string
@@ -39,15 +41,17 @@ export async function signInAction(
   prevState: AuthState | null,
   formData: FormData
 ): Promise<AuthState> {
-  const email = (formData.get('email') as string)?.trim()
+  const input = (formData.get('email') as string)?.trim()
   const password = formData.get('password') as string
   const redirectTo = (formData.get('redirectTo') as string) || '/'
 
-  if (!email || !password) {
+  if (!input || !password) {
     return {
-      error: 'Silakan isi email dan kata sandi.',
+      error: 'Silakan isi email atau username dan kata sandi.',
     }
   }
+  // A penguji eksternal signs in with the bare username of its day account.
+  const email = emailLogin(input)
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
@@ -78,7 +82,14 @@ export async function signInAction(
     }
   }
 
-  if (data.user) await logAuthEvent('LOGIN', data.user.id, data.user.email ?? email)
+  // An EKSTERNAL day account past berlaku_sampai: the password still works, the account doesn't.
+  const { data: profile } = await supabase.from('profiles').select('role, berlaku_sampai').eq('id', data.user.id).maybeSingle()
+  if (profile?.role === 'EKSTERNAL' && !(profile.berlaku_sampai && eksternalAktif(profile.berlaku_sampai))) {
+    await supabase.auth.signOut()
+    return { error: 'Akun ini sudah tidak berlaku.' }
+  }
+
+  await logAuthEvent('LOGIN', data.user.id, data.user.email ?? email)
 
   const destination = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`
   redirect(destination)

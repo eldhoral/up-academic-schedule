@@ -2,7 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { signOutAction } from '@/app/actions/auth'
-import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
+import { getCurrentUser, canManage, canWrite, isPenguji } from '@/lib/roles'
 import { halamanDosen } from '@/lib/penilaian/akses'
 import type { Prodi } from '@/lib/prodi'
 import { TextSizeController } from './TextSizeController'
@@ -36,7 +36,7 @@ export async function AppHeader({ active, prodi }: { active: string; prodi?: Pro
           <span className="sr-only">Menu utama</span>
         </Link>
         {/* Minimal header for a DOSEN: no section nav, the logo is its menu. */}
-        {!dosen && <HeaderNav active={active} prodi={prodi} canManage={canManage(user?.role ?? null)} />}
+        {!dosen && <HeaderNav active={active} prodi={prodi} canManage={canManage(user?.role ?? null)} canWrite={canWrite(user?.role ?? null)} />}
       </div>
 
       {/* ml-auto (not the parent's justify-between) so this group stays flush right even

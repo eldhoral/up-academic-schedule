@@ -2,6 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { ensureAkunEksternal } from '@/lib/penilaian/akun-eksternal'
+import { bisaDinilaiSidang } from '@/lib/penilaian/akses'
 import { humanDbError } from '@/lib/db-error'
 import { orientFinding } from '@/lib/clash'
 import { parseProdi, prodiTag, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
@@ -47,7 +50,12 @@ export type DefenseClashSummary = {
 
 export type DefenseClashResult = { clashes: DefenseClashSummary[]; blocking: boolean }
 
-export type DefenseFormState = { error: string } | { success: true } | { needsOverride: true; clashes: DefenseClashSummary[] }
+/** akunBaru: a day login made by this save (password shown once). akunError: the save stands, the login didn't get made. */
+export type AkunBaru = { username: string; password: string; nama: string; tanggal: string }
+export type DefenseFormState =
+  | { error: string }
+  | { success: true; akunBaru?: AkunBaru; akunError?: string }
+  | { needsOverride: true; clashes: DefenseClashSummary[] }
 
 const CAND = 'cand'
 
@@ -226,7 +234,29 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
   if (error) return { error: humanDbError(error, 'NPM ini pada jenis ujian yang sama') }
 
   revalidatePath('/[prodi]/sidang', 'page')
-  return { success: true }
+  return { success: true, ...(await akunPenguji(supabase, row)) }
+}
+
+/**
+ * An eksternal Anggota Penguji I on an S1 sidang gets a day login for that date. Runs after the save
+ * and never undoes it: a failure comes back as akunError for the form to show.
+ */
+async function akunPenguji(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  row: { prodi: string; jenis: string; tanggal: string; penguji_eksternal_kode: string | null },
+): Promise<{ akunBaru?: AkunBaru; akunError?: string }> {
+  const kode = row.penguji_eksternal_kode
+  if (!kode || !bisaDinilaiSidang(row)) return {}
+  try {
+    const { data: dosen, error } = await supabase.from('lecturers').select('nama, eksternal').eq('kode_dosen', kode).maybeSingle()
+    if (error) throw new Error(humanDbError(error))
+    if (!dosen?.eksternal) return {}
+    const akun = await ensureAkunEksternal(createAdminClient(), kode, row.tanggal)
+    if (!akun.created) return {}
+    return { akunBaru: { username: akun.username, password: akun.password, nama: dosen.nama, tanggal: row.tanggal } }
+  } catch (e) {
+    return { akunError: `Jadwal tersimpan, tetapi akun penguji eksternal belum dibuat: ${(e as Error).message} Simpan ulang jadwal ini untuk mencoba lagi.` }
+  }
 }
 
 export async function deleteDefenseAction(prodi: Prodi, id: string): Promise<DefenseFormState> {

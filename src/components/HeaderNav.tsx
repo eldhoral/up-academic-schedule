@@ -35,6 +35,9 @@ const MASTER_PRODI: Tab[] = [
 // S1 only: online grading is S1 prasidang.
 const NILAI_BIMBINGAN: Tab = { href: '/sidang/nilai-bimbingan', label: 'Nilai Bimbingan' }
 
+// Super Admin and Penjadwal, S1 only: day logins for external sidang examiners.
+const AKUN_EKSTERNAL: Tab = { href: '/sidang/akun-eksternal', label: 'Akun Penguji Eksternal' }
+
 // Super Admin only, S1 only (online grading is S1 prasidang).
 const PENILAIAN: Tab = { href: '/pengaturan/penilaian', label: 'Penilaian' }
 
@@ -45,7 +48,7 @@ const MASTER_SHARED: Tab[] = [
 ]
 
 /** The section a page belongs to; null on the menu itself ("/"). */
-function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean): Section | null {
+function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean, canWrite: boolean): Section | null {
   if (prodi) {
     const c = PRODI_CONFIG[prodi]
     const own = (title: string, tabs: Tab[]) => ({ title: `${c.short} · ${title}`, tabs: tabs.map((t) => ({ ...t, href: `/${prodi}${t.href}` })) })
@@ -53,7 +56,8 @@ function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean)
     if (active.startsWith('/ujian')) return own('Jadwal UTS & UAS', UJIAN)
     if (active.startsWith('/sidang')) {
       const tabs = SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t))
-      return own(`Jadwal ${c.defense.section}`, prodi === 's1' ? [...tabs, NILAI_BIMBINGAN] : tabs)
+      const s1 = canWrite ? [...tabs, NILAI_BIMBINGAN, AKUN_EKSTERNAL] : [...tabs, NILAI_BIMBINGAN]
+      return own(`Jadwal ${c.defense.section}`, prodi === 's1' ? s1 : tabs)
     }
     const master = canManage && prodi === 's1' ? [...MASTER_PRODI, PENILAIAN] : MASTER_PRODI
     if (master.some((t) => t.href === active)) return own('Data Master', master)
@@ -74,8 +78,8 @@ const linkClass = (isActive: boolean) =>
   }`
 
 /** Back to the menu, the section's name, and its tabs. Nothing on the menu itself. */
-export function HeaderNav({ active, prodi, canManage = false }: { active: string; prodi?: Prodi; canManage?: boolean }) {
-  const section = sectionOf(active, prodi, canManage)
+export function HeaderNav({ active, prodi, canManage = false, canWrite = false }: { active: string; prodi?: Prodi; canManage?: boolean; canWrite?: boolean }) {
+  const section = sectionOf(active, prodi, canManage, canWrite)
   if (!section) return null
   const current = prodi ? `/${prodi}${active}` : active
 
