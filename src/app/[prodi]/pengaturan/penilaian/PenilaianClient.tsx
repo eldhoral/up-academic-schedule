@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition, type ReactNode } from 'react'
 import {
-  DEFAULT_ATURAN, validateAspek, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
+  DEFAULT_ATURAN, validateAspek, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
   type Aturan,
 } from '@/lib/penilaian/aturan'
 import { todayJakarta } from '@/lib/penilaian/akses'
@@ -120,7 +120,21 @@ const predikatRows = (p: Aturan['predikat']) => p.map((r) => ({ min: fmt(r.min),
 export function PenilaianClient({ aturan }: { aturan: Aturan }) {
   return (
     <div className="space-y-[1.2rem]">
-      <AspekKartu awal={aturan.aspekBimbingan} />
+      <AspekKartu
+        awal={aturan.aspekBimbingan}
+        judul="Aspek bimbingan"
+        bantuan="Aspek prasidang yang dinilai dosen pembimbing. Total bobot harus 100. Sub-aspek, satu per baris, tampil sebagai panduan di form."
+        kunci="aspek_bimbingan"
+        bawaan={DEFAULT_ATURAN.aspekBimbingan}
+      />
+      <AspekKartu
+        awal={aturan.aspekSidang}
+        judul="Aspek sidang"
+        bantuan="Aspek sidang yang dinilai tiga penguji. Total bobot harus 100. Sub-aspek, satu per baris, tampil sebagai panduan di form."
+        kunci="aspek_sidang"
+        bawaan={DEFAULT_ATURAN.aspekSidang}
+      />
+      <YudisiumKartu awal={aturan.pilihanYudisium} />
       <TabelKartu awal={aturan.tabelNilai} />
       <PredikatKartu awal={aturan.predikat} />
       <SksKartu awal={aturan.sksSkripsi} />
@@ -129,7 +143,13 @@ export function PenilaianClient({ aturan }: { aturan: Aturan }) {
   )
 }
 
-function AspekKartu({ awal }: { awal: Aturan['aspekBimbingan'] }) {
+function AspekKartu({ awal, judul, bantuan, kunci, bawaan }: {
+  awal: Aturan['aspekBimbingan']
+  judul: string
+  bantuan: string
+  kunci: 'aspek_bimbingan' | 'aspek_sidang'
+  bawaan: Aturan['aspekBimbingan']
+}) {
   const { list, setList, set, add, remove, move } = useList(aspekRows(awal))
   const parsed = useMemo(() => semua(list, (r, i) => {
     const b = angka(r.bobot, 0, 100, 'Bobot', i + 1)
@@ -140,12 +160,12 @@ function AspekKartu({ awal }: { awal: Aturan['aspekBimbingan'] }) {
 
   return (
     <Kartu
-      judul="Aspek bimbingan"
-      bantuan="Aspek prasidang yang dinilai dosen pembimbing. Total bobot harus 100. Sub-aspek, satu per baris, tampil sebagai panduan di form."
-      kunci="aspek_bimbingan"
+      judul={judul}
+      bantuan={bantuan}
+      kunci={kunci}
       error={error}
       nilai={'value' in parsed ? parsed.value : null}
-      onDefault={() => setList(aspekRows(DEFAULT_ATURAN.aspekBimbingan))}
+      onDefault={() => setList(aspekRows(bawaan))}
     >
       <div className="space-y-[0.8rem]">
         {list.map((r, i) => (
@@ -161,6 +181,37 @@ function AspekKartu({ awal }: { awal: Aturan['aspekBimbingan'] }) {
         <button type="button" className={BTN} onClick={() => add({ label: '', bobot: '', sub: '' })}>+ Tambah aspek</button>
         <span className="text-[0.93rem]">Total bobot <span className="mono font-medium">{fmt(total)}</span> dari 100</span>
       </div>
+    </Kartu>
+  )
+}
+
+function YudisiumKartu({ awal }: { awal: Aturan['pilihanYudisium'] }) {
+  const { list, setList, set, add, remove, move } = useList(awal)
+  const nilai = useMemo(() => list.map((r) => ({ label: r.label.trim(), lulus: r.lulus })), [list])
+  const error = validatePilihanYudisium(nilai)
+
+  return (
+    <Kartu
+      judul="Pilihan yudisium"
+      bantuan="Pilihan yang diberikan Ketua Penguji saat mengunci nilai. Harus ada minimal satu pilihan lulus dan satu tidak lulus; Nilai Akhir hanya dihitung untuk pilihan lulus. Mengubah pilihan tidak mengubah sidang yang sudah dikunci."
+      kunci="pilihan_yudisium"
+      error={error}
+      nilai={nilai}
+      onDefault={() => setList(DEFAULT_ATURAN.pilihanYudisium.map((r) => ({ ...r })))}
+    >
+      <div className="space-y-[0.4rem]">
+        {list.map((r, i) => (
+          <div key={i} className="grid grid-cols-[1fr_6rem_auto] gap-[0.5rem] items-center">
+            <input className={INPUT} value={r.label} onChange={(e) => set(i, { label: e.target.value })} placeholder="Nama yudisium" aria-label={`Nama yudisium baris ${i + 1}`} />
+            <label className="flex items-center gap-[0.4rem] text-[0.87rem] min-h-[2.4rem]">
+              <input type="checkbox" checked={r.lulus} onChange={(e) => set(i, { lulus: e.target.checked })} />
+              Lulus
+            </label>
+            <BarisAksi i={i} n={list.length} move={move} remove={remove} />
+          </div>
+        ))}
+      </div>
+      <button type="button" className={`${BTN} mt-[0.6rem]`} onClick={() => add({ label: '', lulus: false })}>+ Tambah pilihan</button>
     </Kartu>
   )
 }

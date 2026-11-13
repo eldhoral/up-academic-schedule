@@ -5,11 +5,11 @@ import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { managerOnly } from '@/lib/prodi-server'
 import {
-  validateAspek, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
-  type Aspek, type BarisNilai, type BarisPredikat,
+  validateAspek, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
+  type Aspek, type BarisNilai, type BarisPredikat, type Yudisium,
 } from '@/lib/penilaian/aturan'
 
-export type Kunci = 'aspek_bimbingan' | 'tabel_nilai' | 'predikat' | 'sks_skripsi' | 'tanggal_mulai_penilaian'
+export type Kunci = 'aspek_bimbingan' | 'aspek_sidang' | 'pilihan_yudisium' | 'tabel_nilai' | 'predikat' | 'sks_skripsi' | 'tanggal_mulai_penilaian'
 export type Hasil = { error: string } | { ok: true }
 
 const BENTUK = 'Data tidak berbentuk benar. Muat ulang halaman lalu coba lagi.'
@@ -21,13 +21,18 @@ const rows = (v: unknown): Record<string, unknown>[] | null => (Array.isArray(v)
 /** Shape check, then the same validate* the editor shows inline. Returns the value to store. */
 function periksa(kunci: Kunci, value: unknown): { error: string } | { nilai: unknown } {
   const r = rows(value)
-  if (kunci === 'aspek_bimbingan') {
+  if (kunci === 'aspek_bimbingan' || kunci === 'aspek_sidang') {
     if (!r || !r.every((x) => isStr(x.label) && isNum(x.bobot) && Array.isArray(x.sub) && x.sub.every(isStr))) return { error: BENTUK }
     const a: Aspek[] = r.map((x) => ({
       label: (x.label as string).trim(), bobot: x.bobot as number,
       sub: (x.sub as string[]).map((s) => s.trim()).filter(Boolean),
     }))
     return validateAspek(a) ? { error: validateAspek(a)! } : { nilai: a }
+  }
+  if (kunci === 'pilihan_yudisium') {
+    if (!r || !r.every((x) => isStr(x.label) && typeof x.lulus === 'boolean')) return { error: BENTUK }
+    const y: Yudisium[] = r.map((x) => ({ label: (x.label as string).trim(), lulus: x.lulus as boolean }))
+    return validatePilihanYudisium(y) ? { error: validatePilihanYudisium(y)! } : { nilai: y }
   }
   if (kunci === 'tabel_nilai') {
     if (!r || !r.every((x) => isNum(x.min) && isStr(x.huruf) && isNum(x.mutu))) return { error: BENTUK }
@@ -49,7 +54,7 @@ function periksa(kunci: Kunci, value: unknown): { error: string } | { nilai: unk
   return validateTanggal(value) ? { error: validateTanggal(value)! } : { nilai: value }
 }
 
-const KUNCI: readonly string[] = ['aspek_bimbingan', 'tabel_nilai', 'predikat', 'sks_skripsi', 'tanggal_mulai_penilaian']
+const KUNCI: readonly string[] = ['aspek_bimbingan', 'aspek_sidang', 'pilihan_yudisium', 'tabel_nilai', 'predikat', 'sks_skripsi', 'tanggal_mulai_penilaian']
 
 /** Super Admin, S1 only. Writes on the session client so the audit log names the real actor. */
 export async function saveAturanAction(kunci: Kunci, value: unknown): Promise<Hasil> {
