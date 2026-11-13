@@ -842,6 +842,12 @@ begin
     end;
     begin
         insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, ada_revisi, revisi, submitted_by)
+        values (sd1, 'EXT01', 'anggota_1', a, 80, true, '[]', auth.uid());
+        raise exception 'FAIL: ada_revisi without revisi';
+    exception when check_violation then null;
+    end;
+    begin
+        insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, ada_revisi, revisi, submitted_by)
         values (sd1, 'EXT01', 'anggota_1', a, 80, true, '[{"halaman":"1","catatan":"  "}]', auth.uid());
         raise exception 'FAIL: a revisi row without catatan';
     exception when check_violation then null;
@@ -889,15 +895,38 @@ reset role;
 select set_config('request.jwt.claim.sub', :'dosen', false);
 set role authenticated;
 do $$
-declare sd1 uuid := (select id from sd_def where k = 'sd1');
+declare sd1 uuid := (select id from sd_def where k = 'sd1'); r record;
 begin
     insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
     values (sd1, 'DSN01', 'ketua', '[{"label": "A", "bobot": 100, "skor": 80}]', 80, auth.uid());
     assert (select count(*) from nilai_sidang where defense_id = sd1) = 3, 'the Ketua reads all three grades';
     assert (select count(*) from hasil_sidang) = 0, 'not locked yet';
-    insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, locked_at, locked_by)
-    values (sd1, 'Lulus Dengan Revisi', true, '{"sks_skripsi": 6}', '2020-01-01', auth.uid());
-    assert (select locked_at from hasil_sidang where defense_id = sd1) > now() - interval '1 minute', 'locked_at is the lock time';
+    begin
+        insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, locked_by)
+        values (sd1, 'Tidak Lulus', true, '{}', auth.uid());
+        raise exception 'FAIL: a yudisium pair outside pilihan_yudisium';
+    exception when check_violation then null;
+    end;
+    begin
+        insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, locked_by)
+        values (sd1, 'Lulus Bersyarat', true, '{}', auth.uid());
+        raise exception 'FAIL: a yudisium label outside pilihan_yudisium';
+    exception when check_violation then null;
+    end;
+    -- The client's rules and email fields are ignored: the DB freezes the current rules.
+    insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, locked_at, locked_by, email_status, email_detail)
+    values (sd1, 'Lulus Dengan Revisi', true,
+            '{"tabelNilai": [{"min": 0, "huruf": "A", "mutu": 4}], "predikat": [], "sksSkripsi": 99}',
+            '2020-01-01', auth.uid(), 'terkirim', '[{"email": "x@y.id", "ok": true}]');
+    select * into r from hasil_sidang where defense_id = sd1;
+    assert r.locked_at > now() - interval '1 minute', 'locked_at is the lock time';
+    assert r.aturan = jsonb_build_object(
+        'tabelNilai', (select nilai from aturan_penilaian where prodi = 's1' and kunci = 'tabel_nilai'),
+        'predikat', (select nilai from aturan_penilaian where prodi = 's1' and kunci = 'predikat'),
+        'sksSkripsi', (select nilai from aturan_penilaian where prodi = 's1' and kunci = 'sks_skripsi')), 'aturan frozen from the rules: ' || r.aturan;
+    assert r.aturan -> 'sksSkripsi' = '6'::jsonb, 'the seeded sks skripsi';
+    assert r.email_status = 'menunggu', 'a sidang with revisi waits for its email: ' || r.email_status;
+    assert r.email_detail = '[]'::jsonb, 'email_detail starts empty';
 end $$;
 reset role;
 
@@ -941,6 +970,11 @@ begin
     update hasil_sidang set yudisium_label = 'Lulus Tanpa Revisi', yudisium_lulus = true where defense_id = sd1;
     get diagnostics n = row_count;
     assert n = 1, 'Super Admin edits the yudisium';
+    begin
+        update hasil_sidang set yudisium_label = 'Tidak Lulus', yudisium_lulus = true where defense_id = sd1;
+        raise exception 'FAIL: Super Admin saved a yudisium pair outside pilihan_yudisium';
+    exception when check_violation then null;
+    end;
     foreach c in array array['peran', 'kode_dosen', 'sumber', 'submitted_by'] loop
         begin
             execute format('update nilai_sidang set %I = %I where defense_id = $1', c, c) using sd1;
@@ -966,6 +1000,7 @@ begin
     end;
     insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_by)
     values (sd0, 'EXT01', 'anggota_1', a, 70, 'manual', auth.uid()), (sd0, 'DSN02', 'anggota_2', a, 70, 'manual', auth.uid());
+    update nilai_sidang set ada_revisi = true, revisi = '[{"catatan": "Perbaiki abstrak"}]' where defense_id = sd0 and peran = 'anggota_1';
     begin
         insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, locked_by)
         values (sd0, 'Lulus Tanpa Revisi', true, '{}', auth.uid());
@@ -974,8 +1009,9 @@ begin
     end;
     insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_by)
     values (sd0, 'DSN01', 'ketua', a, 70, 'manual', auth.uid());
-    insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, locked_by)
-    values (sd0, 'Lulus Tanpa Revisi', true, '{}', auth.uid());
+    insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, locked_by, email_status)
+    values (sd0, 'Lulus Tanpa Revisi', true, '{}', auth.uid(), 'menunggu');
+    assert (select email_status from hasil_sidang where defense_id = sd0) = 'tidak_perlu', 'an old sidang sends no email, revisi or not';
 end $$;
 reset role;
 
@@ -1031,6 +1067,17 @@ begin
     assert exists (select 1 from audit_log where table_name = 'hasil_sidang'), 'the lock is audited';
     assert exists (select 1 from audit_log where table_name = 'akun_eksternal'), 'day accounts are audited';
     assert exists (select 1 from audit_log where table_name = 'profiles' and record_id = '00000000-0000-0000-0000-000000000007'), 'profile changes are audited';
+end $$;
+
+-- A new sidang with no revisi anywhere sends no email.
+insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber)
+select (select id from sd_def where k = 'sd3'), kode, peran, '[{"label": "A", "bobot": 100, "skor": 70}]', 70, 'manual'
+from (values ('DSN03', 'ketua'), ('EXT01', 'anggota_1')) v(kode, peran);
+insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, email_status)
+values ((select id from sd_def where k = 'sd3'), 'Lulus Tanpa Revisi', true, '{}', 'gagal');
+do $$ begin
+    assert (select email_status from hasil_sidang where defense_id = (select id from sd_def where k = 'sd3')) = 'tidak_perlu',
+        'no revisi, no email';
 end $$;
 
 -- Expiry at the Jakarta boundary, then the day check.

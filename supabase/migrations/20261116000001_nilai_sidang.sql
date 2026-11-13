@@ -158,12 +158,13 @@ create table if not exists nilai_sidang (
     submitted_by uuid default auth.uid() references auth.users(id) on delete set null,
     created_at timestamptz not null default timezone('utc'::text, now()),
     updated_at timestamptz not null default timezone('utc'::text, now()),
-    unique (defense_id, peran),
-    constraint chk_nilai_sidang_revisi check (ada_revisi or revisi = '[]'::jsonb)
+    unique (defense_id, peran)
 );
+alter table nilai_sidang drop constraint if exists chk_nilai_sidang_revisi;
+alter table nilai_sidang add constraint chk_nilai_sidang_revisi check (ada_revisi = (revisi <> '[]'::jsonb));
 
--- One row per locked sidang. aturan is the frozen Tabel Nilai, predikat and sks_skripsi.
--- email_* are written by the server (admin client) after the lock commits.
+-- One row per locked sidang. aturan is the frozen Tabel Nilai, predikat and sks_skripsi, set by
+-- the DB at lock. email_* start from the DB too; the server (admin client) writes the outcome.
 create table if not exists hasil_sidang (
     defense_id uuid primary key references defenses(id) on delete restrict,
     yudisium_label text not null,
@@ -222,19 +223,49 @@ create trigger cek_nilai_sidang
     before insert or update on nilai_sidang
     for each row execute function cek_nilai_sidang();
 
+-- The yudisium must be one of pilihan_yudisium (checked again only when it changes, so a later
+-- rules edit never blocks the email update). At lock the DB, not the client, freezes the rules
+-- (keys match the TS AturanBeku) and decides whether a revisi email is due: never for an old
+-- sidang, otherwise when any examiner has revisi.
 create or replace function set_hasil_sidang_locked()
 returns trigger
 language plpgsql
+security definer
+set search_path = public
 as $$
 begin
-    NEW.locked_at := now();
+    if (TG_OP = 'INSERT'
+            or (NEW.yudisium_label, NEW.yudisium_lulus) is distinct from (OLD.yudisium_label, OLD.yudisium_lulus))
+        and not exists (
+            select 1 from aturan_penilaian, jsonb_array_elements(nilai) y
+            where prodi = 's1' and kunci = 'pilihan_yudisium'
+              and y ->> 'label' = NEW.yudisium_label and y -> 'lulus' = to_jsonb(NEW.yudisium_lulus)
+        ) then
+        raise exception 'Yudisium tidak ada dalam pilihan yudisium.' using errcode = 'check_violation';
+    end if;
+
+    if TG_OP = 'INSERT' then
+        NEW.locked_at := now();
+        NEW.aturan := jsonb_build_object(
+            'tabelNilai', (select nilai from aturan_penilaian where prodi = 's1' and kunci = 'tabel_nilai'),
+            'predikat', (select nilai from aturan_penilaian where prodi = 's1' and kunci = 'predikat'),
+            'sksSkripsi', (select nilai from aturan_penilaian where prodi = 's1' and kunci = 'sks_skripsi'));
+        NEW.email_status := case
+            when exists (select 1 from defenses d
+                         where d.id = NEW.defense_id
+                           and d.tanggal < (select (nilai #>> '{}')::date from aturan_penilaian
+                                            where prodi = 's1' and kunci = 'tanggal_mulai_penilaian'))
+                 or not exists (select 1 from nilai_sidang where defense_id = NEW.defense_id and ada_revisi)
+            then 'tidak_perlu' else 'menunggu' end;
+        NEW.email_detail := '[]'::jsonb;
+    end if;
     return NEW;
 end;
 $$;
 
 drop trigger if exists set_hasil_sidang_locked on hasil_sidang;
 create trigger set_hasil_sidang_locked
-    before insert on hasil_sidang
+    before insert or update on hasil_sidang
     for each row execute function set_hasil_sidang_locked();
 
 drop trigger if exists audit_nilai_sidang on nilai_sidang;
