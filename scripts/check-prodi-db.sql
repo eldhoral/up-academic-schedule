@@ -559,3 +559,124 @@ begin
     end;
     update lecturers set email = 'dsn02@up.ac.id', eksternal = true where kode_dosen = 'DSN02';
 end $$;
+
+-- Nilai Bimbingan hardening ---------------------------------------------------------------------
+-- The admin client (loadPenilaian, Penilaian Saya) reads these as service_role.
+do $$ begin
+    assert has_table_privilege('service_role', 'students', 'select'), 'service_role reads students';
+    assert has_table_privilege('service_role', 'nilai_bimbingan', 'select'), 'service_role reads nilai_bimbingan';
+    assert has_table_privilege('service_role', 'aturan_penilaian', 'select'), 'service_role reads aturan_penilaian';
+    -- The nightly cron job runs as postgres, the owner; nobody signed in may purge the log.
+    assert not has_function_privilege('authenticated', 'purge_old_audit_log()', 'execute'), 'authenticated cannot purge audit_log';
+    assert not has_function_privilege('anon', 'purge_old_audit_log()', 'execute'), 'anon cannot purge audit_log';
+    assert has_function_privilege('postgres', 'purge_old_audit_log()', 'execute'), 'the cron owner still purges';
+end $$;
+
+-- A grade of DSN02's (seeded as postgres) and a fresh prasidang DSN01 grades from yesterday.
+select set_config('request.jwt.claim.sub', '', false);
+insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber)
+values ((select id from nb_def where k = 'pras0'), 'DSN02', 'pembimbing_2', '[{"label": "A", "bobot": 100, "skor": 60}]', 60, 'manual');
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, pembimbing_kode, penguji_kode, prodi)
+values ('R0002', 'prasidang', (now() at time zone 'Asia/Jakarta')::date - 1, '08:00', '09:00', 1, '88004', '88004', 'DSN01', 'DSN02', 's1');
+insert into nb_def select 'pras4', id from defenses where npm = '88004';
+select set_config('nb.total', (select count(*)::text from nilai_bimbingan), false);
+
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$
+declare
+    pras4 uuid := (select id from nb_def where k = 'pras4');
+    bad jsonb;
+    r record;
+begin
+    assert not exists (select 1 from nilai_bimbingan where kode_dosen = 'DSN02'), 'DSN01 cannot read DSN02''s grade';
+    -- nilai is tied to aspek: a shape the form never sends is refused.
+    foreach bad in array array[
+        '[{"label": "x", "bobot": 1, "skor": 0}]',
+        '[]',
+        '{"label": "A", "bobot": 100, "skor": 80}',
+        '[{"label": "A", "bobot": 100, "skor": 101}]',
+        '[{"label": "A", "bobot": 100, "skor": -1}]',
+        '[{"label": " ", "bobot": 100, "skor": 80}]',
+        '[{"label": "A", "bobot": 0, "skor": 80}, {"label": "B", "bobot": 100, "skor": 80}]',
+        '[{"label": "A", "bobot": "100", "skor": 80}]',
+        '[{"label": "A", "bobot": 100}]'
+    ]::jsonb[]
+    loop
+        begin
+            insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_at, submitted_by)
+            values (pras4, 'DSN01', 'pembimbing_1', bad, 100, '2020-01-01', auth.uid());
+            raise exception 'FAIL: a bad aspek was accepted: %', bad;
+        exception when check_violation then null;
+        end;
+    end loop;
+    -- The DB computes nilai and the timestamps: the client's values are ignored.
+    insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_at, created_at, submitted_by)
+    values (pras4, 'DSN01', 'pembimbing_1',
+            '[{"label": "A", "bobot": 33.33, "skor": 80.25}, {"label": "B", "bobot": 66.67, "skor": 71}]',
+            12, '2020-01-01', '2020-01-01', auth.uid());
+    select nilai, submitted_at, created_at into r from nilai_bimbingan where defense_id = pras4;
+    assert r.nilai = 74.08, 'nilai recomputed from aspek: ' || r.nilai;
+    assert r.submitted_at > now() - interval '1 minute', 'submitted_at is the insert time';
+    assert r.created_at > now() - interval '1 minute', 'created_at is the insert time';
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'s1', false);
+set role authenticated;
+do $$ begin
+    assert (select count(*) from nilai_bimbingan) = current_setting('nb.total')::int + 1, 'a Penjadwal reads every grade';
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub', :'viewer', false);
+set role authenticated;
+do $$ begin
+    assert (select count(*) from nilai_bimbingan) = current_setting('nb.total')::int + 1, 'a viewer reads every grade';
+end $$;
+reset role;
+
+-- Super Admin edits aspek only; the grade's owner, peran and history stay. Rules are never deleted.
+select set_config('request.jwt.claim.sub', :'super', false);
+set role authenticated;
+do $$
+declare
+    pras4 uuid := (select id from nb_def where k = 'pras4');
+    c text;
+    n int;
+begin
+    foreach c in array array['peran', 'kode_dosen', 'sumber', 'defense_id', 'submitted_at', 'submitted_by', 'created_at'] loop
+        begin
+            execute format('update nilai_bimbingan set %I = %I where defense_id = $1', c, c) using pras4;
+            raise exception 'FAIL: Super Admin updated nilai_bimbingan.%', c;
+        exception when insufficient_privilege then null;
+        end;
+    end loop;
+    update nilai_bimbingan set aspek = '[{"label": "A", "bobot": 100, "skor": 65.5}]', nilai = 1 where defense_id = pras4;
+    get diagnostics n = row_count;
+    assert n = 1, 'Super Admin edits aspek';
+    assert (select nilai from nilai_bimbingan where defense_id = pras4) = 65.5, 'an edit recomputes nilai';
+    delete from aturan_penilaian where prodi = 's1' and kunci = 'tanggal_mulai_penilaian';
+    get diagnostics n = row_count;
+    assert n = 0, 'Super Admin never deletes a rule';
+end $$;
+reset role;
+
+-- A graded prasidang keeps its student: npm, jenis and prodi are locked; other edits still save.
+do $$
+declare
+    pras1 uuid := (select id from nb_def where k = 'pras1');
+    pras2 uuid := (select id from nb_def where k = 'pras2');
+    c text;
+begin
+    foreach c in array array['npm = ''88009''', 'jenis = ''sidang''', 'prodi = ''s2'''] loop
+        begin
+            execute format('update defenses set %s where id = $1', c) using pras1;
+            raise exception 'FAIL: changed a graded prasidang: %', c;
+        exception when raise_exception then
+            assert sqlerrm = 'Mahasiswa tidak dapat diubah: prasidang ini sudah dinilai.', sqlerrm;
+        end;
+    end loop;
+    update defenses set npm = npm, jenis = jenis, prodi = prodi, jam_mulai = '08:30' where id = pras1;
+    update defenses set npm = '88012' where id = pras2;
+    update defenses set npm = '88002' where id = pras2;
+end $$;

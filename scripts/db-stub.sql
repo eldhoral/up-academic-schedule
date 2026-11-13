@@ -19,3 +19,11 @@ grant usage on schema storage to authenticated;
 grant all on storage.objects to authenticated;
 
 grant usage on schema public to anon, authenticated, service_role;
+
+-- 20260924000007_audit_log_retention needs pg_cron, so check-prodi-db.sh skips it; its function is
+-- defined here so later migrations can change its grants. Body unchecked: audit_log comes later.
+set check_function_bodies = off;
+create function purge_old_audit_log() returns void language sql security definer set search_path = public as $$
+    delete from audit_log where at < now() - interval '1 month';
+$$;
+reset check_function_bodies;
