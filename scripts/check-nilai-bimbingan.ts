@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   DEFAULT_ATURAN, loadAturan, validateAspek, validatePredikat, validateSks, validateTabelNilai,
 } from '../src/lib/penilaian/aturan'
+import { aksesDosen, bisaDinilai, bolehInputLama, penilaianPath, peranDosen, todayJakarta, type DefenseRef, type Peran } from '../src/lib/penilaian/akses'
 import { baris, formatNilai, ipkSebelum, nilaiBimbingan, nilaiDariSnapshot, parseAngka, round2 } from '../src/lib/penilaian/nilai'
 
 // ---- validation
@@ -61,12 +62,45 @@ assert.equal(ipkSebelum(404.57, null), null)
 assert.equal(formatNilai(78.5), '78,50')
 assert.equal(formatNilai(80), '80,00')
 
+// ---- akses
+assert.equal(todayJakarta(new Date('2026-11-09T17:30:00Z')), '2026-11-10')
+assert.equal(todayJakarta(new Date('2026-11-09T16:59:00Z')), '2026-11-09')
+const def = (o: Partial<DefenseRef> = {}): DefenseRef => ({
+  id: 'd1', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-10', pembimbing_kode: 'AAA', penguji_kode: 'BBB', ...o,
+})
+assert.equal(peranDosen(def(), 'AAA'), 'pembimbing_1')
+assert.equal(peranDosen(def(), 'BBB'), 'pembimbing_2')
+assert.equal(peranDosen(def(), 'CCC'), null)
+assert.equal(peranDosen(def({ prodi: 's2' }), 'AAA'), null)
+assert.equal(peranDosen(def({ jenis: 'sidang' }), 'AAA'), null)
+assert.equal(peranDosen(def({ pembimbing_kode: null }), 'AAA'), null)
+const none = new Set<Peran>()
+const T = '2026-11-10'
+assert.deepEqual(aksesDosen(null, 'AAA', none, T), { kind: 'tidak-ada' })
+assert.deepEqual(aksesDosen(def({ prodi: 's2' }), 'AAA', none, T), { kind: 'tidak-ada' })
+assert.deepEqual(aksesDosen(def({ jenis: 'sidang' }), 'AAA', none, T), { kind: 'tidak-ada' })
+assert.deepEqual(aksesDosen(def(), 'CCC', none, T), { kind: 'tidak-ada' })
+assert.deepEqual(aksesDosen(def(), 'AAA', none, '2026-11-09'), { kind: 'belum-dibuka', tanggal: '2026-11-10' })
+assert.deepEqual(aksesDosen(def(), 'AAA', none, T), { kind: 'isi', peran: 'pembimbing_1' })
+assert.deepEqual(aksesDosen(def(), 'BBB', none, '2026-12-01'), { kind: 'isi', peran: 'pembimbing_2' })
+assert.deepEqual(aksesDosen(def(), 'AAA', new Set<Peran>(['pembimbing_1']), T), { kind: 'terkirim', peran: 'pembimbing_1' })
+assert.deepEqual(aksesDosen(def(), 'BBB', new Set<Peran>(['pembimbing_1']), T), { kind: 'isi', peran: 'pembimbing_2' })
+assert.equal(bolehInputLama(def({ tanggal: '2026-10-31' }), '2026-11-01'), true)
+assert.equal(bolehInputLama(def({ tanggal: '2026-11-01' }), '2026-11-01'), false)
+assert.equal(bolehInputLama(def({ tanggal: '2026-11-02' }), '2026-11-01'), false)
+assert.equal(bolehInputLama(def({ tanggal: '2026-10-31', prodi: 's2' }), '2026-11-01'), false)
+assert.equal(bolehInputLama(def({ tanggal: '2026-10-31', jenis: 'sidang' }), '2026-11-01'), false)
+assert.equal(bisaDinilai({ prodi: 's1', jenis: 'prasidang' }), true)
+assert.equal(bisaDinilai({ prodi: 's2', jenis: 'prasidang' }), false)
+assert.equal(bisaDinilai({ prodi: 's1', jenis: 'sidang' }), false)
+assert.equal(penilaianPath('abc'), '/nilai-bimbingan/abc')
+
 // ---- loadAturan
-function fakeDb(rows: { kunci: string; nilai: unknown }[] | null) {
+function fakeDb(rows: { kunci: string; nilai: unknown }[] | null, error: { message: string } | null = null) {
   return {
     from: (t: string) => {
       assert.equal(t, 'aturan_penilaian')
-      return { select: () => ({ eq: async (c: string, v: string) => { assert.deepEqual([c, v], ['prodi', 's1']); return { data: rows } } }) }
+      return { select: () => ({ eq: async (c: string, v: string) => { assert.deepEqual([c, v], ['prodi', 's1']); return { data: rows, error } } }) }
     },
   } as unknown as SupabaseClient
 }
@@ -100,6 +134,9 @@ async function main() {
   assert.deepEqual(rusak.predikat, DEFAULT_ATURAN.predikat)
   assert.match(rusak.tanggalMulai, /^\d{4}-\d{2}-\d{2}$/)
   assert.notEqual(rusak.tanggalMulai, '2026-13-45')
+
+  // a DB error must throw, never fall back to defaults (would freeze a default snapshot into a grade)
+  await assert.rejects(loadAturan(fakeDb(null, { message: 'boom' }), 's1'), /boom/)
 
   console.log('nilai-bimbingan: all checks passed')
 }

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { todayJakarta } from './akses'
 import { round2 } from './nilai'
 
 export type Aspek = { label: string; bobot: number; sub: string[] }
@@ -10,11 +11,6 @@ export type Aturan = {
   predikat: BarisPredikat[]
   sksSkripsi: number
   tanggalMulai: string
-}
-
-/** Today in Asia/Jakarta as YYYY-MM-DD (en-CA formats as ISO). */
-function hariIniJakarta(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
 }
 
 /**
@@ -60,7 +56,7 @@ export const DEFAULT_ATURAN: Aturan = {
     { min: 3.51, max: 4, predikat: 'Dengan Pujian', butuhTepatWaktu: true },
   ],
   sksSkripsi: 6,
-  tanggalMulai: hariIniJakarta(),
+  tanggalMulai: todayJakarta(),
 }
 
 const num = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n)
@@ -139,7 +135,9 @@ function parseTanggal(v: unknown): string | null {
 
 /** The prodi's rules; each missing or invalid kunci falls back to the default so a bad row never breaks grading. */
 export async function loadAturan(db: SupabaseClient, prodi: 's1'): Promise<Aturan> {
-  const { data } = await db.from('aturan_penilaian').select('kunci, nilai').eq('prodi', prodi)
+  const { data, error } = await db.from('aturan_penilaian').select('kunci, nilai').eq('prodi', prodi)
+  // A transient DB error must not fall back to defaults: that would freeze a default snapshot into an immutable grade.
+  if (error) throw new Error(`Gagal memuat aturan penilaian: ${error.message}`)
   const raw = new Map<string, unknown>((data ?? []).map((r: { kunci: string; nilai: unknown }) => [r.kunci, r.nilai]))
   const sks = raw.get('sks_skripsi')
   return {
@@ -147,6 +145,6 @@ export async function loadAturan(db: SupabaseClient, prodi: 's1'): Promise<Atura
     tabelNilai: parseTabel(raw.get('tabel_nilai')) ?? DEFAULT_ATURAN.tabelNilai,
     predikat: parsePredikat(raw.get('predikat')) ?? DEFAULT_ATURAN.predikat,
     sksSkripsi: num(sks) && !validateSks(sks) ? sks : DEFAULT_ATURAN.sksSkripsi,
-    tanggalMulai: parseTanggal(raw.get('tanggal_mulai_penilaian')) ?? hariIniJakarta(),
+    tanggalMulai: parseTanggal(raw.get('tanggal_mulai_penilaian')) ?? todayJakarta(),
   }
 }

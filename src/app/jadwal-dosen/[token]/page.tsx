@@ -3,14 +3,13 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { KETERANGAN_LABEL, type KeteranganUjian } from '@/app/[prodi]/ujian/exam-types'
 import { hariLabel, tanggalPanjang } from '@/lib/hari'
+import { todayJakarta } from '@/lib/penilaian/akses'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { defenseLinkLabel } from '@/app/[prodi]/sidang/defense-types'
 import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, sidangJudul, ujianPeranText } from '../events'
 import { loadJadwalDosen } from '../jadwal-data'
 
 export const metadata: Metadata = { title: 'Jadwal Dosen', robots: { index: false, follow: false } }
-
-const todayJakarta = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
 
 export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[token]'>) {
   const { token } = await props.params
