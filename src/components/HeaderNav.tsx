@@ -32,6 +32,9 @@ const MASTER_PRODI: Tab[] = [
   { href: '/pengaturan', label: 'Pengaturan' },
 ]
 
+// Super Admin only, S1 only (online grading is S1 prasidang).
+const PENILAIAN: Tab = { href: '/pengaturan/penilaian', label: 'Penilaian' }
+
 const MASTER_SHARED: Tab[] = [
   { href: '/dosen', label: 'Dosen' },
   { href: '/ruangan', label: 'Ruangan' },
@@ -39,14 +42,15 @@ const MASTER_SHARED: Tab[] = [
 ]
 
 /** The section a page belongs to; null on the menu itself ("/"). */
-function sectionOf(active: string, prodi: Prodi | undefined): Section | null {
+function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean): Section | null {
   if (prodi) {
     const c = PRODI_CONFIG[prodi]
     const own = (title: string, tabs: Tab[]) => ({ title: `${c.short} · ${title}`, tabs: tabs.map((t) => ({ ...t, href: `/${prodi}${t.href}` })) })
     if (active.startsWith('/kuliah')) return own('Jadwal Mata Kuliah & Dosen', KULIAH)
     if (active.startsWith('/ujian')) return own('Jadwal UTS & UAS', UJIAN)
     if (active.startsWith('/sidang')) return own(`Jadwal ${c.defense.section}`, SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t)))
-    if (MASTER_PRODI.some((t) => t.href === active)) return own('Data Master', MASTER_PRODI)
+    const master = canManage && prodi === 's1' ? [...MASTER_PRODI, PENILAIAN] : MASTER_PRODI
+    if (master.some((t) => t.href === active)) return own('Data Master', master)
   }
   if (MASTER_SHARED.some((t) => t.href === active)) return { title: 'Data Bersama', tabs: MASTER_SHARED }
   if (active === '/kalender') return { title: 'Kalender Gabungan', tabs: [] }
@@ -64,8 +68,8 @@ const linkClass = (isActive: boolean) =>
   }`
 
 /** Back to the menu, the section's name, and its tabs. Nothing on the menu itself. */
-export function HeaderNav({ active, prodi }: { active: string; prodi?: Prodi }) {
-  const section = sectionOf(active, prodi)
+export function HeaderNav({ active, prodi, canManage = false }: { active: string; prodi?: Prodi; canManage?: boolean }) {
+  const section = sectionOf(active, prodi, canManage)
   if (!section) return null
   const current = prodi ? `/${prodi}${active}` : active
 

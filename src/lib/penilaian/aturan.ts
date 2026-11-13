@@ -102,6 +102,10 @@ export function validateSks(n: number): string | null {
   return Number.isInteger(n) && n > 0 ? null : 'SKS skripsi harus bilangan bulat lebih dari 0'
 }
 
+export function validateTanggal(v: string): string | null {
+  return parseTanggal(v) ? null : 'Tanggal tidak valid'
+}
+
 // ---- parsing stored jsonb: wrong shape or failed validation -> null (caller falls back to the default)
 const arr = (v: unknown): v is Record<string, unknown>[] =>
   Array.isArray(v) && v.every((x) => typeof x === 'object' && x !== null)
