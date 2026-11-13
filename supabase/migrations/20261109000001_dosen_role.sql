@@ -10,8 +10,12 @@ alter table profiles drop constraint if exists profiles_role_check;
 alter table profiles add constraint profiles_role_check
     check (role in ('SUPERADMIN', 'SCHEDULER', 'VIEWER', 'DOSEN'));
 
-alter table profiles add column if not exists kode_dosen varchar(30) null
-    references lecturers(kode_dosen) on update cascade on delete set null;
+alter table profiles add column if not exists kode_dosen varchar(30) null;
+-- Restrict, not set null: a DOSEN must keep its kode_dosen (check below), so the account goes first.
+-- Dropped and re-added so a re-run also replaces an earlier `on delete set null` version.
+alter table profiles drop constraint if exists profiles_kode_dosen_fkey;
+alter table profiles add constraint profiles_kode_dosen_fkey
+    foreign key (kode_dosen) references lecturers(kode_dosen) on update cascade on delete restrict;
 
 -- Staff accounts never have a kode_dosen; a DOSEN always has one.
 alter table profiles drop constraint if exists profiles_kode_dosen_role_check;

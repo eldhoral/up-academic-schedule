@@ -370,6 +370,7 @@ begin
         assert n = 0, 'DOSEN reads ' || t || ': ' || n;
     end loop;
     assert (select count(*) from profiles) = 1, 'DOSEN reads only its own profile';
+    assert my_kode_dosen() = 'DSN01', 'my_kode_dosen() is the DOSEN''s lecturer';
 end $$;
 reset role;
 
@@ -378,6 +379,7 @@ set role authenticated;
 do $$ begin
     assert (select count(*) from lecturers) > 0, 'the viewer still reads lecturers';
     assert (select count(*) from profiles) > 1, 'the viewer still reads the roster';
+    assert my_kode_dosen() is null, 'staff have no my_kode_dosen()';
 end $$;
 reset role;
 
@@ -391,6 +393,11 @@ do $$ begin
         update profiles set kode_dosen = 'DSN01' where id = '00000000-0000-0000-0000-000000000005';
         raise exception 'FAIL: a staff account with kode_dosen';
     exception when check_violation then null;
+    end;
+    begin
+        delete from lecturers where kode_dosen = 'DSN01';
+        raise exception 'FAIL: deleted a lecturer that has a DOSEN account';
+    exception when foreign_key_violation then null;
     end;
 end $$;
 
