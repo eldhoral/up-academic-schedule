@@ -5,6 +5,7 @@ import {
   DEFAULT_ATURAN, loadAturan, validateAspek, validatePredikat, validateSks, validateTabelNilai,
 } from '../src/lib/penilaian/aturan'
 import { aksesDosen, bisaDinilai, bolehInputLama, halamanDosen, penilaianPath, peranDosen, todayJakarta, type DefenseRef, type Peran } from '../src/lib/penilaian/akses'
+import { buildRekapBimbingan } from '../src/lib/penilaian/rekap'
 import { baris, formatNilai, ipkSebelum, nilaiBimbingan, nilaiDariSnapshot, parseAngka, round2, snapshotDariSkor, aspekSama } from '../src/lib/penilaian/nilai'
 
 // ---- validation
@@ -184,6 +185,32 @@ async function main() {
   assert.doesNotMatch(humanDbError(fkDosen), /Prasidang/)
   assert.match(humanDbError({ code: '23503', message: 'violates foreign key constraint "schedules_x"' }), /masih dipakai/) // other FKs unchanged
   assert.doesNotMatch(humanDbError({ code: 'P0001', message: 'boom' }), /boom/) // other P0001 stays hidden
+
+  // ---- rekap: one row per prasidang, sorted by tanggal then nama; both grades -> average, one missing -> null
+  const d = (id: string, tanggal: string, nama: string, p1: string | null = 'A', p2: string | null = 'B') =>
+    ({ id, tanggal, npm: `n-${id}`, nama_mahasiswa: nama, judul_skripsi: `Judul ${nama}`, pembimbing_kode: p1, penguji_kode: p2 })
+  const n = (defense_id: string, peran: Peran, nilai: number, sumber: 'dosen' | 'manual' = 'dosen') => ({ defense_id, peran, nilai, sumber })
+  const rekap = buildRekapBimbingan(
+    [d('3', '2026-11-12', 'Zed'), d('1', '2026-11-10', 'Budi'), d('2', '2026-11-10', 'Ani'), d('4', '2026-11-13', 'Cici', null, 'B')],
+    [{ npm: 'n-1', sks_sebelum: 139, bobot_sebelum: 404.57 }, { npm: 'n-2', sks_sebelum: null, bobot_sebelum: null }],
+    [n('1', 'pembimbing_1', 80), n('1', 'pembimbing_2', 77, 'manual'), n('2', 'pembimbing_1', 70), n('4', 'pembimbing_2', 90)],
+    (k) => `Dr. ${k}`,
+  )
+  assert.deepEqual(rekap.map((r) => r.nama), ['Ani', 'Budi', 'Zed', 'Cici'])
+  const budi = rekap[1]
+  assert.equal(budi.bimbingan, 78.5)
+  assert.equal(budi.ipk, 2.91)
+  assert.deepEqual(budi.dospem1, { nama: 'Dr. A', nilai: 80, manual: false })
+  assert.deepEqual(budi.dospem2, { nama: 'Dr. B', nilai: 77, manual: true })
+  assert.equal(budi.defenseId, '1')
+  assert.equal(budi.judul, 'Judul Budi')
+  assert.equal(rekap[0].bimbingan, null) // only Dospem I graded
+  assert.equal(rekap[0].dospem2.nilai, null)
+  assert.equal(rekap[0].ipk, null) // no sks/bobot
+  assert.equal(rekap[2].ipk, null) // no student row
+  assert.equal(rekap[2].bimbingan, null)
+  assert.equal(rekap[3].dospem1.nama, '—') // no pembimbing chosen
+  assert.equal(rekap[3].bimbingan, null)
 
   console.log('nilai-bimbingan: all checks passed')
 }

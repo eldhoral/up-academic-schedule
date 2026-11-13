@@ -32,6 +32,9 @@ const MASTER_PRODI: Tab[] = [
   { href: '/pengaturan', label: 'Pengaturan' },
 ]
 
+// S1 only: online grading is S1 prasidang.
+const NILAI_BIMBINGAN: Tab = { href: '/sidang/nilai-bimbingan', label: 'Nilai Bimbingan' }
+
 // Super Admin only, S1 only (online grading is S1 prasidang).
 const PENILAIAN: Tab = { href: '/pengaturan/penilaian', label: 'Penilaian' }
 
@@ -48,7 +51,10 @@ function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean)
     const own = (title: string, tabs: Tab[]) => ({ title: `${c.short} · ${title}`, tabs: tabs.map((t) => ({ ...t, href: `/${prodi}${t.href}` })) })
     if (active.startsWith('/kuliah')) return own('Jadwal Mata Kuliah & Dosen', KULIAH)
     if (active.startsWith('/ujian')) return own('Jadwal UTS & UAS', UJIAN)
-    if (active.startsWith('/sidang')) return own(`Jadwal ${c.defense.section}`, SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t)))
+    if (active.startsWith('/sidang')) {
+      const tabs = SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t))
+      return own(`Jadwal ${c.defense.section}`, prodi === 's1' ? [...tabs, NILAI_BIMBINGAN] : tabs)
+    }
     const master = canManage && prodi === 's1' ? [...MASTER_PRODI, PENILAIAN] : MASTER_PRODI
     if (master.some((t) => t.href === active)) return own('Data Master', master)
   }
