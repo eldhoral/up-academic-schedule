@@ -85,6 +85,16 @@ export default async function RekapNilaiAkhirPage(props: PageProps<'/[prodi]/sid
                     <td className={cell()}>{h.status === 'lengkap' ? (h.predikat ?? '—') : KOSONG}</td>
                     <td className={cell()}>
                       {r.emailStatus ? (EMAIL_LABEL[r.emailStatus] ?? r.emailStatus) : KOSONG}
+                      {(r.emailStatus === 'gagal' || r.emailStatus === 'sebagian') && (
+                        <ul className="m-0 mt-[0.2rem] p-0 list-none text-[0.8rem] text-[var(--tinta-3)]">
+                          {r.emailDetail.filter((e) => e.status !== 'terkirim').map((e, k) => (
+                            <li key={k} className="break-all">
+                              {e.alamat || '(kosong)'} · {e.status === 'dilewati' ? 'dilewati' : 'gagal'}
+                              {e.alasan && `: ${e.alasan}`}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                       {admin && bolehKirimUlang(r.emailStatus, r.lockedAt, sekarang) && <KirimUlang defenseId={r.defenseId} />}
                     </td>
                   </tr>

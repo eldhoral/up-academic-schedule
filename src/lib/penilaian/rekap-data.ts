@@ -46,7 +46,7 @@ export async function loadRekapBimbingan(db: SupabaseClient, ay: string): Promis
 
 /**
  * The Nilai Akhir recap of one tahun akademik. Session client: RLS (is_staff) decides who may read. Any DB error throws.
- * Bimbingan is looked up by the NPMs on the page only, across every year (the latest prasidang of each NPM decides).
+ * Bimbingan is looked up by the NPMs on the page only, across every year (the latest prasidang of each NPM on or before the sidang decides).
  */
 export async function loadRekapAkhir(db: SupabaseClient, ay: string): Promise<RekapAkhir[]> {
   const [d, s, l, n, h] = await Promise.all([
@@ -56,7 +56,7 @@ export async function loadRekapAkhir(db: SupabaseClient, ay: string): Promise<Re
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     db.from('nilai_sidang').select('defense_id, peran, nilai, defenses!inner(academic_year_id)').eq('defenses.academic_year_id', ay),
     db.from('hasil_sidang')
-      .select('defense_id, yudisium_label, yudisium_lulus, aturan, locked_at, email_status, defenses!inner(academic_year_id)')
+      .select('defense_id, yudisium_label, yudisium_lulus, aturan, locked_at, email_status, email_detail, defenses!inner(academic_year_id)')
       .eq('defenses.academic_year_id', ay),
   ])
   const err = d.error ?? s.error ?? l.error ?? n.error ?? h.error
@@ -81,11 +81,12 @@ export async function loadRekapAkhir(db: SupabaseClient, ay: string): Promise<Re
     (n.data ?? []).map((x) => ({ defense_id: x.defense_id, peran: x.peran as PeranSidang, nilai: Number(x.nilai) })),
     (h.data ?? []).map((x) => ({
       defense_id: x.defense_id, yudisium_label: x.yudisium_label, yudisium_lulus: x.yudisium_lulus, aturan: x.aturan,
-      locked_at: x.locked_at, email_status: x.email_status,
+      locked_at: x.locked_at, email_status: x.email_status, email_detail: x.email_detail,
     })),
     bimbinganTerbaru(
       pra.data ?? [],
       (nb.data ?? []).map((x) => ({ defense_id: x.defense_id, peran: x.peran as Peran, nilai: Number(x.nilai) })),
+      sidang,
     ),
     (kode) => nama.get(kode) ?? kode,
   )

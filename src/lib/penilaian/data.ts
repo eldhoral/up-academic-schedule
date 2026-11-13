@@ -85,7 +85,7 @@ export type NilaiSidangRow = {
   submitted_at: string
 }
 
-/** aturan is the frozen copy, null when the stored jsonb is unusable (callers fall back to the current rules). */
+/** aturan is the frozen copy, null when the stored jsonb is unusable (the grading page then shows ALASAN_ATURAN_RUSAK, like the recap). */
 export type HasilRow = {
   yudisium_label: string
   yudisium_lulus: boolean

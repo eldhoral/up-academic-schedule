@@ -11,6 +11,7 @@ import {
 import type { BarisNilai } from '@/lib/penilaian/aturan'
 import { identitasPenguji, loadSidang, type HasilRow, type NilaiSidangRow } from '@/lib/penilaian/data'
 import { baris, formatNilai, nilaiSidang } from '@/lib/penilaian/nilai'
+import { ALASAN_ATURAN_RUSAK } from '@/lib/penilaian/rekap'
 import {
   editNilaiSidangAction, editYudisiumAction, inputNilaiSidangLamaAction, kunciSidangAction, kunciSidangLamaAction,
   submitNilaiSidangAction,
@@ -50,7 +51,9 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   if (!data || akses?.kind === 'tidak-ada') notFound()
 
   const { defense, aturan, hasil } = data
-  // A locked sidang's letters come from its frozen table; an unusable frozen copy falls back to the current one.
+  // A locked sidang's letters come from its frozen table. If that copy is unreadable we say so (as the recap does)
+  // instead of showing letters from today's table.
+  const rusak = !!hasil && !hasil.aturan
   const tabel = hasil?.aturan?.tabelNilai ?? aturan.tabelNilai
   // What the form shows; the action refuses the grade if the list changed before submit.
   const tampil = aturan.aspekSidang.map((a): [string, number] => [a.label, a.bobot])
@@ -72,22 +75,39 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
     </h2>
   )
 
+  const kepala = (
+    <>
+      {penguji && (
+        <Link href="/penilaian" className="text-[0.87rem] text-[var(--tinta-2)] hover:underline">‹ Penilaian Saya</Link>
+      )}
+      <h1 className="m-0 mt-[0.4rem] text-[1.6rem] font-semibold tracking-[-0.02em]">Nilai Sidang</h1>
+      <dl className="m-0 mt-[1rem] mb-[1.6rem] grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-x-[1rem] gap-y-[0.4rem] text-[0.93rem]">
+        {fakta.map(([k, v]) => (
+          <div key={k} className="contents">
+            <dt className="text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)] sm:pt-[0.2rem]">{k}</dt>
+            <dd className="m-0 mb-[0.4rem] sm:mb-0">{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </>
+  )
+  if (rusak) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+        <AppHeader active={path} />
+        <main className="flex-1 w-full max-w-[52rem] mx-auto px-[1.3rem] py-[1.6rem]">
+          {kepala}
+          <p className={KOTAK}>{ALASAN_ATURAN_RUSAK}.</p>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <AppHeader active={path} />
       <main className="flex-1 w-full max-w-[52rem] mx-auto px-[1.3rem] py-[1.6rem]">
-        {penguji && (
-          <Link href="/penilaian" className="text-[0.87rem] text-[var(--tinta-2)] hover:underline">‹ Penilaian Saya</Link>
-        )}
-        <h1 className="m-0 mt-[0.4rem] text-[1.6rem] font-semibold tracking-[-0.02em]">Nilai Sidang</h1>
-        <dl className="m-0 mt-[1rem] mb-[1.6rem] grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-x-[1rem] gap-y-[0.4rem] text-[0.93rem]">
-          {fakta.map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)] sm:pt-[0.2rem]">{k}</dt>
-              <dd className="m-0 mb-[0.4rem] sm:mb-0">{v}</dd>
-            </div>
-          ))}
-        </dl>
+        {kepala}
 
         {akses?.kind === 'belum-dibuka' && (
           <p className={KOTAK}>Penilaian dibuka pada <strong>{tanggalPanjang(akses.tanggal, false)}</strong>.</p>

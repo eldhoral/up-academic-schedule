@@ -73,6 +73,8 @@ export type RekapAkhir = {
   hasil: HasilAkhir
   yudisium: string | null
   emailStatus: string | null
+  /** Per-address outcome of the revisi mail; [] when none is stored. */
+  emailDetail: DetailEmail[]
   // Beyond the brief: shown by the page and the file, all derived from the same inputs.
   ipkSebelum: number | null
   /** Letter of Nilai Sidang from the frozen Tabel Nilai; null until locked (or when the frozen copy is unreadable). */
@@ -90,7 +92,24 @@ type HasilIn = {
   aturan: unknown
   locked_at: string
   email_status: string | null
+  email_detail: unknown
 }
+
+export type DetailEmail = { alamat: string; status: 'terkirim' | 'gagal' | 'dilewati'; alasan?: string }
+
+/** hasil_sidang.email_detail is jsonb: keep the well-formed entries, never throw. */
+export function parseDetailEmail(json: unknown): DetailEmail[] {
+  if (!Array.isArray(json)) return []
+  return json.flatMap((x): DetailEmail[] => {
+    if (typeof x !== 'object' || x === null) return []
+    const { alamat, status, alasan } = x as Record<string, unknown>
+    if (typeof alamat !== 'string' || !['terkirim', 'gagal', 'dilewati'].includes(status as string)) return []
+    return [{ alamat, status: status as DetailEmail['status'], ...(typeof alasan === 'string' ? { alasan } : {}) }]
+  })
+}
+
+/** Shown for a locked sidang whose frozen rules cannot be read: by the recap and by the grading page alike. */
+export const ALASAN_ATURAN_RUSAK = 'Aturan penilaian yang dibekukan tidak terbaca'
 
 export const EMAIL_LABEL: Record<string, string> = {
   tidak_perlu: 'Tidak perlu', menunggu: 'Menunggu', terkirim: 'Terkirim', gagal: 'Gagal', sebagian: 'Sebagian',
@@ -103,18 +122,26 @@ export function bolehKirimUlang(status: string | null, lockedAt: string | null, 
   return status === 'menunggu' && now.getTime() - t > 2 * 60_000
 }
 
-/** NPM -> Nilai Bimbingan of that NPM's LATEST prasidang (any year); null while that one is incomplete. Older ones never fill in. */
+/**
+ * Sidang id -> Nilai Bimbingan of that NPM's LATEST prasidang dated on or before the sidang (any year); null while that one
+ * is incomplete. Older ones never fill in, and a prasidang retaken after the sidang never changes a locked Nilai Akhir.
+ */
 export function bimbinganTerbaru(
   prasidang: { id: string; tanggal: string; npm: string }[],
   nilai: { defense_id: string; peran: Peran; nilai: number }[],
+  sidang: { id: string; tanggal: string; npm: string }[],
 ): Map<string, number | null> {
-  const terbaru = new Map<string, { id: string; tanggal: string }>()
-  for (const p of prasidang) {
-    const k = terbaru.get(p.npm)
-    if (!k || p.tanggal > k.tanggal || (p.tanggal === k.tanggal && p.id > k.id)) terbaru.set(p.npm, p)
-  }
   const skor = (id: string, peran: Peran) => nilai.find((n) => n.defense_id === id && n.peran === peran)?.nilai ?? null
-  return new Map([...terbaru].map(([npm, p]) => [npm, nilaiBimbingan(skor(p.id, 'pembimbing_1'), skor(p.id, 'pembimbing_2'))]))
+  const hasil = new Map<string, number | null>()
+  for (const s of sidang) {
+    let terbaru: { id: string; tanggal: string } | undefined
+    for (const p of prasidang) {
+      if (p.npm !== s.npm || p.tanggal > s.tanggal) continue
+      if (!terbaru || p.tanggal > terbaru.tanggal || (p.tanggal === terbaru.tanggal && p.id > terbaru.id)) terbaru = p
+    }
+    if (terbaru) hasil.set(s.id, nilaiBimbingan(skor(terbaru.id, 'pembimbing_1'), skor(terbaru.id, 'pembimbing_2')))
+  }
+  return hasil
 }
 
 /** One row per S1 sidang, by tanggal then nama. Pure: the page and the Excel file are both built from it. */
@@ -123,7 +150,7 @@ export function buildRekapAkhir(
   students: StudentAkhirIn[],
   nilai: NilaiSidangIn[],
   hasil: HasilIn[],
-  bimbinganByNpm: Map<string, number | null>,
+  bimbinganBySidang: Map<string, number | null>,
   namaDosen: (kode: string) => string,
 ): RekapAkhir[] {
   const mhs = new Map(students.map((s) => [s.npm, s]))
@@ -138,7 +165,7 @@ export function buildRekapAkhir(
       ) as RekapAkhir['penguji']
       const nilaiTiga = PERAN_SIDANG.map((p) => penguji[p].nilai)
       const s = mhs.get(d.npm)
-      const bimbingan = bimbinganByNpm.get(d.npm) ?? null
+      const bimbingan = bimbinganBySidang.get(d.id) ?? null
       const h = kunci.get(d.id)
       const aturan = h ? parseAturanBeku(h.aturan) : null
       const input = {
@@ -155,10 +182,11 @@ export function buildRekapAkhir(
         penguji,
         // Locked but the frozen copy is unreadable: say so, never compute from guesses.
         hasil: h && !aturan
-          ? { status: 'data-kurang', nilaiSidang: ns, alasan: 'Aturan penilaian yang dibekukan tidak terbaca' }
+          ? { status: 'data-kurang', nilaiSidang: ns, alasan: ALASAN_ATURAN_RUSAK }
           : hasilAkhir({ ...input, locked: h && aturan ? { lulus: h.yudisium_lulus, aturan } : null }),
         yudisium: h?.yudisium_label ?? null,
         emailStatus: h?.email_status ?? null,
+        emailDetail: parseDetailEmail(h?.email_detail),
         ipkSebelum: ipkSebelum(s?.bobot_sebelum ?? null, s?.sks_sebelum ?? null),
         hurufSidang: ns !== null && aturan ? baris(ns, aturan.tabelNilai).huruf : null,
         lockedAt: h?.locked_at ?? null,

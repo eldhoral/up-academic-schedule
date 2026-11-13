@@ -397,7 +397,7 @@ async function cekEmail() {
 
   const data = (over: Partial<MailData> = {}): MailData => ({
     status: 'menunggu', nama: 'Budi', npm: '2021110099', judul: 'J', tanggal: '2026-11-09', yudisium: 'Lulus Dengan Revisi',
-    mahasiswaEmail: 'budi@mhs.id',
+    mahasiswaEmail: 'budi@mhs.id', detailLama: [],
     penguji: [
       { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani', email: 'ani@up.id', revisi: [{ halaman: '1', catatan: 'x' }] },
       { peranLabel: 'Anggota Penguji I', nama: 'Dr. Eko', email: '', revisi: [] },
@@ -453,9 +453,12 @@ async function cekEmail() {
   const h = await jalankan(async (m) => { dipanggil = true; return { accepted: m.to, rejected: [] } }, data({ mahasiswaEmail: '', penguji: lengkap.penguji.map((p) => ({ ...p, email: null })) }))
   assert.equal(h.status, 'gagal')
   assert.equal(dipanggil, false)
-  // No examiner revisi -> tidak_perlu, nothing sent or written. A finished status is never re-sent.
-  const i = await jalankan(baik, data({ penguji: [] }))
-  assert.deepEqual([i.status, i.tulis.length], ['tidak_perlu', 0])
+  // No examiner revisi -> tidak_perlu, nothing sent, but it IS recorded (else a retry button on gagal stays forever).
+  let kirimNol = false
+  const i = await jalankan(async (m) => { kirimNol = true; return { accepted: m.to, rejected: [] } }, data({ status: 'gagal', penguji: [] }))
+  assert.deepEqual([i.status, kirimNol], ['tidak_perlu', false])
+  assert.deepEqual(i.tulis, [{ status: 'tidak_perlu', detail: [] }])
+  // A finished status is never re-sent or re-written.
   for (const s of ['terkirim', 'tidak_perlu'] as const) {
     const j = await jalankan(async () => { throw new Error('tidak boleh') }, data({ status: s }))
     assert.deepEqual([j.status, j.tulis.length], [s, 0])
@@ -464,6 +467,43 @@ async function cekEmail() {
   assert.equal(await kirimRevisi('x', baik, { muat: async () => null, simpan: async () => { throw new Error('x') } }), 'tidak_perlu')
   // Retry from gagal / sebagian goes through.
   for (const s of ['gagal', 'sebagian'] as const) assert.equal((await jalankan(baik, data({ ...lengkap, status: s }))).status, 'terkirim')
+  // Retry sends only to addresses not already terkirim, and merges the outcome into the stored detail.
+  const tigaPenerima = data({
+    status: 'sebagian', mahasiswaEmail: 'budi@mhs.id',
+    penguji: [
+      { peranLabel: 'Ketua Sidang', nama: 'A', email: 'ani@up.id', revisi: [{ halaman: '', catatan: 'x' }] },
+      { peranLabel: 'Anggota Penguji II', nama: 'C', email: 'eko@up.id', revisi: [] },
+    ],
+    detailLama: [
+      { alamat: 'BUDI@mhs.id', status: 'terkirim' }, { alamat: 'ani@up.id', status: 'gagal', alasan: 'x' }, { alamat: 'eko@up.id', status: 'terkirim' },
+    ],
+  })
+  const tujuan: string[][] = []
+  const ulang = await jalankan(async (msg) => { tujuan.push(msg.to); return { accepted: msg.to, rejected: [] } }, tigaPenerima)
+  assert.deepEqual(tujuan, [['ani@up.id']])
+  assert.equal(ulang.status, 'terkirim')
+  const dUlang = ulang.tulis[0].detail as { alamat: string; status: string }[]
+  assert.deepEqual(dUlang.map((x) => x.status), ['terkirim', 'terkirim', 'terkirim'])
+  assert.deepEqual(dUlang.map((x) => x.alamat.toLowerCase()).sort(), ['ani@up.id', 'budi@mhs.id', 'eko@up.id'])
+  // The retry fails again: the earlier successes stay in the detail, so it stays 'sebagian', not 'gagal'.
+  const lagi = await jalankan(async () => { throw new Error('421 sibuk') }, tigaPenerima)
+  assert.equal(lagi.status, 'sebagian')
+  assert.deepEqual((lagi.tulis[0].detail as { status: string }[]).map((x) => x.status).sort(), ['gagal', 'terkirim', 'terkirim'])
+  // Everyone valid already got it, one address was skipped: nothing is sent, the status reflects the skip.
+  let kirimLagi = false
+  const sisa = await jalankan(async (m) => { kirimLagi = true; return { accepted: m.to, rejected: [] } }, data({
+    status: 'sebagian', mahasiswaEmail: '',
+    penguji: [{ peranLabel: 'Ketua Sidang', nama: 'A', email: 'ani@up.id', revisi: [{ halaman: '', catatan: 'x' }] }],
+    detailLama: [{ alamat: 'ani@up.id', status: 'terkirim' }, { alamat: '', status: 'dilewati', alasan: 'Email Mahasiswa kosong' }],
+  }))
+  assert.equal(kirimLagi, false)
+  assert.equal(sisa.status, 'sebagian')
+  // A 'gagal' retry with a stored detail where nothing was delivered still sends to everyone.
+  const semuaGagal = await jalankan(async (msg) => { tujuan.push(msg.to); return { accepted: msg.to, rejected: [] } }, data({
+    ...lengkap, status: 'gagal', detailLama: [{ alamat: 'budi@mhs.id', status: 'gagal', alasan: 'x' }],
+  }))
+  assert.deepEqual(tujuan[1], ['budi@mhs.id', 'ani@up.id'])
+  assert.equal(semuaGagal.status, 'terkirim')
   console.log('nilai-sidang email: all checks passed')
 }
 cekEmail().catch((e) => { console.error(e); process.exit(1) })
@@ -493,7 +533,7 @@ cekEmail().catch((e) => { console.error(e); process.exit(1) })
 
 // ---- rekap Nilai Akhir
 import { ANGGOTA_I_LEGACY } from '../src/lib/penilaian/akses'
-import { bimbinganTerbaru, bolehKirimUlang, buildRekapAkhir, EMAIL_LABEL } from '../src/lib/penilaian/rekap'
+import { ALASAN_ATURAN_RUSAK, bimbinganTerbaru, bolehKirimUlang, buildRekapAkhir, EMAIL_LABEL, parseDetailEmail } from '../src/lib/penilaian/rekap'
 import { smtpOpsi } from '../src/lib/mailer'
 {
   const sd = (id: string, npm: string, nama: string, over: Record<string, unknown> = {}) => ({
@@ -511,11 +551,12 @@ import { smtpOpsi } from '../src/lib/mailer'
   const students = [mhs('2021110001'), mhs('2021110002'), mhs('2021110003'), mhs('2021110004'), mhs('2021110005')]
   const tiga = (id: string, n: number) => (['ketua', 'anggota_1', 'anggota_2'] as const).map((peran) => ({ defense_id: id, peran, nilai: n }))
   const nilai = [...tiga('d-ok', 76.5), ...tiga('d-bim', 76.5), ...tiga('d-gagal', 40), ...tiga('d-rusak', 80)]
-  const hasil = (id: string, label: string, lulus: boolean, email: string | null, aturan: unknown = beku) =>
-    ({ defense_id: id, yudisium_label: label, yudisium_lulus: lulus, aturan, locked_at: '2026-11-10T03:00:00Z', email_status: email })
+  const gagalDetail = [{ alamat: 'budi@mhs.id', status: 'terkirim' }, { alamat: 'ani@up.id', status: 'gagal', alasan: 'Ditolak server email' }, { alamat: '', status: 'dilewati', alasan: 'Email Anggota Penguji I kosong' }]
+  const hasil = (id: string, label: string, lulus: boolean, email: string | null, aturan: unknown = beku, detail: unknown = null) =>
+    ({ defense_id: id, yudisium_label: label, yudisium_lulus: lulus, aturan, locked_at: '2026-11-10T03:00:00Z', email_status: email, email_detail: detail })
   const hs = [
     hasil('d-ok', 'Lulus Tanpa Revisi', true, 'terkirim'),
-    hasil('d-bim', 'Lulus Dengan Revisi', true, 'sebagian'),
+    hasil('d-bim', 'Lulus Dengan Revisi', true, 'sebagian', beku, gagalDetail),
     hasil('d-gagal', 'Tidak Lulus', false, 'tidak_perlu'),
     hasil('d-rusak', 'Lulus Tanpa Revisi', true, 'gagal', { tabelNilai: 'rusak' }),
   ]
@@ -528,19 +569,27 @@ import { smtpOpsi } from '../src/lib/mailer'
     { id: 'p-sebagian', tanggal: '2026-05-02', npm: '2021110002' },
     { id: 'p-tua', tanggal: '2025-01-01', npm: '2021110003' },
     { id: 'p-kosong', tanggal: '2026-01-01', npm: '2021110003' },
+    { id: 'p-ulang', tanggal: '2026-12-01', npm: '2021110001' }, // retake AFTER the sidang (2026-11-10): must not change the locked result
+    { id: 'p-sama-hari', tanggal: '2026-11-10', npm: '2021110005' }, // same day as the sidang still counts
   ]
   const nb = [
     { defense_id: 'p-lama', peran: 'pembimbing_1' as const, nilai: 60 }, { defense_id: 'p-lama', peran: 'pembimbing_2' as const, nilai: 60 },
     { defense_id: 'p-baru', peran: 'pembimbing_1' as const, nilai: 78 }, { defense_id: 'p-baru', peran: 'pembimbing_2' as const, nilai: 79 },
     { defense_id: 'p-sebagian', peran: 'pembimbing_1' as const, nilai: 80 },
     { defense_id: 'p-tua', peran: 'pembimbing_1' as const, nilai: 70 }, { defense_id: 'p-tua', peran: 'pembimbing_2' as const, nilai: 70 },
+    { defense_id: 'p-ulang', peran: 'pembimbing_1' as const, nilai: 50 }, { defense_id: 'p-ulang', peran: 'pembimbing_2' as const, nilai: 50 },
+    { defense_id: 'p-sama-hari', peran: 'pembimbing_1' as const, nilai: 90 }, { defense_id: 'p-sama-hari', peran: 'pembimbing_2' as const, nilai: 90 },
   ]
-  const bim = bimbinganTerbaru(pra, nb)
-  assert.equal(bim.get('2021110001'), 78.5) // latest of two, not 60
-  assert.equal(bim.get('2021110002'), null) // one dosen only
-  assert.equal(bim.get('2021110003'), null) // latest has no grades; the older complete one is not used
-  assert.equal(bim.has('2021110004'), false)
-  assert.deepEqual(Object.fromEntries(bimbinganTerbaru([...pra].reverse(), [...nb].reverse())), Object.fromEntries(bim)) // input order does not matter
+  // Keyed by sidang id; only prasidang dated on or before that sidang count (a later retake never changes a locked Nilai Akhir).
+  const bim = bimbinganTerbaru(pra, nb, sidang)
+  assert.equal(bim.get('d-ok'), 78.5) // latest of the two before the sidang, not 60, and not the 50/50 retake of 2026-12-01
+  assert.equal(bim.get('d-bim'), null) // one dosen only
+  assert.equal(bim.get('d-gagal'), null) // latest has no grades; the older complete one is not used
+  assert.equal(bim.has('d-legacy'), false)
+  assert.equal(bim.get('d-rusak'), 90) // prasidang on the sidang's own day counts
+  assert.deepEqual(Object.fromEntries(bimbinganTerbaru([...pra].reverse(), [...nb].reverse(), sidang)), Object.fromEntries(bim)) // input order does not matter
+  // A sidang before every prasidang of its NPM has no bimbingan at all.
+  assert.equal(bimbinganTerbaru(pra, nb, [sd('d-awal', '2021110001', 'X', { tanggal: '2025-01-01' })]).has('d-awal'), false)
 
   const rows = buildRekapAkhir(sidang, students, nilai, hs, bim, namaDosen)
   assert.deepEqual(rows.map((r) => r.defenseId), ['d-legacy', 'd-ok', 'd-bim', 'd-gagal', 'd-rusak']) // tanggal, then nama
@@ -565,6 +614,8 @@ import { smtpOpsi } from '../src/lib/mailer'
   const bm = by('d-bim')
   assert.equal(bm.bimbingan, null)
   assert.equal(bm.hasil.status, 'menunggu-bimbingan')
+  assert.deepEqual(bm.emailDetail, gagalDetail) // the recap carries the per-address outcome
+  assert.deepEqual(ok.emailDetail, []) // none stored
   assert.equal(bm.hasil.nilaiSidang, 76.5)
   assert.ok('alasan' in bm.hasil && bm.hasil.alasan === 'Menunggu Nilai Bimbingan lengkap')
   assert.equal(bm.emailStatus, 'sebagian')
@@ -590,7 +641,7 @@ import { smtpOpsi } from '../src/lib/mailer'
   // frozen rules unreadable: a pending reason, never NaN or a throw
   const rs = by('d-rusak')
   assert.equal(rs.hasil.status, 'data-kurang')
-  assert.ok('alasan' in rs.hasil && rs.hasil.alasan.length > 0)
+  assert.ok('alasan' in rs.hasil && rs.hasil.alasan === ALASAN_ATURAN_RUSAK) // the grading page shows this same text
   assert.equal(rs.hasil.nilaiSidang, 80)
   assert.equal(rs.hurufSidang, null)
 
@@ -609,10 +660,16 @@ import { smtpOpsi } from '../src/lib/mailer'
   assert.equal(bolehKirimUlang('menunggu', 'bukan tanggal', jam(999)), false)
   for (const s of ['terkirim', 'tidak_perlu', null]) assert.equal(bolehKirimUlang(s, kunci, jam(9999)), false)
   assert.equal(EMAIL_LABEL.gagal, 'Gagal')
+  // email_detail from the DB is untrusted jsonb: keep only well-formed entries, never throw
+  assert.deepEqual(parseDetailEmail(gagalDetail), gagalDetail)
+  assert.deepEqual(parseDetailEmail(null), [])
+  assert.deepEqual(parseDetailEmail('x'), [])
+  assert.deepEqual(parseDetailEmail([{ alamat: 'a@b.id', status: 'gagal' }, { alamat: 1, status: 'gagal' }, { alamat: 'c', status: 'aneh' }, null]), [{ alamat: 'a@b.id', status: 'gagal' }])
 
-  // SMTP: every phase times out, so a send the 10 s race gave up on cannot deliver later
+  // SMTP: the phases add up to at most the 10 s race, so a send we recorded as gagal cannot deliver afterwards
   const opsi = smtpOpsi('u@x.id', 'p')
-  assert.deepEqual([opsi.connectionTimeout, opsi.greetingTimeout, opsi.socketTimeout], [10_000, 10_000, 10_000])
+  assert.deepEqual([opsi.connectionTimeout, opsi.greetingTimeout, opsi.socketTimeout], [3000, 3000, 4000])
+  assert.ok(opsi.connectionTimeout + opsi.greetingTimeout + opsi.socketTimeout <= 10_000)
   assert.deepEqual([opsi.host, opsi.port, opsi.secure], ['smtp.gmail.com', 465, true])
   console.log('nilai-sidang rekap akhir: all checks passed')
 }
@@ -622,7 +679,7 @@ import ExcelJS from 'exceljs'
 import { buildRekapAkhirXlsx } from '../src/lib/penilaian/rekap-xlsx'
 void (async () => {
   const tiga = { ketua: { nama: 'Dosen K', nilai: 76.5 }, anggota_1: { nama: 'Dosen E', nilai: 76.5 }, anggota_2: { nama: 'Dosen P', nilai: null } }
-  const dasar = { tanggal: '2026-11-10', judul: 'J', penguji: tiga, ipkSebelum: 2.91, hurufSidang: null, lockedAt: null, yudisium: null, emailStatus: null }
+  const dasar = { tanggal: '2026-11-10', judul: 'J', penguji: tiga, ipkSebelum: 2.91, hurufSidang: null, lockedAt: null, yudisium: null, emailStatus: null, emailDetail: [] }
   const buf = await buildRekapAkhirXlsx([
     {
       ...dasar, defenseId: 'a', npm: '1', nama: 'A', bimbingan: 78.5, yudisium: 'Lulus Tanpa Revisi', emailStatus: 'gagal', hurufSidang: 'A-',

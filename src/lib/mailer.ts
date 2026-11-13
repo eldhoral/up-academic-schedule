@@ -3,15 +3,18 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { emailError, lecturerDisplayName } from '@/lib/import/tables'
 import { PERAN_SIDANG, PERAN_SIDANG_LABEL, type PeranSidang } from '@/lib/penilaian/akses'
 import { renderRevisi } from '@/lib/penilaian/email-revisi'
+import { parseDetailEmail, type DetailEmail } from '@/lib/penilaian/rekap'
 import type { Revisi } from '@/lib/penilaian/nilai'
 
 export type Transport = (msg: { to: string[]; subject: string; text: string; html: string }) => Promise<{ accepted: string[]; rejected: string[] }>
 export type EmailStatus = 'tidak_perlu' | 'terkirim' | 'gagal' | 'sebagian'
-export type DetailEmail = { alamat: string; status: 'terkirim' | 'gagal' | 'dilewati'; alasan?: string }
+export type { DetailEmail }
 
 /** What a send needs, loaded once. `status` is hasil_sidang.email_status as it stands. */
 export type MailData = {
   status: string
+  /** hasil_sidang.email_detail as stored: who already got the mail. */
+  detailLama: DetailEmail[]
   nama: string
   npm: string
   judul: string
@@ -28,10 +31,10 @@ export type MailDeps = {
 const TIDAK_DIKONFIGURASI = 'SMTP belum dikonfigurasi'
 const MAKS_MS = 10_000
 
-/** Every phase gets the same cap as the send race, so a send we gave up on cannot still deliver afterwards. */
+/** The phases add up to MAKS_MS (3 + 3 + 4 s), so a send the race gave up on cannot still deliver afterwards. */
 export const smtpOpsi = (user: string, pass: string) => ({
   host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass },
-  connectionTimeout: MAKS_MS, greetingTimeout: MAKS_MS, socketTimeout: MAKS_MS,
+  connectionTimeout: 3000, greetingTimeout: 3000, socketTimeout: 4000,
 })
 
 /** Gmail SMTP from SMTP_USER / SMTP_PASS / SMTP_FROM; null when any is missing. Credentials are never logged. */
@@ -55,7 +58,7 @@ const dbDeps: MailDeps = {
     if (error) throw new Error(`Gagal memuat sidang: ${error.message}`)
     if (!d) return null
     const [hasil, nilai, mhs] = await Promise.all([
-      db.from('hasil_sidang').select('yudisium_label, email_status').eq('defense_id', defenseId).maybeSingle(),
+      db.from('hasil_sidang').select('yudisium_label, email_status, email_detail').eq('defense_id', defenseId).maybeSingle(),
       db.from('nilai_sidang').select('peran, kode_dosen, ada_revisi, revisi').eq('defense_id', defenseId),
       db.from('students').select('email').eq('prodi', 's1').eq('npm', d.npm).maybeSingle(),
     ])
@@ -71,7 +74,7 @@ const dbDeps: MailDeps = {
       return n && l ? [{ peranLabel: PERAN_SIDANG_LABEL[p], nama: lecturerDisplayName(l), email: l.email as string | null, revisi: n.ada_revisi ? (n.revisi as Revisi) : [] }] : []
     })
     return {
-      status: hasil.data.email_status, nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal,
+      status: hasil.data.email_status, detailLama: parseDetailEmail(hasil.data.email_detail), nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal,
       yudisium: hasil.data.yudisium_label, mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null, penguji,
     }
   },
@@ -84,7 +87,8 @@ const dbDeps: MailDeps = {
 /**
  * Sends the revisi mail (student + the three examiners, one message) and records the outcome on hasil_sidang.
  * Only from 'menunggu' (first send) or 'gagal'/'sebagian' (retry); any other status is returned untouched, so a
- * double click can't re-send a finished mail. Never throws on a send problem: it becomes 'gagal'.
+ * double click can't re-send a finished mail. A retry mails only the addresses not already 'terkirim' in the stored
+ * detail and merges the outcome into it. Never throws on a send problem: it becomes 'gagal'.
  * ponytail: no lock against two concurrent retries; add a status 'mengirim' compare-and-set if that ever happens.
  */
 export async function kirimRevisi(
@@ -94,7 +98,14 @@ export async function kirimRevisi(
   if (!m) return 'tidak_perlu'
   if (!['menunggu', 'gagal', 'sebagian'].includes(m.status)) return m.status as EmailStatus
   const revisi = m.penguji.filter((p) => p.revisi.length > 0).map((p) => ({ peranLabel: p.peranLabel, nama: p.nama, rows: p.revisi }))
-  if (revisi.length === 0) return 'tidak_perlu'
+  if (revisi.length === 0) {
+    // Record it, or a stuck 'gagal'/'sebagian' keeps its retry button forever.
+    await deps.simpan(defenseId, 'tidak_perlu', [])
+    return 'tidak_perlu'
+  }
+
+  const sudah = m.detailLama.filter((x) => x.status === 'terkirim')
+  const sudahAda = new Set(sudah.map((x) => x.alamat.trim().toLowerCase()))
 
   // Skipped addresses stay in the detail, so the recap shows who did not get the mail.
   const detail: DetailEmail[] = []
@@ -103,7 +114,7 @@ export async function kirimRevisi(
     const alamat = (raw ?? '').trim()
     if (!alamat) detail.push({ alamat, status: 'dilewati', alasan: `Email ${siapa} kosong` })
     else if (emailError(alamat)) detail.push({ alamat, status: 'dilewati', alasan: `Email ${siapa} tidak valid` })
-    else if (!to.some((a) => a.toLowerCase() === alamat.toLowerCase())) to.push(alamat)
+    else if (!sudahAda.has(alamat.toLowerCase()) && !to.some((a) => a.toLowerCase() === alamat.toLowerCase())) to.push(alamat)
   }
 
   const kirim = async (): Promise<DetailEmail[]> => {
@@ -128,10 +139,10 @@ export async function kirimRevisi(
   }
 
   const dikirim = await kirim()
-  const semua = [...dikirim, ...detail]
-  const ok = dikirim.filter((x) => x.status === 'terkirim').length
+  const semua = [...sudah, ...dikirim, ...detail]
+  const ok = semua.filter((x) => x.status === 'terkirim').length
   const status: EmailStatus = ok === 0 ? 'gagal' : ok === semua.length ? 'terkirim' : 'sebagian'
-  // Order in the stored detail follows the recipients, skipped ones last.
+  // Order in the stored detail: earlier successes, this send's recipients, skipped ones last.
   await deps.simpan(defenseId, status, semua)
   return status
 }
