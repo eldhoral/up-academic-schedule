@@ -3,10 +3,10 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { KETERANGAN_LABEL, type KeteranganUjian } from '@/app/[prodi]/ujian/exam-types'
 import { hariLabel, tanggalPanjang } from '@/lib/hari'
-import { todayJakarta } from '@/lib/penilaian/akses'
+import { penilaianPath, todayJakarta } from '@/lib/penilaian/akses'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { defenseLinkLabel } from '@/app/[prodi]/sidang/defense-types'
-import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, sidangJudul, ujianPeranText } from '../events'
+import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, bisaBeriNilai, sidangJudul, ujianPeranText } from '../events'
 import { loadJadwalDosen } from '../jadwal-data'
 
 export const metadata: Metadata = { title: 'Jadwal Dosen', robots: { index: false, follow: false } }
@@ -94,6 +94,7 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
                 what={`${sidangJudul(s)} · ${s.nama_mahasiswa}`}
                 detail={`${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${PRODI_CONFIG[s.prodi].short}${s.tempat ? ` · ${s.tempat}` : ''}`}
                 link={s.link || undefined}
+                nilaiHref={bisaBeriNilai(s) ? penilaianPath(s.id) : undefined}
               />
             ))}
           </ul>
@@ -112,23 +113,36 @@ function Section({ title, empty, children }: { title: string; empty: string | nu
   )
 }
 
-function Row({ when, what, detail, past = false, link }: { when: string; what: string; detail: string; past?: boolean; link?: string }) {
+function Row({ when, what, detail, past = false, link, nilaiHref }: { when: string; what: string; detail: string; past?: boolean; link?: string; nilaiHref?: string }) {
   return (
     <li className={`py-[0.6rem] ${past ? 'opacity-50' : ''}`}>
       <p className="m-0 text-[0.8rem] text-[var(--tinta-3)] mono">{when}</p>
       <p className="m-0 mt-[0.1rem] text-[0.93rem] font-medium">{what}</p>
       <p className="m-0 mt-[0.1rem] text-[0.87rem] text-[var(--tinta-2)]">{detail}</p>
-      {link && (
-        <p className="m-0 mt-[0.45rem]">
+      {(link || nilaiHref) && (
+        <p className="m-0 mt-[0.45rem] flex flex-wrap gap-[0.5rem]">
           {/* Opens the material in a new tab, always through http(s) — the column's DB check keeps javascript: out. */}
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.8rem] font-medium no-underline cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors"
-          >
-            {defenseLinkLabel(link)} <span aria-hidden="true">↗</span>
-          </a>
+          {link && (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.8rem] font-medium no-underline cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors"
+            >
+              {defenseLinkLabel(link)} <span aria-hidden="true">↗</span>
+            </a>
+          )}
+          {/* Grants nothing by itself: the page behind it needs a DOSEN login. */}
+          {nilaiHref && (
+            <a
+              href={nilaiHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.8rem] font-medium no-underline cursor-pointer hover:bg-[var(--cekung)] active:scale-[0.97] transition-colors"
+            >
+              Beri Nilai <span aria-hidden="true">↗</span>
+            </a>
+          )}
         </p>
       )}
     </li>

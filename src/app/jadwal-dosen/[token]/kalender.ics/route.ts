@@ -8,7 +8,7 @@ export async function GET(request: Request, ctx: RouteContext<'/jadwal-dosen/[to
     const jadwal = await loadJadwalDosen(token)
     if (!jadwal) return new Response('Link jadwal tidak ditemukan.', { status: 404 })
 
-    const body = toIcs(`Jadwal ${jadwal.nama}`, buildEvents(jadwal), new Date())
+    const body = toIcs(`Jadwal ${jadwal.nama}`, buildEvents(jadwal, new URL(request.url).origin), new Date())
     const disposition = new URL(request.url).searchParams.has('unduh') ? 'attachment' : 'inline'
     const filename = `jadwal-${jadwal.kodeDosen.replace(/[^A-Za-z0-9_-]/g, '')}.ics`
     return new Response(body, {

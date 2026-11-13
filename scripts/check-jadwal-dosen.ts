@@ -105,6 +105,18 @@ assert.equal(
 assert.equal(buildEvents(base({ sidang: [sd({ link: 'https://drive.google.com/file/9' })] }))[0].description, 'https://drive.google.com/file/9', 'the material link rides in the description')
 assert.equal(buildEvents(base({ sidang: [sd({ link: ' ' })] }))[0].description, undefined, 'a blank link is no description')
 
+// --- penilaian link: only an S1 prasidang as Pembimbing Pendamping / Pembahas, and only with an origin ---
+const O = 'https://x.test'
+const pr = (o: Partial<SidangItem> = {}) => sd({ jenis: 'prasidang', peran: 'pembimbing', ...o })
+const desc = (s: SidangItem, origin?: string) => buildEvents(base({ sidang: [s] }), origin)[0].description
+assert.equal(desc(pr(), O), `Penilaian: ${O}/nilai-bimbingan/d1`, 'pembimbing on S1 prasidang: link')
+assert.equal(desc(pr({ peran: 'penguji' }), O), `Penilaian: ${O}/nilai-bimbingan/d1`, 'penguji (Pembahas) on S1 prasidang: link')
+assert.equal(desc(pr({ link: 'https://drive.google.com/file/9' }), O), `https://drive.google.com/file/9\nPenilaian: ${O}/nilai-bimbingan/d1`, 'materi first, then Penilaian')
+assert.equal(desc(pr()), undefined, 'no origin: no penilaian line')
+assert.equal(desc(pr({ prodi: 's2' }), O), undefined, 'S2 prasidang (seminar proposal) is not graded online')
+assert.equal(desc(pr({ peran: 'eksternal' }), O), undefined, 'eksternal on prasidang is not a grader')
+assert.equal(desc(sd({ peran: 'pembimbing' }), O), undefined, 'sidang is not graded online')
+
 // --- prasidang tempat: the Zoom id and passcode ride along when settings declare them -----------
 assert.equal(prasidangTempat(1, { id: '812 3456 789', passcode: 'p3l' }), 'Kelompok 1 · Zoom 812 3456 789 · Passcode p3l', 'both id and passcode show, as typed by the admin')
 assert.equal(prasidangTempat(2, { id: '8123456789', passcode: '  ' }), 'Kelompok 2 · Zoom 8123456789', 'an empty passcode adds no part')

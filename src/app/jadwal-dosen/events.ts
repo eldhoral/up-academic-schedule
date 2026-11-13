@@ -1,5 +1,6 @@
 import { hariFromTanggal } from '@/lib/hari'
 import type { IcsEvent } from '@/lib/ics'
+import { bisaDinilai, penilaianPath } from '@/lib/penilaian/akses'
 import { PRODI_CONFIG, type JenisKelas, type Prodi } from '@/lib/prodi'
 import { addDays, mondayOf } from '@/lib/week'
 
@@ -56,7 +57,11 @@ export function kuliahDates(item: { hari: string; minggu: Minggu }, mulai: strin
   return dates
 }
 
-export function buildEvents(j: JadwalDosen): IcsEvent[] {
+/** Pembimbing Pendamping (pembimbing) and Pembahas (penguji) of an S1 prasidang grade it online; eksternal does not. */
+export const bisaBeriNilai = (s: Pick<SidangItem, 'prodi' | 'jenis' | 'peran'>) => bisaDinilai(s) && (s.peran === 'pembimbing' || s.peran === 'penguji')
+
+/** origin (e.g. https://host) makes the grading link absolute for the calendar; the page passes none. */
+export function buildEvents(j: JadwalDosen, origin?: string): IcsEvent[] {
   const events: IcsEvent[] = []
 
   const mulai = j.term?.mulai
@@ -101,8 +106,8 @@ export function buildEvents(j: JadwalDosen): IcsEvent[] {
       uid: `sidang-${s.id}@krs`,
       summary: `${sidangJudul(s)} · ${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${s.nama_mahasiswa} · ${short(s.prodi)}`,
       location: s.tempat || undefined,
-      // The material link rides in the description, so the subscribed calendar offers it too.
-      description: s.link.trim() || undefined,
+      // The material and grading links ride in the description, so the subscribed calendar offers them too.
+      description: [s.link.trim(), origin && bisaBeriNilai(s) ? `Penilaian: ${origin}${penilaianPath(s.id)}` : ''].filter(Boolean).join('\n') || undefined,
       date: s.tanggal,
       start: s.jam_mulai,
       end: s.jam_selesai,
