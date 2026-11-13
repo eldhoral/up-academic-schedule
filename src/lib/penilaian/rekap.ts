@@ -1,5 +1,6 @@
-import type { Peran } from './akses'
-import { ipkSebelum, nilaiBimbingan } from './nilai'
+import { ANGGOTA_I_LEGACY, PERAN_SIDANG, type Peran, type PeranSidang } from './akses'
+import { parseAturanBeku } from './aturan'
+import { baris, hasilAkhir, ipkSebelum, nilaiBimbingan, nilaiSidang, type HasilAkhir } from './nilai'
 
 export type DosenNilai = { nama: string; nilai: number | null; manual: boolean }
 export type RekapBimbingan = {
@@ -54,6 +55,113 @@ export function buildRekapBimbingan(
         dospem1,
         dospem2,
         bimbingan: nilaiBimbingan(dospem1.nilai, dospem2.nilai),
+      }
+    })
+    .sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.nama.localeCompare(b.nama))
+}
+
+// ---- Nilai Akhir (S1 sidang)
+
+export type RekapAkhir = {
+  defenseId: string
+  tanggal: string
+  npm: string
+  nama: string
+  judul: string
+  bimbingan: number | null
+  penguji: Record<PeranSidang, { nama: string; nilai: number | null }>
+  hasil: HasilAkhir
+  yudisium: string | null
+  emailStatus: string | null
+  // Beyond the brief: shown by the page and the file, all derived from the same inputs.
+  ipkSebelum: number | null
+  /** Letter of Nilai Sidang from the frozen Tabel Nilai; null until locked (or when the frozen copy is unreadable). */
+  hurufSidang: string | null
+  lockedAt: string | null
+}
+
+type SidangIn = DefenseIn & { penguji_eksternal_kode: string | null }
+type StudentAkhirIn = StudentIn & { tepat_waktu: boolean }
+type NilaiSidangIn = { defense_id: string; peran: PeranSidang; nilai: number }
+type HasilIn = {
+  defense_id: string
+  yudisium_label: string
+  yudisium_lulus: boolean
+  aturan: unknown
+  locked_at: string
+  email_status: string | null
+}
+
+export const EMAIL_LABEL: Record<string, string> = {
+  tidak_perlu: 'Tidak perlu', menunggu: 'Menunggu', terkirim: 'Terkirim', gagal: 'Gagal', sebagian: 'Sebagian',
+}
+
+/** A retry is for gagal/sebagian; 'menunggu' only once it is clearly stuck, so a send still in flight is not doubled. */
+export function bolehKirimUlang(status: string | null, lockedAt: string | null, now: Date = new Date()): boolean {
+  if (status === 'gagal' || status === 'sebagian') return true
+  const t = lockedAt ? Date.parse(lockedAt) : NaN
+  return status === 'menunggu' && now.getTime() - t > 2 * 60_000
+}
+
+/** NPM -> Nilai Bimbingan of that NPM's LATEST prasidang (any year); null while that one is incomplete. Older ones never fill in. */
+export function bimbinganTerbaru(
+  prasidang: { id: string; tanggal: string; npm: string }[],
+  nilai: { defense_id: string; peran: Peran; nilai: number }[],
+): Map<string, number | null> {
+  const terbaru = new Map<string, { id: string; tanggal: string }>()
+  for (const p of prasidang) {
+    const k = terbaru.get(p.npm)
+    if (!k || p.tanggal > k.tanggal || (p.tanggal === k.tanggal && p.id > k.id)) terbaru.set(p.npm, p)
+  }
+  const skor = (id: string, peran: Peran) => nilai.find((n) => n.defense_id === id && n.peran === peran)?.nilai ?? null
+  return new Map([...terbaru].map(([npm, p]) => [npm, nilaiBimbingan(skor(p.id, 'pembimbing_1'), skor(p.id, 'pembimbing_2'))]))
+}
+
+/** One row per S1 sidang, by tanggal then nama. Pure: the page and the Excel file are both built from it. */
+export function buildRekapAkhir(
+  sidang: SidangIn[],
+  students: StudentAkhirIn[],
+  nilai: NilaiSidangIn[],
+  hasil: HasilIn[],
+  bimbinganByNpm: Map<string, number | null>,
+  namaDosen: (kode: string) => string,
+): RekapAkhir[] {
+  const mhs = new Map(students.map((s) => [s.npm, s]))
+  const skor = new Map(nilai.map((n) => [`${n.defense_id}/${n.peran}`, n.nilai]))
+  const kunci = new Map(hasil.map((h) => [h.defense_id, h]))
+  return sidang
+    .map((d): RekapAkhir => {
+      const kode: Record<PeranSidang, string | null> = { ketua: d.penguji_kode, anggota_1: d.penguji_eksternal_kode, anggota_2: d.pembimbing_kode }
+      const nama = (p: PeranSidang) => (kode[p] ? namaDosen(kode[p]!) : p === 'anggota_1' ? ANGGOTA_I_LEGACY : '—')
+      const penguji = Object.fromEntries(
+        PERAN_SIDANG.map((p) => [p, { nama: nama(p), nilai: skor.get(`${d.id}/${p}`) ?? null }]),
+      ) as RekapAkhir['penguji']
+      const nilaiTiga = PERAN_SIDANG.map((p) => penguji[p].nilai)
+      const s = mhs.get(d.npm)
+      const bimbingan = bimbinganByNpm.get(d.npm) ?? null
+      const h = kunci.get(d.id)
+      const aturan = h ? parseAturanBeku(h.aturan) : null
+      const input = {
+        sidang: nilaiTiga, bimbingan, sks: s?.sks_sebelum ?? null, bobot: s?.bobot_sebelum ?? null, tepatWaktu: s?.tepat_waktu ?? false,
+      }
+      const ns = nilaiSidang(nilaiTiga)
+      return {
+        defenseId: d.id,
+        tanggal: d.tanggal,
+        npm: d.npm,
+        nama: d.nama_mahasiswa,
+        judul: d.judul_skripsi,
+        bimbingan,
+        penguji,
+        // Locked but the frozen copy is unreadable: say so, never compute from guesses.
+        hasil: h && !aturan
+          ? { status: 'data-kurang', nilaiSidang: ns, alasan: 'Aturan penilaian yang dibekukan tidak terbaca' }
+          : hasilAkhir({ ...input, locked: h && aturan ? { lulus: h.yudisium_lulus, aturan } : null }),
+        yudisium: h?.yudisium_label ?? null,
+        emailStatus: h?.email_status ?? null,
+        ipkSebelum: ipkSebelum(s?.bobot_sebelum ?? null, s?.sks_sebelum ?? null),
+        hurufSidang: ns !== null && aturan ? baris(ns, aturan.tabelNilai).huruf : null,
+        lockedAt: h?.locked_at ?? null,
       }
     })
     .sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.nama.localeCompare(b.nama))

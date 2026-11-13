@@ -28,11 +28,17 @@ export type MailDeps = {
 const TIDAK_DIKONFIGURASI = 'SMTP belum dikonfigurasi'
 const MAKS_MS = 10_000
 
+/** Every phase gets the same cap as the send race, so a send we gave up on cannot still deliver afterwards. */
+export const smtpOpsi = (user: string, pass: string) => ({
+  host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass },
+  connectionTimeout: MAKS_MS, greetingTimeout: MAKS_MS, socketTimeout: MAKS_MS,
+})
+
 /** Gmail SMTP from SMTP_USER / SMTP_PASS / SMTP_FROM; null when any is missing. Credentials are never logged. */
 export function smtpTransport(): Transport | null {
   const { SMTP_USER: user, SMTP_PASS: pass, SMTP_FROM: from } = process.env
   if (!user || !pass || !from) return null
-  const t = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
+  const t = nodemailer.createTransport(smtpOpsi(user, pass))
   return async (msg) => {
     const r = await t.sendMail({ from, ...msg })
     const alamat = (a: unknown) => (typeof a === 'string' ? a : (a as { address: string }).address)

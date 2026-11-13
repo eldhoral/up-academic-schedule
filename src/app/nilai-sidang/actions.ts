@@ -10,6 +10,7 @@ import {
   ANGGOTA_I_LEGACY, aksesSidang, bolehInputLamaSidang, PERAN_SIDANG, PERAN_SIDANG_LABEL, penilaianSidangPath, todayJakarta, type PeranSidang,
 } from '@/lib/penilaian/akses'
 import { identitasPenguji, loadSidang, type Sidang } from '@/lib/penilaian/data'
+import { bolehKirimUlang } from '@/lib/penilaian/rekap'
 import {
   ASPEK_BERUBAH, SUDAH_DIKIRIM, aspekSama, cekRevisi, nilaiDariSnapshot, snapshotDariSkor, type Revisi, type SkorAspek,
 } from '@/lib/penilaian/nilai'
@@ -139,13 +140,15 @@ async function kirimAman(defenseId: string): Promise<string> {
   }
 }
 
-/** Super Admin retries a failed or partial revisi email. It is not a re-send after a correction. */
+/** Super Admin retries a failed, partial or stuck ('menunggu' over 2 minutes) revisi email. It is not a re-send after a correction. */
 export async function kirimUlangEmailAction(defenseId: string): Promise<Hasil> {
   const user = await getCurrentUser()
   if (!user || !canManage(user.role)) return { error: BUKAN_SUPERADMIN }
   const data = await loadSidang(defenseId)
   if (!data?.hasil) return { error: TIDAK_ADA }
-  if (data.hasil.email_status !== 'gagal' && data.hasil.email_status !== 'sebagian') return { error: 'Email hanya dapat dikirim ulang jika gagal atau sebagian.' }
+  if (!bolehKirimUlang(data.hasil.email_status, data.hasil.locked_at)) {
+    return { error: 'Email hanya dapat dikirim ulang jika gagal, sebagian, atau masih menunggu lebih dari 2 menit.' }
+  }
 
   const status = await kirimAman(data.defense.id)
   revalidate(data.defense.id)

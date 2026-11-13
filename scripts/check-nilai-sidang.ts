@@ -490,3 +490,163 @@ cekEmail().catch((e) => { console.error(e); process.exit(1) })
   assert.match(humanDbError({ code: '23514', message: 'Revisi tidak valid.' }), /tidak sesuai aturan/)
   console.log('nilai-sidang db-error: all checks passed')
 }
+
+// ---- rekap Nilai Akhir
+import { ANGGOTA_I_LEGACY } from '../src/lib/penilaian/akses'
+import { bimbinganTerbaru, bolehKirimUlang, buildRekapAkhir, EMAIL_LABEL } from '../src/lib/penilaian/rekap'
+import { smtpOpsi } from '../src/lib/mailer'
+{
+  const sd = (id: string, npm: string, nama: string, over: Record<string, unknown> = {}) => ({
+    id, tanggal: '2026-11-10', npm, nama_mahasiswa: nama, judul_skripsi: `Judul ${nama}`,
+    penguji_kode: 'K', penguji_eksternal_kode: 'E', pembimbing_kode: 'P', ...over,
+  })
+  const sidang = [
+    sd('d-ok', '2021110001', 'ABDURRAHMAN'),
+    sd('d-bim', '2021110002', 'BUDI'),
+    sd('d-gagal', '2021110003', 'CICI'),
+    sd('d-legacy', '2021110004', 'DANI', { penguji_eksternal_kode: null, tanggal: '2026-11-09' }),
+    sd('d-rusak', '2021110005', 'EKA'),
+  ]
+  const mhs = (npm: string, over: Record<string, unknown> = {}) => ({ npm, sks_sebelum: 139, bobot_sebelum: 404.57, tepat_waktu: true, ...over })
+  const students = [mhs('2021110001'), mhs('2021110002'), mhs('2021110003'), mhs('2021110004'), mhs('2021110005')]
+  const tiga = (id: string, n: number) => (['ketua', 'anggota_1', 'anggota_2'] as const).map((peran) => ({ defense_id: id, peran, nilai: n }))
+  const nilai = [...tiga('d-ok', 76.5), ...tiga('d-bim', 76.5), ...tiga('d-gagal', 40), ...tiga('d-rusak', 80)]
+  const hasil = (id: string, label: string, lulus: boolean, email: string | null, aturan: unknown = beku) =>
+    ({ defense_id: id, yudisium_label: label, yudisium_lulus: lulus, aturan, locked_at: '2026-11-10T03:00:00Z', email_status: email })
+  const hs = [
+    hasil('d-ok', 'Lulus Tanpa Revisi', true, 'terkirim'),
+    hasil('d-bim', 'Lulus Dengan Revisi', true, 'sebagian'),
+    hasil('d-gagal', 'Tidak Lulus', false, 'tidak_perlu'),
+    hasil('d-rusak', 'Lulus Tanpa Revisi', true, 'gagal', { tabelNilai: 'rusak' }),
+  ]
+  const namaDosen = (k: string) => `Dosen ${k}`
+
+  // Bimbingan: the LATEST prasidang of the NPM decides, even when an older one is complete or the newest is still open.
+  const pra = [
+    { id: 'p-lama', tanggal: '2025-05-01', npm: '2021110001' },
+    { id: 'p-baru', tanggal: '2026-05-01', npm: '2021110001' },
+    { id: 'p-sebagian', tanggal: '2026-05-02', npm: '2021110002' },
+    { id: 'p-tua', tanggal: '2025-01-01', npm: '2021110003' },
+    { id: 'p-kosong', tanggal: '2026-01-01', npm: '2021110003' },
+  ]
+  const nb = [
+    { defense_id: 'p-lama', peran: 'pembimbing_1' as const, nilai: 60 }, { defense_id: 'p-lama', peran: 'pembimbing_2' as const, nilai: 60 },
+    { defense_id: 'p-baru', peran: 'pembimbing_1' as const, nilai: 78 }, { defense_id: 'p-baru', peran: 'pembimbing_2' as const, nilai: 79 },
+    { defense_id: 'p-sebagian', peran: 'pembimbing_1' as const, nilai: 80 },
+    { defense_id: 'p-tua', peran: 'pembimbing_1' as const, nilai: 70 }, { defense_id: 'p-tua', peran: 'pembimbing_2' as const, nilai: 70 },
+  ]
+  const bim = bimbinganTerbaru(pra, nb)
+  assert.equal(bim.get('2021110001'), 78.5) // latest of two, not 60
+  assert.equal(bim.get('2021110002'), null) // one dosen only
+  assert.equal(bim.get('2021110003'), null) // latest has no grades; the older complete one is not used
+  assert.equal(bim.has('2021110004'), false)
+  assert.deepEqual(Object.fromEntries(bimbinganTerbaru([...pra].reverse(), [...nb].reverse())), Object.fromEntries(bim)) // input order does not matter
+
+  const rows = buildRekapAkhir(sidang, students, nilai, hs, bim, namaDosen)
+  assert.deepEqual(rows.map((r) => r.defenseId), ['d-legacy', 'd-ok', 'd-bim', 'd-gagal', 'd-rusak']) // tanggal, then nama
+  const by = (id: string) => rows.find((r) => r.defenseId === id)!
+
+  // complete: ABDURRAHMAN
+  const ok = by('d-ok')
+  assert.deepEqual([ok.npm, ok.nama, ok.judul, ok.tanggal], ['2021110001', 'ABDURRAHMAN', 'Judul ABDURRAHMAN', '2026-11-10'])
+  assert.equal(ok.bimbingan, 78.5)
+  assert.deepEqual(ok.penguji, {
+    ketua: { nama: 'Dosen K', nilai: 76.5 }, anggota_1: { nama: 'Dosen E', nilai: 76.5 }, anggota_2: { nama: 'Dosen P', nilai: 76.5 },
+  })
+  assert.deepEqual(ok.hasil, {
+    status: 'lengkap', nilaiSidang: 76.5, nilaiAkhir: 77.5, huruf: 'A-', mutu: 3.67, ipkSebelum: 2.91, ipkSetelah: 2.94, predikat: 'Sangat Memuaskan',
+  })
+  assert.equal(ok.yudisium, 'Lulus Tanpa Revisi')
+  assert.equal(ok.emailStatus, 'terkirim')
+  assert.equal(ok.hurufSidang, 'A-')
+  assert.equal(ok.ipkSebelum, 2.91)
+
+  // menunggu-bimbingan: nilai sidang shown, reason in place of the rest
+  const bm = by('d-bim')
+  assert.equal(bm.bimbingan, null)
+  assert.equal(bm.hasil.status, 'menunggu-bimbingan')
+  assert.equal(bm.hasil.nilaiSidang, 76.5)
+  assert.ok('alasan' in bm.hasil && bm.hasil.alasan === 'Menunggu Nilai Bimbingan lengkap')
+  assert.equal(bm.emailStatus, 'sebagian')
+
+  // tidak-lulus (and no prasidang at all for this NPM)
+  const gl = by('d-gagal')
+  assert.equal(gl.bimbingan, null)
+  assert.equal(gl.hasil.status, 'tidak-lulus')
+  assert.equal(gl.hasil.nilaiSidang, 40)
+  assert.equal(gl.yudisium, 'Tidak Lulus')
+  assert.equal(gl.emailStatus, 'tidak_perlu')
+  assert.equal(gl.hurufSidang, baris(40, beku.tabelNilai).huruf)
+
+  // not locked, legacy free-text Anggota I (no kode, no grade)
+  const lg = by('d-legacy')
+  assert.equal(lg.hasil.status, 'menunggu-ketua')
+  assert.equal(lg.hasil.nilaiSidang, null)
+  assert.equal(lg.penguji.anggota_1.nama, ANGGOTA_I_LEGACY)
+  assert.equal(lg.penguji.anggota_1.nilai, null)
+  assert.equal(lg.penguji.ketua.nilai, null)
+  assert.deepEqual([lg.yudisium, lg.emailStatus, lg.hurufSidang], [null, null, null])
+
+  // frozen rules unreadable: a pending reason, never NaN or a throw
+  const rs = by('d-rusak')
+  assert.equal(rs.hasil.status, 'data-kurang')
+  assert.ok('alasan' in rs.hasil && rs.hasil.alasan.length > 0)
+  assert.equal(rs.hasil.nilaiSidang, 80)
+  assert.equal(rs.hurufSidang, null)
+
+  // students missing -> SKS/Bobot reason, IPK sebelum blank
+  const tanpa = buildRekapAkhir([sidang[0]], [], nilai, hs, bim, namaDosen)[0]
+  assert.ok('alasan' in tanpa.hasil && tanpa.hasil.alasan === 'SKS/Bobot belum diisi')
+  assert.equal(tanpa.ipkSebelum, null)
+
+  // kirim ulang: gagal/sebagian always; menunggu only once the first send is clearly stuck (2 min)
+  const kunci = '2026-11-10T03:00:00Z'
+  const jam = (s: number) => new Date(Date.parse(kunci) + s * 1000)
+  assert.equal(bolehKirimUlang('gagal', kunci, jam(0)), true)
+  assert.equal(bolehKirimUlang('sebagian', kunci, jam(0)), true)
+  assert.equal(bolehKirimUlang('menunggu', kunci, jam(119)), false)
+  assert.equal(bolehKirimUlang('menunggu', kunci, jam(121)), true)
+  assert.equal(bolehKirimUlang('menunggu', 'bukan tanggal', jam(999)), false)
+  for (const s of ['terkirim', 'tidak_perlu', null]) assert.equal(bolehKirimUlang(s, kunci, jam(9999)), false)
+  assert.equal(EMAIL_LABEL.gagal, 'Gagal')
+
+  // SMTP: every phase times out, so a send the 10 s race gave up on cannot deliver later
+  const opsi = smtpOpsi('u@x.id', 'p')
+  assert.deepEqual([opsi.connectionTimeout, opsi.greetingTimeout, opsi.socketTimeout], [10_000, 10_000, 10_000])
+  assert.deepEqual([opsi.host, opsi.port, opsi.secure], ['smtp.gmail.com', 465, true])
+  console.log('nilai-sidang rekap akhir: all checks passed')
+}
+
+// ---- rekap Nilai Akhir: the xlsx
+import ExcelJS from 'exceljs'
+import { buildRekapAkhirXlsx } from '../src/lib/penilaian/rekap-xlsx'
+void (async () => {
+  const tiga = { ketua: { nama: 'Dosen K', nilai: 76.5 }, anggota_1: { nama: 'Dosen E', nilai: 76.5 }, anggota_2: { nama: 'Dosen P', nilai: null } }
+  const dasar = { tanggal: '2026-11-10', judul: 'J', penguji: tiga, ipkSebelum: 2.91, hurufSidang: null, lockedAt: null, yudisium: null, emailStatus: null }
+  const buf = await buildRekapAkhirXlsx([
+    {
+      ...dasar, defenseId: 'a', npm: '1', nama: 'A', bimbingan: 78.5, yudisium: 'Lulus Tanpa Revisi', emailStatus: 'gagal', hurufSidang: 'A-',
+      hasil: { status: 'lengkap', nilaiSidang: 76.5, nilaiAkhir: 77.5, huruf: 'A-', mutu: 3.67, ipkSebelum: 2.91, ipkSetelah: 2.94, predikat: 'Sangat Memuaskan' },
+    },
+    { ...dasar, defenseId: 'b', npm: '2', nama: 'B', bimbingan: null, hasil: { status: 'menunggu-ketua', nilaiSidang: null, alasan: 'Menunggu Ketua Penguji mengunci hasil sidang' } },
+  ])
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(buf as unknown as ArrayBuffer)
+  const ws = wb.worksheets[0]
+  assert.deepEqual((ws.getRow(1).values as unknown[]).slice(1), [
+    'NPM', 'Nama', 'Judul', 'Nilai Bimbingan', 'Ketua', 'Nilai Ketua', 'Anggota I', 'Nilai I', 'Anggota II', 'Nilai II', 'Nilai Sidang', 'Huruf Sidang',
+    'Yudisium', 'Nilai Akhir', 'Huruf', 'Bobot Mutu', 'IPK Sebelum', 'IPK Setelah', 'Predikat', 'Status Email',
+  ])
+  const a = ws.getRow(2)
+  for (const c of [4, 6, 8, 11, 14, 16, 17, 18]) {
+    assert.equal(typeof a.getCell(c).value, 'number', `col ${c}`)
+    assert.equal(a.getCell(c).numFmt, '0.00')
+  }
+  assert.equal(a.getCell(14).value, 77.5)
+  assert.equal(a.getCell(20).value, 'Gagal')
+  // pending: reason in Nilai Akhir, the numeric result cells blank
+  const b = ws.getRow(3)
+  assert.equal(b.getCell(14).value, 'Menunggu Ketua Penguji mengunci hasil sidang')
+  for (const c of [4, 10, 11, 15, 16, 18, 19, 20]) assert.equal(b.getCell(c).value, null, `col ${c}`)
+  console.log('nilai-sidang rekap akhir xlsx: all checks passed')
+})().catch((e) => { console.error(e); process.exit(1) })
