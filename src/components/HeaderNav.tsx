@@ -48,7 +48,7 @@ const MASTER_SHARED: Tab[] = [
 ]
 
 /** The section a page belongs to; null on the menu itself ("/"). */
-function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean, canWrite: boolean): Section | null {
+function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean, akunEksternal: boolean): Section | null {
   if (prodi) {
     const c = PRODI_CONFIG[prodi]
     const own = (title: string, tabs: Tab[]) => ({ title: `${c.short} · ${title}`, tabs: tabs.map((t) => ({ ...t, href: `/${prodi}${t.href}` })) })
@@ -56,7 +56,7 @@ function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean,
     if (active.startsWith('/ujian')) return own('Jadwal UTS & UAS', UJIAN)
     if (active.startsWith('/sidang')) {
       const tabs = SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t))
-      const s1 = canWrite ? [...tabs, NILAI_BIMBINGAN, AKUN_EKSTERNAL] : [...tabs, NILAI_BIMBINGAN]
+      const s1 = akunEksternal ? [...tabs, NILAI_BIMBINGAN, AKUN_EKSTERNAL] : [...tabs, NILAI_BIMBINGAN]
       return own(`Jadwal ${c.defense.section}`, prodi === 's1' ? s1 : tabs)
     }
     const master = canManage && prodi === 's1' ? [...MASTER_PRODI, PENILAIAN] : MASTER_PRODI
@@ -78,8 +78,8 @@ const linkClass = (isActive: boolean) =>
   }`
 
 /** Back to the menu, the section's name, and its tabs. Nothing on the menu itself. */
-export function HeaderNav({ active, prodi, canManage = false, canWrite = false }: { active: string; prodi?: Prodi; canManage?: boolean; canWrite?: boolean }) {
-  const section = sectionOf(active, prodi, canManage, canWrite)
+export function HeaderNav({ active, prodi, canManage = false, akunEksternal = false }: { active: string; prodi?: Prodi; canManage?: boolean; akunEksternal?: boolean }) {
+  const section = sectionOf(active, prodi, canManage, akunEksternal)
   if (!section) return null
   const current = prodi ? `/${prodi}${active}` : active
 

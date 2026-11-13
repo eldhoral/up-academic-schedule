@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { humanDbError } from '../db-error'
 import { generatePassword } from '../password'
 import { addDays } from '../week'
+import { todayJakarta } from './akses'
 
 /** Day logins sign in with a synthetic email; the login form takes the bare username. */
 const DOMAIN = 'penguji.local'
@@ -22,10 +23,13 @@ export type AkunEksternal = { created: false } | { created: true; username: stri
  * The day login for an external Anggota Penguji I on a sidang date, made once and shared by every sidang
  * that day. A new account's password is returned once and never stored. Throws a readable Error.
  * Two saves at once for the same dosen and day collide on the username (or the akun row): the loser
- * removes what it made and reports the account as existing.
+ * removes what it made and reports the account as existing, or, when the winner hasn't written its
+ * akun row yet, reports the login as leftover (the save stands; saving again then finds the account).
  */
-export async function ensureAkunEksternal(admin: SupabaseClient, kode: string, tanggal: string): Promise<AkunEksternal> {
+export async function ensureAkunEksternal(admin: SupabaseClient, kode: string, tanggal: string, today = todayJakarta()): Promise<AkunEksternal> {
   const berlaku = addDays(tanggal, 1)
+  // An old sidang (a backfill): the account would be expired from the start.
+  if (berlaku < today) return { created: false }
   const ada = await admin.from('akun_eksternal').select('user_id').eq('kode_dosen', kode).eq('tanggal', tanggal).maybeSingle()
   if (ada.error) throw new Error(humanDbError(ada.error))
   if (ada.data) {
@@ -40,8 +44,11 @@ export async function ensureAkunEksternal(admin: SupabaseClient, kode: string, t
   const { data, error } = await admin.auth.admin.createUser({ email: emailLogin(username), password, email_confirm: true })
   if (error) {
     if (error.code !== 'email_exists') throw new Error(humanDbError(error))
-    const { data: pemilik } = await admin.from('akun_eksternal').select('kode_dosen').eq('username', username).maybeSingle()
-    if (pemilik && pemilik.kode_dosen !== kode) throw new Error(`Username ${username} sudah dipakai akun dosen lain. Hubungi Super Admin.`)
+    const { data: pemilik, error: pemilikError } = await admin.from('akun_eksternal').select('kode_dosen').eq('username', username).maybeSingle()
+    if (pemilikError) throw new Error(humanDbError(pemilikError))
+    // No akun row: a login left by a failed cleanup (or another save still creating it).
+    if (!pemilik) throw new Error(`Login ${username} sudah ada tanpa data akun; hapus dari Pengguna lalu simpan ulang.`)
+    if (pemilik.kode_dosen !== kode) throw new Error(`Username ${username} sudah dipakai akun dosen lain. Hubungi Super Admin.`)
     return { created: false }
   }
 

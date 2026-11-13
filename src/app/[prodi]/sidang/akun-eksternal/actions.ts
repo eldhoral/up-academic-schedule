@@ -45,10 +45,11 @@ export async function buatPasswordBaruAction(userId: string): Promise<{ error: s
   return { password }
 }
 
-/** Super Admin only: berlaku_sampai + 1..7 days. The profiles audit trigger logs the change. */
+/** Super Admin only: berlaku_sampai + 1..7 days, logged with the actor. */
 export async function perpanjangAction(userId: string, hari: number): Promise<{ error: string } | { berlakuSampai: string }> {
-  const me = await getCurrentUser()
-  if (!me || !canManage(me.role)) return { error: 'Hanya Super Admin yang dapat memperpanjang akun.' }
+  const user = await getCurrentUser()
+  if (!user || !canManage(user.role)) return { error: 'Hanya Super Admin yang dapat memperpanjang akun.' }
+  const me = user
   if (!Number.isInteger(hari) || hari < 1 || hari > 7) return { error: 'Perpanjangan 1 sampai 7 hari.' }
 
   const admin = createAdminClient()
@@ -58,6 +59,18 @@ export async function perpanjangAction(userId: string, hari: number): Promise<{ 
   const berlakuSampai = addDays(akun.berlaku_sampai, hari)
   const { error } = await admin.from('profiles').update({ berlaku_sampai: berlakuSampai }).eq('id', userId).eq('role', 'EKSTERNAL')
   if (error) return { error: humanDbError(error) }
+
+  // The audit_profiles trigger sees no actor under the admin client; this row says who extended it. Best-effort.
+  const { error: logError } = await admin.from('audit_log').insert({
+    actor_id: me.id,
+    actor_email: me.email,
+    action: 'UPDATE',
+    table_name: 'profiles',
+    record_id: userId,
+    old_data: { berlaku_sampai: akun.berlaku_sampai },
+    new_data: { berlaku_sampai: berlakuSampai, perpanjang_hari: hari },
+  })
+  if (logError) console.error('audit_log perpanjang insert failed:', logError.message)
 
   revalidatePath('/[prodi]/sidang/akun-eksternal', 'page')
   return { berlakuSampai }

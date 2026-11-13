@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { AppHeader } from '@/components/AppHeader'
 import { EmptySheet } from '@/components/EmptySheet'
 import { prodiParam } from '@/lib/prodi-server'
+import { canAccessProdi } from '@/lib/prodi'
 import { canManage, canWrite, getCurrentUser } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
@@ -12,7 +13,7 @@ export default async function AkunEksternalPage(props: PageProps<'/[prodi]/sidan
   const prodi = await prodiParam(props.params)
   if (prodi !== 's1') notFound() // sidang grading is S1 only
   const user = await getCurrentUser()
-  if (!user || !canWrite(user.role)) notFound()
+  if (!user || !canWrite(user.role) || !canAccessProdi(user.prodiAccess, 's1')) notFound()
 
   // The session client: staff read akun_eksternal, profiles and defenses through RLS.
   const supabase = await createClient()

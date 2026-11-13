@@ -252,7 +252,7 @@ async function cekEnsure() {
   // New: one profile update with role + kode + berlaku_sampai = tanggal + 1, then the akun row.
   {
     const { admin, log } = fakeAdmin({})
-    const res = await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20')
+    const res = await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20', '2026-11-14')
     assert.ok(res.created && res.username === 'eks-ext01-201126' && res.password.length === 10)
     assert.ok(log.includes('createUser(eks-ext01-201126@penguji.local)'), log.join('\n'))
     assert.ok(log.some((l) => l.startsWith('profiles.update(') && l.includes('"role":"EKSTERNAL"') && l.includes('"kode_dosen":"EXT-01"') && l.includes('"berlaku_sampai":"2026-11-21"')), log.join('\n'))
@@ -262,37 +262,55 @@ async function cekEnsure() {
   // Exists: no new user, berlaku_sampai only ever raised to tanggal + 1.
   {
     const { admin, log } = fakeAdmin({ ada: { data: { user_id: 'u-lama' } } })
-    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), { created: false })
+    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20', '2026-11-14'), { created: false })
     assert.ok(!log.some((l) => l.startsWith('createUser')))
     assert.ok(log.includes('profiles.lt("berlaku_sampai","2026-11-21")'), log.join('\n'))
   }
   // Profile update fails: the VIEWER user is deleted, the error surfaces.
   {
     const { admin, log } = fakeAdmin({ profil: { error: { message: 'boom' } } })
-    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'))
+    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20', '2026-11-14'))
     assert.ok(log.includes('deleteUser(u-baru)'))
   }
   // ...and a failed delete is reported too, naming the leftover login.
   {
     const { admin } = fakeAdmin({ profil: { error: { message: 'boom' } }, hapus: { error: { message: 'down' } } })
-    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), /eks-ext01-201126/)
+    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20', '2026-11-14'), /eks-ext01-201126/)
   }
   // Race lost on the akun row (23505): clean up our user, treat as existing.
   {
     const { admin, log } = fakeAdmin({ insert: { error: { message: 'dup', code: '23505' } } })
-    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), { created: false })
+    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20', '2026-11-14'), { created: false })
     assert.ok(log.includes('deleteUser(u-baru)'))
   }
   // Race lost on the login itself (same username): nothing to clean up, treat as existing.
   {
-    const { admin, log } = fakeAdmin({ create: { data: null, error: { message: 'exists', code: 'email_exists' } } })
-    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), { created: false })
+    const { admin, log } = fakeAdmin({ create: { data: null, error: { message: 'exists', code: 'email_exists' } }, pemilik: { data: { kode_dosen: 'EXT-01' } } })
+    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-20', '2026-11-14'), { created: false })
     assert.ok(!log.some((l) => l.startsWith('deleteUser')))
+  }
+  // A login with no akun row (an earlier cleanup failed, or a save mid-creation): reported, never silent.
+  {
+    const { admin } = fakeAdmin({ create: { data: null, error: { message: 'exists', code: 'email_exists' } } })
+    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20', '2026-11-14'), /sudah ada tanpa data akun/)
+  }
+  // ...and a failed owner lookup is an error, not "exists".
+  {
+    const { admin } = fakeAdmin({ create: { data: null, error: { message: 'exists', code: 'email_exists' } }, pemilik: { error: { message: 'down' } } })
+    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20', '2026-11-14'))
+  }
+  // An old sidang (tanggal + 1 already past): no account, nothing touched.
+  {
+    const { admin, log } = fakeAdmin({})
+    assert.deepEqual(await ensureAkunEksternal(admin, 'EXT-01', '2026-11-01', '2026-11-14'), { created: false })
+    assert.deepEqual(log, [])
+    // The day after the sidang still gets one.
+    assert.ok((await ensureAkunEksternal(fakeAdmin({}).admin, 'EXT-01', '2026-11-13', '2026-11-14')).created)
   }
   // ...unless that username belongs to another dosen (kodes that normalize alike).
   {
     const { admin } = fakeAdmin({ create: { data: null, error: { message: 'exists', code: 'email_exists' } }, pemilik: { data: { kode_dosen: 'EXT01' } } })
-    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20'), /dosen lain/)
+    await assert.rejects(ensureAkunEksternal(admin, 'EXT-01', '2026-11-20', '2026-11-14'), /dosen lain/)
   }
   console.log('nilai-sidang akun eksternal: all checks passed')
 }
