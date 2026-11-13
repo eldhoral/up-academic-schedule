@@ -148,3 +148,60 @@ async function main() {
   console.log('nilai-sidang: all checks passed')
 }
 main().catch((e) => { console.error(e); process.exit(1) })
+
+// ---- akses sidang
+import {
+  aksesSidang, bisaDinilaiSidang, eksternalAktif, halamanDosen, penilaianSidangPath, peranPenguji, type PeranSidang, type SidangRef,
+} from '../src/lib/penilaian/akses'
+{
+  const sd: SidangRef = { id: 's1', prodi: 's1', jenis: 'sidang', tanggal: '2026-11-10', pembimbing_kode: 'PB', penguji_kode: 'KT', penguji_eksternal_kode: 'EX' }
+  const none = new Set<PeranSidang>()
+  const o = (p: Partial<Parameters<typeof aksesSidang>[2]> = {}) => ({ submitted: none, locked: false, today: '2026-11-10', ...p })
+
+  assert.equal(bisaDinilaiSidang(sd), true)
+  assert.equal(bisaDinilaiSidang({ ...sd, prodi: 's2' }), false)
+  assert.equal(bisaDinilaiSidang({ ...sd, jenis: 'prasidang' }), false)
+  assert.equal(peranPenguji(sd, 'KT'), 'ketua')
+  assert.equal(peranPenguji(sd, 'EX'), 'anggota_1')
+  assert.equal(peranPenguji(sd, 'PB'), 'anggota_2')
+  assert.equal(peranPenguji(sd, 'ZZ'), null)
+  assert.equal(peranPenguji({ ...sd, prodi: 's2' }, 'KT'), null)
+  assert.equal(peranPenguji({ ...sd, jenis: 'prasidang' }, 'KT'), null)
+  assert.equal(peranPenguji({ ...sd, penguji_eksternal_kode: null }, ''), null)
+
+  assert.deepEqual(aksesSidang(null, 'KT', o()), { kind: 'tidak-ada' })
+  assert.deepEqual(aksesSidang(sd, 'ZZ', o()), { kind: 'tidak-ada' })
+  assert.deepEqual(aksesSidang(sd, 'EX', o({ today: '2026-11-09' })), { kind: 'belum-dibuka', tanggal: '2026-11-10' })
+  assert.deepEqual(aksesSidang(sd, 'KT', o({ today: '2026-11-09' })), { kind: 'belum-dibuka', tanggal: '2026-11-10' })
+  assert.deepEqual(aksesSidang(sd, 'EX', o()), { kind: 'isi', peran: 'anggota_1' })
+  assert.deepEqual(aksesSidang(sd, 'PB', o({ today: '2026-11-11' })), { kind: 'isi', peran: 'anggota_2' })
+  // Submitted wins over the date gate (a rescheduled graded sidang stays read-only).
+  assert.deepEqual(aksesSidang(sd, 'EX', o({ submitted: new Set(['anggota_1']), today: '2026-11-01' })), { kind: 'terkirim', peran: 'anggota_1' })
+  // Ketua waits for both anggota and is told who is missing.
+  assert.deepEqual(aksesSidang(sd, 'KT', o()), { kind: 'menunggu-anggota', kurang: ['anggota_1', 'anggota_2'] })
+  assert.deepEqual(aksesSidang(sd, 'KT', o({ submitted: new Set(['anggota_2']) })), { kind: 'menunggu-anggota', kurang: ['anggota_1'] })
+  assert.deepEqual(aksesSidang(sd, 'KT', o({ submitted: new Set(['anggota_1', 'anggota_2']) })), { kind: 'kunci', peran: 'ketua' })
+  // After the lock everyone is read-only, even before the date gate.
+  const dua = new Set<PeranSidang>(['anggota_1', 'anggota_2', 'ketua'])
+  for (const kode of ['KT', 'EX', 'PB']) {
+    assert.deepEqual(aksesSidang(sd, kode, o({ submitted: dua, locked: true })), { kind: 'terkunci' })
+    assert.deepEqual(aksesSidang(sd, kode, o({ submitted: dua, locked: true, today: '2026-01-01' })), { kind: 'terkunci' })
+  }
+  // An EKSTERNAL account is bound to its day.
+  assert.deepEqual(aksesSidang(sd, 'EX', o({ akunTanggal: '2026-11-10' })), { kind: 'isi', peran: 'anggota_1' })
+  assert.deepEqual(aksesSidang(sd, 'EX', o({ akunTanggal: '2026-11-09' })), { kind: 'tidak-ada' })
+  assert.deepEqual(aksesSidang(sd, 'EX', o({ akunTanggal: '2026-11-09', locked: true })), { kind: 'tidak-ada' })
+  assert.deepEqual(aksesSidang({ ...sd, prodi: 's2' }, 'KT', o()), { kind: 'tidak-ada' })
+
+  // Jakarta day: valid through berlaku_sampai, gone at 00:00 WIB the next day.
+  assert.equal(eksternalAktif('2026-11-10', new Date('2026-11-10T16:59:00Z')), true)
+  assert.equal(eksternalAktif('2026-11-10', new Date('2026-11-10T17:00:00Z')), false)
+
+  assert.equal(penilaianSidangPath('abc'), '/nilai-sidang/abc')
+  // A DOSEN gains the sidang page, an EKSTERNAL gets the sidang page but no password page or bimbingan.
+  for (const p of ['/penilaian', '/atur-kata-sandi', '/nilai-bimbingan/abc', '/nilai-sidang/abc']) assert.equal(halamanDosen(p, 'DOSEN'), true, p)
+  for (const p of ['/penilaian', '/nilai-sidang/abc']) assert.equal(halamanDosen(p, 'EKSTERNAL'), true, p)
+  for (const p of ['/atur-kata-sandi', '/nilai-bimbingan/abc', '/', '/nilai-sidang', '/nilai-sidang/a/b', '/s1/kuliah']) assert.equal(halamanDosen(p, 'EKSTERNAL'), false, p)
+  for (const p of ['/nilai-sidang', '/nilai-sidang/a/b']) assert.equal(halamanDosen(p, 'DOSEN'), false, p)
+  console.log('nilai-sidang akses: all checks passed')
+}

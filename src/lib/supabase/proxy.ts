@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { halamanDosen } from '@/lib/penilaian/akses'
+import { eksternalAktif, halamanDosen } from '@/lib/penilaian/akses'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -58,6 +58,11 @@ export async function updateSession(request: NextRequest) {
 
     // If authenticated and visiting /masuk, redirect to dashboard or redirectTo target
     if (user && isMasuk) {
+      // An expired EKSTERNAL is signed out here, or it would bounce between /masuk and its pages forever.
+      if (await eksternalKedaluwarsa(supabase, user.sub)) {
+        await supabase.auth.signOut()
+        return supabaseResponse
+      }
       const redirectTo = request.nextUrl.searchParams.get('redirectTo') || '/'
       const url = request.nextUrl.clone()
       url.pathname = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`
@@ -65,13 +70,18 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // A DOSEN account sees only its grading pages. Deny by default, so a new staff page, export
+    // A DOSEN or EKSTERNAL account sees only its grading pages. Deny by default, so a new staff page, export
     // route or action POST can't reach it. RLS (is_staff) still guards the data underneath.
+    // The EKSTERNAL list is the narrower one: a page open to neither skips nothing, a page open to both needs no role check.
     // ponytail: one profiles read per staff request; move the role into a JWT claim if that shows up in latency.
-    if (user && !isMasuk && !halamanDosen(pathname)) {
-      const { data: profile, error } = await supabase.from('profiles').select('role').eq('id', user.sub).maybeSingle()
+    if (user && !isMasuk && !halamanDosen(pathname, 'EKSTERNAL')) {
+      const { data: profile, error } = await supabase.from('profiles').select('role, berlaku_sampai').eq('id', user.sub).maybeSingle()
       // Not a redirect to /masuk: a signed-in user there is sent straight back, which would loop.
       if (error) return withCookies(new NextResponse('Gagal memeriksa akun. Muat ulang halaman.', { status: 503 }), supabaseResponse)
+      if (profile?.role === 'EKSTERNAL' && !(profile.berlaku_sampai && eksternalAktif(profile.berlaku_sampai))) {
+        await supabase.auth.signOut()
+        return withCookies(redirectToMasuk(request, pathname), supabaseResponse)
+      }
       const blocked = tolakDosen(request, profile?.role)
       if (blocked) return withCookies(blocked, supabaseResponse)
     }
@@ -93,11 +103,16 @@ function redirectToMasuk(request: NextRequest, pathname: string) {
   return NextResponse.redirect(url)
 }
 
-/** A DOSEN off its own pages: a page visit goes to Penilaian Saya, anything else (a staff action's POST) gets 403. */
+async function eksternalKedaluwarsa(supabase: ReturnType<typeof createServerClient>, userId: string): Promise<boolean> {
+  const { data } = await supabase.from('profiles').select('role, berlaku_sampai').eq('id', userId).maybeSingle()
+  return data?.role === 'EKSTERNAL' && !(data.berlaku_sampai && eksternalAktif(data.berlaku_sampai))
+}
+
+/** A DOSEN or EKSTERNAL off its own pages: a page visit goes to Penilaian Saya, anything else (a staff action's POST) gets 403. */
 export function tolakDosen(request: NextRequest, role: unknown): NextResponse | null {
-  if (role !== 'DOSEN' || halamanDosen(request.nextUrl.pathname)) return null
+  if ((role !== 'DOSEN' && role !== 'EKSTERNAL') || halamanDosen(request.nextUrl.pathname, role)) return null
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return new NextResponse('Akun Dosen tidak dapat membuka halaman ini.', { status: 403 })
+    return new NextResponse('Akun ini tidak dapat membuka halaman ini.', { status: 403 })
   }
   const url = request.nextUrl.clone()
   url.pathname = '/penilaian'

@@ -17,9 +17,10 @@ async function requireSuperadmin() {
   return me
 }
 
+// EKSTERNAL day accounts are made only from Akun Penguji Eksternal (berlaku_sampai, one defense day), never here.
 function readRole(formData: FormData): Role | null {
   const value = formData.get('role') as string
-  return (ROLES as readonly string[]).includes(value) ? (value as Role) : null
+  return value !== 'EKSTERNAL' && (ROLES as readonly string[]).includes(value) ? (value as Role) : null
 }
 
 function readProdiAccess(formData: FormData): ProdiAccess | null {
@@ -121,6 +122,9 @@ export async function updateUserRoleAction(userId: string, _prev: FormState, for
   if (!role) return { error: 'Peran tidak valid.' }
 
   const admin = createAdminClient()
+  // The DB ties role EKSTERNAL to berlaku_sampai; turning one into staff here would only fail on that check.
+  const { data: target } = await admin.from('profiles').select('role').eq('id', userId).maybeSingle()
+  if (target?.role === 'EKSTERNAL') return { error: 'Akun penguji eksternal dikelola dari halaman Akun Penguji Eksternal.' }
   if (role !== 'SUPERADMIN' && (await isLastSuperadmin(admin, userId))) {
     return { error: 'Tidak dapat mengubah peran ini — setidaknya harus ada satu Super Admin.' }
   }

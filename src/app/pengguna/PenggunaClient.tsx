@@ -20,7 +20,9 @@ export type Profile = {
 /** Every lecturer; only the non-eksternal ones without an account can be picked. */
 export type DosenOption = { kode_dosen: string; nama: string; eksternal: boolean }
 
-const ROLE_OPTIONS = ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))
+// EKSTERNAL accounts are made from Akun Penguji Eksternal, so the pickers never offer the role.
+const PICKABLE_ROLES = ROLES.filter((r) => r !== 'EKSTERNAL')
+const ROLE_OPTIONS = PICKABLE_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))
 const PRODI_ACCESS_OPTIONS = PRODI_ACCESS.map((a) => ({ value: a, label: PRODI_ACCESS_LABEL[a] }))
 
 export function PenggunaClient({ users, currentUserId, dosen }: { users: Profile[]; currentUserId: string; dosen: DosenOption[] }) {
@@ -74,7 +76,7 @@ export function PenggunaClient({ users, currentUserId, dosen }: { users: Profile
             <FilterChip active={roleFilter === 'semua'} onClick={() => setRoleFilter('semua')}>
               Semua peran
             </FilterChip>
-            {ROLES.map((r) => (
+            {PICKABLE_ROLES.map((r) => (
               <FilterChip key={r} active={roleFilter === r} onClick={() => setRoleFilter(r)}>
                 {ROLE_LABEL[r]}
               </FilterChip>
@@ -98,8 +100,8 @@ export function PenggunaClient({ users, currentUserId, dosen }: { users: Profile
                 <tr key={u.id} className="border-t border-[var(--garis)] h-[2.4rem]">
                   <Td>{u.email}</Td>
                   <Td>
-                    {u.id === currentUserId ? (
-                      <span className="text-[var(--tinta-3)]">{ROLE_LABEL[u.role]} (Anda)</span>
+                    {u.id === currentUserId || u.role === 'EKSTERNAL' ? (
+                      <span className="text-[var(--tinta-3)]">{ROLE_LABEL[u.role]}{u.id === currentUserId ? ' (Anda)' : ''}</span>
                     ) : (
                       <RoleSelect userId={u.id} role={u.role} dosenOptions={pickable} />
                     )}
@@ -110,8 +112,8 @@ export function PenggunaClient({ users, currentUserId, dosen }: { users: Profile
                     )}
                   </Td>
                   <Td>
-                    {u.role === 'SUPERADMIN' || u.role === 'DOSEN' ? (
-                      <span className="text-[var(--tinta-3)]">{u.role === 'DOSEN' ? 'S1' : 'Semua'}</span>
+                    {u.role === 'SUPERADMIN' || u.role === 'DOSEN' || u.role === 'EKSTERNAL' ? (
+                      <span className="text-[var(--tinta-3)]">{u.role === 'SUPERADMIN' ? 'Semua' : 'S1'}</span>
                     ) : (
                       <ProdiAccessSelect userId={u.id} access={u.prodi_access} />
                     )}

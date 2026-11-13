@@ -2,7 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { signOutAction } from '@/app/actions/auth'
-import { getCurrentUser, canManage, isDosen } from '@/lib/roles'
+import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { halamanDosen } from '@/lib/penilaian/akses'
 import type { Prodi } from '@/lib/prodi'
 import { TextSizeController } from './TextSizeController'
@@ -10,9 +10,9 @@ import { HeaderNav } from './HeaderNav'
 
 export async function AppHeader({ active, prodi }: { active: string; prodi?: Prodi }) {
   const user = await getCurrentUser()
-  const dosen = isDosen(user?.role ?? null)
-  // A DOSEN sees only its grading pages. The proxy does the same before render; this is the page-level backstop.
-  if (dosen && !halamanDosen(active)) redirect('/penilaian')
+  const dosen = isPenguji(user?.role ?? null)
+  // A DOSEN or EKSTERNAL sees only its grading pages. The proxy does the same before render; this is the page-level backstop.
+  if (user && dosen && !halamanDosen(active, user.role)) redirect('/penilaian')
 
   return (
     <header className="sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--header)] border-b border-[var(--garis-kuat)] flex-wrap">
@@ -47,12 +47,14 @@ export async function AppHeader({ active, prodi }: { active: string; prodi?: Pro
         <div className="flex min-w-0 items-center gap-[0.8rem] pl-[0.8rem] border-l border-[var(--garis-kuat)] text-[0.87rem]">
           {/* On a phone the email gives way so Keluar always fits; it stays in Keluar's tooltip. */}
           <span className="hidden sm:block text-[var(--tinta)] truncate max-w-[12rem]">{user?.email || 'Admin'}</span>
-          <Link
-            href="/atur-kata-sandi"
-            className="shrink-0 text-[var(--biru)] hover:underline whitespace-nowrap"
-          >
-            Ganti kata sandi
-          </Link>
+          {user?.role !== 'EKSTERNAL' && (
+            <Link
+              href="/atur-kata-sandi"
+              className="shrink-0 text-[var(--biru)] hover:underline whitespace-nowrap"
+            >
+              Ganti kata sandi
+            </Link>
+          )}
           <form action={signOutAction} className="shrink-0">
             <button
               type="submit"

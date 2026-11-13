@@ -46,6 +46,18 @@ async function main() {
     assert.equal(tolakDosen(req(path), 'DOSEN'), null, `${path} open to DOSEN`)
     assert.equal(tolakDosen(req(path, 'POST'), 'DOSEN'), null, `${path} actions open to DOSEN`)
   }
+  // EKSTERNAL: same gate, narrower list. Sidang page yes; password page and bimbingan no.
+  assert.equal(tolakDosen(req('/nilai-sidang/abc'), 'DOSEN'), null)
+  for (const path of ['/penilaian', '/nilai-sidang/0b4f6d1e-1111-4222-8333-944455556666']) {
+    assert.equal(tolakDosen(req(path), 'EKSTERNAL'), null, `${path} open to EKSTERNAL`)
+    assert.equal(tolakDosen(req(path, 'POST'), 'EKSTERNAL'), null, `${path} actions open to EKSTERNAL`)
+  }
+  for (const path of ['/', '/s1/kuliah', '/pengguna', '/atur-kata-sandi', '/nilai-bimbingan/abc', '/nilai-sidang', '/api/export/courses']) {
+    const r = tolakDosen(req(path), 'EKSTERNAL')
+    assert.equal(r?.status, 307, `${path} blocked for EKSTERNAL`)
+    assert.equal(new URL(r!.headers.get('location')!).pathname, '/penilaian')
+  }
+  assert.equal(tolakDosen(req('/atur-kata-sandi', 'POST'), 'EKSTERNAL')?.status, 403)
   for (const role of ['SUPERADMIN', 'SCHEDULER', 'VIEWER', undefined]) {
     assert.equal(tolakDosen(req('/s1/kuliah'), role), null, `${role} passes`)
   }

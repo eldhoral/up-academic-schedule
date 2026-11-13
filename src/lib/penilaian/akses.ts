@@ -44,6 +44,58 @@ export const penilaianPath = (id: string): string => `/nilai-bimbingan/${id}`
 
 export const PERAN_LABEL: Record<Peran, string> = { pembimbing_1: 'Dosen Pembimbing I', pembimbing_2: 'Dosen Pembimbing II' }
 
-/** The only app pages a DOSEN account may open (plus /masuk, /auth and the public /jadwal-dosen). Everything else sends it to Penilaian Saya. */
-export const halamanDosen = (path: string): boolean =>
-  path === '/penilaian' || path === '/atur-kata-sandi' || /^\/nilai-bimbingan\/[^/]+$/.test(path)
+/**
+ * The only app pages a DOSEN account may open (plus /masuk, /auth and the public /jadwal-dosen). Everything else sends it to Penilaian Saya.
+ * An EKSTERNAL gets less: no bimbingan, and no password page (its password is set by the admin).
+ */
+export const halamanDosen = (path: string, role: string = 'DOSEN'): boolean =>
+  path === '/penilaian' ||
+  /^\/nilai-sidang\/[^/]+$/.test(path) ||
+  (role !== 'EKSTERNAL' && (path === '/atur-kata-sandi' || /^\/nilai-bimbingan\/[^/]+$/.test(path)))
+
+// ---- Sidang Skripsi (S1): Ketua = penguji_kode, Anggota I = penguji_eksternal_kode, Anggota II = pembimbing_kode.
+export type PeranSidang = 'ketua' | 'anggota_1' | 'anggota_2'
+export type SidangRef = DefenseRef & { penguji_eksternal_kode: string | null }
+export type AksesSidang =
+  | { kind: 'tidak-ada' }
+  | { kind: 'belum-dibuka'; tanggal: string }
+  | { kind: 'isi'; peran: PeranSidang }
+  | { kind: 'menunggu-anggota'; kurang: PeranSidang[] }
+  | { kind: 'kunci'; peran: PeranSidang }
+  | { kind: 'terkirim'; peran: PeranSidang }
+  | { kind: 'terkunci' }
+
+export const bisaDinilaiSidang = (s: { prodi: string; jenis: string }): boolean => s.prodi === 's1' && s.jenis === 'sidang'
+
+export function peranPenguji(d: SidangRef, kode: string): PeranSidang | null {
+  if (!bisaDinilaiSidang(d) || !kode) return null
+  if (d.penguji_kode === kode) return 'ketua'
+  if (d.penguji_eksternal_kode === kode) return 'anggota_1'
+  if (d.pembimbing_kode === kode) return 'anggota_2'
+  return null
+}
+
+/**
+ * Sidang access rules. akunTanggal is the day an EKSTERNAL account was made for; a defense moved off that day is 404 to it.
+ * Locked and submitted states come before the date gate, so a rescheduled graded sidang stays read-only.
+ */
+export function aksesSidang(
+  d: SidangRef | null,
+  kode: string,
+  opts: { submitted: Set<PeranSidang>; locked: boolean; today: string; akunTanggal?: string },
+): AksesSidang {
+  const peran = d && peranPenguji(d, kode)
+  if (!d || !peran) return { kind: 'tidak-ada' }
+  if (opts.akunTanggal !== undefined && opts.akunTanggal !== d.tanggal) return { kind: 'tidak-ada' }
+  if (opts.locked) return { kind: 'terkunci' }
+  if (opts.submitted.has(peran)) return { kind: 'terkirim', peran }
+  if (opts.today < d.tanggal) return { kind: 'belum-dibuka', tanggal: d.tanggal }
+  if (peran !== 'ketua') return { kind: 'isi', peran }
+  const kurang = (['anggota_1', 'anggota_2'] as const).filter((a) => !opts.submitted.has(a))
+  return kurang.length ? { kind: 'menunggu-anggota', kurang } : { kind: 'kunci', peran }
+}
+
+/** An EKSTERNAL login works through berlaku_sampai (inclusive), by the Jakarta date. */
+export const eksternalAktif = (berlakuSampai: string, now: Date = new Date()): boolean => todayJakarta(now) <= berlakuSampai
+
+export const penilaianSidangPath = (id: string): string => `/nilai-sidang/${id}`
