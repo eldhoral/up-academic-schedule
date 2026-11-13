@@ -16,8 +16,10 @@ export function humanDbError(error: DbErrorLike, entity?: string): string {
   }
   // The dosen-lock trigger on defenses: its message is already plain Indonesian.
   if (code === 'P0001' && lower.includes('sudah dinilai')) return msg
-  // Deleting a prasidang that has grades (nilai_bimbingan.defense_id is on delete restrict).
-  if ((code === '23503' || lower.includes('violates foreign key constraint')) && `${lower} ${(error.details ?? '').toLowerCase()}`.includes('nilai_bimbingan')) {
+  // Deleting a prasidang that has grades (nilai_bimbingan.defense_id is on delete restrict). Only that FK:
+  // nilai_bimbingan.kode_dosen -> lecturers also names nilai_bimbingan but is a different problem.
+  const fkText = `${lower} ${(error.details ?? '').toLowerCase()}`
+  if (fkText.includes('nilai_bimbingan_defense_id_fkey') || (fkText.includes('nilai_bimbingan') && fkText.includes('table "defenses"'))) {
     return 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.'
   }
   if (code === '23503' || lower.includes('violates foreign key constraint')) {

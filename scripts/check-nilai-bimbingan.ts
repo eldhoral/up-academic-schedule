@@ -177,7 +177,11 @@ async function main() {
   assert.equal(humanDbError({ code: 'P0001', message: kunci }), kunci)
   const fk = { code: '23503', message: 'update or delete on table "defenses" violates foreign key constraint "nilai_bimbingan_defense_id_fkey" on table "nilai_bimbingan"', details: 'Key (id)=(x) is still referenced from table "nilai_bimbingan".' }
   assert.equal(humanDbError(fk), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
-  assert.equal(humanDbError({ code: '23503', message: 'violates foreign key constraint "x"', details: 'still referenced from table "nilai_bimbingan".' }), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
+  assert.equal(humanDbError({ code: '23503', message: 'update or delete on table "defenses" violates foreign key constraint "nilai_bimbingan_defense_id_fkey" on table "nilai_bimbingan"' }), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
+  // deleting a graded lecturer hits nilai_bimbingan.kode_dosen: generic wording, not the prasidang one
+  const fkDosen = { code: '23503', message: 'update or delete on table "lecturers" violates foreign key constraint "nilai_bimbingan_kode_dosen_fkey" on table "nilai_bimbingan"', details: 'Key (kode_dosen)=(X) is still referenced from table "nilai_bimbingan".' }
+  assert.match(humanDbError(fkDosen), /masih dipakai/)
+  assert.doesNotMatch(humanDbError(fkDosen), /Prasidang/)
   assert.match(humanDbError({ code: '23503', message: 'violates foreign key constraint "schedules_x"' }), /masih dipakai/) // other FKs unchanged
   assert.doesNotMatch(humanDbError({ code: 'P0001', message: 'boom' }), /boom/) // other P0001 stays hidden
 

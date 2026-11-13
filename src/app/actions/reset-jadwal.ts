@@ -18,8 +18,10 @@ async function isManager() {
   return !!user && canManage(user.role)
 }
 
-/** How many rows each jadwal × prodi holds in one academic year: what a reset would delete. */
-/** `graded` = prasidang of the year that already have a nilai_bimbingan row: they can't be deleted, so the sidang cell is locked. */
+/**
+ * How many rows each jadwal × prodi holds in one academic year: what a reset would delete.
+ * `graded` = prasidang of the year that already have a nilai_bimbingan row: they can't be deleted, so the sidang cell is locked.
+ */
 export async function countJadwalAction(yearId: string): Promise<{ counts: ResetCounts; graded: Record<Prodi, number> } | { error: string }> {
   if (!(await isManager())) return DENIED
   const supabase = await createClient()
