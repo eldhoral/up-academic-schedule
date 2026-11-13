@@ -5,8 +5,11 @@ import { round2 } from './nilai'
 export type Aspek = { label: string; bobot: number; sub: string[] }
 export type BarisNilai = { min: number; huruf: string; mutu: number }
 export type BarisPredikat = { min: number; max: number; predikat: string; butuhTepatWaktu: boolean }
+export type Yudisium = { label: string; lulus: boolean }
 export type Aturan = {
   aspekBimbingan: Aspek[]
+  aspekSidang: Aspek[]
+  pilihanYudisium: Yudisium[]
   tabelNilai: BarisNilai[]
   predikat: BarisPredikat[]
   sksSkripsi: number
@@ -38,6 +41,40 @@ export const DEFAULT_ATURAN: Aturan = {
       'Kedalaman dan keluasan pustaka pendukung'] },
     { label: 'Sistematika Penulisan', bobot: 20, sub: [
       'Bahasa dan tata tulis sesuai kaidah Bahasa Indonesia dan APA'] },
+  ],
+  aspekSidang: [
+    { label: 'Permasalahan', bobot: 20, sub: [
+      'Orisinalitas dan kemutakhiran topik',
+      'Ketajaman perumusan masalah'] },
+    { label: 'Kajian Pustaka', bobot: 15, sub: [
+      'Relevansi',
+      'Kemutakhiran (70% berasal dari literatur 10 tahun terakhir)',
+      'Penyusunan daftar pustaka sesuai APA',
+      'Kedalaman dan keluasan pustaka pendukung'] },
+    { label: 'Metode Penelitian', bobot: 15, sub: [
+      'Ketepatan metode yang digunakan',
+      'Comprehensiveness dan kedetailan metode'] },
+    { label: 'Hasil Penelitian yang Dicapai', bobot: 15, sub: [
+      'Manfaat dan kontribusi',
+      'Kesesuaian dengan tujuan',
+      'Kualitas hasil penelitian'] },
+    { label: 'Sistematika Penulisan', bobot: 10, sub: [
+      'Bahasa dan tata tulis sesuai dengan kaidah Bahasa Indonesia dan APA',
+      'Kesinambungan antar alinea dan bab'] },
+    { label: 'Kesimpulan dan Saran', bobot: 15, sub: [
+      'Ketepatan penarikan kesimpulan',
+      'Aplikasi dan spesifikasi saran'] },
+    { label: 'Presentasi', bobot: 10, sub: [
+      'Nilai sikap',
+      'Komunikasi',
+      'Penguasaan isi skripsi',
+      'Penguasaan materi lain yang relevan',
+      'Argumentasi jawaban'] },
+  ],
+  pilihanYudisium: [
+    { label: 'Lulus Tanpa Revisi', lulus: true },
+    { label: 'Lulus Dengan Revisi', lulus: true },
+    { label: 'Tidak Lulus', lulus: false },
   ],
   tabelNilai: [
     { min: 80, huruf: 'A', mutu: 4 },
@@ -98,6 +135,14 @@ export function validatePredikat(p: BarisPredikat[]): string | null {
   return null
 }
 
+export function validatePilihanYudisium(p: Yudisium[]): string | null {
+  for (const r of p) if (!r.label.trim()) return 'Nama yudisium wajib diisi'
+  if (!p.some((r) => r.lulus)) return 'Minimal satu pilihan yang lulus'
+  if (!p.some((r) => !r.lulus)) return 'Minimal satu pilihan yang tidak lulus'
+  if (new Set(p.map((r) => r.label.trim())).size !== p.length) return 'Nama yudisium tidak boleh kembar'
+  return null
+}
+
 export function validateSks(n: number): string | null {
   return Number.isInteger(n) && n > 0 ? null : 'SKS skripsi harus bilangan bulat lebih dari 0'
 }
@@ -131,6 +176,26 @@ function parsePredikat(v: unknown): BarisPredikat[] | null {
   return validatePredikat(p) ? null : p.sort((x, y) => x.min - y.min)
 }
 
+function parsePilihan(v: unknown): Yudisium[] | null {
+  if (!arr(v) || !v.every((r) => str(r.label) && typeof r.lulus === 'boolean')) return null
+  const p = v.map((r) => ({ label: r.label as string, lulus: r.lulus as boolean }))
+  return validatePilihanYudisium(p) ? null : p
+}
+
+/** The rules a locked sidang froze (hasil_sidang.aturan, built by the DB); null when the stored copy is unusable. */
+export type AturanBeku = { tabelNilai: BarisNilai[]; predikat: BarisPredikat[]; sksSkripsi: number }
+
+export const bekukan = (a: Aturan): AturanBeku => ({ tabelNilai: a.tabelNilai, predikat: a.predikat, sksSkripsi: a.sksSkripsi })
+
+export function parseAturanBeku(json: unknown): AturanBeku | null {
+  if (typeof json !== 'object' || json === null || Array.isArray(json)) return null
+  const j = json as Record<string, unknown>
+  const tabelNilai = parseTabel(j.tabelNilai)
+  const predikat = parsePredikat(j.predikat)
+  if (!tabelNilai || !predikat || !num(j.sksSkripsi) || validateSks(j.sksSkripsi)) return null
+  return { tabelNilai, predikat, sksSkripsi: j.sksSkripsi }
+}
+
 function parseTanggal(v: unknown): string | null {
   if (!str(v) || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
   const d = new Date(`${v}T00:00:00Z`)
@@ -146,6 +211,8 @@ export async function loadAturan(db: SupabaseClient, prodi: 's1'): Promise<Atura
   const sks = raw.get('sks_skripsi')
   return {
     aspekBimbingan: parseAspek(raw.get('aspek_bimbingan')) ?? DEFAULT_ATURAN.aspekBimbingan,
+    aspekSidang: parseAspek(raw.get('aspek_sidang')) ?? DEFAULT_ATURAN.aspekSidang,
+    pilihanYudisium: parsePilihan(raw.get('pilihan_yudisium')) ?? DEFAULT_ATURAN.pilihanYudisium,
     tabelNilai: parseTabel(raw.get('tabel_nilai')) ?? DEFAULT_ATURAN.tabelNilai,
     predikat: parsePredikat(raw.get('predikat')) ?? DEFAULT_ATURAN.predikat,
     sksSkripsi: num(sks) && !validateSks(sks) ? sks : DEFAULT_ATURAN.sksSkripsi,

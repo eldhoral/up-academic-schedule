@@ -1,4 +1,4 @@
-import type { BarisNilai } from './aturan'
+import type { AturanBeku, BarisNilai, BarisPredikat } from './aturan'
 
 /** Half-up to 2 decimals. The toPrecision step absorbs binary noise (75.995 * 100 = 7599.499999...). */
 export function round2(n: number): number {
@@ -38,6 +38,62 @@ export function baris(n: number, tabel: BarisNilai[]): BarisNilai {
 /** IPK before sidang = bobot / sks, null when either is missing. */
 export function ipkSebelum(bobot: number | null, sks: number | null): number | null {
   return bobot === null || !sks ? null : round2(bobot / sks)
+}
+
+/** Average of the three examiners, only once all three have graded. */
+export function nilaiSidang(n: (number | null)[]): number | null {
+  return n.length !== 3 || n.some((x) => x === null) ? null : round2((n as number[]).reduce((s, x) => s + x, 0) / 3)
+}
+
+/** IPK after the thesis counts: (bobot + sksSkripsi * mutu) / (sks + sksSkripsi). */
+export function ipkSetelah(bobot: number, sks: number, mutu: number, sksSkripsi: number): number {
+  return round2((bobot + sksSkripsi * mutu) / (sks + sksSkripsi))
+}
+
+/**
+ * The row whose [min, max] holds the IPK, compared in whole hundredths. A row that needs tepat waktu
+ * steps down to the next lower row that doesn't; nothing below, or IPK under every row, gives null.
+ */
+export function predikat(ipk: number, tepatWaktu: boolean, rows: BarisPredikat[]): string | null {
+  const h = (n: number) => Math.round(n * 100)
+  const i = h(round2(ipk))
+  const sorted = [...rows].sort((a, b) => b.min - a.min)
+  let k = sorted.findIndex((r) => h(r.min) <= i && i <= h(r.max))
+  while (k >= 0 && k < sorted.length && sorted[k].butuhTepatWaktu && !tepatWaktu) k++
+  return k >= 0 && k < sorted.length ? sorted[k].predikat : null
+}
+
+export type HasilAkhir =
+  | { status: 'menunggu-ketua' | 'menunggu-bimbingan' | 'tidak-lulus' | 'data-kurang'; nilaiSidang: number | null; alasan: string }
+  | {
+    status: 'lengkap'; nilaiSidang: number; nilaiAkhir: number; huruf: string; mutu: number
+    ipkSebelum: number; ipkSetelah: number; predikat: string | null
+  }
+
+/** One student's sidang outcome. Rules come from the frozen copy, so a later rules edit never changes it. */
+export function hasilAkhir(input: {
+  sidang: (number | null)[]
+  locked: { lulus: boolean; aturan: AturanBeku } | null
+  bimbingan: number | null
+  sks: number | null
+  bobot: number | null
+  tepatWaktu: boolean
+}): HasilAkhir {
+  const ns = nilaiSidang(input.sidang)
+  const { locked, bimbingan, sks, bobot } = input
+  if (!locked) return { status: 'menunggu-ketua', nilaiSidang: ns, alasan: 'Menunggu Ketua Penguji mengunci hasil sidang' }
+  if (!locked.lulus) return { status: 'tidak-lulus', nilaiSidang: ns, alasan: 'Yudisium tidak lulus, Nilai Akhir tidak dihitung' }
+  if (ns === null) return { status: 'data-kurang', nilaiSidang: null, alasan: 'Nilai penguji belum lengkap' }
+  if (bimbingan === null) return { status: 'menunggu-bimbingan', nilaiSidang: ns, alasan: 'Menunggu Nilai Bimbingan lengkap' }
+  if (sks === null || sks <= 0 || bobot === null) return { status: 'data-kurang', nilaiSidang: ns, alasan: 'SKS/Bobot belum diisi' }
+  const nilaiAkhir = round2((bimbingan + ns) / 2)
+  const { huruf, mutu } = baris(nilaiAkhir, locked.aturan.tabelNilai)
+  const ipk = ipkSetelah(bobot, sks, mutu, locked.aturan.sksSkripsi)
+  return {
+    status: 'lengkap', nilaiSidang: ns, nilaiAkhir, huruf, mutu,
+    ipkSebelum: round2(bobot / sks), ipkSetelah: ipk,
+    predikat: predikat(ipk, input.tepatWaktu, locked.aturan.predikat),
+  }
 }
 
 /** 78.5 -> '78,50' */
