@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { loadCurrentUser, canWrite, canManage, isDosen } from '../src/lib/roles'
+import { generatePassword } from '../src/lib/password'
 
 type Profile = { role: string; prodi_access: string | null; kode_dosen?: string | null }
 
@@ -54,6 +55,17 @@ async function main() {
     assert.equal(isDosen('DOSEN'), true)
     assert.equal(isDosen('VIEWER'), false)
     assert.equal(isDosen(null), false)
+  }
+
+  // Admin-generated password: 12 characters, never the look-alikes 0 O 1 l I, and not the same twice.
+  {
+    const seen = new Set<string>()
+    for (let i = 0; i < 200; i++) {
+      const p = generatePassword()
+      assert.match(p, /^[A-HJ-NP-Za-km-z2-9]{12}$/)
+      seen.add(p)
+    }
+    assert.equal(seen.size, 200)
   }
 
   console.log('roles: all checks passed')
