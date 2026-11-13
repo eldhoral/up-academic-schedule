@@ -127,3 +127,35 @@ export function snapshotDariSkor(aspek: { label: string; bobot: number }[], skor
   }
   return { aspek: rows }
 }
+
+/** An examiner's revisi list: halaman is optional text, catatan is required. */
+export type Revisi = { halaman: string; catatan: string }[]
+
+const MAKS_BARIS = 100
+const MAKS_CATATAN = 2000
+const MAKS_HALAMAN = 50
+
+/**
+ * The revisi a sidang grade stores. From the client, so shape-checked and bounded. Without
+ * "Ada revisi" the rows are dropped; with it, at least one row and every row needs a catatan.
+ */
+export function cekRevisi(adaRevisi: unknown, revisi: unknown): { adaRevisi: boolean; revisi: Revisi } | { error: string } {
+  if (typeof adaRevisi !== 'boolean') return { error: 'Revisi tidak valid.' }
+  if (!adaRevisi) return { adaRevisi: false, revisi: [] }
+  if (!Array.isArray(revisi)) return { error: 'Revisi tidak valid.' }
+  if (revisi.length === 0) return { error: 'Tambahkan minimal satu baris revisi, atau matikan "Ada revisi".' }
+  if (revisi.length > MAKS_BARIS) return { error: `Revisi paling banyak ${MAKS_BARIS} baris.` }
+  const rows: Revisi = []
+  for (const [i, r] of revisi.entries()) {
+    if (typeof r !== 'object' || r === null || typeof r.halaman !== 'string' || typeof r.catatan !== 'string') {
+      return { error: 'Revisi tidak valid.' }
+    }
+    const halaman = r.halaman.trim()
+    const catatan = r.catatan.trim()
+    if (!catatan) return { error: `Isi catatan revisi baris ${i + 1}.` }
+    if (catatan.length > MAKS_CATATAN) return { error: `Catatan revisi baris ${i + 1} terlalu panjang (maksimal ${MAKS_CATATAN} karakter).` }
+    if (halaman.length > MAKS_HALAMAN) return { error: `Halaman revisi baris ${i + 1} terlalu panjang.` }
+    rows.push({ halaman, catatan })
+  }
+  return { adaRevisi: true, revisi: rows }
+}

@@ -315,3 +315,43 @@ async function cekEnsure() {
   console.log('nilai-sidang akun eksternal: all checks passed')
 }
 cekEnsure().catch((e) => { console.error(e); process.exit(1) })
+
+// ---- formulir penguji: revisi, Penilaian Saya status, old sidang
+import { cekRevisi } from '../src/lib/penilaian/nilai'
+import { bolehInputLamaSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
+{
+  // No revisi: client rows are dropped, never stored.
+  assert.deepEqual(cekRevisi(false, [{ halaman: '1', catatan: 'x' }]), { adaRevisi: false, revisi: [] })
+  assert.deepEqual(cekRevisi(false, undefined), { adaRevisi: false, revisi: [] })
+  // Rows are trimmed; halaman is optional.
+  assert.deepEqual(cekRevisi(true, [{ halaman: ' 12 ', catatan: ' Perbaiki tabel ' }, { halaman: '', catatan: 'Tambah saran' }]), {
+    adaRevisi: true, revisi: [{ halaman: '12', catatan: 'Perbaiki tabel' }, { halaman: '', catatan: 'Tambah saran' }],
+  })
+  // Ada revisi needs at least one row, and every row a catatan (the row is named).
+  assert.ok('error' in cekRevisi(true, []))
+  const kosong = cekRevisi(true, [{ halaman: '1', catatan: 'a' }, { halaman: '2', catatan: '   ' }])
+  assert.ok('error' in kosong && kosong.error.includes('2'), JSON.stringify(kosong))
+  // From the client: shape-checked.
+  for (const bad of [null, 'x', [{ catatan: 1 }], [{ halaman: 3, catatan: 'a' }], [null], [{ catatan: 'a' }]]) {
+    assert.ok('error' in cekRevisi(true, bad), JSON.stringify(bad))
+  }
+  assert.ok('error' in cekRevisi('ya', []))
+  // Bounded: a runaway list or note is refused.
+  assert.ok('error' in cekRevisi(true, Array.from({ length: 101 }, () => ({ halaman: '', catatan: 'a' }))))
+  assert.ok('error' in cekRevisi(true, [{ halaman: '', catatan: 'a'.repeat(2001) }]))
+  assert.ok(!('error' in cekRevisi(true, [{ halaman: '', catatan: 'a'.repeat(2000) }])))
+
+  // Penilaian Saya: one label per access state.
+  assert.equal(STATUS_SIDANG['belum-dibuka'], 'Belum dibuka')
+  assert.equal(STATUS_SIDANG.isi, 'Belum dinilai')
+  assert.equal(STATUS_SIDANG.kunci, 'Belum dinilai')
+  assert.equal(STATUS_SIDANG['menunggu-anggota'], 'Menunggu anggota')
+  assert.equal(STATUS_SIDANG.terkirim, 'Terkirim')
+  assert.equal(STATUS_SIDANG.terkunci, 'Terkunci')
+
+  const sd: SidangRef = { id: 's', prodi: 's1', jenis: 'sidang', tanggal: '2026-11-09', pembimbing_kode: 'PB', penguji_kode: 'KT', penguji_eksternal_kode: 'EX' }
+  assert.equal(bolehInputLamaSidang(sd, '2026-11-10'), true)
+  assert.equal(bolehInputLamaSidang(sd, '2026-11-09'), false)
+  assert.equal(bolehInputLamaSidang({ ...sd, jenis: 'prasidang' }, '2026-11-10'), false)
+  console.log('nilai-sidang formulir: all checks passed')
+}

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { AppHeader } from '@/components/AppHeader'
-import { getCurrentUser, canManage, isDosen } from '@/lib/roles'
+import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { tanggalPanjang } from '@/lib/hari'
 import { aksesDosen, bolehInputLama, penilaianPath, PERAN_LABEL, peranDosen, todayJakarta, type Peran } from '@/lib/penilaian/akses'
 import type { BarisNilai } from '@/lib/penilaian/aturan'
@@ -20,8 +20,9 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
   const path = penilaianPath(defenseId)
   const user = await getCurrentUser()
   if (!user) redirect(`/masuk?redirectTo=${encodeURIComponent(path)}`)
-  const dosen = isDosen(user.role)
-  if (dosen && !user.kodeDosen) notFound()
+  // An examiner (DOSEN or EKSTERNAL) is never staff here; an EKSTERNAL never grades bimbingan (the proxy keeps it away too).
+  const dosen = isPenguji(user.role)
+  if (dosen && (user.role !== 'DOSEN' || !user.kodeDosen)) notFound()
 
   const data = await loadPenilaian(defenseId)
   const akses = dosen

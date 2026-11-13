@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/roles'
-import { isDosen } from '@/lib/role-types'
+import { isPenguji } from '@/lib/role-types'
 import { canAccessProdi } from '@/lib/prodi'
 import { loadRekapBimbingan, pilihTahun } from '@/lib/penilaian/rekap-data'
 import { buildRekapBimbinganXlsx } from '@/lib/penilaian/rekap-xlsx'
@@ -9,8 +9,8 @@ import { buildRekapBimbinganXlsx } from '@/lib/penilaian/rekap-xlsx'
 export async function GET(req: Request) {
   const user = await getCurrentUser()
   if (!user) return new Response('Masuk terlebih dahulu.', { status: 401 })
-  // The proxy already turns a DOSEN away; this check stands on its own.
-  if (isDosen(user.role) || !canAccessProdi(user.prodiAccess, 's1')) {
+  // The proxy already turns an examiner (DOSEN or EKSTERNAL) away; this check stands on its own.
+  if (isPenguji(user.role) || !canAccessProdi(user.prodiAccess, 's1')) {
     return new Response('Akun ini tidak dapat mengunduh rekap nilai bimbingan.', { status: 403 })
   }
 

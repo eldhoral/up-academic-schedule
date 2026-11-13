@@ -1142,3 +1142,50 @@ do $$ begin
     assert exists (select 1 from auth.users where id = '00000000-0000-0000-0000-000000000007'), 'an active day account stays';
     assert exists (select 1 from auth.users where id = '00000000-0000-0000-0000-000000000006'), 'a DOSEN stays';
 end $$;
+
+-- The Ketua's grade and the lock are one call (kunci_sidang): both commit or neither.
+\set dosen4 '00000000-0000-0000-0000-000000000010'
+insert into auth.users (id, email) values (:'dosen4', 'dosen4@test');
+update profiles set role = 'DOSEN', kode_dosen = 'DSN03' where id = :'dosen4';
+do $$ begin
+    assert not has_function_privilege('anon', 'kunci_sidang(uuid, jsonb, boolean, jsonb, text, boolean)', 'execute'), 'anon cannot lock';
+    assert has_function_privilege('authenticated', 'kunci_sidang(uuid, jsonb, boolean, jsonb, text, boolean)', 'execute'), 'an examiner calls kunci_sidang';
+end $$;
+select set_config('request.jwt.claim.sub', :'dosen3', false);
+set role authenticated;
+do $$
+declare sd4 uuid := (select id from sd_def where k = 'sd4');
+begin
+    insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
+    values (sd4, 'DSN02', 'anggota_2', '[{"label": "A", "bobot": 100, "skor": 70}]', 70, auth.uid());
+    begin
+        perform kunci_sidang(sd4, '[{"label": "A", "bobot": 100, "skor": 70}]', false, '[]', 'Lulus Tanpa Revisi', true);
+        raise exception 'FAIL: an anggota locked through kunci_sidang';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub', :'dosen4', false);
+set role authenticated;
+do $$
+declare
+    sd4 uuid := (select id from sd_def where k = 'sd4');
+    a jsonb := '[{"label": "A", "bobot": 40, "skor": 90}, {"label": "B", "bobot": 60, "skor": 80}]';
+    s text;
+begin
+    begin
+        perform kunci_sidang(sd4, a, false, '[]', 'Lulus Bersyarat', true);
+        raise exception 'FAIL: kunci_sidang took a yudisium outside pilihan_yudisium';
+    exception when check_violation then null;
+    end;
+    s := kunci_sidang(sd4, a, true, '[{"halaman": "", "catatan": "Perbaiki abstrak"}]', 'Lulus Dengan Revisi', true);
+    assert s = 'menunggu', 'kunci_sidang returns the email status: ' || s;
+    assert (select nilai from nilai_sidang where defense_id = sd4 and peran = 'ketua' and kode_dosen = 'DSN03') = 84, 'the Ketua grade is stored and scored';
+    assert (select yudisium_label from hasil_sidang where defense_id = sd4) = 'Lulus Dengan Revisi', 'and the sidang is locked';
+    begin
+        perform kunci_sidang(sd4, a, false, '[]', 'Lulus Tanpa Revisi', true);
+        raise exception 'FAIL: locked twice';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;

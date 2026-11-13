@@ -99,3 +99,28 @@ export function aksesSidang(
 export const eksternalAktif = (berlakuSampai: string, now: Date = new Date()): boolean => todayJakarta(now) <= berlakuSampai
 
 export const penilaianSidangPath = (id: string): string => `/nilai-sidang/${id}`
+
+/** Old sidang (before the start date): Super Admin enters missing grades and locks for the Ketua. */
+export const bolehInputLamaSidang = (d: SidangRef, tanggalMulai: string): boolean => bisaDinilaiSidang(d) && d.tanggal < tanggalMulai
+
+export const PERAN_SIDANG: PeranSidang[] = ['ketua', 'anggota_1', 'anggota_2']
+
+/** Labels from SIDANG_PERAN_LABEL (jadwal-dosen/events.ts). */
+export const PERAN_SIDANG_LABEL: Record<PeranSidang, string> = {
+  ketua: 'Ketua Sidang',
+  anggota_1: 'Anggota Penguji I',
+  anggota_2: 'Anggota Penguji II',
+}
+
+/** Penilaian Saya status of a sidang row; the Ketua's lock form counts as not yet graded. */
+export const STATUS_SIDANG: Record<Exclude<AksesSidang['kind'], 'tidak-ada'>, string> = {
+  'belum-dibuka': 'Belum dibuka',
+  isi: 'Belum dinilai',
+  kunci: 'Belum dinilai',
+  'menunggu-anggota': 'Menunggu anggota',
+  terkirim: 'Terkirim',
+  terkunci: 'Terkunci',
+}
+
+/** A legacy free-text Anggota Penguji I (no kode) can't grade, so the sidang can't be locked. */
+export const ANGGOTA_I_LEGACY = 'Anggota Penguji I belum dipilih dari data dosen'
