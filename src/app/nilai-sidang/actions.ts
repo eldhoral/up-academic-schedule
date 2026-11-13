@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser, canManage } from '@/lib/roles'
 import { humanDbError } from '@/lib/db-error'
+import { kirimRevisi } from '@/lib/mailer'
 import { tanggalPanjang } from '@/lib/hari'
 import {
   ANGGOTA_I_LEGACY, aksesSidang, bolehInputLamaSidang, PERAN_SIDANG, PERAN_SIDANG_LABEL, penilaianSidangPath, todayJakarta, type PeranSidang,
@@ -122,9 +123,33 @@ export async function kunciSidangAction(
   })
   if (error) return { error: dbError(error) }
 
-  // Task 6: kirimRevisi(data.defense.id) goes here (awaited, 10 s cap) when email === 'menunggu'; it never undoes the lock.
+  // The lock is committed. The send (10 s cap) only updates email_status; whatever happens, the lock stands.
+  const status = email === 'menunggu' ? await kirimAman(data.defense.id) : (email as string)
   revalidate(data.defense.id)
-  return { ok: true, email: email as string }
+  return { ok: true, email: status }
+}
+
+/** kirimRevisi that never throws: a DB problem while sending leaves email_status as it was ('menunggu'). */
+async function kirimAman(defenseId: string): Promise<string> {
+  try {
+    return await kirimRevisi(defenseId)
+  } catch (e) {
+    console.error('kirimRevisi gagal:', e instanceof Error ? e.message : 'error')
+    return 'menunggu'
+  }
+}
+
+/** Super Admin retries a failed or partial revisi email. It is not a re-send after a correction. */
+export async function kirimUlangEmailAction(defenseId: string): Promise<Hasil> {
+  const user = await getCurrentUser()
+  if (!user || !canManage(user.role)) return { error: BUKAN_SUPERADMIN }
+  const data = await loadSidang(defenseId)
+  if (!data?.hasil) return { error: TIDAK_ADA }
+  if (data.hasil.email_status !== 'gagal' && data.hasil.email_status !== 'sebagian') return { error: 'Email hanya dapat dikirim ulang jika gagal atau sebagian.' }
+
+  const status = await kirimAman(data.defense.id)
+  revalidate(data.defense.id)
+  return { ok: true, email: status }
 }
 
 /** Super Admin edits a submitted grade: re-scored against the grade's own snapshot rows, revisi replaced. */

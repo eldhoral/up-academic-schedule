@@ -355,3 +355,114 @@ import { bolehInputLamaSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
   assert.equal(bolehInputLamaSidang({ ...sd, jenis: 'prasidang' }, '2026-11-10'), false)
   console.log('nilai-sidang formulir: all checks passed')
 }
+
+// ---- email revisi
+import { tanggalPanjang } from '../src/lib/hari'
+import { renderRevisi } from '../src/lib/penilaian/email-revisi'
+import { kirimRevisi, smtpTransport, type Transport, type MailData } from '../src/lib/mailer'
+async function cekEmail() {
+  const input = {
+    nama: 'Budi 87,50 A', npm: '2021110099', judul: 'Judul <b>tebal</b> 88', tanggal: '2026-11-09', yudisium: 'Lulus Dengan Revisi',
+    revisi: [
+      { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani', rows: [{ halaman: '12', catatan: 'Perbaiki tabel <script>alert(x)</script>' }] },
+      { peranLabel: 'Anggota Penguji II', nama: 'Dr. Cici', rows: [{ halaman: '', catatan: 'Tambah saran' }] },
+    ],
+  }
+  const m = renderRevisi(input)
+  assert.equal(m.subject, 'Revisi Sidang Skripsi — Budi 87,50 A (2021110099)')
+  for (const s of [m.text, m.html]) {
+    assert.ok(s.includes('Tambah saran') && s.includes('Anggota Penguji II') && s.includes('Dr. Cici') && s.includes('Lulus Dengan Revisi'))
+  }
+  assert.ok(!m.html.includes('<script>') && m.html.includes('&lt;script&gt;'))
+  assert.ok(!m.html.includes('<b>tebal') && m.html.includes('&lt;b&gt;tebal'))
+  // Only examiners with revisi are listed; the body has no grade field (digits come only from the fields passed in).
+  const satu = renderRevisi({ ...input, nama: 'Budi', judul: 'Judul', revisi: [input.revisi[0]] })
+  assert.ok(!satu.text.includes('Penguji II') && !satu.html.includes('Cici'))
+  const digit = (s: string) => s.replace(/<[^>]*>/g, '').replace('2021110099', '').replace(tanggalPanjang('2026-11-09', false), '').replace('12', '').match(/\d/g)
+  assert.equal(digit(satu.text), null, satu.text)
+  assert.equal(digit(satu.html), null)
+
+  // smtpTransport: null until all three env vars are set; never throws.
+  const env = { u: process.env.SMTP_USER, p: process.env.SMTP_PASS, f: process.env.SMTP_FROM }
+  delete process.env.SMTP_USER; delete process.env.SMTP_PASS; delete process.env.SMTP_FROM
+  assert.equal(smtpTransport(), null)
+  process.env.SMTP_USER = 'u@x.id'; process.env.SMTP_PASS = 'p'
+  assert.equal(smtpTransport(), null)
+  process.env.SMTP_FROM = 'A <u@x.id>'
+  assert.equal(typeof smtpTransport(), 'function')
+  for (const [k, v] of [['SMTP_USER', env.u], ['SMTP_PASS', env.p], ['SMTP_FROM', env.f]] as const) {
+    if (v === undefined) delete process.env[k]; else process.env[k] = v
+  }
+
+  const data = (over: Partial<MailData> = {}): MailData => ({
+    status: 'menunggu', nama: 'Budi', npm: '2021110099', judul: 'J', tanggal: '2026-11-09', yudisium: 'Lulus Dengan Revisi',
+    mahasiswaEmail: 'budi@mhs.id',
+    penguji: [
+      { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani', email: 'ani@up.id', revisi: [{ halaman: '1', catatan: 'x' }] },
+      { peranLabel: 'Anggota Penguji I', nama: 'Dr. Eko', email: '', revisi: [] },
+      { peranLabel: 'Anggota Penguji II', nama: 'Dr. Cici', email: 'bukan-email', revisi: [] },
+    ],
+    ...over,
+  })
+  const jalankan = async (t: Transport | null, d = data(), timeoutMs = 50) => {
+    const tulis: { status: string; detail: unknown }[] = []
+    const status = await kirimRevisi('id', t, { muat: async () => d, simpan: async (_i, status, detail) => { tulis.push({ status, detail }) } }, timeoutMs)
+    return { status, tulis }
+  }
+  const baik: Transport = async ({ to }) => ({ accepted: to, rejected: [] })
+
+  // Blank and invalid addresses are skipped and listed; the sent ones make it 'sebagian'.
+  const a = await jalankan(baik)
+  assert.equal(a.status, 'sebagian')
+  assert.equal(a.tulis.length, 1)
+  assert.equal(a.tulis[0].status, 'sebagian')
+  const detail = a.tulis[0].detail as { alamat: string; status: string; alasan?: string }[]
+  assert.deepEqual(detail.map((x) => [x.alamat, x.status]), [['budi@mhs.id', 'terkirim'], ['ani@up.id', 'terkirim'], ['', 'dilewati'], ['bukan-email', 'dilewati']])
+  assert.ok(detail[2].alasan?.includes('Anggota Penguji I') && detail[3].alasan?.includes('Anggota Penguji II'))
+  // All valid -> terkirim; one message to everyone.
+  const kirim: { to: string[]; subject: string }[] = []
+  const lengkap = data({ penguji: [{ peranLabel: 'Ketua Sidang', nama: 'A', email: 'ani@up.id', revisi: [{ halaman: '', catatan: 'x' }] }] })
+  const b = await jalankan(async (msg) => { kirim.push(msg); return { accepted: msg.to, rejected: [] } }, lengkap)
+  assert.equal(b.status, 'terkirim')
+  assert.deepEqual(kirim.map((k) => k.to), [['budi@mhs.id', 'ani@up.id']])
+  assert.equal(kirim[0].subject, 'Revisi Sidang Skripsi — Budi (2021110099)')
+  // Same address twice goes once.
+  const dobel = data({ mahasiswaEmail: 'ANI@up.id', penguji: lengkap.penguji })
+  const d2 = await jalankan(async (msg) => { assert.equal(msg.to.length, 1); return { accepted: msg.to, rejected: [] } }, dobel)
+  assert.equal(d2.status, 'terkirim')
+  // One rejected -> sebagian; all rejected, throw, or timeout -> gagal.
+  const c = await jalankan(async ({ to }) => ({ accepted: [to[0]], rejected: [to[1]] }), lengkap)
+  assert.equal(c.status, 'sebagian')
+  assert.deepEqual((c.tulis[0].detail as { status: string }[]).map((x) => x.status), ['terkirim', 'gagal'])
+  const d = await jalankan(async ({ to }) => ({ accepted: [], rejected: to }), lengkap)
+  assert.equal(d.status, 'gagal')
+  const e = await jalankan(async () => { throw new Error('535 login salah') }, lengkap)
+  assert.equal(e.status, 'gagal')
+  assert.ok((e.tulis[0].detail as { alasan: string }[]).every((x) => x.alasan.includes('535 login salah')))
+  const t0 = Date.now()
+  const f = await jalankan(() => new Promise((r) => setTimeout(() => r({ accepted: ['x'], rejected: [] }), 11_000).unref()).then((x) => x as never), lengkap)
+  assert.equal(f.status, 'gagal')
+  assert.ok(Date.now() - t0 < 1000)
+  assert.ok((f.tulis[0].detail as { alasan: string }[])[0].alasan.includes('waktu'))
+  // No transport -> gagal with the reason; no valid address -> gagal without calling it.
+  const g = await jalankan(null, lengkap)
+  assert.equal(g.status, 'gagal')
+  assert.ok((g.tulis[0].detail as { alasan: string }[]).every((x) => x.alasan === 'SMTP belum dikonfigurasi'))
+  let dipanggil = false
+  const h = await jalankan(async (m) => { dipanggil = true; return { accepted: m.to, rejected: [] } }, data({ mahasiswaEmail: '', penguji: lengkap.penguji.map((p) => ({ ...p, email: null })) }))
+  assert.equal(h.status, 'gagal')
+  assert.equal(dipanggil, false)
+  // No examiner revisi -> tidak_perlu, nothing sent or written. A finished status is never re-sent.
+  const i = await jalankan(baik, data({ penguji: [] }))
+  assert.deepEqual([i.status, i.tulis.length], ['tidak_perlu', 0])
+  for (const s of ['terkirim', 'tidak_perlu'] as const) {
+    const j = await jalankan(async () => { throw new Error('tidak boleh') }, data({ status: s }))
+    assert.deepEqual([j.status, j.tulis.length], [s, 0])
+  }
+  // A missing sidang is left alone.
+  assert.equal(await kirimRevisi('x', baik, { muat: async () => null, simpan: async () => { throw new Error('x') } }), 'tidak_perlu')
+  // Retry from gagal / sebagian goes through.
+  for (const s of ['gagal', 'sebagian'] as const) assert.equal((await jalankan(baik, data({ ...lengkap, status: s }))).status, 'terkirim')
+  console.log('nilai-sidang email: all checks passed')
+}
+cekEmail().catch((e) => { console.error(e); process.exit(1) })
