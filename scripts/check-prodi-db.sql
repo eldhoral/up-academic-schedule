@@ -680,3 +680,15 @@ begin
     update defenses set npm = '88012' where id = pras2;
     update defenses set npm = '88002' where id = pras2;
 end $$;
+
+-- Super Admin renames a graded lecturer's kode: the FK cascade still reaches nilai_bimbingan
+-- although authenticated may update only aspek and nilai there (FK actions run as the owner).
+select set_config('request.jwt.claim.sub', :'super', false);
+set role authenticated;
+update lecturers set kode_dosen = 'DSN01Y' where kode_dosen = 'DSN01';
+reset role;
+do $$ begin
+    assert (select count(*) from nilai_bimbingan where kode_dosen = 'DSN01Y') = 3, 'grades follow a Super Admin kode rename';
+    assert (select kode_dosen from profiles where id = '00000000-0000-0000-0000-000000000006') = 'DSN01Y', 'the DOSEN account follows too';
+end $$;
+update lecturers set kode_dosen = 'DSN01' where kode_dosen = 'DSN01Y';
