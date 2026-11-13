@@ -19,6 +19,7 @@ The UI is in Indonesian. The design rationale and data model are in [`PLAN.md`](
 - Tailwind CSS 4.
 - `exceljs` for Excel import and export, `docx` for the Surat Penugasan.
 - Aspose Cells Cloud for xlsx-to-PDF conversion (optional).
+- `nodemailer` over Gmail SMTP for the Nilai Sidang revisi email (optional).
 
 ## Getting started
 
@@ -37,6 +38,7 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Everything |
 | `SUPABASE_SERVICE_ROLE_KEY` | The Pengguna page (create and delete accounts, change roles) and the login/logout entries in the audit log. Server-only; never expose it to the browser. |
 | `ASPOSE_CLIENT_ID`, `ASPOSE_CLIENT_SECRET` | "Unduh PDF" on the print pages. The free tier allows 150 conversions a month. Without these, the Excel download still works. |
+| `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | The revisi email sent when a Ketua Penguji locks a sidang (Gmail, `smtp.gmail.com:465`). `SMTP_PASS` is a Google App Password. Without them the lock still works and the email is recorded as `gagal`. Set them in Vercel only; setup steps are in `TSD.md` §9.7. |
 
 ### Database
 
@@ -49,7 +51,7 @@ npx supabase db push
 
 The migrations create the schema, RLS policies, roles and settings, and seed data: the 2026 curriculum, the 2026/2027 Gasal schedule, and the 2025/2026 Gasal UTS and sidang.
 
-Without the CLI, paste `supabase/all_in_one_setup.sql` into the Supabase SQL editor and run it. It is every migration joined into one file, so whenever you add a migration, append it there too. It is for a fresh database only: an existing project applies just the new migration files, `supabase/migrations/20261007000001_prodi.sql`, `supabase/migrations/20261008000001_header_line_breaks.sql`, `supabase/migrations/20261008000002_s2_reguler_malam.sql`, `supabase/migrations/20261008000003_jadwal_dosen.sql`, `supabase/migrations/20261009000001_beban_dosen.sql`, `supabase/migrations/20261109000001_dosen_role.sql`, `supabase/migrations/20261109000002_nilai_bimbingan.sql` and `supabase/migrations/20261109000003_nilai_bimbingan_hardening.sql`.
+Without the CLI, paste `supabase/all_in_one_setup.sql` into the Supabase SQL editor and run it. It is every migration joined into one file, so whenever you add a migration, append it there too. It is for a fresh database only: an existing project applies just the new migration files, `supabase/migrations/20261007000001_prodi.sql`, `supabase/migrations/20261008000001_header_line_breaks.sql`, `supabase/migrations/20261008000002_s2_reguler_malam.sql`, `supabase/migrations/20261008000003_jadwal_dosen.sql`, `supabase/migrations/20261009000001_beban_dosen.sql`, `supabase/migrations/20261109000001_dosen_role.sql`, `supabase/migrations/20261109000002_nilai_bimbingan.sql`, `supabase/migrations/20261109000003_nilai_bimbingan_hardening.sql`, `supabase/migrations/20261116000001_nilai_sidang.sql`, `supabase/migrations/20261116000002_eksternal_cleanup.sql` and `supabase/migrations/20261116000003_kunci_sidang.sql`. The cleanup file schedules a nightly `pg_cron` job and so needs the `pg_cron` extension (available on Supabase; enable it under Database → Extensions if the file reports it missing).
 
 ### First account
 
@@ -68,6 +70,8 @@ After that, manage accounts from **Manajemen Pengguna** (`/pengguna`).
 | `SUPERADMIN` (Super Admin) | Everything, including managing users |
 | `SCHEDULER` (Penjadwal) | Read and write schedules and master data |
 | `VIEWER` (Pemantau) | Read only |
+| `DOSEN` (Dosen) | Only Penilaian Saya and the grading pages of their own S1 prasidang and sidang. Made on **Manajemen Pengguna**, linked to one lecturer |
+| `EKSTERNAL` (Penguji Eksternal) | A temporary day login for an external Anggota Penguji I, made automatically when a sidang is saved (see **Akun Penguji Eksternal**). Grades only that day's sidang; stops working the day after |
 
 Every account also has an **Akses Prodi** (S1, S2 or Semua; Super Admin is always Semua). It decides which prodi's menu the account sees and which prodi's data it may change.
 
@@ -125,6 +129,11 @@ npm run check:jadwal-dosen # lecturer link: weeks, exam-week skips, roles, token
 npm run check:tahun-akademik # saving a term never leaves no active term
 npm run check:copy-year # copying kuliah from last year: source term, reset fields, dosen for inserted rows only
 npm run check:audit-log # Log Aktivitas URL filters and search escaping
+npm run check:defense-link # material link normalisation and labels
+npm run check:hari-libur # holiday skipping in the calendar and the feed
+npm run check:kalender # combined calendar events
+npm run check:nilai-bimbingan # Nilai Bimbingan rules, math, access, recap
+npm run check:nilai-sidang # Nilai Sidang and Nilai Akhir math, access, day logins, revisi email, recap
 npm run check:db      # needs Docker: applies every migration to a throwaway Postgres, checks the prodi schema and RLS
 ```
 
