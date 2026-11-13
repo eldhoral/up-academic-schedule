@@ -13,6 +13,8 @@ export type Lecturer = {
   nama: string
   gelar_depan: string
   gelar_belakang: string
+  email: string
+  eksternal: boolean
   jadwal_token?: string | null
 }
 
@@ -76,6 +78,7 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
                 <Th>Kode</Th>
                 <Th>NIDN</Th>
                 <Th>Nama tercetak</Th>
+                <Th>Email</Th>
                 <Th className="text-right">&nbsp;</Th>
               </tr>
             </thead>
@@ -84,7 +87,11 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
                 <tr key={l.kode_dosen} className="border-t border-[var(--garis)] h-[2.4rem]">
                   <Td className="mono">{l.kode_dosen}</Td>
                   <Td className="mono">{l.nidn || '—'}</Td>
-                  <Td>{lecturerDisplayName(l)}</Td>
+                  <Td>
+                    {lecturerDisplayName(l)}
+                    {l.eksternal && <span className="ml-[0.5rem] text-[0.8rem] text-[var(--tinta-3)]">eksternal</span>}
+                  </Td>
+                  <Td className="text-[var(--tinta-2)]">{l.email || '—'}</Td>
                   <Td className="text-right whitespace-nowrap">
                     <JadwalLinkButtons kodeDosen={l.kode_dosen} hasLink={!!l.jadwal_token} onMessage={setLinkMessage} />
                     {canEdit && (
@@ -101,7 +108,7 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
+                  <td colSpan={5} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
                     {lecturers.length === 0
                       ? 'Belum ada data dosen — tambahkan satu, atau impor dari Excel di bawah.'
                       : <>Tidak ada dosen yang cocok dengan &ldquo;{query}&rdquo;.</>}
@@ -238,6 +245,19 @@ function LecturerFormModal({ lecturer, onClose }: { lecturer: Lecturer | null; o
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
             />
           </Field>
+
+          <Field label="Email">
+            <input
+              name="email"
+              type="email"
+              defaultValue={lecturer?.email}
+              className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
+            />
+          </Field>
+          <label className="flex items-center gap-[0.4rem] text-[0.87rem]">
+            <input type="checkbox" name="eksternal" defaultChecked={lecturer?.eksternal} className="w-[1rem] h-[1rem]" />
+            Dosen eksternal
+          </label>
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {lecturer && (

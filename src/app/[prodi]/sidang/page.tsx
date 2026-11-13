@@ -19,7 +19,7 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
 
   const [{ data: academicYears }, { data: lecturers }, { data: rooms }, { data: students }, settings, role, { libur }] = await Promise.all([
     supabase.from('academic_years').select('*').order('id', { ascending: false }),
-    supabase.from('lecturers').select(LECTURER_COLUMNS).order('nama'),
+    supabase.from('lecturers').select(`${LECTURER_COLUMNS}, eksternal`).order('nama'),
     supabase.from('rooms').select('*').eq('active', true).order('nama'),
     supabase.from('students').select('npm, nama, judul_skripsi').eq('prodi', prodi).order('npm'),
     getSettings(prodi),
@@ -48,7 +48,7 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
         context={context}
         defenses={defenses}
         findings={findings}
-        lecturers={((lecturers as Lecturer[]) ?? []).map((l) => ({ value: l.kode_dosen, label: lecturerDisplayName(l) }))}
+        lecturers={((lecturers as unknown as (Lecturer & { eksternal: boolean })[]) ?? []).map((l) => ({ value: l.kode_dosen, label: lecturerDisplayName(l), eksternal: l.eksternal }))}
         rooms={((rooms as Room[]) ?? []).map((r) => ({ value: r.id, label: r.nama }))}
         sesi={parseSesiList(settingText(settings, context.jenis === 'sidang' ? 'sesi_sidang' : 'sesi_prasidang'))}
         students={(students as Student[]) ?? []}

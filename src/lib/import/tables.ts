@@ -1,3 +1,4 @@
+import { parseAngka } from '@/lib/penilaian/nilai'
 import type { ParsedRow } from './engine'
 
 export type ParseResult<T> = { key: string; data: T; notes: string[] } | { reason: string }
@@ -17,6 +18,36 @@ export type ImportTableDef<T extends Record<string, unknown>> = {
 function str(raw: ParsedRow, key: string): string {
   const v = raw[key]
   return v === undefined || v === null ? '' : String(v).trim()
+}
+
+/** Mirrors the DB check on students.email / lecturers.email: empty or a plausible address. */
+export function emailError(email: string): string | null {
+  return email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? null : 'email tidak valid.'
+}
+
+/** ya/tidak/true/false/1/0 (any case); blank is false; anything else is undefined (a bad cell). */
+function yesNo(raw: ParsedRow, ...keys: string[]): boolean | undefined {
+  const v = keys.map((k) => str(raw, k)).find(Boolean)?.toLowerCase() ?? ''
+  if (v === '' || v === 'tidak' || v === 'false' || v === '0') return false
+  if (v === 'ya' || v === 'true' || v === '1') return true
+  return undefined
+}
+
+/** SKS and Bobot before sidang, both optional; mirrors the DB checks (sks > 0, 0 <= bobot <= 4 x sks). */
+export function sksBobot(sksRaw: string, bobotRaw: string): { sks: number | null; bobot: number | null } | { error: string } {
+  let sks: number | null = null
+  let bobot: number | null = null
+  if (sksRaw) {
+    const r = parseAngka(sksRaw, 1, 32767)
+    if (!r.ok || !Number.isInteger(r.value)) return { error: 'sks_sebelum harus berupa bilangan bulat positif.' }
+    sks = r.value
+  }
+  if (bobotRaw) {
+    const r = parseAngka(bobotRaw, 0, 4 * (sks ?? 8000))
+    if (!r.ok) return { error: sks ? `bobot_sebelum harus antara 0 dan ${4 * sks} (4 × SKS).` : `bobot_sebelum tidak valid. ${r.error}.` }
+    bobot = r.value
+  }
+  return { sks, bobot }
 }
 
 // ---------------------------------------------------------------------------
@@ -107,22 +138,31 @@ export type LecturerRow = {
   nama: string
   gelar_depan: string
   gelar_belakang: string
+  email: string
+  eksternal: boolean
 }
 
 export const lecturersTable: ImportTableDef<LecturerRow> = {
   slug: 'lecturers',
   label: 'Dosen',
-  headers: ['Kode Dosen', 'NIDN', 'Nama Dosen', 'Glr Dpn', 'Glr Blkg'],
+  headers: ['Kode Dosen', 'NIDN', 'Nama Dosen', 'Glr Dpn', 'Glr Blkg', 'Email', 'Eksternal'],
   exampleRow: {
     'Kode Dosen': 'D001',
     NIDN: '0311106301',
     'Nama Dosen': 'Evanytha',
     'Glr Dpn': 'Dr.',
     'Glr Blkg': ', M.Si., Psikolog',
+    Email: 'evanytha@univ.ac.id',
+    Eksternal: 'tidak',
   },
   keyField: 'kode_dosen',
   equal: (a, b) =>
-    a.nidn === b.nidn && a.nama === b.nama && a.gelar_depan === b.gelar_depan && a.gelar_belakang === b.gelar_belakang,
+    a.nidn === b.nidn &&
+    a.nama === b.nama &&
+    a.gelar_depan === b.gelar_depan &&
+    a.gelar_belakang === b.gelar_belakang &&
+    a.email === b.email &&
+    a.eksternal === b.eksternal,
   parseRow(raw) {
     const kode_dosen = str(raw, 'Kode Dosen') || str(raw, 'kode_dosen')
     if (!kode_dosen) return { reason: 'Kode Dosen wajib diisi.' }
@@ -145,10 +185,17 @@ export const lecturersTable: ImportTableDef<LecturerRow> = {
     const gelar_depan = str(raw, 'Glr Dpn') || str(raw, 'gelar_depan')
     const gelar_belakang = str(raw, 'Glr Blkg') || str(raw, 'gelar_belakang')
 
+    const email = str(raw, 'Email') || str(raw, 'email')
+    const badEmail = emailError(email)
+    if (badEmail) return { reason: `Baris ${kode_dosen}: ${badEmail}` }
+
+    const eksternal = yesNo(raw, 'Eksternal', 'eksternal')
+    if (eksternal === undefined) return { reason: `Baris ${kode_dosen}: Eksternal harus ya atau tidak.` }
+
     return {
       key: kode_dosen,
       notes,
-      data: { kode_dosen, nidn, nama, gelar_depan, gelar_belakang },
+      data: { kode_dosen, nidn, nama, gelar_depan, gelar_belakang, email, eksternal },
     }
   },
 }
@@ -199,16 +246,34 @@ export type StudentRow = {
   npm: string
   nama: string
   judul_skripsi: string
+  email: string
+  sks_sebelum: number | null
+  bobot_sebelum: number | null
+  tepat_waktu: boolean
 }
 
 export const studentsTable: ImportTableDef<StudentRow> = {
   slug: 'students',
   prodiScoped: true,
   label: 'Mahasiswa',
-  headers: ['npm', 'nama', 'judul_skripsi'],
-  exampleRow: { npm: '6021210017', nama: 'Alfia Rizkyani', judul_skripsi: 'Peran Problematic Online Game Use Terhadap Kualitas Tidur' },
+  headers: ['npm', 'nama', 'judul_skripsi', 'email', 'sks_sebelum', 'bobot_sebelum', 'tepat_waktu'],
+  exampleRow: {
+    npm: '6021210017',
+    nama: 'Alfia Rizkyani',
+    judul_skripsi: 'Peran Problematic Online Game Use Terhadap Kualitas Tidur',
+    email: 'alfia@student.univ.ac.id',
+    sks_sebelum: 139,
+    bobot_sebelum: '404,57',
+    tepat_waktu: 'ya',
+  },
   keyField: 'npm',
-  equal: (a, b) => a.nama === b.nama && a.judul_skripsi === b.judul_skripsi,
+  equal: (a, b) =>
+    a.nama === b.nama &&
+    a.judul_skripsi === b.judul_skripsi &&
+    a.email === b.email &&
+    a.sks_sebelum === b.sks_sebelum &&
+    a.bobot_sebelum === b.bobot_sebelum &&
+    a.tepat_waktu === b.tepat_waktu,
   parseRow(raw) {
     const npm = str(raw, 'npm') || str(raw, 'NPM')
     if (!npm) return { reason: 'npm wajib diisi.' }
@@ -218,7 +283,18 @@ export const studentsTable: ImportTableDef<StudentRow> = {
     if (!nama) return { reason: `Baris ${npm}: nama wajib diisi.` }
 
     const judul_skripsi = str(raw, 'judul_skripsi') || str(raw, 'Judul Skripsi')
-    return { key: npm, notes: [], data: { npm, nama, judul_skripsi } }
+
+    const email = str(raw, 'email') || str(raw, 'Email')
+    const badEmail = emailError(email)
+    if (badEmail) return { reason: `Baris ${npm}: ${badEmail}` }
+
+    const nilai = sksBobot(str(raw, 'sks_sebelum'), str(raw, 'bobot_sebelum'))
+    if ('error' in nilai) return { reason: `Baris ${npm}: ${nilai.error}` }
+
+    const tepat_waktu = yesNo(raw, 'tepat_waktu')
+    if (tepat_waktu === undefined) return { reason: `Baris ${npm}: tepat_waktu harus ya atau tidak.` }
+
+    return { key: npm, notes: [], data: { npm, nama, judul_skripsi, email, sks_sebelum: nilai.sks, bobot_sebelum: nilai.bobot, tepat_waktu } }
   },
 }
 

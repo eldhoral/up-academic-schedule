@@ -11,7 +11,7 @@ import type { AcademicYear } from '../kuliah/penjadwalan-types'
 import { useProdi } from '@/lib/use-prodi'
 import type { HariLibur } from '@/lib/hari-libur'
 
-type Option = { value: string; label: string }
+type Option = { value: string; label: string; eksternal?: boolean }
 
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
 const ADD_ROOM = '__add_room__'
@@ -55,6 +55,11 @@ export function SidangClient({
   const lecturerName = useMemo(() => Object.fromEntries(lecturers.map((l) => [l.value, l.label])), [lecturers])
   const roomName = useMemo(() => Object.fromEntries(rooms.map((r) => [r.value, r.label])), [rooms])
   const name = (kode: string | null) => (kode ? (lecturerName[kode] ?? kode) : '—')
+  // A dosen eksternal may only be Anggota Penguji I; rows saved before that rule are flagged, not blocked.
+  const eksternalViolations = useMemo(() => {
+    const eksternal = new Set(lecturers.filter((l) => l.eksternal).map((l) => l.value))
+    return defenses.filter((d) => [d.pembimbing_kode, d.penguji_kode].some((k) => k && eksternal.has(k)))
+  }, [defenses, lecturers])
 
   const q = query.trim().toLowerCase()
   const matchIds = useMemo(
@@ -193,6 +198,12 @@ export function SidangClient({
             target: f.a,
           }))}
         />
+
+        {eksternalViolations.length > 0 && (
+          <p role="status" className="m-0 mb-[0.8rem] rounded-[var(--r-kecil)] border border-[var(--kuning-garis)] bg-[var(--kuning-lembut)] px-[0.67rem] py-[0.4rem] text-[0.87rem] text-[var(--kuning)]">
+            Dosen eksternal hanya dapat menjadi Anggota Penguji I. Ubah dosen pada: {eksternalViolations.map((d) => d.nama_mahasiswa).join(', ')}.
+          </p>
+        )}
 
         <div className="flex items-end justify-between gap-[1rem] mb-[0.8rem] flex-wrap">
           <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.015em]">{jenisLabel(context.prodi, context.jenis)}</h1>

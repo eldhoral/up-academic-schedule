@@ -146,6 +146,8 @@ export async function checkAllDefenseClashes(academicYearId: string, prodi: Prod
   return own.sort((a, b) => a.a.tanggal.localeCompare(b.a.tanggal) || a.a.jam_mulai.localeCompare(b.a.jam_mulai))
 }
 
+const EKSTERNAL_ERROR = 'Dosen eksternal hanya dapat menjadi Anggota Penguji I.'
+
 function validate(i: DefenseInput): string | null {
   if (!parseProdi(i.prodi)) return 'Prodi tidak dikenali.'
   if (!i.academic_year_id) return 'Pilih tahun akademik.'
@@ -171,6 +173,13 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
   if ('error' in gate) return { error: gate.error }
 
   const supabase = await createClient()
+  // Dosen eksternal: Anggota Penguji I only, in both jenis and both prodi.
+  const roleCodes = [input.pembimbing_kode, input.penguji_kode].filter((k): k is string => !!k)
+  if (roleCodes.length) {
+    const { count, error: eksternalError } = await supabase.from('lecturers').select('kode_dosen', { count: 'exact', head: true }).in('kode_dosen', roleCodes).eq('eksternal', true)
+    if (eksternalError) return { error: humanDbError(eksternalError) }
+    if (count) return { error: EKSTERNAL_ERROR }
+  }
   // Nama and judul come from the master when the student is picked, then stay as scheduled: a
   // saved entry keeps them (history), a changed judul is a new prasidang.
   const { data: existing } = input.id ? await supabase.from('defenses').select('npm').eq('id', input.id).maybeSingle() : { data: null }

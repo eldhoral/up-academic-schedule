@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { humanDbError } from '@/lib/db-error'
+import { emailError } from '@/lib/import/tables'
 import { managerOnly } from '@/lib/prodi-server'
 import { canWrite, getCurrentUser } from '@/lib/roles'
 import { newJadwalToken } from '../jadwal-dosen/token'
@@ -15,14 +16,20 @@ function readLecturerForm(formData: FormData) {
   const nama = (formData.get('nama') as string)?.trim()
   const gelar_depan = ((formData.get('gelar_depan') as string) || '').trim()
   const gelar_belakang = ((formData.get('gelar_belakang') as string) || '').trim()
-  return { kode_dosen, nidn, nama, gelar_depan, gelar_belakang }
+  const email = ((formData.get('email') as string) || '').trim()
+  const eksternal = formData.get('eksternal') === 'on'
+  return { kode_dosen, nidn, nama, gelar_depan, gelar_belakang, email, eksternal }
 }
+
+const emailMessage = (email: string) => (emailError(email) ? 'Email tidak valid.' : null)
 
 export async function createLecturerAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const denied = await managerOnly()
   if (denied) return denied
   const row = readLecturerForm(formData)
   if (!row.kode_dosen || !row.nama) return { error: 'Kode dosen dan nama wajib diisi.' }
+  const badEmail = emailMessage(row.email)
+  if (badEmail) return { error: badEmail }
 
   const supabase = await createClient()
   const { error } = await supabase.from('lecturers').insert(row)
@@ -38,11 +45,13 @@ export async function updateLecturerAction(_prev: FormState, formData: FormData)
   const row = readLecturerForm(formData)
   if (!row.kode_dosen) return { error: 'Kode dosen wajib diisi.' }
   if (!row.nama) return { error: 'Nama wajib diisi.' }
+  const badEmail = emailMessage(row.email)
+  if (badEmail) return { error: badEmail }
 
   const supabase = await createClient()
   const { error } = await supabase
     .from('lecturers')
-    .update({ nidn: row.nidn, nama: row.nama, gelar_depan: row.gelar_depan, gelar_belakang: row.gelar_belakang })
+    .update({ nidn: row.nidn, nama: row.nama, gelar_depan: row.gelar_depan, gelar_belakang: row.gelar_belakang, email: row.email, eksternal: row.eksternal })
     .eq('kode_dosen', row.kode_dosen)
   if (error) return { error: humanDbError(error, 'Kode dosen') }
 

@@ -20,7 +20,7 @@ import { jenisLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type 
 import { useProdi } from '@/lib/use-prodi'
 import { PRODI_CONFIG } from '@/lib/prodi'
 
-type Option = { value: string; label: string }
+type Option = { value: string; label: string; eksternal?: boolean }
 export type DefenseDraft = {
   row: DefenseRow | null // set when editing
   tanggal: string
@@ -150,6 +150,8 @@ export function DefenseFormModal({
 
   const visibleClashes = needsOverride ?? (complete ? live?.clashes : null) ?? []
   const dosenOptions = [{ value: NONE, label: '— kosong —' }, ...lecturers]
+  // Dosen eksternal: Anggota Penguji I only. One already saved in another role stays listed so it shows (the save refuses it until changed).
+  const internalOptions = (current: string) => [{ value: NONE, label: '— kosong —' }, ...lecturers.filter((l) => !l.eksternal || l.value === current)]
   const pickDosen = (set: (v: string) => void) => (v: string) => set(v === NONE ? '' : v)
 
   return (
@@ -275,7 +277,7 @@ export function DefenseFormModal({
           {sidang ? (
             <div className="grid gap-[0.8rem] sm:grid-cols-3 items-end">
               <Field label="Ketua sidang">
-                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Ketua sidang" options={dosenOptions} className={CONTROL} />
+                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Ketua sidang" options={internalOptions(penguji)} className={CONTROL} />
               </Field>
               <Field label="Anggota penguji I (penguji eksternal)">
                 <Select
@@ -291,16 +293,16 @@ export function DefenseFormModal({
                 />
               </Field>
               <Field label="Anggota penguji II (dosen pembimbing)">
-                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Anggota penguji II" options={dosenOptions} className={CONTROL} />
+                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Anggota penguji II" options={internalOptions(pembimbing)} className={CONTROL} />
               </Field>
             </div>
           ) : (
             <div className="grid gap-[0.8rem] sm:grid-cols-2 items-end">
               <Field label="Dosen pembimbing pendamping">
-                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Dosen pembimbing pendamping" options={dosenOptions} className={CONTROL} />
+                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Dosen pembimbing pendamping" options={internalOptions(pembimbing)} className={CONTROL} />
               </Field>
               <Field label="Dosen pembahas">
-                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Dosen pembahas" options={dosenOptions} className={CONTROL} />
+                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Dosen pembahas" options={internalOptions(penguji)} className={CONTROL} />
               </Field>
             </div>
           )}

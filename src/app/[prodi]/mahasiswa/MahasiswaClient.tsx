@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { PRODI_CONFIG } from '@/lib/prodi'
+import { formatNilai, ipkSebelum } from '@/lib/penilaian/nilai'
 import { useProdi } from '@/lib/use-prodi'
 import { createStudentAction, deleteStudentAction, updateStudentAction, type FormState } from './actions'
 
@@ -13,6 +14,10 @@ export type Student = {
   npm: string
   nama: string
   judul_skripsi: string
+  email: string
+  sks_sebelum: number | null
+  bobot_sebelum: number | null
+  tepat_waktu: boolean
 }
 
 const INPUT = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]'
@@ -60,6 +65,8 @@ export function MahasiswaClient({ students, canEdit }: { students: Student[]; ca
                 <Th>NPM</Th>
                 <Th>Nama</Th>
                 <Th>{PRODI_CONFIG[prodi].defense.judul}</Th>
+                <Th>Email</Th>
+                <Th className="text-right">IPK</Th>
                 <Th className="text-right">&nbsp;</Th>
               </tr>
             </thead>
@@ -69,6 +76,8 @@ export function MahasiswaClient({ students, canEdit }: { students: Student[]; ca
                   <Td className="mono whitespace-nowrap">{s.npm}</Td>
                   <Td className="whitespace-nowrap">{s.nama}</Td>
                   <Td className="text-[var(--tinta-2)]">{s.judul_skripsi || '—'}</Td>
+                  <Td className="text-[var(--tinta-2)]">{s.email || '—'}</Td>
+                  <Td className="mono text-right whitespace-nowrap">{ipk(s)}</Td>
                   <Td className="text-right">
                     {canEdit && (
                       <button
@@ -84,7 +93,7 @@ export function MahasiswaClient({ students, canEdit }: { students: Student[]; ca
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
+                  <td colSpan={6} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
                     {students.length === 0
                       ? 'Belum ada data mahasiswa — tambahkan satu, atau impor dari Excel di bawah.'
                       : <>Tidak ada mahasiswa yang cocok dengan &ldquo;{query}&rdquo;.</>}
@@ -101,6 +110,12 @@ export function MahasiswaClient({ students, canEdit }: { students: Student[]; ca
       {editing && <StudentFormModal student={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>
   )
+}
+
+/** IPK before sidang, from the typed SKS and bobot: 2 decimals, or a dash when either is missing. */
+const ipk = (s: Student) => {
+  const v = ipkSebelum(s.bobot_sebelum, s.sks_sebelum)
+  return v === null ? '—' : formatNilai(v)
 }
 
 function StudentFormModal({ student, onClose }: { student: Student | null; onClose: () => void }) {
@@ -138,6 +153,21 @@ function StudentFormModal({ student, onClose }: { student: Student | null; onClo
           <Field label={PRODI_CONFIG[prodi].defense.judul}>
             <textarea name="judul_skripsi" rows={3} defaultValue={student?.judul_skripsi} className={`${INPUT} resize-y`} />
           </Field>
+          <Field label="Email">
+            <input name="email" type="email" defaultValue={student?.email} className={INPUT} />
+          </Field>
+          <div className="flex gap-[0.8rem]">
+            <Field label="SKS sebelum sidang" className="flex-1">
+              <input name="sks_sebelum" inputMode="numeric" pattern="[0-9]*" defaultValue={student?.sks_sebelum ?? ''} className={`${INPUT} mono`} />
+            </Field>
+            <Field label="Bobot sebelum sidang" className="flex-1">
+              <input name="bobot_sebelum" inputMode="decimal" defaultValue={student?.bobot_sebelum === null || student?.bobot_sebelum === undefined ? '' : formatNilai(student.bobot_sebelum)} className={`${INPUT} mono`} />
+            </Field>
+          </div>
+          <label className="flex items-center gap-[0.4rem] text-[0.87rem]">
+            <input type="checkbox" name="tepat_waktu" defaultChecked={student?.tepat_waktu} className="w-[1rem] h-[1rem]" />
+            Lulus tepat waktu
+          </label>
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {student && (
@@ -172,9 +202,9 @@ function StudentFormModal({ student, onClose }: { student: Student | null; onClo
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <label className="block">
+    <label className={`block ${className}`}>
       <span className="block text-[0.8rem] font-medium text-[var(--tinta-2)] mb-[0.25rem]">{label}</span>
       {children}
     </label>
