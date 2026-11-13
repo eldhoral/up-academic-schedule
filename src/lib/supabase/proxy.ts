@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { halamanDosen } from '@/lib/penilaian/akses'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -63,6 +64,17 @@ export async function updateSession(request: NextRequest) {
       url.searchParams.delete('redirectTo')
       return NextResponse.redirect(url)
     }
+
+    // A DOSEN account sees only its grading pages. Deny by default, so a new staff page, export
+    // route or action POST can't reach it. RLS (is_staff) still guards the data underneath.
+    // ponytail: one profiles read per staff request; move the role into a JWT claim if that shows up in latency.
+    if (user && !isMasuk && !halamanDosen(pathname)) {
+      const { data: profile, error } = await supabase.from('profiles').select('role').eq('id', user.sub).maybeSingle()
+      // Not a redirect to /masuk: a signed-in user there is sent straight back, which would loop.
+      if (error) return withCookies(new NextResponse('Gagal memeriksa akun. Muat ulang halaman.', { status: 503 }), supabaseResponse)
+      const blocked = tolakDosen(request, profile?.role)
+      if (blocked) return withCookies(blocked, supabaseResponse)
+    }
   } catch (err) {
     // Fail closed: an auth check that throws must not let the request through.
     console.error('Session update error in proxy:', err)
@@ -79,4 +91,22 @@ function redirectToMasuk(request: NextRequest, pathname: string) {
     url.searchParams.set('redirectTo', pathname)
   }
   return NextResponse.redirect(url)
+}
+
+/** A DOSEN off its own pages: a page visit goes to Penilaian Saya, anything else (a staff action's POST) gets 403. */
+export function tolakDosen(request: NextRequest, role: unknown): NextResponse | null {
+  if (role !== 'DOSEN' || halamanDosen(request.nextUrl.pathname)) return null
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return new NextResponse('Akun Dosen tidak dapat membuka halaman ini.', { status: 403 })
+  }
+  const url = request.nextUrl.clone()
+  url.pathname = '/penilaian'
+  url.search = ''
+  return NextResponse.redirect(url)
+}
+
+/** Keep the refreshed session cookies on a response we build ourselves. */
+function withCookies(res: NextResponse, from: NextResponse) {
+  from.cookies.getAll().forEach((c) => res.cookies.set(c))
+  return res
 }

@@ -3,8 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   DEFAULT_ATURAN, loadAturan, validateAspek, validatePredikat, validateSks, validateTabelNilai,
 } from '../src/lib/penilaian/aturan'
-import { aksesDosen, bisaDinilai, bolehInputLama, penilaianPath, peranDosen, todayJakarta, type DefenseRef, type Peran } from '../src/lib/penilaian/akses'
-import { baris, formatNilai, ipkSebelum, nilaiBimbingan, nilaiDariSnapshot, parseAngka, round2 } from '../src/lib/penilaian/nilai'
+import { aksesDosen, bisaDinilai, bolehInputLama, halamanDosen, penilaianPath, peranDosen, todayJakarta, type DefenseRef, type Peran } from '../src/lib/penilaian/akses'
+import { baris, formatNilai, ipkSebelum, nilaiBimbingan, nilaiDariSnapshot, parseAngka, round2, snapshotDariSkor } from '../src/lib/penilaian/nilai'
 
 // ---- validation
 assert.equal(validateAspek(DEFAULT_ATURAN.aspekBimbingan), null)
@@ -62,6 +62,24 @@ assert.equal(ipkSebelum(404.57, null), null)
 assert.equal(formatNilai(78.5), '78,50')
 assert.equal(formatNilai(80), '80,00')
 
+// ---- snapshot from typed scores (the shape the grading actions store)
+const empat = DEFAULT_ATURAN.aspekBimbingan
+const s80 = snapshotDariSkor(empat, ['86', '78', '78,0', '76'])
+assert.ok('aspek' in s80)
+assert.deepEqual(s80.aspek.map((r) => [r.label, r.bobot, r.skor]), empat.map((a, i) => [a.label, a.bobot, [86, 78, 78, 76][i]]))
+assert.equal(nilaiDariSnapshot(s80.aspek), 80)
+assert.ok(!('sub' in s80.aspek[0]), 'snapshot keeps label + bobot + skor only')
+// a stored snapshot re-scores against its own rows, whatever the current list is
+const lama = [{ label: 'Lama', bobot: 100, skor: 50 }]
+const ulang = snapshotDariSkor(lama, ['70'])
+assert.ok('aspek' in ulang)
+assert.deepEqual(ulang.aspek, [{ label: 'Lama', bobot: 100, skor: 70 }])
+for (const bad of [['86', '78', '78'], ['86', '78', '78', '76', '1'], 'x', null, [86, 78, 78, 76]]) {
+  assert.ok('error' in snapshotDariSkor(empat, bad), `${JSON.stringify(bad)} refused`)
+}
+const salah = snapshotDariSkor(empat, ['86', '101', '78', '76'])
+assert.ok('error' in salah && salah.error.startsWith('Pemahaman Penelitian:'), 'names the bad row')
+
 // ---- akses
 assert.equal(todayJakarta(new Date('2026-11-09T17:30:00Z')), '2026-11-10')
 assert.equal(todayJakarta(new Date('2026-11-09T16:59:00Z')), '2026-11-09')
@@ -96,6 +114,8 @@ assert.equal(bisaDinilai({ prodi: 's1', jenis: 'prasidang' }), true)
 assert.equal(bisaDinilai({ prodi: 's2', jenis: 'prasidang' }), false)
 assert.equal(bisaDinilai({ prodi: 's1', jenis: 'sidang' }), false)
 assert.equal(penilaianPath('abc'), '/nilai-bimbingan/abc')
+for (const p of ['/penilaian', '/atur-kata-sandi', penilaianPath('abc')]) assert.equal(halamanDosen(p), true, p)
+for (const p of ['/', '/penilaian/x', '/nilai-bimbingan', '/nilai-bimbingan/', '/nilai-bimbingan/a/b', '/s1/kuliah', '/pengguna']) assert.equal(halamanDosen(p), false, p)
 
 // ---- loadAturan
 function fakeDb(rows: { kunci: string; nilai: unknown }[] | null, error: { message: string } | null = null) {

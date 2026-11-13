@@ -44,3 +44,20 @@ export function ipkSebelum(bobot: number | null, sks: number | null): number | n
 export function formatNilai(n: number): string {
   return round2(n).toFixed(2).replace('.', ',')
 }
+
+/**
+ * The snapshot a grade stores: one typed skor per aspek row, in order. `skor` comes from the client,
+ * so its shape is checked here too. The first bad row is named in the error.
+ */
+export function snapshotDariSkor(aspek: { label: string; bobot: number }[], skor: unknown): { aspek: SkorAspek[] } | { error: string } {
+  if (!Array.isArray(skor) || skor.length !== aspek.length || !skor.every((s) => typeof s === 'string')) {
+    return { error: 'Daftar aspek penilaian berubah. Muat ulang halaman lalu isi lagi.' }
+  }
+  const rows: SkorAspek[] = []
+  for (const [i, a] of aspek.entries()) {
+    const p = parseAngka(skor[i], 0, 100)
+    if (!p.ok) return { error: `${a.label}: ${p.error}` }
+    rows.push({ label: a.label, bobot: a.bobot, skor: p.value })
+  }
+  return { aspek: rows }
+}

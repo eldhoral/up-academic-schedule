@@ -1,18 +1,23 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { signOutAction } from '@/app/actions/auth'
-import { getCurrentUser, canManage } from '@/lib/roles'
+import { getCurrentUser, canManage, isDosen } from '@/lib/roles'
+import { halamanDosen } from '@/lib/penilaian/akses'
 import type { Prodi } from '@/lib/prodi'
 import { TextSizeController } from './TextSizeController'
 import { HeaderNav } from './HeaderNav'
 
 export async function AppHeader({ active, prodi }: { active: string; prodi?: Prodi }) {
   const user = await getCurrentUser()
+  const dosen = isDosen(user?.role ?? null)
+  // A DOSEN sees only its grading pages. The proxy does the same before render; this is the page-level backstop.
+  if (dosen && !halamanDosen(active)) redirect('/penilaian')
 
   return (
     <header className="sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--header)] border-b border-[var(--garis-kuat)] flex-wrap">
       <div className="flex items-center gap-x-[1.5rem] gap-y-[0.4rem]">
-        <Link href="/" className="flex items-center gap-[0.6rem]">
+        <Link href={dosen ? '/penilaian' : '/'} className="flex items-center gap-[0.6rem]">
           <Image
             src="/images/logo-universitas-pancasila.png"
             alt="Universitas Pancasila"
@@ -30,7 +35,8 @@ export async function AppHeader({ active, prodi }: { active: string; prodi?: Pro
           />
           <span className="sr-only">Menu utama</span>
         </Link>
-        <HeaderNav active={active} prodi={prodi} canManage={canManage(user?.role ?? null)} />
+        {/* Minimal header for a DOSEN: no section nav, the logo is its menu. */}
+        {!dosen && <HeaderNav active={active} prodi={prodi} canManage={canManage(user?.role ?? null)} />}
       </div>
 
       {/* ml-auto (not the parent's justify-between) so this group stays flush right even

@@ -41,3 +41,9 @@ export function aksesDosen(d: DefenseRef | null, kode: string, submitted: Set<Pe
 export const bolehInputLama = (d: DefenseRef, tanggalMulai: string): boolean => bisaDinilai(d) && d.tanggal < tanggalMulai
 
 export const penilaianPath = (id: string): string => `/nilai-bimbingan/${id}`
+
+export const PERAN_LABEL: Record<Peran, string> = { pembimbing_1: 'Dosen Pembimbing I', pembimbing_2: 'Dosen Pembimbing II' }
+
+/** The only app pages a DOSEN account may open (plus /masuk, /auth and the public /jadwal-dosen). Everything else sends it to Penilaian Saya. */
+export const halamanDosen = (path: string): boolean =>
+  path === '/penilaian' || path === '/atur-kata-sandi' || /^\/nilai-bimbingan\/[^/]+$/.test(path)
