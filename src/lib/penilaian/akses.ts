@@ -27,12 +27,14 @@ export function peranDosen(d: DefenseRef, kode: string): Peran | null {
   return null
 }
 
-/** Rules 2-5 of the spec. 'tidak-ada' means 404 with no hint the record exists. */
+/** Rules 2-5 of the spec (submitted wins over the date gate). 'tidak-ada' means 404 with no hint the record exists. */
 export function aksesDosen(d: DefenseRef | null, kode: string, submitted: Set<Peran>, today: string): AksesDosen {
   const peran = d && peranDosen(d, kode)
   if (!d || !peran) return { kind: 'tidak-ada' }
+  // Submitted first: tanggal can still move after grading, and the grade must stay visible.
+  if (submitted.has(peran)) return { kind: 'terkirim', peran }
   if (today < d.tanggal) return { kind: 'belum-dibuka', tanggal: d.tanggal }
-  return { kind: submitted.has(peran) ? 'terkirim' : 'isi', peran }
+  return { kind: 'isi', peran }
 }
 
 /** Old prasidang (before the start date) get manual entry by Super Admin. */

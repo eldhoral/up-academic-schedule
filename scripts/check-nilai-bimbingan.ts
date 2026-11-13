@@ -85,6 +85,8 @@ assert.deepEqual(aksesDosen(def(), 'AAA', none, T), { kind: 'isi', peran: 'pembi
 assert.deepEqual(aksesDosen(def(), 'BBB', none, '2026-12-01'), { kind: 'isi', peran: 'pembimbing_2' })
 assert.deepEqual(aksesDosen(def(), 'AAA', new Set<Peran>(['pembimbing_1']), T), { kind: 'terkirim', peran: 'pembimbing_1' })
 assert.deepEqual(aksesDosen(def(), 'BBB', new Set<Peran>(['pembimbing_1']), T), { kind: 'isi', peran: 'pembimbing_2' })
+// a graded prasidang rescheduled later still shows the submitted grade (spec rule 5)
+assert.deepEqual(aksesDosen(def({ tanggal: '2026-12-01' }), 'AAA', new Set<Peran>(['pembimbing_1']), T), { kind: 'terkirim', peran: 'pembimbing_1' })
 assert.equal(bolehInputLama(def({ tanggal: '2026-10-31' }), '2026-11-01'), true)
 assert.equal(bolehInputLama(def({ tanggal: '2026-11-01' }), '2026-11-01'), false)
 assert.equal(bolehInputLama(def({ tanggal: '2026-11-02' }), '2026-11-01'), false)
