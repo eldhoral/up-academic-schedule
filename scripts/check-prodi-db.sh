@@ -17,7 +17,7 @@ run() { docker exec -i "$NAME" psql -U postgres -v ON_ERROR_STOP=1 -q "$@"; }
 
 run < scripts/db-stub.sql
 for f in supabase/migrations/*.sql; do
-  case "$f" in *audit_log_retention*) continue ;; esac # pg_cron exists only on Supabase
+  case "$f" in *audit_log_retention*|*eksternal_cleanup*) continue ;; esac # pg_cron exists only on Supabase
   run < "$f"
 done
 run < scripts/check-prodi-db.sql
