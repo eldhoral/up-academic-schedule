@@ -1,4 +1,4 @@
-type DbErrorLike = { message: string; code?: string } | null | undefined
+type DbErrorLike = { message: string; code?: string; details?: string | null } | null | undefined
 
 /**
  * Turns a raw Postgres/Supabase error into wording a non-developer can act
@@ -13,6 +13,12 @@ export function humanDbError(error: DbErrorLike, entity?: string): string {
 
   if (code === '23505' || lower.includes('duplicate key value violates unique constraint')) {
     return entity ? `${entity} ini sudah digunakan. Pakai kode atau nama lain.` : 'Data ini sudah ada. Gunakan kode atau nama lain.'
+  }
+  // The dosen-lock trigger on defenses: its message is already plain Indonesian.
+  if (code === 'P0001' && lower.includes('sudah dinilai')) return msg
+  // Deleting a prasidang that has grades (nilai_bimbingan.defense_id is on delete restrict).
+  if ((code === '23503' || lower.includes('violates foreign key constraint')) && `${lower} ${(error.details ?? '').toLowerCase()}`.includes('nilai_bimbingan')) {
+    return 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.'
   }
   if (code === '23503' || lower.includes('violates foreign key constraint')) {
     return 'Data ini masih dipakai oleh data lain, sehingga tidak bisa dihapus atau diubah.'

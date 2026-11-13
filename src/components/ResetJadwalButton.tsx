@@ -42,6 +42,7 @@ function ResetJadwalModal({ years, onClose }: { years: Year[]; onClose: () => vo
   const [yearId, setYearId] = useState((years.find((y) => y.is_active) ?? years[0])?.id ?? '')
   const [picked, setPicked] = useState(() => new Set(ALL))
   const [counts, setCounts] = useState<ResetCounts | null>(null)
+  const [graded, setGraded] = useState<Record<Prodi, number> | null>(null)
   const [error, setError] = useState('')
   const [typed, setTyped] = useState('')
   const [deleted, setDeleted] = useState(0)
@@ -55,6 +56,7 @@ function ResetJadwalModal({ years, onClose }: { years: Year[]; onClose: () => vo
     startCounting(async () => {
       const result = await countJadwalAction(yearId)
       setCounts('counts' in result ? result.counts : null)
+      setGraded('graded' in result ? result.graded : null)
       setError('error' in result ? result.error : '')
     })
   }, [yearId])
@@ -66,8 +68,10 @@ function ResetJadwalModal({ years, onClose }: { years: Year[]; onClose: () => vo
   }, [isResetting, onClose])
 
   const count = (kind: ResetKind, p: Prodi) => counts?.[kind][p] ?? 0
+  // A sidang reset also deletes graded prasidang, which the database refuses: lock that cell.
+  const locked = (kind: ResetKind, p: Prodi) => kind === 'sidang' && (graded?.[p] ?? 0) > 0
   const targets = ROWS.flatMap((r) =>
-    PRODI.filter((p) => picked.has(`${r.kind}:${p}`) && count(r.kind, p) > 0).map((p) => ({ kind: r.kind, prodi: p, label: r.label(p), n: count(r.kind, p) })),
+    PRODI.filter((p) => picked.has(`${r.kind}:${p}`) && count(r.kind, p) > 0 && !locked(r.kind, p)).map((p) => ({ kind: r.kind, prodi: p, label: r.label(p), n: count(r.kind, p) })),
   )
   const total = targets.reduce((sum, t) => sum + t.n, 0)
 
@@ -150,14 +154,15 @@ function ResetJadwalModal({ years, onClose }: { years: Year[]; onClose: () => vo
                       {PRODI.map((p) => {
                         const key = `${r.kind}:${p}`
                         const n = count(r.kind, p)
-                        const on = picked.has(key) && n > 0
+                        const lock = locked(r.kind, p)
+                        const on = picked.has(key) && n > 0 && !lock
                         return (
                           <td key={p} className={`p-0 border-l border-[var(--garis)] transition-colors ${on ? 'bg-[var(--merah-lembut)]' : ''}`}>
-                            <label className={`flex items-start gap-[0.5rem] min-h-[2.6rem] px-[0.6rem] py-[0.4rem] ${n > 0 ? 'cursor-pointer' : 'cursor-default'}`}>
+                            <label className={`flex items-start gap-[0.5rem] min-h-[2.6rem] px-[0.6rem] py-[0.4rem] ${n > 0 && !lock ? 'cursor-pointer' : 'cursor-default'}`}>
                               <input
                                 type="checkbox"
                                 checked={on}
-                                disabled={n === 0 || isCounting}
+                                disabled={n === 0 || lock || isCounting}
                                 onChange={() => toggle(key)}
                                 aria-label={`${PRODI_CONFIG[p].short} ${r.label(p)}`}
                                 className="mt-[0.2rem] w-[1rem] h-[1rem] accent-[var(--merah)]"
@@ -168,6 +173,7 @@ function ResetJadwalModal({ years, onClose }: { years: Year[]; onClose: () => vo
                                 </span>{' '}
                                 <span className="text-[var(--tinta-3)]">jadwal</span>
                                 {r.kind === 'sidang' && <span className="block text-[0.8rem] text-[var(--tinta-3)] leading-[1.3]">{r.label(p)}</span>}
+                                {lock && <span className="block text-[0.8rem] text-[var(--merah-teks)] leading-[1.3]">{graded?.[p]} prasidang sudah dinilai: tidak bisa direset</span>}
                               </span>
                             </label>
                           </td>

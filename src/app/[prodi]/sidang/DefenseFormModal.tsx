@@ -19,6 +19,7 @@ import {
 import { jenisLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import { useProdi } from '@/lib/use-prodi'
 import { PRODI_CONFIG } from '@/lib/prodi'
+import type { Peran } from '@/lib/penilaian/akses'
 
 type Option = { value: string; label: string; eksternal?: boolean }
 export type DefenseDraft = {
@@ -34,6 +35,7 @@ const CONTROL = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rou
 const NONE = '__none__'
 const CLASH_LABEL = { dosen: 'Dosen', eksternal: 'Penguji eksternal', ruangan: 'Ruang', mengajar: 'Jadwal mengajar' }
 const dot = (t: string) => t.replace(':', '.')
+const SUDAH_DINILAI = 'Sudah dinilai'
 const READ_ONLY = 'text-[var(--tinta-2)] cursor-default focus:outline-none'
 const studentLabel = (s: Student) => `${s.npm} — ${s.nama}`
 
@@ -41,6 +43,7 @@ export function DefenseFormModal({
   context,
   draft,
   lecturers,
+  graded,
   rooms,
   sesi,
   students,
@@ -50,6 +53,7 @@ export function DefenseFormModal({
   context: DefenseContext
   draft: DefenseDraft
   lecturers: Option[]
+  graded: Peran[] // roles that already have a grade: that dosen can't change
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
   students: Student[]
@@ -298,11 +302,11 @@ export function DefenseFormModal({
             </div>
           ) : (
             <div className="grid gap-[0.8rem] sm:grid-cols-2 items-end">
-              <Field label="Dosen pembimbing pendamping">
-                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Dosen pembimbing pendamping" options={internalOptions(pembimbing)} className={CONTROL} />
+              <Field label="Dosen pembimbing pendamping" hint={graded.includes('pembimbing_1') ? SUDAH_DINILAI : undefined}>
+                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Dosen pembimbing pendamping" options={internalOptions(pembimbing)} disabled={graded.includes('pembimbing_1')} className={CONTROL} />
               </Field>
-              <Field label="Dosen pembahas">
-                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Dosen pembahas" options={internalOptions(penguji)} className={CONTROL} />
+              <Field label="Dosen pembahas" hint={graded.includes('pembimbing_2') ? SUDAH_DINILAI : undefined}>
+                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Dosen pembahas" options={internalOptions(penguji)} disabled={graded.includes('pembimbing_2')} className={CONTROL} />
               </Field>
             </div>
           )}
@@ -394,11 +398,12 @@ function ClashList({ clashes }: { clashes: DefenseClashSummary[] }) {
 }
 
 // A plain div, not <label>: some fields hold more than one control, and a <label> may wrap only one.
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="block">
       <span className="block text-[0.8rem] font-medium text-[var(--tinta-2)] mb-[0.25rem]">{label}</span>
       {children}
+      {hint && <span className="block mt-[0.25rem] text-[0.73rem] text-[var(--tinta-3)]">{hint}</span>}
     </div>
   )
 }

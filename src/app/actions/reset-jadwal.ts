@@ -19,7 +19,8 @@ async function isManager() {
 }
 
 /** How many rows each jadwal × prodi holds in one academic year: what a reset would delete. */
-export async function countJadwalAction(yearId: string): Promise<{ counts: ResetCounts } | { error: string }> {
+/** `graded` = prasidang of the year that already have a nilai_bimbingan row: they can't be deleted, so the sidang cell is locked. */
+export async function countJadwalAction(yearId: string): Promise<{ counts: ResetCounts; graded: Record<Prodi, number> } | { error: string }> {
   if (!(await isManager())) return DENIED
   const supabase = await createClient()
   const cells = KINDS.flatMap((kind) => PRODI.map((prodi) => ({ kind, prodi })))
@@ -30,10 +31,13 @@ export async function countJadwalAction(yearId: string): Promise<{ counts: Reset
   )
   const failed = results.find((r) => r.error)
   if (failed?.error) return { error: humanDbError(failed.error) }
+  // nilai_bimbingan exists for S1 prasidang only, so s2 is always 0.
+  const { data: nilai, error: nilaiError } = await supabase.from('nilai_bimbingan').select('defense_id, defenses!inner(academic_year_id)').eq('defenses.academic_year_id', yearId)
+  if (nilaiError) return { error: humanDbError(nilaiError) }
 
   const counts = Object.fromEntries(KINDS.map((k) => [k, { s1: 0, s2: 0 }])) as ResetCounts
   cells.forEach(({ kind, prodi }, i) => (counts[kind][prodi] = results[i].count ?? 0))
-  return { counts }
+  return { counts, graded: { s1: new Set((nilai ?? []).map((n) => n.defense_id)).size, s2: 0 } }
 }
 
 /** Deletes the picked jadwal × prodi of one academic year, all in one transaction (reset_jadwal). */

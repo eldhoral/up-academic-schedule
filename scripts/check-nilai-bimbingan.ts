@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { humanDbError } from '../src/lib/db-error'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   DEFAULT_ATURAN, loadAturan, validateAspek, validatePredikat, validateSks, validateTabelNilai,
@@ -170,6 +171,15 @@ async function main() {
 
   // a DB error must throw, never fall back to defaults (would freeze a default snapshot into a grade)
   await assert.rejects(loadAturan(fakeDb(null, { message: 'boom' }), 's1'), /boom/)
+
+  // humanDbError: the dosen lock trigger and the nilai_bimbingan FK get their own wording
+  const kunci = 'Dosen pembimbing tidak dapat diubah: prasidang ini sudah dinilai.'
+  assert.equal(humanDbError({ code: 'P0001', message: kunci }), kunci)
+  const fk = { code: '23503', message: 'update or delete on table "defenses" violates foreign key constraint "nilai_bimbingan_defense_id_fkey" on table "nilai_bimbingan"', details: 'Key (id)=(x) is still referenced from table "nilai_bimbingan".' }
+  assert.equal(humanDbError(fk), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
+  assert.equal(humanDbError({ code: '23503', message: 'violates foreign key constraint "x"', details: 'still referenced from table "nilai_bimbingan".' }), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
+  assert.match(humanDbError({ code: '23503', message: 'violates foreign key constraint "schedules_x"' }), /masih dipakai/) // other FKs unchanged
+  assert.doesNotMatch(humanDbError({ code: 'P0001', message: 'boom' }), /boom/) // other P0001 stays hidden
 
   console.log('nilai-bimbingan: all checks passed')
 }
