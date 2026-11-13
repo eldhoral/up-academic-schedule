@@ -63,9 +63,22 @@ async function main() {
     assert.ok('data' in ok, 'valid row parses')
     if ('data' in ok) assert.deepEqual(ok.data, { npm: '1', nama: 'A', judul_skripsi: '', email: 'a@b.id', sks_sebelum: 139, bobot_sebelum: 404.57, tepat_waktu: true })
 
-    const blank = studentsTable.parseRow({ npm: '1', nama: 'A' }, 2)
+    // A present but blank cell means empty / not tepat waktu.
+    const blank = studentsTable.parseRow({ npm: '1', nama: 'A', email: '', sks_sebelum: '', bobot_sebelum: '', tepat_waktu: '' }, 2)
     assert.ok('data' in blank)
     if ('data' in blank) assert.deepEqual(blank.data, { npm: '1', nama: 'A', judul_skripsi: '', email: '', sks_sebelum: null, bobot_sebelum: null, tepat_waktu: false })
+
+    // An absent column (an older template or export) leaves the stored value alone: no key, equal ignores it.
+    const old = studentsTable.parseRow({ npm: '1', nama: 'A', judul_skripsi: 'J' }, 2)
+    assert.ok('data' in old)
+    if ('data' in old) {
+      assert.deepEqual(Object.keys(old.data).sort(), ['judul_skripsi', 'nama', 'npm'], 'no new keys in the upsert payload')
+      const stored = { npm: '1', nama: 'A', judul_skripsi: 'J', email: 'a@b.id', sks_sebelum: 139, bobot_sebelum: 404.57, tepat_waktu: true }
+      assert.ok(studentsTable.equal(stored, old.data), 'equal ignores absent columns')
+      assert.ok(!studentsTable.equal(stored, { ...old.data, nama: 'B' }), 'but still sees real changes')
+    }
+    const onlyEmail = studentsTable.parseRow({ npm: '1', nama: 'A', email: 'a@b.id' }, 2)
+    assert.ok('data' in onlyEmail && Object.keys(onlyEmail.data).includes('email') && !('tepat_waktu' in onlyEmail.data))
 
     for (const [v, want] of [['tidak', false], ['false', false], ['0', false], ['TRUE', true], [1, true], ['', false]] as const) {
       const r = studentsTable.parseRow({ npm: '1', nama: 'A', tepat_waktu: v }, 2)
@@ -99,7 +112,13 @@ async function main() {
     assert.ok('data' in l)
     if ('data' in l) assert.ok(l.data.eksternal === true && l.data.email === 'b@u.id')
     const none = lecturersTable.parseRow({ 'Kode Dosen': 'D1', 'Nama Dosen': 'Budi' }, 2)
-    assert.ok('data' in none && none.data.eksternal === false && none.data.email === '')
+    assert.ok('data' in none && !('eksternal' in none.data) && !('email' in none.data), 'no Eksternal / Email column leaves them untouched')
+    const blankCells = lecturersTable.parseRow({ 'Kode Dosen': 'D1', 'Nama Dosen': 'Budi', Email: '', Eksternal: '' }, 2)
+    assert.ok('data' in blankCells && blankCells.data.eksternal === false && blankCells.data.email === '', 'blank cells are false / empty')
+    if ('data' in none) {
+      const stored = { kode_dosen: 'D1', nidn: '', nama: 'Budi', gelar_depan: '', gelar_belakang: '', email: 'b@u.id', eksternal: true }
+      assert.ok(lecturersTable.equal(stored, none.data), 'equal ignores absent columns')
+    }
     const exported = lecturersTable.parseRow({ kode_dosen: 'D1', nama: 'Budi', eksternal: true }, 2)
     assert.ok('data' in exported && exported.data.eksternal === true, 'an exported boolean re-imports')
     const bad = lecturersTable.parseRow({ 'Kode Dosen': 'D1', 'Nama Dosen': 'Budi', Email: 'x' }, 2)

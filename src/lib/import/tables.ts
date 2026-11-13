@@ -25,6 +25,14 @@ export function emailError(email: string): string | null {
   return email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? null : 'email tidak valid.'
 }
 
+/** The column exists in the file (a blank cell still counts). An absent column leaves the stored value alone. */
+function has(raw: ParsedRow, ...keys: string[]): boolean {
+  return keys.some((k) => raw[k] !== undefined)
+}
+
+/** Fields compare only when both sides carry them: a file without the column says nothing about it. */
+const same = <T>(a: T | undefined, b: T | undefined) => a === undefined || b === undefined || a === b
+
 /** ya/tidak/true/false/1/0 (any case); blank is false; anything else is undefined (a bad cell). */
 function yesNo(raw: ParsedRow, ...keys: string[]): boolean | undefined {
   const v = keys.map((k) => str(raw, k)).find(Boolean)?.toLowerCase() ?? ''
@@ -138,8 +146,8 @@ export type LecturerRow = {
   nama: string
   gelar_depan: string
   gelar_belakang: string
-  email: string
-  eksternal: boolean
+  email?: string // absent = the file had no such column: the stored value is left alone
+  eksternal?: boolean
 }
 
 export const lecturersTable: ImportTableDef<LecturerRow> = {
@@ -161,8 +169,8 @@ export const lecturersTable: ImportTableDef<LecturerRow> = {
     a.nama === b.nama &&
     a.gelar_depan === b.gelar_depan &&
     a.gelar_belakang === b.gelar_belakang &&
-    a.email === b.email &&
-    a.eksternal === b.eksternal,
+    same(a.email, b.email) &&
+    same(a.eksternal, b.eksternal),
   parseRow(raw) {
     const kode_dosen = str(raw, 'Kode Dosen') || str(raw, 'kode_dosen')
     if (!kode_dosen) return { reason: 'Kode Dosen wajib diisi.' }
@@ -191,11 +199,15 @@ export const lecturersTable: ImportTableDef<LecturerRow> = {
 
     const eksternal = yesNo(raw, 'Eksternal', 'eksternal')
     if (eksternal === undefined) return { reason: `Baris ${kode_dosen}: Eksternal harus ya atau tidak.` }
+    const optional = {
+      ...(has(raw, 'Email', 'email') && { email }),
+      ...(has(raw, 'Eksternal', 'eksternal') && { eksternal }),
+    }
 
     return {
       key: kode_dosen,
       notes,
-      data: { kode_dosen, nidn, nama, gelar_depan, gelar_belakang, email, eksternal },
+      data: { kode_dosen, nidn, nama, gelar_depan, gelar_belakang, ...optional },
     }
   },
 }
@@ -246,10 +258,10 @@ export type StudentRow = {
   npm: string
   nama: string
   judul_skripsi: string
-  email: string
-  sks_sebelum: number | null
-  bobot_sebelum: number | null
-  tepat_waktu: boolean
+  email?: string // the four below: absent = the file had no such column, the stored value is left alone
+  sks_sebelum?: number | null
+  bobot_sebelum?: number | null
+  tepat_waktu?: boolean
 }
 
 export const studentsTable: ImportTableDef<StudentRow> = {
@@ -270,10 +282,10 @@ export const studentsTable: ImportTableDef<StudentRow> = {
   equal: (a, b) =>
     a.nama === b.nama &&
     a.judul_skripsi === b.judul_skripsi &&
-    a.email === b.email &&
-    a.sks_sebelum === b.sks_sebelum &&
-    a.bobot_sebelum === b.bobot_sebelum &&
-    a.tepat_waktu === b.tepat_waktu,
+    same(a.email, b.email) &&
+    same(a.sks_sebelum, b.sks_sebelum) &&
+    same(a.bobot_sebelum, b.bobot_sebelum) &&
+    same(a.tepat_waktu, b.tepat_waktu),
   parseRow(raw) {
     const npm = str(raw, 'npm') || str(raw, 'NPM')
     if (!npm) return { reason: 'npm wajib diisi.' }
@@ -294,7 +306,13 @@ export const studentsTable: ImportTableDef<StudentRow> = {
     const tepat_waktu = yesNo(raw, 'tepat_waktu')
     if (tepat_waktu === undefined) return { reason: `Baris ${npm}: tepat_waktu harus ya atau tidak.` }
 
-    return { key: npm, notes: [], data: { npm, nama, judul_skripsi, email, sks_sebelum: nilai.sks, bobot_sebelum: nilai.bobot, tepat_waktu } }
+    const optional = {
+      ...(has(raw, 'email', 'Email') && { email }),
+      ...(has(raw, 'sks_sebelum') && { sks_sebelum: nilai.sks }),
+      ...(has(raw, 'bobot_sebelum') && { bobot_sebelum: nilai.bobot }),
+      ...(has(raw, 'tepat_waktu') && { tepat_waktu }),
+    }
+    return { key: npm, notes: [], data: { npm, nama, judul_skripsi, ...optional } }
   },
 }
 

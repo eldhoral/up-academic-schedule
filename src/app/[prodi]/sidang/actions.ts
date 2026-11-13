@@ -173,16 +173,20 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
   if ('error' in gate) return { error: gate.error }
 
   const supabase = await createClient()
-  // Dosen eksternal: Anggota Penguji I only, in both jenis and both prodi.
-  const roleCodes = [input.pembimbing_kode, input.penguji_kode].filter((k): k is string => !!k)
+  // Nama and judul come from the master when the student is picked, then stay as scheduled: a
+  // saved entry keeps them (history), a changed judul is a new prasidang.
+  const { data: existing } = input.id ? await supabase.from('defenses').select('npm, pembimbing_kode, penguji_kode').eq('id', input.id).maybeSingle() : { data: null }
+  // Dosen eksternal: Anggota Penguji I only, in both jenis and both prodi. A row saved before the rule
+  // keeps its old dosen (flagged on the page, not blocked): only a dosen newly put in a role is checked.
+  const roleCodes = [
+    input.pembimbing_kode !== existing?.pembimbing_kode ? input.pembimbing_kode : null,
+    input.penguji_kode !== existing?.penguji_kode ? input.penguji_kode : null,
+  ].filter((k): k is string => !!k)
   if (roleCodes.length) {
     const { count, error: eksternalError } = await supabase.from('lecturers').select('kode_dosen', { count: 'exact', head: true }).in('kode_dosen', roleCodes).eq('eksternal', true)
     if (eksternalError) return { error: humanDbError(eksternalError) }
     if (count) return { error: EKSTERNAL_ERROR }
   }
-  // Nama and judul come from the master when the student is picked, then stay as scheduled: a
-  // saved entry keeps them (history), a changed judul is a new prasidang.
-  const { data: existing } = input.id ? await supabase.from('defenses').select('npm').eq('id', input.id).maybeSingle() : { data: null }
   const kept = existing?.npm === input.npm.trim()
   const { data: student } = kept ? { data: null } : await supabase.from('students').select('nama, judul_skripsi').eq('npm', input.npm.trim()).eq('prodi', input.prodi).maybeSingle()
   if (!kept && !student) return { error: `NPM ini belum ada di Data Master Mahasiswa ${PRODI_CONFIG[input.prodi].short}. Tambahkan dulu di sana.` }

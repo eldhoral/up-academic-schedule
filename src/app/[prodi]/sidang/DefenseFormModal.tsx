@@ -150,7 +150,7 @@ export function DefenseFormModal({
 
   const visibleClashes = needsOverride ?? (complete ? live?.clashes : null) ?? []
   const dosenOptions = [{ value: NONE, label: '— kosong —' }, ...lecturers]
-  // Dosen eksternal: Anggota Penguji I only. One already saved in another role stays listed so it shows (the save refuses it until changed).
+  // Dosen eksternal: Anggota Penguji I only. One already saved in another role stays listed so it shows; the save accepts it unchanged and refuses it in a role it was not in.
   const internalOptions = (current: string) => [{ value: NONE, label: '— kosong —' }, ...lecturers.filter((l) => !l.eksternal || l.value === current)]
   const pickDosen = (set: (v: string) => void) => (v: string) => set(v === NONE ? '' : v)
 
