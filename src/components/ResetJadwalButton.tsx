@@ -68,7 +68,7 @@ function ResetJadwalModal({ years, onClose }: { years: Year[]; onClose: () => vo
   }, [isResetting, onClose])
 
   const count = (kind: ResetKind, p: Prodi) => counts?.[kind][p] ?? 0
-  // A sidang reset also deletes graded prasidang, which the database refuses: lock that cell.
+  // A sidang reset also deletes graded prasidang and sidang, which the database refuses: lock that cell.
   const locked = (kind: ResetKind, p: Prodi) => kind === 'sidang' && (graded?.[p] ?? 0) > 0
   const targets = ROWS.flatMap((r) =>
     PRODI.filter((p) => picked.has(`${r.kind}:${p}`) && count(r.kind, p) > 0 && !locked(r.kind, p)).map((p) => ({ kind: r.kind, prodi: p, label: r.label(p), n: count(r.kind, p) })),
@@ -173,7 +173,7 @@ function ResetJadwalModal({ years, onClose }: { years: Year[]; onClose: () => vo
                                 </span>{' '}
                                 <span className="text-[var(--tinta-3)]">jadwal</span>
                                 {r.kind === 'sidang' && <span className="block text-[0.8rem] text-[var(--tinta-3)] leading-[1.3]">{r.label(p)}</span>}
-                                {lock && <span className="block text-[0.8rem] text-[var(--merah-teks)] leading-[1.3]">{graded?.[p]} prasidang sudah dinilai: tidak bisa direset</span>}
+                                {lock && <span className="block text-[0.8rem] text-[var(--merah-teks)] leading-[1.3]">{graded?.[p]} prasidang/sidang sudah dinilai: tidak bisa direset</span>}
                               </span>
                             </label>
                           </td>

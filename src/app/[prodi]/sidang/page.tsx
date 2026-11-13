@@ -7,7 +7,7 @@ import { lecturerDisplayName } from '@/lib/import/tables'
 import { parseSesiList } from '../ujian/exam-types'
 import { checkAllDefenseClashes } from './actions'
 import { fetchDefenses } from './defense-query'
-import type { Peran } from '@/lib/penilaian/akses'
+import type { Peran, PeranSidang } from '@/lib/penilaian/akses'
 import { fetchHariLibur } from '@/lib/hari-libur'
 import type { DefenseContext, Student } from './defense-types'
 import { SidangClient } from './SidangClient'
@@ -39,11 +39,12 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
 
   const [defenses, findings] = await Promise.all([fetchDefenses(context.academic_year_id, context.jenis, prodi), checkAllDefenseClashes(context.academic_year_id, prodi)])
 
-  // Which pembimbing roles already have a grade per prasidang: their dosen select is locked (the DB trigger enforces it too).
-  const graded: Record<string, Peran[]> = {}
-  if (prodi === 's1' && context.jenis === 'prasidang' && defenses.length) {
-    const { data: nilai } = await supabase.from('nilai_bimbingan').select('defense_id, peran').in('defense_id', defenses.map((d) => d.id))
-    for (const n of nilai ?? []) (graded[n.defense_id] ??= []).push(n.peran as Peran)
+  // Which roles already have a grade per defense (S1 only): their dosen select and the date are locked (the DB trigger enforces it too).
+  const graded: Record<string, (Peran | PeranSidang)[]> = {}
+  if (prodi === 's1' && defenses.length) {
+    const ids = defenses.map((d) => d.id)
+    const { data: nilai } = await (context.jenis === 'sidang' ? supabase.from('nilai_sidang') : supabase.from('nilai_bimbingan')).select('defense_id, peran').in('defense_id', ids)
+    for (const n of nilai ?? []) (graded[n.defense_id] ??= []).push(n.peran as Peran | PeranSidang)
   }
 
   return (

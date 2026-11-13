@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { FindingsBar } from '@/components/FindingsBar'
 import { Select } from '@/components/Select'
 import type { DefenseFinding, DefenseSide } from './actions'
-import type { Peran } from '@/lib/penilaian/akses'
+import type { Peran, PeranSidang } from '@/lib/penilaian/akses'
 import { DefenseFormModal, type DefenseDraft } from './DefenseFormModal'
 import { jenisLabel, slotLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import type { AcademicYear } from '../kuliah/penjadwalan-types'
@@ -35,7 +35,7 @@ export function SidangClient({
   context: DefenseContext
   defenses: DefenseRow[]
   findings: DefenseFinding[]
-  graded: Record<string, Peran[]>
+  graded: Record<string, (Peran | PeranSidang)[]>
   lecturers: Option[]
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]

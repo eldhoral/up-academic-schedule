@@ -20,7 +20,7 @@ import {
 import { jenisLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import { useProdi } from '@/lib/use-prodi'
 import { PRODI_CONFIG } from '@/lib/prodi'
-import type { Peran } from '@/lib/penilaian/akses'
+import type { Peran, PeranSidang } from '@/lib/penilaian/akses'
 
 type Option = { value: string; label: string; eksternal?: boolean }
 export type DefenseDraft = {
@@ -54,7 +54,7 @@ export function DefenseFormModal({
   context: DefenseContext
   draft: DefenseDraft
   lecturers: Option[]
-  graded: Peran[] // roles that already have a grade: that dosen can't change
+  graded: (Peran | PeranSidang)[] // roles that already have a grade: that dosen and the date can't change
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
   students: Student[]
@@ -65,6 +65,8 @@ export function DefenseFormModal({
   const router = useRouter()
   const { row } = draft
   const sidang = context.jenis === 'sidang'
+  // The DB locks a graded sidang's date (not the hour); the whole date/time block is disabled so the page doesn't invite a refused save.
+  const sidangDinilai = sidang && graded.length > 0
 
   const [tanggal, setTanggal] = useState(draft.tanggal)
   const [jamMulai, setJamMulai] = useState(draft.jam_mulai)
@@ -185,8 +187,8 @@ export function DefenseFormModal({
           className="space-y-[0.8rem]"
         >
           <div className="grid gap-[0.8rem] sm:grid-cols-2">
-            <Field label={tanggal ? `Tanggal · ${hariLabel(hariFromTanggal(tanggal))}` : 'Tanggal'}>
-              <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className={`${CONTROL} mono`} />
+            <Field label={tanggal ? `Tanggal · ${hariLabel(hariFromTanggal(tanggal))}` : 'Tanggal'} hint={sidangDinilai ? SUDAH_DINILAI : undefined}>
+              <input type="date" value={tanggal} disabled={sidangDinilai} onChange={(e) => setTanggal(e.target.value)} className={`${CONTROL} mono disabled:cursor-default disabled:opacity-60`} />
               {tanggal && liburOn(libur, tanggal) && (
                 <p className="m-0 mt-[0.33rem] text-[0.8rem] text-[var(--kuning)]">
                   Tercatat hari libur: {liburOn(libur, tanggal)!.label} — tetap menyimpan bila memang diadakan.
@@ -210,7 +212,7 @@ export function DefenseFormModal({
             )}
           </div>
 
-          <Field label="Waktu">
+          <Field label="Waktu" hint={sidangDinilai ? SUDAH_DINILAI : undefined}>
             <div className="sm:flex sm:items-center sm:gap-[0.8rem]">
               {sesi.length > 0 && (
                 <div className="flex flex-wrap gap-[0.4rem] mb-[0.4rem] sm:mb-0 sm:flex-1">
@@ -221,11 +223,12 @@ export function DefenseFormModal({
                         key={`${s.mulai}-${s.selesai}`}
                         type="button"
                         aria-pressed={active}
+                        disabled={sidangDinilai}
                         onClick={() => {
                           setJamMulai(s.mulai)
                           setJamSelesai(s.selesai)
                         }}
-                        className={`mono px-[0.6rem] py-[0.27rem] min-h-[2.2rem] rounded-[var(--r-kecil)] border text-[0.87rem] cursor-pointer transition-colors ${
+                        className={`mono px-[0.6rem] py-[0.27rem] min-h-[2.2rem] rounded-[var(--r-kecil)] border text-[0.87rem] cursor-pointer transition-colors disabled:cursor-default disabled:opacity-60 ${
                           active ? 'bg-[var(--biru-lembut)] border-[var(--biru)] text-[var(--biru)] font-medium' : 'bg-[var(--cekung)] border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--lembar)]'
                         }`}
                       >
@@ -236,9 +239,9 @@ export function DefenseFormModal({
                 </div>
               )}
               <div className="flex items-center gap-[0.53rem] sm:w-[17rem] sm:shrink-0">
-                <input type="time" aria-label="Jam mulai" value={jamMulai} onChange={(e) => setJamMulai(e.target.value)} className={`${CONTROL} mono`} />
+                <input type="time" aria-label="Jam mulai" value={jamMulai} disabled={sidangDinilai} onChange={(e) => setJamMulai(e.target.value)} className={`${CONTROL} mono disabled:cursor-default disabled:opacity-60`} />
                 <span aria-hidden="true">–</span>
-                <input type="time" aria-label="Jam selesai" value={jamSelesai} onChange={(e) => setJamSelesai(e.target.value)} className={`${CONTROL} mono`} />
+                <input type="time" aria-label="Jam selesai" value={jamSelesai} disabled={sidangDinilai} onChange={(e) => setJamSelesai(e.target.value)} className={`${CONTROL} mono disabled:cursor-default disabled:opacity-60`} />
               </div>
             </div>
           </Field>
@@ -287,10 +290,10 @@ export function DefenseFormModal({
 
           {sidang ? (
             <div className="grid gap-[0.8rem] sm:grid-cols-3 items-end">
-              <Field label="Ketua sidang">
-                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Ketua sidang" options={internalOptions(penguji)} className={CONTROL} />
+              <Field label="Ketua sidang" hint={graded.includes('ketua') ? SUDAH_DINILAI : undefined}>
+                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Ketua sidang" options={internalOptions(penguji)} disabled={graded.includes('ketua')} className={CONTROL} />
               </Field>
-              <Field label="Anggota penguji I (penguji eksternal)">
+              <Field label="Anggota penguji I (penguji eksternal)" hint={graded.includes('anggota_1') ? SUDAH_DINILAI : undefined}>
                 <Select
                   value={eksternalKode}
                   onValueChange={(v) => {
@@ -300,11 +303,12 @@ export function DefenseFormModal({
                   placeholder={eksternal || '— pilih dosen —'}
                   ariaLabel="Anggota penguji I"
                   options={dosenOptions}
+                  disabled={graded.includes('anggota_1')}
                   className={CONTROL}
                 />
               </Field>
-              <Field label="Anggota penguji II (dosen pembimbing)">
-                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Anggota penguji II" options={internalOptions(pembimbing)} className={CONTROL} />
+              <Field label="Anggota penguji II (dosen pembimbing)" hint={graded.includes('anggota_2') ? SUDAH_DINILAI : undefined}>
+                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Anggota penguji II" options={internalOptions(pembimbing)} disabled={graded.includes('anggota_2')} className={CONTROL} />
               </Field>
             </div>
           ) : (

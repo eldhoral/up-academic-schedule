@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   DEFAULT_ATURAN, bekukan, loadAturan, parseAturanBeku, validateAspek, validatePilihanYudisium, type AturanBeku,
 } from '../src/lib/penilaian/aturan'
+import { humanDbError } from '../src/lib/db-error'
 import { baris, hasilAkhir, ipkSetelah, nilaiSidang, predikat } from '../src/lib/penilaian/nilai'
 
 // ---- rules
@@ -466,3 +467,26 @@ async function cekEmail() {
   console.log('nilai-sidang email: all checks passed')
 }
 cekEmail().catch((e) => { console.error(e); process.exit(1) })
+
+// ---- humanDbError: sidang lock and grade errors
+{
+  for (const m of ['Penguji/tanggal tidak dapat diubah: sidang ini sudah dinilai.', 'Mahasiswa tidak dapat diubah: sidang ini sudah dinilai.']) {
+    assert.equal(humanDbError({ code: 'P0001', message: m }), m)
+  }
+  const fkSidang = (c: string, t: string) => ({ code: '23503', message: `update or delete on table "defenses" violates foreign key constraint "${c}" on table "${t}"`, details: `Key (id)=(x) is still referenced from table "${t}".` })
+  assert.equal(humanDbError(fkSidang('nilai_sidang_defense_id_fkey', 'nilai_sidang')), 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.')
+  assert.equal(humanDbError(fkSidang('hasil_sidang_defense_id_fkey', 'hasil_sidang')), 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.')
+  // by constraint name only: the lecturer FK on nilai_sidang is a different problem, and bimbingan keeps its own wording
+  assert.match(humanDbError(fkSidang('nilai_sidang_kode_dosen_fkey', 'nilai_sidang')), /masih dipakai/)
+  assert.doesNotMatch(humanDbError(fkSidang('nilai_sidang_kode_dosen_fkey', 'nilai_sidang')), /Sidang ini/)
+  assert.equal(humanDbError(fkSidang('nilai_bimbingan_defense_id_fkey', 'nilai_bimbingan')), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
+  // RPC race: already locked
+  assert.equal(humanDbError({ code: '42501', message: 'Nilai sidang sudah dikunci.' }), 'Nilai sidang ini sudah dikunci. Muat ulang halaman.')
+  assert.match(humanDbError({ code: '42501', message: 'permission denied for table x' }), /izin/) // other 42501 unchanged
+  // yudisium not in the pair list
+  assert.equal(humanDbError({ code: '23514', message: 'Yudisium tidak ada dalam pilihan yudisium.' }), 'Pilihan yudisium tidak valid. Muat ulang halaman.')
+  // other check_violations are not hijacked
+  assert.match(humanDbError({ code: '23514', message: 'new row violates check constraint "x"' }), /tidak sesuai aturan/)
+  assert.match(humanDbError({ code: '23514', message: 'Revisi tidak valid.' }), /tidak sesuai aturan/)
+  console.log('nilai-sidang db-error: all checks passed')
+}
