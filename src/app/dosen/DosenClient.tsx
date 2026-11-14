@@ -79,6 +79,7 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
                 <Th>NIDN</Th>
                 <Th>Nama tercetak</Th>
                 <Th>Email</Th>
+                <Th>Eksternal</Th>
                 <Th className="text-right">&nbsp;</Th>
               </tr>
             </thead>
@@ -87,11 +88,9 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
                 <tr key={l.kode_dosen} className="border-t border-[var(--garis)] h-[2.4rem]">
                   <Td className="mono">{l.kode_dosen}</Td>
                   <Td className="mono">{l.nidn || '—'}</Td>
-                  <Td>
-                    {lecturerDisplayName(l)}
-                    {l.eksternal && <span className="ml-[0.5rem] text-[0.8rem] text-[var(--tinta-3)]">eksternal</span>}
-                  </Td>
+                  <Td>{lecturerDisplayName(l)}</Td>
                   <Td className="text-[var(--tinta-2)]">{l.email || '—'}</Td>
+                  <Td className={l.eksternal ? '' : 'text-[var(--tinta-3)]'}>{l.eksternal ? 'Ya' : '—'}</Td>
                   <Td className="text-right whitespace-nowrap">
                     <JadwalLinkButtons kodeDosen={l.kode_dosen} hasLink={!!l.jadwal_token} onMessage={setLinkMessage} />
                     {canEdit && (
@@ -108,7 +107,7 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
+                  <td colSpan={6}className="text-center py-[1.6rem] text-[var(--tinta-3)]">
                     {lecturers.length === 0
                       ? 'Belum ada data dosen — tambahkan satu, atau impor dari Excel di bawah.'
                       : <>Tidak ada dosen yang cocok dengan &ldquo;{query}&rdquo;.</>}
