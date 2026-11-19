@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition, type ReactNode } from 'react'
 import {
-  DEFAULT_ATURAN, validateAspek, validateBatasHari, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks,
+  DEFAULT_ATURAN, validateAspek, validateBatasHari, validateKetentuan, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks,
   validateTabelNilai, validateTanggal, type Aturan, type Pertanyaan,
 } from '@/lib/penilaian/aturan'
 import { todayJakarta } from '@/lib/penilaian/akses'
@@ -140,6 +140,7 @@ export function PenilaianClient({ aturan }: { aturan: Aturan }) {
       <SksKartu awal={aturan.sksSkripsi} />
       <BatasHariKartu awal={aturan.batasHariBimbingan} />
       <PertanyaanKartu awal={aturan.pertanyaanPrasidang} />
+      <KetentuanKartu awal={aturan.ketentuanSidang} />
       <TanggalKartu awal={aturan.tanggalMulai} />
     </div>
   )
@@ -394,6 +395,33 @@ function PertanyaanKartu({ awal }: { awal: Pertanyaan[] }) {
         ))}
       </ol>
       <button type="button" className={`${BTN} mt-[0.6rem]`} onClick={() => add({ teks: '', jenis: 'ya_tidak' })}>+ Tambah pertanyaan</button>
+    </Kartu>
+  )
+}
+
+function KetentuanKartu({ awal }: { awal: string[] }) {
+  const { list, setList, set, add, remove, move } = useList(awal.map((teks) => ({ teks })))
+  const nilai = list.map((r) => r.teks.trim())
+  const error = validateKetentuan(nilai)
+
+  return (
+    <Kartu
+      judul="Ketentuan umum sidang"
+      bantuan="Baris yang tampil di samping formulir penilaian sidang. Tabel konversi nilai dan predikat yudisium ditampilkan otomatis dari aturan di atas."
+      kunci="ketentuan_sidang"
+      error={error}
+      nilai={nilai}
+      onDefault={() => setList(DEFAULT_ATURAN.ketentuanSidang.map((teks) => ({ teks })))}
+    >
+      <ol className="m-0 p-0 list-none space-y-[0.5rem]">
+        {list.map((r, i) => (
+          <li key={i} className="flex gap-[0.5rem] items-start">
+            <input className={INPUT} value={r.teks} onChange={(e) => set(i, { teks: e.target.value })} aria-label={`Ketentuan ${i + 1}`} />
+            <BarisAksi i={i} n={list.length} move={move} remove={remove} />
+          </li>
+        ))}
+      </ol>
+      <button type="button" className={`${BTN} mt-[0.6rem]`} onClick={() => add({ teks: '' })}>+ Tambah baris</button>
     </Kartu>
   )
 }

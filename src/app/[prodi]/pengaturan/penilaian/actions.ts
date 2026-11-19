@@ -5,13 +5,13 @@ import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { managerOnly } from '@/lib/prodi-server'
 import {
-  validateAspek, validateBatasHari, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
+  validateAspek, validateBatasHari, validateKetentuan, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
   type Aspek, type BarisNilai, type BarisPredikat, type Pertanyaan, type Yudisium,
 } from '@/lib/penilaian/aturan'
 
 export type Kunci =
   | 'aspek_bimbingan' | 'aspek_sidang' | 'pilihan_yudisium' | 'tabel_nilai' | 'predikat' | 'sks_skripsi' | 'tanggal_mulai_penilaian'
-  | 'pertanyaan_prasidang' | 'batas_hari_bimbingan'
+  | 'pertanyaan_prasidang' | 'batas_hari_bimbingan' | 'ketentuan_sidang'
 export type Hasil = { error: string } | { ok: true }
 
 const BENTUK = 'Data tidak berbentuk benar. Muat ulang halaman lalu coba lagi.'
@@ -53,6 +53,11 @@ function periksa(kunci: Kunci, value: unknown): { error: string } | { nilai: unk
     const q = r.map((x) => ({ teks: (x.teks as string).trim(), jenis: x.jenis as Pertanyaan['jenis'] }))
     return validatePertanyaan(q) ? { error: validatePertanyaan(q)! } : { nilai: q }
   }
+  if (kunci === 'ketentuan_sidang') {
+    if (!Array.isArray(value) || !value.every(isStr)) return { error: BENTUK }
+    const l = value.map((x) => x.trim())
+    return validateKetentuan(l) ? { error: validateKetentuan(l)! } : { nilai: l }
+  }
   if (kunci === 'batas_hari_bimbingan') {
     if (!isNum(value)) return { error: BENTUK }
     return validateBatasHari(value) ? { error: validateBatasHari(value)! } : { nilai: value }
@@ -67,7 +72,7 @@ function periksa(kunci: Kunci, value: unknown): { error: string } | { nilai: unk
 
 const KUNCI: readonly string[] = [
   'aspek_bimbingan', 'aspek_sidang', 'pilihan_yudisium', 'tabel_nilai', 'predikat', 'sks_skripsi', 'tanggal_mulai_penilaian',
-  'pertanyaan_prasidang', 'batas_hari_bimbingan',
+  'pertanyaan_prasidang', 'batas_hari_bimbingan', 'ketentuan_sidang',
 ]
 
 /** Super Admin, S1 only. Writes on the session client so the audit log names the real actor. */
