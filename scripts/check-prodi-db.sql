@@ -410,19 +410,36 @@ do $$ begin
     end;
 end $$;
 
--- Nilai Bimbingan: master fields, rules, grades, dosen lock -------------------------------------
--- "Today" is the Jakarta date (R1): pras1 yesterday, pras2 the day after tomorrow, pras0 old.
+-- Nilai Bimbingan: master fields, rules, grades on the sidang -----------------------------------
+-- Graded by the student's Pembimbing I/II (students), after the Ketua's lulus lock, for
+-- batas_hari_bimbingan days (lock day = day 0). DSN01 = :dosen. Fixtures as the owner (no gate).
 insert into lecturers (kode_dosen, nama) values ('DSN02', 'Dosen Dua'), ('DSN03', 'Dosen Tiga');
+insert into lecturers (kode_dosen, nama, eksternal) values ('EXTB', 'Luar Bimbingan', true);
+select set_config('request.jwt.claim.sub', '', false);
+insert into students (npm, nama, prodi, pembimbing_1_kode, pembimbing_2_kode)
+select npm, npm, 's1', 'DSN01', p2 from (values ('88000', 'DSN02'), ('88001', 'DSN02'), ('88002', 'DSN02'), ('88003', null),
+    ('88004', 'DSN02'), ('88005', 'DSN02'), ('88006', 'DSN02'), ('88007', 'DSN02')) v(npm, p2);
+-- nbA locked today, nbB 8 days ago (closed), nbC 7 days ago (last day), nbT tidak lulus, nbY lulus then
+-- edited to tidak lulus, nbU not locked (in 3 days, Pembimbing II missing), nbK/nbO for the admin lock.
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, penguji_kode, pembimbing_kode, prodi)
+select 'R0002', 'sidang', (now() at time zone 'Asia/Jakarta')::date + d, '08:00', '10:00', npm, npm, 'DSN03', 'DSN01', 's1'
+from (values ('88000', -1), ('88001', -9), ('88002', -8), ('88003', 3), ('88004', -1), ('88005', 0), ('88006', 0), ('88007', -40)) v(npm, d);
 insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, pembimbing_kode, penguji_kode, prodi)
-select 'R0002', 'prasidang', (now() at time zone 'Asia/Jakarta')::date + d, '08:00', '09:00', 1, npm, npm, 'DSN01', 'DSN02', 's1'
-from (values ('88000', -5), ('88001', -1), ('88002', 2)) v(npm, d);
-insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, pembimbing_kode, prodi)
-values ('R0002', 'sidang', (now() at time zone 'Asia/Jakarta')::date - 1, '08:00', '10:00', '88003', 'Sidang', 'DSN01', 's1');
--- A DOSEN cannot read defenses; the test reads the ids from here.
+values ('R0002', 'prasidang', (now() at time zone 'Asia/Jakarta')::date - 30, '08:00', '09:00', 1, '88000', '88000', 'DSN02', 'DSN03', 's1');
 create temp table nb_def as
-    select case npm when '88000' then 'pras0' when '88001' then 'pras1' when '88002' then 'pras2' else 'sidang' end as k, id
-    from defenses where npm in ('88000', '88001', '88002', '88003');
+    select case when jenis = 'prasidang' then 'pras' else case npm when '88000' then 'nbA' when '88001' then 'nbB' when '88002' then 'nbC'
+        when '88003' then 'nbU' when '88004' then 'nbT' when '88005' then 'nbY' when '88006' then 'nbK' else 'nbO' end end as k, id
+    from defenses where npm between '88000' and '88007';
 grant select on nb_def to authenticated;
+-- Three examiner grades and the lock, as the owner.
+insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber)
+select id, kode, peran, '[{"label": "A", "bobot": 100, "skor": 75}]', 75, 'manual'
+from nb_def, (values ('DSN03', 'ketua'), ('EXTB', 'anggota_1'), ('DSN01', 'anggota_2')) v(kode, peran)
+where k in ('nbA', 'nbB', 'nbC', 'nbT', 'nbY');
+insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus)
+select id, case k when 'nbT' then 'Tidak Lulus' else 'Lulus Tanpa Revisi' end, k <> 'nbT' from nb_def where k in ('nbA', 'nbB', 'nbC', 'nbT', 'nbY');
+update hasil_sidang set locked_at = now() - interval '8 days' where defense_id = (select id from nb_def where k = 'nbB');
+update hasil_sidang set locked_at = now() - interval '7 days' where defense_id = (select id from nb_def where k = 'nbC');
 
 do $$ begin
     assert (select count(*) from aturan_penilaian where prodi = 's1') = 9, 'nine s1 rules seeded';
@@ -432,107 +449,180 @@ do $$ begin
     assert (select nilai from aturan_penilaian where prodi = 's1' and kunci = 'sks_skripsi') = '6'::jsonb, 'sks skripsi 6';
     assert (select nilai #>> '{}' from aturan_penilaian where prodi = 's1' and kunci = 'tanggal_mulai_penilaian')
            = to_char((now() at time zone 'Asia/Jakarta')::date, 'YYYY-MM-DD'), 'start date is the migration day';
+    -- Pembimbing on the student: two different, internal dosen.
+    begin
+        update students set pembimbing_2_kode = 'DSN01' where npm = '88003';
+        raise exception 'FAIL: the same dosen as Pembimbing I and II';
+    exception when check_violation then null;
+    end;
+    begin
+        update students set pembimbing_2_kode = 'EXTB' where npm = '88003';
+        raise exception 'FAIL: an eksternal Dosen Pembimbing';
+    exception when raise_exception then
+        assert sqlerrm = 'Dosen eksternal tidak dapat menjadi Dosen Pembimbing.', sqlerrm;
+    end;
 end $$;
 
--- Super Admin moves the start date ahead so pras0 counts as old.
-select set_config('request.jwt.claim.sub', :'super', false);
-set role authenticated;
-do $$
-declare n int;
-begin
-    update aturan_penilaian set nilai = to_jsonb(to_char((now() at time zone 'Asia/Jakarta')::date + 10, 'YYYY-MM-DD'))
-    where prodi = 's1' and kunci = 'tanggal_mulai_penilaian';
-    get diagnostics n = row_count;
-    assert n = 1, 'Super Admin edits the rules';
-end $$;
-reset role;
-
+-- The DOSEN: its own slot, after a lulus lock, inside the window, once.
 select set_config('request.jwt.claim.sub', :'dosen', false);
 set role authenticated;
 do $$
-declare n int; a jsonb := '[{"label": "A", "bobot": 100, "skor": 80}]';
+declare
+    n int;
+    a jsonb := '[{"label": "A", "bobot": 100, "skor": 80}]';
+    slot text;
 begin
     insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
-    values ((select id from nb_def where k = 'pras1'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
+    values ((select id from nb_def where k = 'nbA'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
     begin
         insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
-        values ((select id from nb_def where k = 'pras1'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
+        values ((select id from nb_def where k = 'nbA'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
         raise exception 'FAIL: a dosen graded twice';
     exception when unique_violation then null;
     end;
+    -- day 7 is still open
+    insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
+    values ((select id from nb_def where k = 'nbC'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
+    -- the other slot; day 8; tidak lulus; not locked: all refused by RLS
+    foreach slot in array array['nbA:pembimbing_2', 'nbB:pembimbing_1', 'nbT:pembimbing_1', 'nbU:pembimbing_1'] loop
+        begin
+            insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
+            values ((select id from nb_def where k = split_part(slot, ':', 1)), 'DSN01', split_part(slot, ':', 2), a, 80, auth.uid());
+            raise exception 'FAIL: a dosen graded %', slot;
+        exception when insufficient_privilege or check_violation then null;
+        end;
+    end loop;
     begin
         insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
-        values ((select id from nb_def where k = 'pras1'), 'DSN01', 'pembimbing_2', a, 80, auth.uid());
-        raise exception 'FAIL: a dosen graded as the other pembimbing';
-    exception when insufficient_privilege then null;
-    end;
-    begin
-        insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
-        values ((select id from nb_def where k = 'pras2'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
-        raise exception 'FAIL: a dosen graded before the prasidang date';
-    exception when insufficient_privilege then null;
-    end;
-    begin
-        insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
-        values ((select id from nb_def where k = 'sidang'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
-        raise exception 'FAIL: a dosen graded a sidang as bimbingan';
-    exception when insufficient_privilege then null;
+        values ((select id from nb_def where k = 'pras'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
+        raise exception 'FAIL: bimbingan graded on a prasidang';
+    exception when check_violation then
+        assert sqlerrm = 'Nilai bimbingan hanya untuk sidang S1.', sqlerrm;
     end;
     update nilai_bimbingan set nilai = 90;
     get diagnostics n = row_count;
     assert n = 0, 'a dosen never edits a grade';
-    delete from nilai_bimbingan;
-    get diagnostics n = row_count;
-    assert n = 0, 'a dosen never deletes a grade';
+    begin
+        delete from nilai_bimbingan;
+        get diagnostics n = row_count;
+        assert n = 0, 'a dosen never deletes a grade';
+    exception when insufficient_privilege then null;
+    end;
     update aturan_penilaian set nilai = nilai;
     get diagnostics n = row_count;
     assert n = 0, 'a dosen never edits the rules';
-    assert (select count(*) from nilai_bimbingan) = 1, 'a dosen reads its own grade';
+    assert (select count(*) from nilai_bimbingan) = 2, 'a dosen reads its own grades';
     assert (select count(*) from audit_log) = 0, 'a dosen reads no audit log';
     assert (select count(*) from aturan_penilaian) = 9, 'a dosen reads the rules';
 end $$;
 reset role;
 
+-- Super Admin: any grade, any time; the slot's dosen must be set; the lock on the Ketua's behalf.
 select set_config('request.jwt.claim.sub', :'super', false);
 set role authenticated;
 do $$
-declare n int; a jsonb := '[{"label": "A", "bobot": 100, "skor": 70}]';
+declare
+    n int;
+    s text;
+    a jsonb := '[{"label": "A", "bobot": 100, "skor": 70}]';
+    nbK uuid := (select id from nb_def where k = 'nbK');
+    nbO uuid := (select id from nb_def where k = 'nbO');
 begin
-    update nilai_bimbingan set nilai = 70, aspek = a where defense_id = (select id from nb_def where k = 'pras1');
+    update nilai_bimbingan set nilai = 70, aspek = a where defense_id = (select id from nb_def where k = 'nbA');
     get diagnostics n = row_count;
     assert n = 1, 'Super Admin edits a submitted grade';
-    begin
-        insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
-        values ((select id from nb_def where k = 'pras1'), 'DSN02', 'pembimbing_2', a, 70, auth.uid());
-        raise exception 'FAIL: Super Admin graded for a dosen';
-    exception when insufficient_privilege then null;
-    end;
     insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_by)
-    values ((select id from nb_def where k = 'pras0'), 'DSN01', 'pembimbing_1', a, 70, 'manual', auth.uid());
-    update aturan_penilaian set nilai = to_jsonb(to_char((now() at time zone 'Asia/Jakarta')::date - 30, 'YYYY-MM-DD'))
-    where prodi = 's1' and kunci = 'tanggal_mulai_penilaian';
+    values ((select id from nb_def where k = 'nbA'), 'DSN02', 'pembimbing_2', a, 70, 'manual', auth.uid());
+    -- before the lock and for a closed window too
+    insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_by)
+    values ((select id from nb_def where k = 'nbU'), 'DSN01', 'pembimbing_1', a, 70, 'manual', auth.uid()),
+           ((select id from nb_def where k = 'nbB'), 'DSN01', 'pembimbing_1', a, 70, 'manual', auth.uid());
     begin
         insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_by)
-        values ((select id from nb_def where k = 'pras1'), 'DSN02', 'pembimbing_2', a, 70, 'manual', auth.uid());
-        raise exception 'FAIL: Super Admin entered a manual grade after the start date';
+        values ((select id from nb_def where k = 'nbU'), 'DSN02', 'pembimbing_2', a, 70, 'manual', auth.uid());
+        raise exception 'FAIL: a grade for an empty Pembimbing II slot';
+    exception when check_violation then
+        assert sqlerrm = 'Dosen Pembimbing untuk peran ini belum diisi di Data Mahasiswa.', sqlerrm;
+    end;
+    begin
+        insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_by)
+        values ((select id from nb_def where k = 'nbC'), 'DSN03', 'pembimbing_2', a, 70, 'manual', auth.uid());
+        raise exception 'FAIL: a grade under another dosen''s kode';
+    exception when check_violation then null;
+    end;
+    -- A lulus sidang edited to Tidak Lulus closes bimbingan for the dosen.
+    update hasil_sidang set yudisium_label = 'Tidak Lulus', yudisium_lulus = false where defense_id = (select id from nb_def where k = 'nbY');
+    -- Anggota grades on a sidang not yet held, then the lock for the Ketua.
+    insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, ada_revisi, revisi, sumber, submitted_by)
+    values (nbK, 'EXTB', 'anggota_1', a, 70, true, '[{"catatan": "Perbaiki abstrak"}]', 'manual', auth.uid()),
+           (nbK, 'DSN01', 'anggota_2', a, 70, false, '[]', 'manual', auth.uid()),
+           (nbO, 'EXTB', 'anggota_1', a, 70, true, '[{"catatan": "Perbaiki abstrak"}]', 'manual', auth.uid()),
+           (nbO, 'DSN01', 'anggota_2', a, 70, false, '[]', 'manual', auth.uid());
+    s := kunci_sidang_admin(nbK, a, false, '[]', 'Lulus Dengan Revisi', true);
+    assert s = 'menunggu', 'an admin lock with revisi sends the email: ' || s;
+    assert (select kode_dosen || '/' || sumber from nilai_sidang where defense_id = nbK and peran = 'ketua') = 'DSN03/manual', 'the Ketua row is the admin''s';
+    assert (select locked_by from hasil_sidang where defense_id = nbK) = auth.uid(), 'the admin locked it';
+    s := kunci_sidang_admin(nbO, a, false, '[]', 'Lulus Tanpa Revisi', true);
+    assert s = 'tidak_perlu', 'an old sidang sends no email: ' || s;
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    begin
+        insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
+        values ((select id from nb_def where k = 'nbY'), 'DSN01', 'pembimbing_1', '[{"label": "A", "bobot": 100, "skor": 80}]', 80, auth.uid());
+        raise exception 'FAIL: graded after the yudisium became tidak lulus';
+    exception when insufficient_privilege then null;
+    end;
+    begin
+        perform kunci_sidang_admin((select id from nb_def where k = 'nbU'), '[{"label": "A", "bobot": 100, "skor": 80}]', false, '[]', 'Lulus Tanpa Revisi', true);
+        raise exception 'FAIL: a dosen called kunci_sidang_admin';
     exception when insufficient_privilege then null;
     end;
 end $$;
 reset role;
 
+-- SCHEDULER: the gate also needs both Pembimbing.
+select set_config('request.jwt.claim.sub', :'super', false);
+set role authenticated;
+insert into keputusan_prasidang (npm, hasil, alasan) values ('88003', 'layak', 'Uji pembimbing');
+reset role;
+select set_config('request.jwt.claim.sub', :'s1', false);
+set role authenticated;
+do $$ begin
+    begin
+        insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+        values ('R0001', 'sidang', '2027-03-01', '08:00', '10:00', '88003', '88003', 's1');
+        raise exception 'FAIL: a sidang without Pembimbing II';
+    exception when check_violation then
+        assert sqlerrm = 'Dosen Pembimbing I dan II mahasiswa belum diisi di Data Mahasiswa.', sqlerrm;
+    end;
+end $$;
+reset role;
+
 do $$
-declare pras1 uuid := (select id from nb_def where k = 'pras1');
+declare nbA uuid := (select id from nb_def where k = 'nbA');
 begin
-    assert exists (select 1 from audit_log where table_name = 'aturan_penilaian' and record_id = 'tanggal_mulai_penilaian'), 'rule edits are audited';
-    assert (select count(*) from audit_log where table_name = 'nilai_bimbingan' and actor_id = '00000000-0000-0000-0000-000000000006') = 1, 'the dosen is the audited actor';
-    update defenses set penguji_kode = 'DSN03' where id = pras1;
-    -- Renaming a lecturer's kode is not a reassignment: the grade follows it.
+    assert (select count(*) from audit_log where table_name = 'nilai_bimbingan' and actor_id = '00000000-0000-0000-0000-000000000006') = 2, 'the dosen is the audited actor';
+    -- A graded slot keeps its dosen; the other slot and other fields still change.
+    begin
+        update students set pembimbing_1_kode = 'DSN03' where npm = '88000';
+        raise exception 'FAIL: changed a graded Pembimbing I';
+    exception when raise_exception then
+        assert sqlerrm = 'Dosen pembimbing tidak dapat diubah: nilai bimbingan sudah dikirim.', sqlerrm;
+    end;
+    update students set pembimbing_2_kode = 'DSN03' where npm = '88003';
+    update students set judul_skripsi = 'Baru' where npm = '88000';
+    -- Renaming a lecturer's kode is not a reassignment: the grade and the student follow it.
     update lecturers set kode_dosen = 'DSN01X' where kode_dosen = 'DSN01';
-    assert (select kode_dosen from nilai_bimbingan where defense_id = pras1) = 'DSN01X', 'grade follows the renamed kode';
+    assert (select kode_dosen from nilai_bimbingan where defense_id = nbA and peran = 'pembimbing_1') = 'DSN01X', 'grade follows the renamed kode';
+    assert (select pembimbing_1_kode from students where npm = '88000') = 'DSN01X', 'the student follows the renamed kode';
     update lecturers set kode_dosen = 'DSN01' where kode_dosen = 'DSN01X';
     begin
-        delete from defenses where id = pras1;
-        raise exception 'FAIL: deleted a graded prasidang';
+        delete from defenses where id = nbA;
+        raise exception 'FAIL: deleted a graded sidang';
     exception when foreign_key_violation then null;
     end;
     begin
@@ -551,7 +641,6 @@ begin
         raise exception 'FAIL: a bad lecturer email';
     exception when check_violation then null;
     end;
-    update lecturers set email = 'dsn02@up.ac.id', eksternal = true where kode_dosen = 'DSN02';
 end $$;
 
 -- Nilai Bimbingan hardening ---------------------------------------------------------------------
@@ -564,27 +653,21 @@ do $$ begin
     assert not has_function_privilege('authenticated', 'purge_old_audit_log()', 'execute'), 'authenticated cannot purge audit_log';
     assert not has_function_privilege('anon', 'purge_old_audit_log()', 'execute'), 'anon cannot purge audit_log';
     assert has_function_privilege('postgres', 'purge_old_audit_log()', 'execute'), 'the cron owner still purges';
+    assert not has_function_privilege('anon', 'kunci_sidang_admin(uuid, jsonb, boolean, jsonb, text, boolean)', 'execute'), 'anon cannot lock';
 end $$;
-
--- A grade of DSN02's (seeded as postgres) and a fresh prasidang DSN01 grades from yesterday.
-select set_config('request.jwt.claim.sub', '', false);
-insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber)
-values ((select id from nb_def where k = 'pras0'), 'DSN02', 'pembimbing_2', '[{"label": "A", "bobot": 100, "skor": 60}]', 60, 'manual');
-insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, pembimbing_kode, penguji_kode, prodi)
-values ('R0002', 'prasidang', (now() at time zone 'Asia/Jakarta')::date - 1, '08:00', '09:00', 1, '88004', '88004', 'DSN01', 'DSN02', 's1');
-insert into nb_def select 'pras4', id from defenses where npm = '88004';
 select set_config('nb.total', (select count(*)::text from nilai_bimbingan), false);
 
-select set_config('request.jwt.claim.sub', :'dosen', false);
+-- nilai is tied to aspek: a shape the form never sends is refused; the DB computes nilai and timestamps.
+select set_config('request.jwt.claim.sub', :'super', false);
 set role authenticated;
 do $$
 declare
-    pras4 uuid := (select id from nb_def where k = 'pras4');
+    nbC uuid := (select id from nb_def where k = 'nbC');
     bad jsonb;
     r record;
+    c text;
+    n int;
 begin
-    assert not exists (select 1 from nilai_bimbingan where kode_dosen = 'DSN02'), 'DSN01 cannot read DSN02''s grade';
-    -- nilai is tied to aspek: a shape the form never sends is refused.
     foreach bad in array array[
         '[{"label": "x", "bobot": 1, "skor": 0}]',
         '[]',
@@ -598,24 +681,52 @@ begin
     ]::jsonb[]
     loop
         begin
-            insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_at, submitted_by)
-            values (pras4, 'DSN01', 'pembimbing_1', bad, 100, '2020-01-01', auth.uid());
+            insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_at, submitted_by)
+            values (nbC, 'DSN02', 'pembimbing_2', bad, 100, 'manual', '2020-01-01', auth.uid());
             raise exception 'FAIL: a bad aspek was accepted: %', bad;
         exception when check_violation then null;
         end;
     end loop;
-    -- The DB computes nilai and the timestamps: the client's values are ignored.
-    insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_at, created_at, submitted_by)
-    values (pras4, 'DSN01', 'pembimbing_1',
+    insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_at, created_at, submitted_by)
+    values (nbC, 'DSN02', 'pembimbing_2',
             '[{"label": "A", "bobot": 33.33, "skor": 80.25}, {"label": "B", "bobot": 66.67, "skor": 71}]',
-            12, '2020-01-01', '2020-01-01', auth.uid());
-    select nilai, submitted_at, created_at into r from nilai_bimbingan where defense_id = pras4;
+            12, 'manual', '2020-01-01', '2020-01-01', auth.uid());
+    select nilai, submitted_at, created_at into r from nilai_bimbingan where defense_id = nbC and peran = 'pembimbing_2';
     assert r.nilai = 74.08, 'nilai recomputed from aspek: ' || r.nilai;
     assert r.submitted_at > now() - interval '1 minute', 'submitted_at is the insert time';
     assert r.created_at > now() - interval '1 minute', 'created_at is the insert time';
+    -- Super Admin edits aspek only; the grade's owner, peran and history stay. Rules are never deleted.
+    foreach c in array array['peran', 'kode_dosen', 'sumber', 'defense_id', 'submitted_at', 'submitted_by', 'created_at'] loop
+        begin
+            execute format('update nilai_bimbingan set %I = %I where defense_id = $1', c, c) using nbC;
+            raise exception 'FAIL: Super Admin updated nilai_bimbingan.%', c;
+        exception when insufficient_privilege then null;
+        end;
+    end loop;
+    update nilai_bimbingan set aspek = '[{"label": "A", "bobot": 100, "skor": 65.5}]', nilai = 1 where defense_id = nbC and peran = 'pembimbing_2';
+    get diagnostics n = row_count;
+    assert n = 1, 'Super Admin edits aspek';
+    assert (select nilai from nilai_bimbingan where defense_id = nbC and peran = 'pembimbing_2') = 65.5, 'an edit recomputes nilai';
+    delete from aturan_penilaian where prodi = 's1' and kunci = 'tanggal_mulai_penilaian';
+    get diagnostics n = row_count;
+    assert n = 0, 'Super Admin never deletes a rule';
+    -- Later sections: sidang dated before today - 30 count as old.
+    update aturan_penilaian set nilai = to_jsonb(to_char((now() at time zone 'Asia/Jakarta')::date - 30, 'YYYY-MM-DD'))
+    where prodi = 's1' and kunci = 'tanggal_mulai_penilaian';
 end $$;
 reset role;
 
+do $$ begin
+    assert exists (select 1 from audit_log where table_name = 'aturan_penilaian' and record_id = 'tanggal_mulai_penilaian'), 'rule edits are audited';
+end $$;
+update lecturers set email = 'dsn02@up.ac.id', eksternal = true where kode_dosen = 'DSN02';
+
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    assert not exists (select 1 from nilai_bimbingan where kode_dosen = 'DSN02'), 'DSN01 cannot read DSN02''s grade';
+end $$;
+reset role;
 select set_config('request.jwt.claim.sub', :'s1', false);
 set role authenticated;
 do $$ begin
@@ -629,32 +740,6 @@ do $$ begin
 end $$;
 reset role;
 
--- Super Admin edits aspek only; the grade's owner, peran and history stay. Rules are never deleted.
-select set_config('request.jwt.claim.sub', :'super', false);
-set role authenticated;
-do $$
-declare
-    pras4 uuid := (select id from nb_def where k = 'pras4');
-    c text;
-    n int;
-begin
-    foreach c in array array['peran', 'kode_dosen', 'sumber', 'defense_id', 'submitted_at', 'submitted_by', 'created_at'] loop
-        begin
-            execute format('update nilai_bimbingan set %I = %I where defense_id = $1', c, c) using pras4;
-            raise exception 'FAIL: Super Admin updated nilai_bimbingan.%', c;
-        exception when insufficient_privilege then null;
-        end;
-    end loop;
-    update nilai_bimbingan set aspek = '[{"label": "A", "bobot": 100, "skor": 65.5}]', nilai = 1 where defense_id = pras4;
-    get diagnostics n = row_count;
-    assert n = 1, 'Super Admin edits aspek';
-    assert (select nilai from nilai_bimbingan where defense_id = pras4) = 65.5, 'an edit recomputes nilai';
-    delete from aturan_penilaian where prodi = 's1' and kunci = 'tanggal_mulai_penilaian';
-    get diagnostics n = row_count;
-    assert n = 0, 'Super Admin never deletes a rule';
-end $$;
-reset role;
-
 -- Super Admin renames a graded lecturer's kode: the FK cascade still reaches nilai_bimbingan
 -- although authenticated may update only aspek and nilai there (FK actions run as the owner).
 select set_config('request.jwt.claim.sub', :'super', false);
@@ -662,7 +747,7 @@ set role authenticated;
 update lecturers set kode_dosen = 'DSN01Y' where kode_dosen = 'DSN01';
 reset role;
 do $$ begin
-    assert (select count(*) from nilai_bimbingan where kode_dosen = 'DSN01Y') = 3, 'grades follow a Super Admin kode rename';
+    assert (select count(*) from nilai_bimbingan where kode_dosen = 'DSN01Y') = 4, 'grades follow a Super Admin kode rename';
     assert (select kode_dosen from profiles where id = '00000000-0000-0000-0000-000000000006') = 'DSN01Y', 'the DOSEN account follows too';
 end $$;
 update lecturers set kode_dosen = 'DSN01' where kode_dosen = 'DSN01Y';
@@ -692,8 +777,6 @@ create temp table sd_def as
                     when '88105' then 'sd0' else 'prasEks' end as k, id
     from defenses where npm in ('88100', '88102', '88103', '88104', '88105', '88106');
 grant select on sd_def to authenticated;
-insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber)
-values ((select id from sd_def where k = 'prasEks'), 'EXT01', 'pembimbing_1', '[{"label": "A", "bobot": 100, "skor": 60}]', 60, 'manual');
 
 do $$ begin
     assert (select count(*) from aturan_penilaian where prodi = 's1' and kunci in ('aspek_sidang', 'pilihan_yudisium')) = 2, 'sidang rules seeded';
@@ -773,9 +856,9 @@ begin
     assert (select count(*) from nilai_bimbingan) = 0, 'an EKSTERNAL reads no bimbingan grade, not even its own kode';
     begin
         insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
-        values ((select id from sd_def where k = 'prasEks'), 'EXT01', 'pembimbing_1', '[{"label": "A", "bobot": 100, "skor": 80}]', 80, auth.uid());
+        values ((select id from sd_def where k = 'sd1'), 'EXT01', 'pembimbing_1', '[{"label": "A", "bobot": 100, "skor": 80}]', 80, auth.uid());
         raise exception 'FAIL: an EKSTERNAL graded bimbingan';
-    exception when insufficient_privilege then null;
+    exception when insufficient_privilege or check_violation then null;
     end;
 end $$;
 reset role;
@@ -874,7 +957,7 @@ begin
     insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
     values (sd1, 'DSN01', 'ketua', '[{"label": "A", "bobot": 100, "skor": 80}]', 80, auth.uid());
     assert (select count(*) from nilai_sidang where defense_id = sd1) = 3, 'the Ketua reads all three grades';
-    assert (select count(*) from hasil_sidang) = 0, 'not locked yet';
+    assert (select count(*) from hasil_sidang where defense_id = sd1) = 0, 'not locked yet';
     begin
         insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, locked_by)
         values (sd1, 'Tidak Lulus', true, '{}', auth.uid());
@@ -965,13 +1048,7 @@ begin
     end loop;
     assert not has_table_privilege('authenticated', 'nilai_sidang', 'delete'), 'nobody deletes a sidang grade';
     assert not has_table_privilege('authenticated', 'hasil_sidang', 'delete'), 'nobody unlocks a sidang';
-    -- Manual grades only on an old sidang, then the lock on the Ketua's behalf.
-    begin
-        insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_by)
-        values ((select id from sd_def where k = 'sd3'), 'DSN02', 'anggota_2', a, 70, 'manual', auth.uid());
-        raise exception 'FAIL: a manual grade on a new sidang';
-    exception when insufficient_privilege then null;
-    end;
+    -- Manual grades on an old sidang, then the lock on the Ketua's behalf (direct inserts still work for Super Admin).
     insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_by)
     values (sd0, 'EXT01', 'anggota_1', a, 70, 'manual', auth.uid()), (sd0, 'DSN02', 'anggota_2', a, 70, 'manual', auth.uid());
     update nilai_sidang set ada_revisi = true, revisi = '[{"catatan": "Perbaiki abstrak"}]' where defense_id = sd0 and peran = 'anggota_1';
@@ -1186,8 +1263,9 @@ begin
     assert not has_function_privilege('authenticated', 'hapus_data_sidang_s1()', 'execute'), 'only the owner cleans up';
 end $$;
 
-insert into students (npm, nama, prodi) values
-    ('89000', 'Ba Lengkap', 's1'), ('89001', 'Ba Tolak', 's1'), ('89002', 'Ba Tanpa', 's1'), ('89003', 'Ba Lama', 's1'), ('89004', 'Ba Lain', 's1');
+insert into students (npm, nama, prodi, pembimbing_1_kode, pembimbing_2_kode) values
+    ('89000', 'Ba Lengkap', 's1', 'DSN01', 'DSN03'), ('89001', 'Ba Tolak', 's1', 'DSN01', 'DSN03'), ('89002', 'Ba Tanpa', 's1', 'DSN01', 'DSN03'),
+    ('89003', 'Ba Lama', 's1', 'DSN01', 'DSN03'), ('89004', 'Ba Lain', 's1', 'DSN01', 'DSN03');
 insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, pembimbing_kode, penguji_kode, prodi)
 select 'R0002', 'prasidang', (now() at time zone 'Asia/Jakarta')::date + d, '08:00', '09:00', 1, npm, npm, 'DSN01', 'DSN03', 's1'
 from (values ('89000', -1), ('89001', -2), ('89004', 3)) v(npm, d);
