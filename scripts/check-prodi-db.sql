@@ -612,9 +612,11 @@ do $$ begin
     assert not pembimbing_lengkap('88003'), 'Pembimbing II empty, not flagged';
     update students set tanpa_pembimbing_2 = true where npm = '88003';
     assert pembimbing_lengkap('88003'), 'flagged: Pembimbing I alone is enough';
-    update students set pembimbing_1_kode = null where npm = '88003';
-    assert not pembimbing_lengkap('88003'), 'flagged still needs Pembimbing I';
-    update students set pembimbing_1_kode = 'DSN01', tanpa_pembimbing_2 = false where npm = '88003';
+    update students set tanpa_pembimbing_2 = false where npm = '88003';
+    -- 88003's Pembimbing I has graded (keeps its dosen): a fresh student shows the flag never replaces Pembimbing I.
+    insert into students (npm, nama, prodi, tanpa_pembimbing_2) values ('88008', '88008', 's1', true);
+    assert not pembimbing_lengkap('88008'), 'flagged still needs Pembimbing I';
+    delete from students where npm = '88008';
 end $$;
 
 do $$

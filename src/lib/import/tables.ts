@@ -321,15 +321,18 @@ export const studentsTable: ImportTableDef<StudentRow> = {
     const tanpa = has(raw, 'tanpa_pembimbing_2') ? yesNo(raw, 'tanpa_pembimbing_2') : undefined
     if (has(raw, 'tanpa_pembimbing_2') && tanpa === undefined) return { reason: `Baris ${npm}: tanpa_pembimbing_2 harus ya atau tidak.` }
     if (tanpa && p2) return { reason: `Baris ${npm}: tanpa_pembimbing_2 = ya tetapi pembimbing_2_kode diisi.` }
+    // The flag needs Pembimbing II cleared in the same row, so the column must be there (the DB forbids both).
+    if (tanpa && !has(raw, 'pembimbing_2_kode')) {
+      return { reason: `Baris ${npm}: tanpa_pembimbing_2 = ya butuh kolom pembimbing_2_kode (dikosongkan).` }
+    }
 
     const optional = {
       ...(has(raw, 'email', 'Email') && { email }),
       ...(has(raw, 'pembimbing_1_kode') && { pembimbing_1_kode: p1 }),
       ...(has(raw, 'pembimbing_2_kode') && { pembimbing_2_kode: p2 }),
-      // The DB forbids the flag beside a Pembimbing II: ya clears the kode, a kode clears the flag.
-      ...(tanpa !== undefined && { tanpa_pembimbing_2: tanpa }),
-      ...(tanpa && { pembimbing_2_kode: null }),
-      ...(p2 && { tanpa_pembimbing_2: false }),
+      // Keys follow the columns, never the cells: one file is one upsert, and a key missing from a row becomes NULL.
+      // With only the pembimbing_2_kode column (older template) the flag is "tidak", so a kode never meets it in the DB.
+      ...((has(raw, 'tanpa_pembimbing_2') || has(raw, 'pembimbing_2_kode')) && { tanpa_pembimbing_2: tanpa ?? false }),
       ...(has(raw, 'sks_sebelum') && { sks_sebelum: nilai.sks }),
       ...(has(raw, 'bobot_sebelum') && { bobot_sebelum: nilai.bobot }),
       ...(has(raw, 'tepat_waktu') && { tepat_waktu }),

@@ -110,7 +110,7 @@ async function main() {
     assert.ok(studentsTable.headers.includes('pembimbing_1_kode') && studentsTable.headers.includes('pembimbing_2_kode'))
 
     // Tanpa Pembimbing II: ya clears Pembimbing II; a Pembimbing II kode clears the flag; both at once is refused.
-    const solo = studentsTable.parseRow({ npm: '1', nama: 'A', pembimbing_1_kode: 'D1', tanpa_pembimbing_2: 'ya' }, 2)
+    const solo = studentsTable.parseRow({ npm: '1', nama: 'A', pembimbing_1_kode: 'D1', pembimbing_2_kode: '', tanpa_pembimbing_2: 'ya' }, 2)
     assert.ok('data' in solo && solo.data.tanpa_pembimbing_2 === true && solo.data.pembimbing_2_kode === null, 'ya clears Pembimbing II')
     const duo = studentsTable.parseRow({ npm: '1', nama: 'A', pembimbing_2_kode: 'D2' }, 2)
     assert.ok('data' in duo && duo.data.tanpa_pembimbing_2 === false, 'a Pembimbing II kode clears the flag')
@@ -119,6 +119,18 @@ async function main() {
     if ('data' in old) assert.ok(!('tanpa_pembimbing_2' in old.data), 'no flag key without the column')
     assert.equal(reason({ pembimbing_2_kode: 'D2', tanpa_pembimbing_2: 'ya' }), 'Baris 1: tanpa_pembimbing_2 = ya tetapi pembimbing_2_kode diisi.')
     assert.equal(reason({ tanpa_pembimbing_2: 'mungkin' }), 'Baris 1: tanpa_pembimbing_2 harus ya atau tidak.')
+    assert.equal(reason({ tanpa_pembimbing_2: 'ya' }), 'Baris 1: tanpa_pembimbing_2 = ya butuh kolom pembimbing_2_kode (dikosongkan).')
+    // One file is one upsert: every row must carry the same keys, whatever its cell values (a missing key becomes NULL).
+    const keys = (rows: Record<string, unknown>[]) => rows.map((raw) => {
+      const r = studentsTable.parseRow({ npm: '1', nama: 'A', ...raw }, 2)
+      assert.ok('data' in r, JSON.stringify(raw))
+      return 'data' in r ? Object.keys(r.data).sort().join() : ''
+    })
+    for (const file of [
+      [{ pembimbing_2_kode: 'D2' }, { pembimbing_2_kode: '' }],
+      [{ pembimbing_2_kode: '', tanpa_pembimbing_2: 'ya' }, { pembimbing_2_kode: 'D2', tanpa_pembimbing_2: 'tidak' }],
+      [{ tanpa_pembimbing_2: 'tidak' }, { tanpa_pembimbing_2: '' }],
+    ]) assert.equal(new Set(keys(file)).size, 1, `same keys: ${JSON.stringify(file)}`)
     assert.ok(studentsTable.headers.includes('tanpa_pembimbing_2'))
 
     const a = { npm: '1', nama: 'A', judul_skripsi: '', email: '', sks_sebelum: 139, bobot_sebelum: 404.57, tepat_waktu: true, pembimbing_1_kode: 'D1', pembimbing_2_kode: 'D2' }
