@@ -109,9 +109,22 @@ async function main() {
     assert.equal(reason({ pembimbing_1_kode: 'D1', pembimbing_2_kode: 'D1' }), 'Baris 1: Dosen Pembimbing I dan II harus berbeda.')
     assert.ok(studentsTable.headers.includes('pembimbing_1_kode') && studentsTable.headers.includes('pembimbing_2_kode'))
 
+    // Tanpa Pembimbing II: ya clears Pembimbing II; a Pembimbing II kode clears the flag; both at once is refused.
+    const solo = studentsTable.parseRow({ npm: '1', nama: 'A', pembimbing_1_kode: 'D1', tanpa_pembimbing_2: 'ya' }, 2)
+    assert.ok('data' in solo && solo.data.tanpa_pembimbing_2 === true && solo.data.pembimbing_2_kode === null, 'ya clears Pembimbing II')
+    const duo = studentsTable.parseRow({ npm: '1', nama: 'A', pembimbing_2_kode: 'D2' }, 2)
+    assert.ok('data' in duo && duo.data.tanpa_pembimbing_2 === false, 'a Pembimbing II kode clears the flag')
+    const tidak = studentsTable.parseRow({ npm: '1', nama: 'A', tanpa_pembimbing_2: 'tidak' }, 2)
+    assert.ok('data' in tidak && tidak.data.tanpa_pembimbing_2 === false && !('pembimbing_2_kode' in tidak.data))
+    if ('data' in old) assert.ok(!('tanpa_pembimbing_2' in old.data), 'no flag key without the column')
+    assert.equal(reason({ pembimbing_2_kode: 'D2', tanpa_pembimbing_2: 'ya' }), 'Baris 1: tanpa_pembimbing_2 = ya tetapi pembimbing_2_kode diisi.')
+    assert.equal(reason({ tanpa_pembimbing_2: 'mungkin' }), 'Baris 1: tanpa_pembimbing_2 harus ya atau tidak.')
+    assert.ok(studentsTable.headers.includes('tanpa_pembimbing_2'))
+
     const a = { npm: '1', nama: 'A', judul_skripsi: '', email: '', sks_sebelum: 139, bobot_sebelum: 404.57, tepat_waktu: true, pembimbing_1_kode: 'D1', pembimbing_2_kode: 'D2' }
     assert.ok(studentsTable.equal(a, { ...a }))
     assert.ok(!studentsTable.equal(a, { ...a, pembimbing_2_kode: 'D3' }), 'equal compares pembimbing_2_kode')
+    assert.ok(!studentsTable.equal({ ...a, tanpa_pembimbing_2: false }, { ...a, tanpa_pembimbing_2: true }), 'equal compares tanpa_pembimbing_2')
     for (const k of ['email', 'sks_sebelum', 'bobot_sebelum', 'tepat_waktu'] as const) {
       const b = { ...a, [k]: k === 'email' ? 'x@y.id' : k === 'tepat_waktu' ? false : null }
       assert.ok(!studentsTable.equal(a, b as typeof a), `equal compares ${k}`)

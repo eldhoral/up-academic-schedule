@@ -23,6 +23,8 @@ export type Student = {
   tepat_waktu: boolean
   pembimbing_1_kode: string | null
   pembimbing_2_kode: string | null
+  /** S1: explicitly has no Dosen Pembimbing II (Nilai Bimbingan = Pembimbing I's grade). */
+  tanpa_pembimbing_2: boolean
   /** S1 only: the sidang gate status (null for S2). */
   status: StatusPrasidang | null
   keputusan: { hasil: Hasil; alasan: string } | null
@@ -95,8 +97,11 @@ export function MahasiswaClient({ students, dosen, canEdit }: { students: Studen
                   <Td className="mono text-right whitespace-nowrap">{ipk(s)}</Td>
                   {s1 && (
                     <Td className="text-[var(--tinta-2)]">
-                      {s.pembimbing_1_kode && s.pembimbing_2_kode
-                        ? <>{namaDosen(s.pembimbing_1_kode)}<br />{namaDosen(s.pembimbing_2_kode)}</>
+                      {s.pembimbing_1_kode && (s.pembimbing_2_kode || s.tanpa_pembimbing_2)
+                        ? <>
+                          {namaDosen(s.pembimbing_1_kode)}<br />
+                          {s.pembimbing_2_kode ? namaDosen(s.pembimbing_2_kode) : <span className="text-[var(--tinta-3)]">Tanpa Pembimbing II</span>}
+                        </>
                         : <span className="text-[var(--merah-teks)]">Belum lengkap</span>}
                     </Td>
                   )}
@@ -161,6 +166,7 @@ function StudentFormModal({ student, dosen, onClose }: { student: Student | null
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
   const router = useRouter()
   const prodi = useProdi()
+  const [tanpaP2, setTanpaP2] = useState(!!student?.tanpa_pembimbing_2)
 
   useEffect(() => {
     if (state && 'success' in state) {
@@ -207,10 +213,18 @@ function StudentFormModal({ student, dosen, onClose }: { student: Student | null
             Lulus tepat waktu
           </label>
           {prodi === 's1' && (
+            <>
             <div className="flex flex-col sm:flex-row gap-[0.8rem]">
               {(['pembimbing_1_kode', 'pembimbing_2_kode'] as const).map((f, i) => (
                 <Field key={f} label={`Dosen Pembimbing ${i === 0 ? 'I' : 'II'}`} className="flex-1">
-                  <select name={f} required defaultValue={student?.[f] ?? ''} className={INPUT}>
+                  {/* Without Pembimbing II the select is disabled, so it isn't submitted: the action stores none. */}
+                  <select
+                    name={f}
+                    required={i === 0 || !tanpaP2}
+                    disabled={i === 1 && tanpaP2}
+                    defaultValue={student?.[f] ?? ''}
+                    className={`${INPUT} disabled:opacity-50`}
+                  >
                     <option value="">— pilih dosen —</option>
                     {/* Eksternal dosen can't supervise; one already assigned stays selectable so the form still saves. */}
                     {dosen.filter((d) => !d.eksternal || d.kode === student?.[f]).map((d) => (
@@ -220,6 +234,17 @@ function StudentFormModal({ student, dosen, onClose }: { student: Student | null
                 </Field>
               ))}
             </div>
+            <label className="flex items-center gap-[0.4rem] text-[0.87rem]">
+              <input
+                type="checkbox"
+                name="tanpa_pembimbing_2"
+                checked={tanpaP2}
+                onChange={(e) => setTanpaP2(e.target.checked)}
+                className="w-[1rem] h-[1rem]"
+              />
+              Tanpa Dosen Pembimbing II (Nilai Bimbingan = nilai Pembimbing I)
+            </label>
+            </>
           )}
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">

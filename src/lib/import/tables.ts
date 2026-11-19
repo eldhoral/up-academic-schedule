@@ -264,13 +264,14 @@ export type StudentRow = {
   tepat_waktu?: boolean
   pembimbing_1_kode?: string | null // kode dosen; the DB FK checks it exists
   pembimbing_2_kode?: string | null
+  tanpa_pembimbing_2?: boolean // explicit "has no Pembimbing II"; excludes pembimbing_2_kode
 }
 
 export const studentsTable: ImportTableDef<StudentRow> = {
   slug: 'students',
   prodiScoped: true,
   label: 'Mahasiswa',
-  headers: ['npm', 'nama', 'judul_skripsi', 'email', 'sks_sebelum', 'bobot_sebelum', 'tepat_waktu', 'pembimbing_1_kode', 'pembimbing_2_kode'],
+  headers: ['npm', 'nama', 'judul_skripsi', 'email', 'sks_sebelum', 'bobot_sebelum', 'tepat_waktu', 'pembimbing_1_kode', 'pembimbing_2_kode', 'tanpa_pembimbing_2'],
   exampleRow: {
     npm: '6021210017',
     nama: 'Alfia Rizkyani',
@@ -281,6 +282,7 @@ export const studentsTable: ImportTableDef<StudentRow> = {
     tepat_waktu: 'ya',
     pembimbing_1_kode: 'D001',
     pembimbing_2_kode: 'D002',
+    tanpa_pembimbing_2: 'tidak',
   },
   keyField: 'npm',
   equal: (a, b) =>
@@ -291,7 +293,8 @@ export const studentsTable: ImportTableDef<StudentRow> = {
     same(a.bobot_sebelum, b.bobot_sebelum) &&
     same(a.tepat_waktu, b.tepat_waktu) &&
     same(a.pembimbing_1_kode, b.pembimbing_1_kode) &&
-    same(a.pembimbing_2_kode, b.pembimbing_2_kode),
+    same(a.pembimbing_2_kode, b.pembimbing_2_kode) &&
+    same(a.tanpa_pembimbing_2, b.tanpa_pembimbing_2),
   parseRow(raw) {
     const npm = str(raw, 'npm') || str(raw, 'NPM')
     if (!npm) return { reason: 'npm wajib diisi.' }
@@ -315,11 +318,18 @@ export const studentsTable: ImportTableDef<StudentRow> = {
     const p1 = str(raw, 'pembimbing_1_kode') || null
     const p2 = str(raw, 'pembimbing_2_kode') || null
     if (p1 && p1 === p2) return { reason: `Baris ${npm}: Dosen Pembimbing I dan II harus berbeda.` }
+    const tanpa = has(raw, 'tanpa_pembimbing_2') ? yesNo(raw, 'tanpa_pembimbing_2') : undefined
+    if (has(raw, 'tanpa_pembimbing_2') && tanpa === undefined) return { reason: `Baris ${npm}: tanpa_pembimbing_2 harus ya atau tidak.` }
+    if (tanpa && p2) return { reason: `Baris ${npm}: tanpa_pembimbing_2 = ya tetapi pembimbing_2_kode diisi.` }
 
     const optional = {
       ...(has(raw, 'email', 'Email') && { email }),
       ...(has(raw, 'pembimbing_1_kode') && { pembimbing_1_kode: p1 }),
       ...(has(raw, 'pembimbing_2_kode') && { pembimbing_2_kode: p2 }),
+      // The DB forbids the flag beside a Pembimbing II: ya clears the kode, a kode clears the flag.
+      ...(tanpa !== undefined && { tanpa_pembimbing_2: tanpa }),
+      ...(tanpa && { pembimbing_2_kode: null }),
+      ...(p2 && { tanpa_pembimbing_2: false }),
       ...(has(raw, 'sks_sebelum') && { sks_sebelum: nilai.sks }),
       ...(has(raw, 'bobot_sebelum') && { bobot_sebelum: nilai.bobot }),
       ...(has(raw, 'tepat_waktu') && { tepat_waktu }),

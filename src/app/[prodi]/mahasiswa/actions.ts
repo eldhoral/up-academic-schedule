@@ -20,7 +20,8 @@ function readStudentForm(formData: FormData) {
   const tepat_waktu = formData.get('tepat_waktu') === 'on'
   const pembimbing_1_kode = ((formData.get('pembimbing_1_kode') as string) || '').trim()
   const pembimbing_2_kode = ((formData.get('pembimbing_2_kode') as string) || '').trim()
-  return { prodi: parseProdi(formData.get('prodi')), npm, nama, judul_skripsi, email, sks, bobot, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode }
+  const tanpa_pembimbing_2 = formData.get('tanpa_pembimbing_2') === 'on'
+  return { prodi: parseProdi(formData.get('prodi')), npm, nama, judul_skripsi, email, sks, bobot, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2 }
 }
 
 type StudentForm = Omit<ReturnType<typeof readStudentForm>, 'prodi'>
@@ -29,10 +30,10 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 type StudentRow = {
   npm: string; nama: string; judul_skripsi: string; email: string; tepat_waktu: boolean; sks_sebelum: number | null; bobot_sebelum: number | null
-  pembimbing_1_kode?: string; pembimbing_2_kode?: string
+  pembimbing_1_kode?: string; pembimbing_2_kode?: string | null; tanpa_pembimbing_2?: boolean
 }
 
-/** The row to save, or the reason it can't be (the DB checks, said in words). S1 needs both Dosen Pembimbing. */
+/** The row to save, or the reason it can't be (the DB checks, said in words). S1 needs Pembimbing I, and Pembimbing II or the explicit "tanpa" flag. */
 function toRow(f: StudentForm, prodi: Prodi): { error: string } | { row: StudentRow } {
   if (!f.npm || !f.nama) return { error: 'NPM dan nama wajib diisi.' }
   if (!/^\d+$/.test(f.npm)) return { error: 'NPM hanya boleh berisi angka.' }
@@ -40,12 +41,17 @@ function toRow(f: StudentForm, prodi: Prodi): { error: string } | { row: Student
   if (badEmail) return { error: cap(badEmail) }
   const nilai = sksBobot(f.sks, f.bobot)
   if ('error' in nilai) return { error: cap(nilai.error) }
-  const { npm, nama, judul_skripsi, email, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode } = f
+  const { npm, nama, judul_skripsi, email, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2 } = f
   const row: StudentRow = { npm, nama, judul_skripsi, email, tepat_waktu, sks_sebelum: nilai.sks, bobot_sebelum: nilai.bobot }
   if (prodi === 's1') {
-    if (!pembimbing_1_kode || !pembimbing_2_kode) return { error: 'Dosen Pembimbing I dan II wajib diisi.' }
-    if (pembimbing_1_kode === pembimbing_2_kode) return { error: 'Dosen Pembimbing I dan II harus berbeda.' }
-    Object.assign(row, { pembimbing_1_kode, pembimbing_2_kode })
+    if (!pembimbing_1_kode) return { error: 'Dosen Pembimbing I wajib diisi.' }
+    if (tanpa_pembimbing_2) {
+      Object.assign(row, { pembimbing_1_kode, pembimbing_2_kode: null, tanpa_pembimbing_2 })
+    } else {
+      if (!pembimbing_2_kode) return { error: 'Pilih Dosen Pembimbing II atau centang Tanpa Dosen Pembimbing II.' }
+      if (pembimbing_1_kode === pembimbing_2_kode) return { error: 'Dosen Pembimbing I dan II harus berbeda.' }
+      Object.assign(row, { pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2 })
+    }
   }
   return { row }
 }
