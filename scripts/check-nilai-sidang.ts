@@ -1,3 +1,4 @@
+import { buildBeritaAcaraXlsx } from '../src/lib/penilaian/berita-acara-xlsx'
 import { barAspek, barPenguji, rataRata } from '../src/lib/penilaian/grafik'
 import { hasilBeritaAcara } from '../src/lib/penilaian/berita-acara-sidang'
 import { validateKetentuan } from '../src/lib/penilaian/aturan'
@@ -762,4 +763,48 @@ void (async () => {
   assert.notEqual(validateKetentuan([' ']), null)
   assert.equal(validateKetentuan(DEFAULT_ATURAN.ketentuanSidang), null)
   console.log('nilai-sidang grafik & berita acara: all checks passed')
+}
+
+// ---- berita acara xlsx
+{
+  const beku = bekukan(DEFAULT_ATURAN)
+  const dasar = {
+    npm: '2021110001', nama: 'ABDURRAHMAN', judul: 'Judul A', tanggal: '2026-11-10',
+    pembimbing1: 'Dr. Satu', pembimbing2: 'Dr. Dua',
+    penguji: [
+      { peran: 'ketua' as const, nama: 'Ketua K', nilai: 78 },
+      { peran: 'anggota_1' as const, nama: 'Anggota A1', nilai: 75 },
+      { peran: 'anggota_2' as const, nama: 'Anggota A2', nilai: 76.5 },
+    ],
+    aturan: beku, pilihan: DEFAULT_ATURAN.pilihanYudisium, yudisium: { label: 'Lulus Dengan Revisi', lulus: true },
+    sks: 139, bobot: 404.57, tepatWaktu: false,
+  }
+  const baca = async (d: typeof dasar) => {
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load((await buildBeritaAcaraXlsx(d)).buffer as ArrayBuffer)
+    const ws = wb.worksheets[0]
+    const rows: unknown[][] = []
+    ws.eachRow((r) => rows.push((r.values as unknown[]).slice(1)))
+    const cari = (label: string) => rows.find((r) => r.some((v) => v === label)) ?? []
+    return { rows, cari }
+  }
+  void (async () => {
+    const { rows, cari } = await baca(dasar)
+    assert.ok(rows.some((r) => r.some((v) => String(v).includes('BERITA ACARA UJIAN SKRIPSI SARJANA (S1) PSIKOLOGI'))), 'title')
+    assert.ok(cari('Ketua Penguji').includes('Ketua K') && cari('Ketua Penguji').includes(78) && cari('Ketua Penguji').includes('A-'))
+    assert.ok(cari('Anggota Penguji 2').includes(76.5))
+    assert.ok(cari('RATA-RATA').includes(76.5) && cari('RATA-RATA').includes('A-'), 'rata-rata = Nilai Sidang')
+    assert.ok(cari('Jumlah').includes(145) && cari('Jumlah').includes(426.59))
+    assert.ok(cari('IPK setelah Sidang Skripsi').includes(2.94))
+    assert.ok(cari('Predikat Kelulusan').includes('Sangat Memuaskan'))
+    assert.ok(cari('Lulus Dengan Revisi').includes('☒'), 'the locked yudisium is ticked')
+    assert.ok(cari('Lulus Tanpa Revisi').includes('☐') && cari('Tidak Lulus').includes('☐'))
+    assert.ok(cari('Dosen Pembimbing 2').includes('Dr. Dua'))
+    assert.ok(!rows.some((r) => r.some((v) => /tanda tangan|ttd/i.test(String(v)))), 'no signature blocks')
+
+    const gagal = await baca({ ...dasar, yudisium: { label: 'Tidak Lulus', lulus: false } })
+    assert.ok(gagal.cari('IPK setelah Sidang Skripsi').includes('Sidang tidak lulus.'))
+    assert.ok(!gagal.rows.some((r) => r.some((v) => typeof v === 'number' && Number.isNaN(v))), 'never NaN')
+    console.log('nilai-sidang berita acara xlsx: all checks passed')
+  })().catch((e) => { console.error(e); process.exit(1) })
 }

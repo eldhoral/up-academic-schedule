@@ -70,7 +70,14 @@ export default async function RekapNilaiAkhirPage(props: PageProps<'/[prodi]/sid
                     <td className={cell(C)}>{angka(r.penguji.anggota_2.nilai)}</td>
                     <td className={`${cell(C)} font-semibold`}>{angka(h.nilaiSidang)}</td>
                     <td className={cell(C)}>{r.hurufSidang ?? ''}</td>
-                    <td className={cell()}>{r.yudisium ?? KOSONG}</td>
+                    <td className={cell()}>
+                      {r.yudisium ?? KOSONG}
+                      {r.lockedAt && (
+                        <span className="block mt-[0.2rem] text-[0.8rem] whitespace-nowrap">
+                          Berita acara: <a href={`/api/berita-acara/${r.defenseId}?format=xlsx`}>Excel</a> · <a href={`/api/berita-acara/${r.defenseId}?format=pdf`}>PDF</a>
+                        </span>
+                      )}
+                    </td>
                     {h.status === 'lengkap' ? (
                       <>
                         <td className={`${cell(C)} mono font-semibold`}>{formatNilai(h.nilaiAkhir)}</td>

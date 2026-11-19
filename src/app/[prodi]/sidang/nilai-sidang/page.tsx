@@ -65,7 +65,14 @@ export default async function RekapNilaiSidangPage(props: PageProps<'/[prodi]/si
                     ])}
                     <td className={`${cell(C)} mono font-semibold`}>{ns === null ? '—' : formatNilai(ns)}</td>
                     <td className={`${cell(C)} font-semibold`}>{r.hurufSidang ?? '—'}</td>
-                    <td className={`${cell()} whitespace-nowrap ${r.lockedAt ? 'text-[var(--hijau)]' : 'text-[var(--tinta-2)]'}`}>{status}</td>
+                    <td className={cell()}>
+                      <span className={`whitespace-nowrap ${r.lockedAt ? 'text-[var(--hijau)]' : 'text-[var(--tinta-2)]'}`}>{status}</span>
+                      {r.lockedAt && (
+                        <span className="block mt-[0.2rem] text-[0.8rem] whitespace-nowrap">
+                          Berita acara: <a href={`/api/berita-acara/${r.defenseId}?format=xlsx`}>Excel</a> · <a href={`/api/berita-acara/${r.defenseId}?format=pdf`}>PDF</a>
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
