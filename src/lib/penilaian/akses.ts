@@ -126,11 +126,15 @@ export function aksesSidang(
   if (!d || !peran) return { kind: 'tidak-ada' }
   if (opts.akunTanggal !== undefined && opts.akunTanggal !== d.tanggal) return { kind: 'tidak-ada' }
   if (opts.locked) return { kind: 'terkunci' }
-  if (opts.submitted.has(peran)) return { kind: 'terkirim', peran }
+  if (opts.submitted.has(peran)) {
+    if (peran !== 'ketua') return { kind: 'terkirim', peran }
+    // The Ketua has sent its own grade: it locks once both anggota have sent theirs.
+    const kurang = (['anggota_1', 'anggota_2'] as const).filter((a) => !opts.submitted.has(a))
+    return kurang.length ? { kind: 'menunggu-anggota', kurang } : { kind: 'kunci', peran }
+  }
   if (opts.today < d.tanggal) return { kind: 'belum-dibuka', tanggal: d.tanggal }
-  if (peran !== 'ketua') return { kind: 'isi', peran }
-  const kurang = (['anggota_1', 'anggota_2'] as const).filter((a) => !opts.submitted.has(a))
-  return kurang.length ? { kind: 'menunggu-anggota', kurang } : { kind: 'kunci', peran }
+  // Every examiner, the Ketua included, grades from the date in any order.
+  return { kind: 'isi', peran }
 }
 
 /** An EKSTERNAL login works through berlaku_sampai (inclusive), by the Jakarta date. */
@@ -141,18 +145,17 @@ export const penilaianSidangPath = (id: string): string => `/nilai-sidang/${id}`
 export const PERAN_SIDANG: PeranSidang[] = ['ketua', 'anggota_1', 'anggota_2']
 
 /**
- * What Super Admin may add to a sidang, at any date: a missing anggota grade (its dosen chosen), and,
- * once both anggota are in, the Ketua's grade with the lock. After the lock it only edits.
+ * What Super Admin may add to a sidang, at any date: any missing grade whose dosen is chosen (the Ketua's
+ * too), and the lock once all three exist. After the lock it only edits.
  */
 export function adminSidang(
   d: Pick<SidangRef, 'penguji_kode' | 'penguji_eksternal_kode' | 'pembimbing_kode'>,
   ada: Set<PeranSidang>,
   locked: boolean,
-): { isi: ('anggota_1' | 'anggota_2')[]; kunciKetua: boolean } {
-  if (locked) return { isi: [], kunciKetua: false }
-  const kode = { anggota_1: d.penguji_eksternal_kode, anggota_2: d.pembimbing_kode }
-  const isi = (['anggota_1', 'anggota_2'] as const).filter((p) => !ada.has(p) && !!kode[p])
-  return { isi, kunciKetua: ada.has('anggota_1') && ada.has('anggota_2') && !ada.has('ketua') && !!d.penguji_kode }
+): { isi: PeranSidang[]; kunci: boolean } {
+  if (locked) return { isi: [], kunci: false }
+  const kode: Record<PeranSidang, string | null> = { ketua: d.penguji_kode, anggota_1: d.penguji_eksternal_kode, anggota_2: d.pembimbing_kode }
+  return { isi: PERAN_SIDANG.filter((p) => !ada.has(p) && !!kode[p]), kunci: PERAN_SIDANG.every((p) => ada.has(p)) }
 }
 
 /** Labels from SIDANG_PERAN_LABEL (jadwal-dosen/events.ts). */
@@ -166,7 +169,7 @@ export const PERAN_SIDANG_LABEL: Record<PeranSidang, string> = {
 export const STATUS_SIDANG: Record<Exclude<AksesSidang['kind'], 'tidak-ada'>, string> = {
   'belum-dibuka': 'Belum dibuka',
   isi: 'Belum dinilai',
-  kunci: 'Belum dinilai',
+  kunci: 'Siap dikunci',
   'menunggu-anggota': 'Menunggu anggota',
   terkirim: 'Terkirim',
   terkunci: 'Terkunci',

@@ -1,3 +1,6 @@
+import { barAspek, barPenguji, rataRata } from '../src/lib/penilaian/grafik'
+import { hasilBeritaAcara } from '../src/lib/penilaian/berita-acara-sidang'
+import { validateKetentuan } from '../src/lib/penilaian/aturan'
 import { statusNilaiSidang } from '../src/lib/penilaian/rekap'
 import { sectionOf } from '../src/components/nav-sections'
 import assert from 'node:assert/strict'
@@ -180,10 +183,13 @@ import {
   assert.deepEqual(aksesSidang(sd, 'PB', o({ today: '2026-11-11' })), { kind: 'isi', peran: 'anggota_2' })
   // Submitted wins over the date gate (a rescheduled graded sidang stays read-only).
   assert.deepEqual(aksesSidang(sd, 'EX', o({ submitted: new Set(['anggota_1']), today: '2026-11-01' })), { kind: 'terkirim', peran: 'anggota_1' })
-  // Ketua waits for both anggota and is told who is missing.
-  assert.deepEqual(aksesSidang(sd, 'KT', o()), { kind: 'menunggu-anggota', kurang: ['anggota_1', 'anggota_2'] })
-  assert.deepEqual(aksesSidang(sd, 'KT', o({ submitted: new Set(['anggota_2']) })), { kind: 'menunggu-anggota', kurang: ['anggota_1'] })
-  assert.deepEqual(aksesSidang(sd, 'KT', o({ submitted: new Set(['anggota_1', 'anggota_2']) })), { kind: 'kunci', peran: 'ketua' })
+  // The Ketua grades like an anggota, in any order; once sent it waits for both anggota, then locks.
+  assert.deepEqual(aksesSidang(sd, 'KT', o()), { kind: 'isi', peran: 'ketua' })
+  assert.deepEqual(aksesSidang(sd, 'KT', o({ submitted: new Set(['anggota_1', 'anggota_2']) })), { kind: 'isi', peran: 'ketua' })
+  assert.deepEqual(aksesSidang(sd, 'KT', o({ submitted: new Set(['ketua']) })), { kind: 'menunggu-anggota', kurang: ['anggota_1', 'anggota_2'] })
+  assert.deepEqual(aksesSidang(sd, 'KT', o({ submitted: new Set(['ketua', 'anggota_2']) })), { kind: 'menunggu-anggota', kurang: ['anggota_1'] })
+  assert.deepEqual(aksesSidang(sd, 'KT', o({ submitted: new Set(['ketua', 'anggota_1', 'anggota_2']) })), { kind: 'kunci', peran: 'ketua' })
+  assert.deepEqual(aksesSidang(sd, 'EX', o({ submitted: new Set(['ketua', 'anggota_1']) })), { kind: 'terkirim', peran: 'anggota_1' })
   // After the lock everyone is read-only, even before the date gate.
   const dua = new Set<PeranSidang>(['anggota_1', 'anggota_2', 'ketua'])
   for (const kode of ['KT', 'EX', 'PB']) {
@@ -347,7 +353,7 @@ import { adminSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
   // Penilaian Saya: one label per access state.
   assert.equal(STATUS_SIDANG['belum-dibuka'], 'Belum dibuka')
   assert.equal(STATUS_SIDANG.isi, 'Belum dinilai')
-  assert.equal(STATUS_SIDANG.kunci, 'Belum dinilai')
+  assert.equal(STATUS_SIDANG.kunci, 'Siap dikunci')
   assert.equal(STATUS_SIDANG['menunggu-anggota'], 'Menunggu anggota')
   assert.equal(STATUS_SIDANG.terkirim, 'Terkirim')
   assert.equal(STATUS_SIDANG.terkunci, 'Terkunci')
@@ -355,13 +361,12 @@ import { adminSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
   // Super Admin, any date: enters a missing anggota grade; locks for the Ketua once both anggota are in.
   const ref = { penguji_kode: 'KT', penguji_eksternal_kode: 'EX', pembimbing_kode: 'PB' }
   const ada = (...p: PeranSidang[]) => new Set<PeranSidang>(p)
-  assert.deepEqual(adminSidang(ref, ada(), false), { isi: ['anggota_1', 'anggota_2'], kunciKetua: false })
-  assert.deepEqual(adminSidang(ref, ada('anggota_1'), false), { isi: ['anggota_2'], kunciKetua: false })
-  assert.deepEqual(adminSidang(ref, ada('anggota_1', 'anggota_2'), false), { isi: [], kunciKetua: true })
-  assert.deepEqual(adminSidang(ref, ada('anggota_1', 'anggota_2', 'ketua'), false), { isi: [], kunciKetua: false }) // the Ketua's own lock is pending
-  assert.deepEqual(adminSidang(ref, ada(), true), { isi: [], kunciKetua: false }) // locked: edit only
-  assert.deepEqual(adminSidang({ ...ref, penguji_eksternal_kode: null }, ada(), false), { isi: ['anggota_2'], kunciKetua: false }) // legacy Anggota I
-  assert.deepEqual(adminSidang({ ...ref, penguji_kode: null }, ada('anggota_1', 'anggota_2'), false), { isi: [], kunciKetua: false }) // no Ketua chosen
+  assert.deepEqual(adminSidang(ref, ada(), false), { isi: ['ketua', 'anggota_1', 'anggota_2'], kunci: false })
+  assert.deepEqual(adminSidang(ref, ada('anggota_1', 'anggota_2'), false), { isi: ['ketua'], kunci: false })
+  assert.deepEqual(adminSidang(ref, ada('ketua', 'anggota_1', 'anggota_2'), false), { isi: [], kunci: true })
+  assert.deepEqual(adminSidang(ref, ada(), true), { isi: [], kunci: false }) // locked: edit only
+  assert.deepEqual(adminSidang({ ...ref, penguji_eksternal_kode: null }, ada(), false), { isi: ['ketua', 'anggota_2'], kunci: false }) // legacy Anggota I
+  assert.deepEqual(adminSidang({ ...ref, penguji_kode: null }, ada('anggota_1', 'anggota_2'), false), { isi: [], kunci: false }) // no Ketua chosen
 
   console.log('nilai-sidang formulir: all checks passed')
 }
@@ -730,4 +735,31 @@ void (async () => {
   assert.equal(sectionOf('/sidang', 's2', true, true)!.group, undefined, 'S2 has no grading menu')
   assert.equal(sectionOf('/sidang/nilai-sidang', 's1', false, false)!.title, 'S1 · Jadwal Prasidang & Sidang')
   console.log('nilai-sidang rekap & menu: all checks passed')
+}
+
+// ---- grafik, berita acara values, ketentuan umum
+{
+  assert.deepEqual(barPenguji({ anggota_1: 80 }), [{ peran: 'ketua', nilai: null }, { peran: 'anggota_1', nilai: 80 }, { peran: 'anggota_2', nilai: null }])
+  assert.equal(rataRata({ ketua: 80 }), null)
+  assert.equal(rataRata({ ketua: 80, anggota_2: 75 }), 77.5)
+  const snap = (skor: number[], labels = ['Permasalahan', 'Presentasi']) => labels.map((label, i) => ({ label, bobot: 50, skor: skor[i] }))
+  assert.deepEqual(
+    barAspek([{ label: 'Permasalahan' }, { label: 'Presentasi' }], { ketua: snap([80, 70]), anggota_2: snap([60], ['Permasalahan']) }),
+    [{ label: 'Permasalahan', skor: { ketua: 80, anggota_2: 60 } }, { label: 'Presentasi', skor: { ketua: 70 } }],
+  )
+
+  const beku = bekukan(DEFAULT_ATURAN)
+  const ok = hasilBeritaAcara({ nilai: [78, 75, 76.5], aturan: beku, lulus: true, sks: 139, bobot: 404.57, tepatWaktu: false })
+  assert.equal(ok.nilaiSidang, 76.5)
+  assert.equal(ok.huruf, 'A-')
+  assert.equal(ok.mutu, 3.67)
+  assert.deepEqual(ok.ipk, { sks: 139, bobot: 404.57, sksSkripsi: 6, bobotSkripsi: 22.02, jumlahSks: 145, jumlahBobot: 426.59, ipkSetelah: 2.94, predikat: 'Sangat Memuaskan' })
+  assert.deepEqual(hasilBeritaAcara({ nilai: [78, 75, 76.5], aturan: beku, lulus: false, sks: 139, bobot: 404.57, tepatWaktu: false }).ipk, { alasan: 'Sidang tidak lulus.' })
+  assert.deepEqual(hasilBeritaAcara({ nilai: [78, 75, 76.5], aturan: beku, lulus: true, sks: null, bobot: 404.57, tepatWaktu: false }).ipk, { alasan: 'SKS/Bobot sebelum sidang belum diisi.' })
+
+  assert.equal(DEFAULT_ATURAN.ketentuanSidang.length, 5)
+  assert.notEqual(validateKetentuan([]), null)
+  assert.notEqual(validateKetentuan([' ']), null)
+  assert.equal(validateKetentuan(DEFAULT_ATURAN.ketentuanSidang), null)
+  console.log('nilai-sidang grafik & berita acara: all checks passed')
 }

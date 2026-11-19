@@ -20,6 +20,8 @@ export type Aturan = {
   pertanyaanPrasidang: Pertanyaan[]
   /** Days after the sidang lock a Dosen Pembimbing may still grade bimbingan (lock day = day 0). */
   batasHariBimbingan: number
+  /** Ketentuan Umum shown beside the sidang form (lines); the Nilai and predikat tables come from their own rules. */
+  ketentuanSidang: string[]
 }
 
 /**
@@ -108,6 +110,13 @@ export const DEFAULT_ATURAN: Aturan = {
     { teks: 'Substansi (isi) Proposal', jenis: 'uraian' },
   ],
   batasHariBimbingan: 7,
+  ketentuanSidang: [
+    'Naskah skripsi berisi kurang lebih 60 sampai dengan 80 halaman (tidak termasuk lampiran dan Daftar Pustaka)',
+    'Format mengikuti tradisi ilmiah yang berlaku di dunia internasional dan merujuk pada APA',
+    'Abstrak dalam bentuk narasi dalam bahasa Indonesia dan bahasa Inggris',
+    'Nilai yang diberikan dalam bentuk angka dari 1 sampai dengan 100',
+    'Predikat "Dengan Pujian" hanya diberikan apabila mahasiswa menyelesaikan seluruh mata kuliah tepat waktu',
+  ],
 }
 
 const num = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n)
@@ -171,6 +180,11 @@ export function validateBatasHari(n: number): string | null {
   return Number.isInteger(n) && n >= 1 && n <= 60 ? null : 'Batas hari harus bilangan bulat 1–60'
 }
 
+export function validateKetentuan(l: string[]): string | null {
+  if (l.length < 1) return 'Minimal satu baris'
+  return l.every((x) => x.trim()) ? null : 'Baris tidak boleh kosong'
+}
+
 export function validateTanggal(v: string): string | null {
   return parseTanggal(v) ? null : 'Tanggal tidak valid'
 }
@@ -212,6 +226,11 @@ function parsePertanyaan(v: unknown): Pertanyaan[] | null {
   return validatePertanyaan(p) ? null : p
 }
 
+function parseKetentuan(v: unknown): string[] | null {
+  if (!Array.isArray(v) || !v.every(str)) return null
+  return validateKetentuan(v) ? null : v
+}
+
 /** The rules a locked sidang froze (hasil_sidang.aturan, built by the DB); null when the stored copy is unusable. */
 export type AturanBeku = { tabelNilai: BarisNilai[]; predikat: BarisPredikat[]; sksSkripsi: number }
 
@@ -250,5 +269,6 @@ export async function loadAturan(db: SupabaseClient, prodi: 's1'): Promise<Atura
     tanggalMulai: parseTanggal(raw.get('tanggal_mulai_penilaian')) ?? todayJakarta(),
     pertanyaanPrasidang: parsePertanyaan(raw.get('pertanyaan_prasidang')) ?? DEFAULT_ATURAN.pertanyaanPrasidang,
     batasHariBimbingan: num(batas) && !validateBatasHari(batas) ? batas : DEFAULT_ATURAN.batasHariBimbingan,
+    ketentuanSidang: parseKetentuan(raw.get('ketentuan_sidang')) ?? DEFAULT_ATURAN.ketentuanSidang,
   }
 }
