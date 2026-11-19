@@ -80,5 +80,5 @@ export const PESAN_GERBANG = {
   tidak_ada: 'Mahasiswa belum memiliki prasidang. Super Admin dapat memberi keputusan di Data Mahasiswa.',
   belum_lengkap: 'Berita acara prasidang belum lengkap.',
   tidak_layak: 'Hasil prasidang: skripsi tidak layak untuk dilanjutkan.',
-  pembimbing: 'Dosen Pembimbing I dan II mahasiswa belum diisi di Data Mahasiswa.',
+  pembimbing: 'Dosen Pembimbing mahasiswa belum lengkap di Data Mahasiswa.',
 } as const

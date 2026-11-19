@@ -461,6 +461,12 @@ do $$ begin
     exception when raise_exception then
         assert sqlerrm = 'Dosen eksternal tidak dapat menjadi Dosen Pembimbing.', sqlerrm;
     end;
+    -- Tanpa Pembimbing II: only while Pembimbing II is empty.
+    begin
+        update students set tanpa_pembimbing_2 = true where npm = '88000';
+        raise exception 'FAIL: tanpa_pembimbing_2 with a Pembimbing II';
+    exception when check_violation then null;
+    end;
 end $$;
 
 -- The DOSEN: its own slot, after a lulus lock, inside the window, once.
@@ -596,10 +602,20 @@ do $$ begin
         values ('R0001', 'sidang', '2027-03-01', '08:00', '10:00', '88003', '88003', 's1');
         raise exception 'FAIL: a sidang without Pembimbing II';
     exception when check_violation then
-        assert sqlerrm = 'Dosen Pembimbing I dan II mahasiswa belum diisi di Data Mahasiswa.', sqlerrm;
+        assert sqlerrm = 'Dosen Pembimbing mahasiswa belum lengkap di Data Mahasiswa.', sqlerrm;
     end;
 end $$;
 reset role;
+
+-- Without Pembimbing II, the flag completes the student; never without Pembimbing I.
+do $$ begin
+    assert not pembimbing_lengkap('88003'), 'Pembimbing II empty, not flagged';
+    update students set tanpa_pembimbing_2 = true where npm = '88003';
+    assert pembimbing_lengkap('88003'), 'flagged: Pembimbing I alone is enough';
+    update students set pembimbing_1_kode = null where npm = '88003';
+    assert not pembimbing_lengkap('88003'), 'flagged still needs Pembimbing I';
+    update students set pembimbing_1_kode = 'DSN01', tanpa_pembimbing_2 = false where npm = '88003';
+end $$;
 
 do $$
 declare nbA uuid := (select id from nb_def where k = 'nbA');

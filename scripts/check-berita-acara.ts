@@ -103,7 +103,7 @@ for (const m of [
   'Mahasiswa belum memiliki prasidang. Super Admin dapat memberi keputusan di Data Mahasiswa.',
   'Berita acara prasidang belum lengkap.',
   'Hasil prasidang: skripsi tidak layak untuk dilanjutkan.',
-  'Dosen Pembimbing I dan II mahasiswa belum diisi di Data Mahasiswa.',
+  'Dosen Pembimbing mahasiswa belum lengkap di Data Mahasiswa.',
   'Dosen Pembimbing untuk peran ini belum diisi di Data Mahasiswa.',
   'Nilai bimbingan hanya untuk sidang S1.',
 ]) assert.equal(humanDbError({ code: '23514', message: m }), m, m)
