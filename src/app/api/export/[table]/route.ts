@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { buildExportBuffer } from '@/lib/import/engine'
-import { importTables, type ImportTableSlug } from '@/lib/import/tables'
+import { importTables, loadStudentSheet, type ImportTableSlug } from '@/lib/import/tables'
 import { humanDbError } from '@/lib/db-error'
 import { parseProdi } from '@/lib/prodi'
 
@@ -21,7 +21,10 @@ export async function GET(req: Request, ctx: RouteContext<'/api/export/[table]'>
   }
 
   // The prodi column is dropped so the file re-imports cleanly, and the jadwal link token so the file never leaks lecturers' links.
-  const buffer = await buildExportBuffer((data ?? []).map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'prodi' && k !== 'jadwal_token'))))
+  const rows = (data ?? []).map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'prodi' && k !== 'jadwal_token')))
+  // Mahasiswa: Dosen Pembimbing as "Nama (KODE)" with a dropdown, ya/tidak; the import reads the kode back.
+  const sheet = def.slug === 'students' ? await loadStudentSheet(supabase) : null
+  const buffer = sheet ? await buildExportBuffer(rows.map(sheet.exportRow), sheet.dropdowns) : await buildExportBuffer(rows)
   return new Response(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

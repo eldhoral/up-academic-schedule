@@ -1,4 +1,5 @@
 import { parseAngka } from '@/lib/penilaian/nilai'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ParsedRow } from './engine'
 
 export type ParseResult<T> = { key: string; data: T; notes: string[] } | { reason: string }
@@ -315,8 +316,8 @@ export const studentsTable: ImportTableDef<StudentRow> = {
     const tepat_waktu = yesNo(raw, 'tepat_waktu')
     if (tepat_waktu === undefined) return { reason: `Baris ${npm}: tepat_waktu harus ya atau tidak.` }
 
-    const p1 = str(raw, 'pembimbing_1_kode') || null
-    const p2 = str(raw, 'pembimbing_2_kode') || null
+    const p1 = kodeDosen(str(raw, 'pembimbing_1_kode')) || null
+    const p2 = kodeDosen(str(raw, 'pembimbing_2_kode')) || null
     if (p1 && p1 === p2) return { reason: `Baris ${npm}: Dosen Pembimbing I dan II harus berbeda.` }
     const tanpa = has(raw, 'tanpa_pembimbing_2') ? yesNo(raw, 'tanpa_pembimbing_2') : undefined
     if (has(raw, 'tanpa_pembimbing_2') && tanpa === undefined) return { reason: `Baris ${npm}: tanpa_pembimbing_2 harus ya atau tidak.` }
@@ -349,3 +350,47 @@ export const importTables = {
 } as const
 
 export type ImportTableSlug = keyof typeof importTables
+
+// ---------------------------------------------------------------------------
+// Mahasiswa xlsx: Dosen Pembimbing picked by name from a dropdown
+// ---------------------------------------------------------------------------
+
+type DosenPilihan = { kode_dosen: string; nama: string; gelar_depan: string; gelar_belakang: string; eksternal: boolean }
+
+const labelDosen = (l: DosenPilihan) => `${lecturerDisplayName(l)} (${l.kode_dosen})`
+
+/** The kode from a dropdown label "Nama (KODE)" (the last brackets), or the cell as typed (a bare kode, older files). */
+export function kodeDosen(v: string): string {
+  return (/\(([^()]*)\)\s*$/.exec(v)?.[1] ?? v).trim()
+}
+
+const YA_TIDAK = ['ya', 'tidak']
+const DIBUANG = new Set(['id', 'created_at', 'updated_at'])
+
+/**
+ * The extras of the Mahasiswa template and export: dropdowns (internal dosen by nama, ya/tidak), the example row
+ * with real dosen, and the export row (no internal columns, kode as its label, booleans as ya/tidak). Pure.
+ */
+export function studentSheet(lecturers: DosenPilihan[]) {
+  const internal = lecturers.filter((l) => !l.eksternal).sort((a, b) => a.nama.localeCompare(b.nama))
+  const pilihan = internal.map(labelDosen)
+  // Every dosen, so an eksternal one assigned earlier still shows its name.
+  const label = new Map(lecturers.map((l) => [l.kode_dosen, labelDosen(l)]))
+  const sebagai = (kode: unknown) => (typeof kode === 'string' ? (label.get(kode) ?? kode) : kode)
+  return {
+    dropdowns: { pembimbing_1_kode: pilihan, pembimbing_2_kode: pilihan, tepat_waktu: YA_TIDAK, tanpa_pembimbing_2: YA_TIDAK },
+    exampleRow: { ...studentsTable.exampleRow, pembimbing_1_kode: pilihan[0] ?? '', pembimbing_2_kode: pilihan[1] ?? '' },
+    exportRow: (r: Record<string, unknown>): Record<string, unknown> =>
+      Object.fromEntries(Object.entries(r).filter(([k]) => !DIBUANG.has(k)).map(([k, v]) => [
+        k,
+        k === 'pembimbing_1_kode' || k === 'pembimbing_2_kode' ? sebagai(v) : typeof v === 'boolean' ? (v ? 'ya' : 'tidak') : v,
+      ])),
+  }
+}
+
+/** The Mahasiswa sheet extras with the lecturers read through `db` (session client: RLS decides; none = no dosen list). */
+export async function loadStudentSheet(db: SupabaseClient) {
+  const { data, error } = await db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang, eksternal')
+  if (error) throw new Error(`Gagal memuat daftar dosen: ${error.message}`)
+  return studentSheet((data ?? []) as DosenPilihan[])
+}

@@ -35,21 +35,51 @@ export async function parseWorkbookRows(buffer: ArrayBuffer): Promise<ParsedRow[
   return rows
 }
 
-async function writeSheet(name: string, rows: unknown[][]): Promise<Buffer> {
+/** Header -> allowed values: that column gets a dropdown, its values listed on a hidden "Pilihan" sheet. */
+export type Dropdowns = Record<string, string[]>
+
+// ponytail: the dropdown covers a fixed number of rows; raise it if a bulk file ever passes 1000 rows.
+const DROPDOWN_ROWS = 1000
+
+async function writeSheet(name: string, rows: unknown[][], dropdowns: Dropdowns = {}): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
-  workbook.addWorksheet(name).addRows(rows)
+  const sheet = workbook.addWorksheet(name)
+  sheet.addRows(rows)
+  const headers = (rows[0] ?? []) as string[]
+  const lists = Object.entries(dropdowns).filter(([h, values]) => values.length && headers.includes(h))
+  if (lists.length) {
+    // After the data sheet: the import reads only the first sheet.
+    const pilihan = workbook.addWorksheet('Pilihan', { state: 'hidden' })
+    const validations = (sheet as unknown as { dataValidations: { add(range: string, v: ExcelJS.DataValidation): void } }).dataValidations
+    const last = Math.max(rows.length, DROPDOWN_ROWS)
+    lists.forEach(([h, values], i) => {
+      const from = pilihan.getColumn(i + 1)
+      from.values = [h, ...values]
+      const to = sheet.getColumn(headers.indexOf(h) + 1)
+      to.width = Math.max(12, ...values.map((v) => v.length + 2))
+      validations.add(`${to.letter}2:${to.letter}${last}`, {
+        type: 'list',
+        allowBlank: true,
+        formulae: [`Pilihan!$${from.letter}$2:$${from.letter}$${values.length + 1}`],
+        showErrorMessage: true,
+        errorStyle: 'stop',
+        errorTitle: 'Tidak ada di daftar',
+        error: 'Pilih salah satu nilai dari daftar.',
+      })
+    })
+  }
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }
 
 /** Builds a downloadable .xlsx template: header row + one example row. */
-export function buildTemplateBuffer(headers: string[], exampleRow: Record<string, string | number>): Promise<Buffer> {
-  return writeSheet('Template', [headers, headers.map((h) => exampleRow[h] ?? '')])
+export function buildTemplateBuffer(headers: string[], exampleRow: Record<string, string | number>, dropdowns?: Dropdowns): Promise<Buffer> {
+  return writeSheet('Template', [headers, headers.map((h) => exampleRow[h] ?? '')], dropdowns)
 }
 
 /** Builds a downloadable .xlsx of the current DB rows — column names match import headers, so it re-uploads cleanly. */
-export function buildExportBuffer(rows: Record<string, unknown>[]): Promise<Buffer> {
+export function buildExportBuffer(rows: Record<string, unknown>[], dropdowns?: Dropdowns): Promise<Buffer> {
   const headers = [...new Set(rows.flatMap((r) => Object.keys(r)))]
-  return writeSheet('Data', [headers, ...rows.map((r) => headers.map((h) => r[h] ?? ''))])
+  return writeSheet('Data', [headers, ...rows.map((r) => headers.map((h) => r[h] ?? ''))], dropdowns)
 }
 
 export type RowOutcome<T> =

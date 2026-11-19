@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import ExcelJS from 'exceljs'
-import { lecturersTable, studentsTable } from '../src/lib/import/tables'
+import { kodeDosen, lecturersTable, studentSheet, studentsTable } from '../src/lib/import/tables'
 import { buildExportBuffer, buildTemplateBuffer, parseWorkbookRows } from '../src/lib/import/engine'
 
 const toArrayBuffer = (b: Uint8Array) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
@@ -162,6 +162,60 @@ async function main() {
     assert.ok('reason' in bad && /^Baris D1: .*email/i.test(bad.reason))
     const bad2 = lecturersTable.parseRow({ 'Kode Dosen': 'D1', 'Nama Dosen': 'Budi', Eksternal: 'mungkin' }, 2)
     assert.ok('reason' in bad2 && /^Baris D1: .*Eksternal/.test(bad2.reason))
+  }
+
+  // --- Mahasiswa xlsx: Dosen Pembimbing as a "Nama (KODE)" dropdown; the import takes the kode back -------------
+  {
+    assert.equal(kodeDosen('Dr. Budi, M.Psi. (D001)'), 'D001')
+    assert.equal(kodeDosen('Budi (Alm.) (D002) '), 'D002') // the last brackets hold the kode
+    assert.equal(kodeDosen(' D003 '), 'D003') // a bare kode (older files) still works
+    const pick = studentsTable.parseRow({ npm: '1', nama: 'A', pembimbing_1_kode: 'Dr. Budi (D1)', pembimbing_2_kode: 'Ani (D2)' }, 2)
+    assert.ok('data' in pick && pick.data.pembimbing_1_kode === 'D1' && pick.data.pembimbing_2_kode === 'D2')
+    assert.equal(
+      (() => { const r = studentsTable.parseRow({ npm: '1', nama: 'A', pembimbing_1_kode: 'X (D1)', pembimbing_2_kode: 'Y (D1)' }, 2); return 'reason' in r })(),
+      true, 'same kode under two labels is still the same dosen',
+    )
+
+    const dosen = [
+      { kode_dosen: 'D2', nama: 'Ani', gelar_depan: '', gelar_belakang: ', M.Psi.', eksternal: false },
+      { kode_dosen: 'D1', nama: 'Budi', gelar_depan: 'Dr.', gelar_belakang: '', eksternal: false },
+      { kode_dosen: 'X1', nama: 'Luar', gelar_depan: '', gelar_belakang: '', eksternal: true },
+    ]
+    const sheet = studentSheet(dosen)
+    assert.deepEqual(sheet.dropdowns.pembimbing_1_kode, ['Ani, M.Psi. (D2)', 'Dr. Budi (D1)'], 'internal dosen only, by nama')
+    assert.deepEqual(sheet.dropdowns.pembimbing_2_kode, sheet.dropdowns.pembimbing_1_kode)
+    assert.deepEqual(sheet.dropdowns.tepat_waktu, ['ya', 'tidak'])
+    assert.deepEqual(sheet.dropdowns.tanpa_pembimbing_2, ['ya', 'tidak'])
+    assert.equal(sheet.exampleRow.pembimbing_1_kode, 'Ani, M.Psi. (D2)')
+    assert.equal(sheet.exampleRow.pembimbing_2_kode, 'Dr. Budi (D1)')
+    assert.deepEqual(
+      sheet.exportRow({ id: 'u', npm: '1', nama: 'A', created_at: 't', updated_at: 't', tepat_waktu: true, tanpa_pembimbing_2: false,
+        pembimbing_1_kode: 'D1', pembimbing_2_kode: 'X1' }),
+      { npm: '1', nama: 'A', tepat_waktu: 'ya', tanpa_pembimbing_2: 'tidak', pembimbing_1_kode: 'Dr. Budi (D1)', pembimbing_2_kode: 'Luar (X1)' },
+      'no internal columns; an assigned eksternal dosen keeps its label',
+    )
+    assert.equal(sheet.exportRow({ pembimbing_1_kode: null, pembimbing_2_kode: 'GONE' }).pembimbing_2_kode, 'GONE')
+
+    // The file: data on sheet 1 (what the import reads), the lists on a hidden sheet, a list validation per column.
+    const buf = await buildExportBuffer([sheet.exportRow({ npm: '1', nama: 'A', pembimbing_1_kode: 'D1', tepat_waktu: false })], sheet.dropdowns)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(toArrayBuffer(buf))
+    assert.deepEqual(wb.worksheets.map((s) => [s.name, s.state]), [['Data', 'visible'], ['Pilihan', 'hidden']])
+    const data = wb.worksheets[0]
+    const col = (h: string) => (data.getRow(1).values as unknown[]).indexOf(h)
+    const dv = data.getCell(500, col('pembimbing_1_kode')).dataValidation
+    assert.equal(dv?.type, 'list')
+    assert.match(String(dv?.formulae?.[0]), /^Pilihan!\$[A-Z]+\$2:\$[A-Z]+\$3$/)
+    assert.equal(data.getCell(2, col('tepat_waktu')).dataValidation?.type, 'list')
+    assert.equal(data.getCell(2, col('npm')).dataValidation, undefined)
+    const back = await parseWorkbookRows(toArrayBuffer(buf))
+    assert.deepEqual(back, [{ npm: '1', nama: 'A', pembimbing_1_kode: 'Dr. Budi (D1)', tepat_waktu: 'tidak' }])
+    const parsed = studentsTable.parseRow(back[0], 2)
+    assert.ok('data' in parsed && parsed.data.pembimbing_1_kode === 'D1' && parsed.data.tepat_waktu === false, 'export re-imports')
+    // No dropdowns: one sheet, as before.
+    const plainWb = new ExcelJS.Workbook()
+    await plainWb.xlsx.load(toArrayBuffer(await buildTemplateBuffer(['a'], { a: 1 })))
+    assert.equal(plainWb.worksheets.length, 1)
   }
 
   // --- an empty workbook has no rows ---------------------------------------------------------------
