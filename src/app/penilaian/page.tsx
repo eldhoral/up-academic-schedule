@@ -6,19 +6,21 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { tanggalPanjang } from '@/lib/hari'
 import {
-  aksesDosen, aksesSidang, penilaianPath, penilaianSidangPath, PERAN_LABEL, PERAN_SIDANG_LABEL, peranDosen, peranPenguji, STATUS_SIDANG,
-  todayJakarta, type Peran, type PeranSidang,
+  aksesBeritaAcara, aksesSidang, penilaianSidangPath, PERAN_SIDANG_LABEL, peranPenguji, peranPrasidang, STATUS_SIDANG,
+  todayJakarta, type PeranSidang,
 } from '@/lib/penilaian/akses'
+import { beritaAcaraPath, PERAN_PRASIDANG_LABEL, type PeranPrasidang } from '@/lib/penilaian/prasidang'
 import { identitasPenguji, SIDANG_COLS, type DefensePenilaian, type DefenseSidang } from '@/lib/penilaian/data'
 
 const STATUS_CLS: Record<string, string> = {
   'Belum dibuka': 'bg-[var(--cekung)] text-[var(--tinta-3)] border-[var(--garis-kuat)]',
   'Belum dinilai': 'bg-[var(--kuning-lembut)] text-[var(--kuning)] border-[var(--kuning-garis)]',
+  'Belum diisi': 'bg-[var(--kuning-lembut)] text-[var(--kuning)] border-[var(--kuning-garis)]',
   'Menunggu anggota': 'bg-[var(--cekung)] text-[var(--tinta-2)] border-[var(--garis-kuat)]',
   Terkirim: 'bg-[var(--hijau-lembut)] text-[var(--hijau)] border-[var(--hijau)]',
   Terkunci: 'bg-[var(--hijau-lembut)] text-[var(--hijau)] border-[var(--hijau)]',
 }
-const STATUS_PRASIDANG = { 'belum-dibuka': 'Belum dibuka', isi: 'Belum dinilai', terkirim: 'Terkirim' } as const
+const STATUS_PRASIDANG = { 'belum-dibuka': 'Belum dibuka', isi: 'Belum diisi', terkirim: 'Terkirim' } as const
 
 type Baris = { id: string; href: string; tanggal: string; npm: string; nama: string; judul: string; jenis: string; peran: string; status: string }
 
@@ -44,16 +46,16 @@ export default async function PenilaianSayaPage() {
     return akunTanggal ? q.eq('tanggal', akunTanggal) : q
   }
   const kosong = { data: [], error: null }
-  const [p1, p2, s1, s2, s3, nilai] = await Promise.all([
+  const [p1, p2, s1, s2, s3, isian] = await Promise.all([
     dosen ? pras().eq('pembimbing_kode', kode) : kosong,
     dosen ? pras().eq('penguji_kode', kode) : kosong,
     sid().eq('penguji_kode', kode),
     sid().eq('penguji_eksternal_kode', kode),
     sid().eq('pembimbing_kode', kode),
     // Own rows only, through RLS (an EKSTERNAL reads none).
-    dosen ? supabase.from('nilai_bimbingan').select('defense_id, peran').eq('kode_dosen', kode) : kosong,
+    dosen ? supabase.from('berita_acara_prasidang').select('defense_id, peran').eq('kode_dosen', kode) : kosong,
   ])
-  const err = p1.error ?? p2.error ?? s1.error ?? s2.error ?? s3.error ?? nilai.error
+  const err = p1.error ?? p2.error ?? s1.error ?? s2.error ?? s3.error ?? isian.error
   if (err) throw new Error(`Gagal memuat daftar penilaian: ${err.message}`)
   const sidang = new Map<string, DefenseSidang>()
   for (const d of [...(s1.data ?? []), ...(s2.data ?? []), ...(s3.data ?? [])] as DefenseSidang[]) sidang.set(d.id, d)
@@ -72,10 +74,10 @@ export default async function PenilaianSayaPage() {
   const pr = new Map<string, DefensePenilaian>()
   for (const d of [...(p1.data ?? []), ...(p2.data ?? [])] as DefensePenilaian[]) pr.set(d.id, d)
   for (const d of pr.values()) {
-    const akses = aksesDosen(d, kode, new Set((nilai.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as Peran)), today)
-    const peran = peranDosen(d, kode)
+    const akses = aksesBeritaAcara(d, kode, new Set((isian.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as PeranPrasidang)), today)
+    const peran = peranPrasidang(d, kode)
     if (akses.kind === 'tidak-ada' || !peran) continue
-    rows.push({ id: d.id, href: penilaianPath(d.id), tanggal: d.tanggal, npm: d.npm, nama: d.nama_mahasiswa, judul: d.judul_skripsi, jenis: 'Prasidang', peran: PERAN_LABEL[peran], status: STATUS_PRASIDANG[akses.kind] })
+    rows.push({ id: `ba-${d.id}`, href: beritaAcaraPath(d.id), tanggal: d.tanggal, npm: d.npm, nama: d.nama_mahasiswa, judul: d.judul_skripsi, jenis: 'Berita Acara Prasidang', peran: PERAN_PRASIDANG_LABEL[peran], status: STATUS_PRASIDANG[akses.kind] })
   }
   for (const d of sidang.values()) {
     const submitted = new Set((ns.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as PeranSidang))
@@ -93,7 +95,7 @@ export default async function PenilaianSayaPage() {
         <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.02em]">Penilaian Saya</h1>
         <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">
           {dosen
-            ? 'Prasidang S1 tempat Anda menjadi Dosen Pembimbing dan Sidang S1 tempat Anda menjadi penguji. Penilaian dibuka sejak tanggal pelaksanaan.'
+            ? 'Berita acara prasidang S1 tempat Anda menjadi Pembimbing Pendamping atau Pembahas, dan Sidang S1 tempat Anda menjadi penguji. Pengisian dibuka sejak tanggal pelaksanaan.'
             : `Sidang S1 yang Anda uji pada ${tanggalPanjang(akunTanggal ?? '', false)}.`}
         </p>
 

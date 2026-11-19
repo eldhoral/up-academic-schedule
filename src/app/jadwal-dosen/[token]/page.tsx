@@ -94,6 +94,7 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
                 detail={`${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${PRODI_CONFIG[s.prodi].short}${s.tempat ? ` · ${s.tempat}` : ''}`}
                 link={s.link || undefined}
                 nilaiHref={linkNilai(s) ?? undefined}
+                nilaiLabel={s.jenis === 'prasidang' ? 'Isi Berita Acara' : 'Beri Nilai'}
               />
             ))}
           </ul>
@@ -112,7 +113,7 @@ function Section({ title, empty, children }: { title: string; empty: string | nu
   )
 }
 
-function Row({ when, what, detail, past = false, link, nilaiHref }: { when: string; what: string; detail: string; past?: boolean; link?: string; nilaiHref?: string }) {
+function Row({ when, what, detail, past = false, link, nilaiHref, nilaiLabel = 'Beri Nilai' }: { when: string; what: string; detail: string; past?: boolean; link?: string; nilaiHref?: string; nilaiLabel?: string }) {
   return (
     <li className={`py-[0.6rem] ${past ? 'opacity-50' : ''}`}>
       <p className="m-0 text-[0.8rem] text-[var(--tinta-3)] mono">{when}</p>
@@ -139,7 +140,7 @@ function Row({ when, what, detail, past = false, link, nilaiHref }: { when: stri
               rel="noopener noreferrer"
               className="inline-block px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.8rem] font-medium no-underline cursor-pointer hover:bg-[var(--cekung)] active:scale-[0.97] transition-colors"
             >
-              Beri Nilai <span aria-hidden="true">↗</span>
+              {nilaiLabel} <span aria-hidden="true">↗</span>
             </a>
           )}
         </p>

@@ -33,6 +33,7 @@ export const lolosGerbang = (s: StatusPrasidang): boolean => s === 'layak' || s 
 
 export type Jawaban = { teks: string; ya: boolean; catatan: string }
 
+export const SUDAH_DIKIRIM_BA = 'Berita acara sudah dikirim.'
 export const PERTANYAAN_BERUBAH = 'Daftar pertanyaan berubah. Muat ulang halaman lalu isi kembali.'
 const CATATAN_MAKS = 1000
 

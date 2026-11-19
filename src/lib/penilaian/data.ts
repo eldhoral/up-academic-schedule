@@ -4,6 +4,8 @@ import { isPenguji, type Role } from '@/lib/role-types'
 import { bisaDinilai, bisaDinilaiSidang, type DefenseRef, type Peran, type PeranSidang, type SidangRef } from './akses'
 import { loadAturan, parseAturanBeku, type Aturan, type AturanBeku } from './aturan'
 import { ipkSebelum, type Revisi, type SkorAspek } from './nilai'
+import { isPrasidangS1 } from './akses'
+import type { Hasil, Jawaban, PeranPrasidang, StatusPrasidang } from './prasidang'
 
 export type NilaiRow = {
   id: string
@@ -158,4 +160,70 @@ export async function identitasPenguji(user: { id: string; role: Role; kodeDosen
   const { data, error } = await createAdminClient().from('akun_eksternal').select('tanggal').eq('user_id', user.id).maybeSingle()
   if (error) throw new Error(`Gagal memuat akun penguji: ${error.message}`)
   return data ? { kode: user.kodeDosen, akunTanggal: data.tanggal as string } : null
+}
+
+// ---- Berita Acara Prasidang (S1)
+
+export type BeritaAcaraRow = {
+  id: string
+  peran: PeranPrasidang
+  kode_dosen: string
+  jawaban: Jawaban[]
+  hasil: Hasil
+  submitted_at: string
+}
+
+export type BeritaAcara = {
+  defense: DefensePenilaian
+  isian: Partial<Record<PeranPrasidang, BeritaAcaraRow>>
+  dosen: Record<PeranPrasidang, string>
+  status: StatusPrasidang
+  keputusan: { hasil: Hasil; alasan: string } | null
+  aturan: Aturan
+}
+
+/**
+ * One S1 prasidang with both berita acara, the student's gate status and the override that applies.
+ * Admin client, as loadPenilaian: callers authorize first and check the record (aksesBeritaAcara)
+ * before showing or writing, and show a dosen only its own berita acara. Null = no such S1 prasidang.
+ */
+export async function loadBeritaAcara(defenseId: string): Promise<BeritaAcara | null> {
+  if (!UUID.test(defenseId)) return null
+  const db = createAdminClient()
+  const { data: d, error } = await db
+    .from('defenses')
+    .select('id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode')
+    .eq('id', defenseId)
+    .maybeSingle()
+  if (error) throw new Error(`Gagal memuat prasidang: ${error.message}`)
+  if (!d || !isPrasidangS1(d)) return null
+  const defense = d as DefensePenilaian
+
+  const kode = [defense.pembimbing_kode, defense.penguji_kode].filter((k): k is string => !!k)
+  const [rows, dosen, status, keputusan, aturan] = await Promise.all([
+    db.from('berita_acara_prasidang').select('id, peran, kode_dosen, jawaban, hasil, submitted_at').eq('defense_id', defense.id),
+    db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang').in('kode_dosen', kode),
+    db.rpc('status_prasidang', { p_npm: defense.npm }),
+    db.from('keputusan_prasidang').select('prasidang_id, hasil, alasan').eq('npm', defense.npm).maybeSingle(),
+    loadAturan(db, 's1'),
+  ])
+  const err = rows.error ?? dosen.error ?? status.error ?? keputusan.error
+  if (err) throw new Error(`Gagal memuat berita acara: ${err.message}`)
+
+  const isian: Partial<Record<PeranPrasidang, BeritaAcaraRow>> = {}
+  for (const r of rows.data ?? []) isian[r.peran as PeranPrasidang] = r as BeritaAcaraRow
+  const nama = (k: string | null) => {
+    const l = (dosen.data ?? []).find((x) => x.kode_dosen === k)
+    return l ? lecturerDisplayName(l) : (k ?? '—')
+  }
+  // The override shown is the one that applies to this prasidang (same rule as status_prasidang).
+  const k = keputusan.data
+  return {
+    defense,
+    isian,
+    dosen: { pendamping: nama(defense.pembimbing_kode), pembahas: nama(defense.penguji_kode) },
+    status: status.data as StatusPrasidang,
+    keputusan: k && k.prasidang_id === defense.id ? { hasil: k.hasil as Hasil, alasan: k.alasan } : null,
+    aturan,
+  }
 }

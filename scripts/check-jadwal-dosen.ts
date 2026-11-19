@@ -105,13 +105,13 @@ assert.equal(
 assert.equal(buildEvents(base({ sidang: [sd({ link: 'https://drive.google.com/file/9' })] }))[0].description, 'https://drive.google.com/file/9', 'the material link rides in the description')
 assert.equal(buildEvents(base({ sidang: [sd({ link: ' ' })] }))[0].description, undefined, 'a blank link is no description')
 
-// --- penilaian link: only an S1 prasidang as Pembimbing Pendamping / Pembahas, and only with an origin ---
+// --- berita acara link: only an S1 prasidang as Pembimbing Pendamping / Pembahas, and only with an origin ---
 const O = 'https://x.test'
 const pr = (o: Partial<SidangItem> = {}) => sd({ jenis: 'prasidang', peran: 'pembimbing', ...o })
 const desc = (s: SidangItem, origin?: string) => buildEvents(base({ sidang: [s] }), origin)[0].description
-assert.equal(desc(pr(), O), `Penilaian: ${O}/nilai-bimbingan/d1`, 'pembimbing on S1 prasidang: link')
-assert.equal(desc(pr({ peran: 'penguji' }), O), `Penilaian: ${O}/nilai-bimbingan/d1`, 'penguji (Pembahas) on S1 prasidang: link')
-assert.equal(desc(pr({ link: 'https://drive.google.com/file/9' }), O), `https://drive.google.com/file/9\nPenilaian: ${O}/nilai-bimbingan/d1`, 'materi first, then Penilaian')
+assert.equal(desc(pr(), O), `Berita acara: ${O}/berita-acara-prasidang/d1`, 'pembimbing on S1 prasidang: link')
+assert.equal(desc(pr({ peran: 'penguji' }), O), `Berita acara: ${O}/berita-acara-prasidang/d1`, 'penguji (Pembahas) on S1 prasidang: link')
+assert.equal(desc(pr({ link: 'https://drive.google.com/file/9' }), O), `https://drive.google.com/file/9\nBerita acara: ${O}/berita-acara-prasidang/d1`, 'materi first, then Berita acara')
 assert.equal(desc(pr()), undefined, 'no origin: no penilaian line')
 assert.equal(desc(pr({ prodi: 's2' }), O), undefined, 'S2 prasidang (seminar proposal) is not graded online')
 assert.equal(desc(pr({ peran: 'eksternal' }), O), undefined, 'eksternal on prasidang is not a grader')
@@ -123,7 +123,7 @@ for (const peran of ['penguji', 'eksternal', 'pembimbing'] as const) {
 assert.equal(desc(sd({ prodi: 's1', peran: 'eksternal' })), undefined, 'sidang, no origin: no penilaian line')
 assert.equal(desc(sd({ prodi: 's1', peran: 'eksternal', link: 'https://x/y' }), O), `https://x/y\nPenilaian: ${O}/nilai-sidang/d1`, 'sidang: materi first, then Penilaian')
 assert.equal(linkNilai(sd({ prodi: 's1', peran: 'penguji' })), '/nilai-sidang/d1', 'page path for sidang')
-assert.equal(linkNilai(pr()), '/nilai-bimbingan/d1', 'page path for prasidang')
+assert.equal(linkNilai(pr()), '/berita-acara-prasidang/d1', 'page path for prasidang')
 assert.equal(linkNilai(sd({ prodi: 's2', peran: 'penguji' })), null, 'page path: S2 sidang none')
 
 // --- prasidang tempat: the Zoom id and passcode ride along when settings declare them -----------

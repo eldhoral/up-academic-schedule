@@ -5,11 +5,13 @@ import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { managerOnly } from '@/lib/prodi-server'
 import {
-  validateAspek, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
+  validateAspek, validateBatasHari, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
   type Aspek, type BarisNilai, type BarisPredikat, type Yudisium,
 } from '@/lib/penilaian/aturan'
 
-export type Kunci = 'aspek_bimbingan' | 'aspek_sidang' | 'pilihan_yudisium' | 'tabel_nilai' | 'predikat' | 'sks_skripsi' | 'tanggal_mulai_penilaian'
+export type Kunci =
+  | 'aspek_bimbingan' | 'aspek_sidang' | 'pilihan_yudisium' | 'tabel_nilai' | 'predikat' | 'sks_skripsi' | 'tanggal_mulai_penilaian'
+  | 'pertanyaan_prasidang' | 'batas_hari_bimbingan'
 export type Hasil = { error: string } | { ok: true }
 
 const BENTUK = 'Data tidak berbentuk benar. Muat ulang halaman lalu coba lagi.'
@@ -46,6 +48,15 @@ function periksa(kunci: Kunci, value: unknown): { error: string } | { nilai: unk
     }))
     return validatePredikat(p) ? { error: validatePredikat(p)! } : { nilai: p }
   }
+  if (kunci === 'pertanyaan_prasidang') {
+    if (!Array.isArray(value) || !value.every(isStr)) return { error: BENTUK }
+    const q = value.map((t) => t.trim())
+    return validatePertanyaan(q) ? { error: validatePertanyaan(q)! } : { nilai: q }
+  }
+  if (kunci === 'batas_hari_bimbingan') {
+    if (!isNum(value)) return { error: BENTUK }
+    return validateBatasHari(value) ? { error: validateBatasHari(value)! } : { nilai: value }
+  }
   if (kunci === 'sks_skripsi') {
     if (!isNum(value)) return { error: BENTUK }
     return validateSks(value) ? { error: validateSks(value)! } : { nilai: value }
@@ -54,7 +65,10 @@ function periksa(kunci: Kunci, value: unknown): { error: string } | { nilai: unk
   return validateTanggal(value) ? { error: validateTanggal(value)! } : { nilai: value }
 }
 
-const KUNCI: readonly string[] = ['aspek_bimbingan', 'aspek_sidang', 'pilihan_yudisium', 'tabel_nilai', 'predikat', 'sks_skripsi', 'tanggal_mulai_penilaian']
+const KUNCI: readonly string[] = [
+  'aspek_bimbingan', 'aspek_sidang', 'pilihan_yudisium', 'tabel_nilai', 'predikat', 'sks_skripsi', 'tanggal_mulai_penilaian',
+  'pertanyaan_prasidang', 'batas_hari_bimbingan',
+]
 
 /** Super Admin, S1 only. Writes on the session client so the audit log names the real actor. */
 export async function saveAturanAction(kunci: Kunci, value: unknown): Promise<Hasil> {

@@ -1,6 +1,7 @@
 import { hariFromTanggal } from '@/lib/hari'
 import type { IcsEvent } from '@/lib/ics'
-import { bisaDinilai, bisaDinilaiSidang, penilaianPath, penilaianSidangPath } from '@/lib/penilaian/akses'
+import { bisaDinilaiSidang, isPrasidangS1, penilaianSidangPath } from '@/lib/penilaian/akses'
+import { beritaAcaraPath } from '@/lib/penilaian/prasidang'
 import { PRODI_CONFIG, type JenisKelas, type Prodi } from '@/lib/prodi'
 import { addDays, mondayOf } from '@/lib/week'
 
@@ -64,12 +65,15 @@ export function publicOrigin(h: Headers): string {
 }
 
 /**
- * Where this lecturer grades the item online, or null. One source for the page and the calendar.
- * S1 prasidang: Pembimbing Pendamping (pembimbing) and Pembahas (penguji); eksternal does not.
- * S1 sidang: all three examiners (Ketua, Anggota I = eksternal, Anggota II = pembimbing).
+ * Where this lecturer fills the item online, or null. One source for the page and the calendar.
+ * S1 prasidang: the berita acara, for Pembimbing Pendamping (pembimbing) and Pembahas (penguji); eksternal does not.
+ * S1 sidang: grading, for all three examiners (Ketua, Anggota I = eksternal, Anggota II = pembimbing).
  */
 export const linkNilai = (s: Pick<SidangItem, 'id' | 'prodi' | 'jenis' | 'peran'>): string | null =>
-  bisaDinilaiSidang(s) ? penilaianSidangPath(s.id) : bisaDinilai(s) && s.peran !== 'eksternal' ? penilaianPath(s.id) : null
+  bisaDinilaiSidang(s) ? penilaianSidangPath(s.id) : isPrasidangS1(s) && s.peran !== 'eksternal' ? beritaAcaraPath(s.id) : null
+
+/** The calendar line label for linkNilai. */
+const labelLink = (s: Pick<SidangItem, 'jenis'>): string => (s.jenis === 'prasidang' ? 'Berita acara' : 'Penilaian')
 
 /** origin (e.g. https://host) makes the grading link absolute for the calendar; the page passes none. */
 export function buildEvents(j: JadwalDosen, origin?: string): IcsEvent[] {
@@ -118,7 +122,7 @@ export function buildEvents(j: JadwalDosen, origin?: string): IcsEvent[] {
       summary: `${sidangJudul(s)} · ${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${s.nama_mahasiswa} · ${short(s.prodi)}`,
       location: s.tempat || undefined,
       // The material and grading links ride in the description, so the subscribed calendar offers them too.
-      description: [s.link.trim(), origin && linkNilai(s) ? `Penilaian: ${origin}${linkNilai(s)}` : ''].filter(Boolean).join('\n') || undefined,
+      description: [s.link.trim(), origin && linkNilai(s) ? `${labelLink(s)}: ${origin}${linkNilai(s)}` : ''].filter(Boolean).join('\n') || undefined,
       date: s.tanggal,
       start: s.jam_mulai,
       end: s.jam_selesai,

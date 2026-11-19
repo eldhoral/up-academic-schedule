@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useTransition, type ReactNode } from 'react'
 import {
-  DEFAULT_ATURAN, validateAspek, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
-  type Aturan,
+  DEFAULT_ATURAN, validateAspek, validateBatasHari, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks,
+  validateTabelNilai, validateTanggal, type Aturan,
 } from '@/lib/penilaian/aturan'
 import { todayJakarta } from '@/lib/penilaian/akses'
 import { parseAngka, round2 } from '@/lib/penilaian/nilai'
@@ -123,7 +123,7 @@ export function PenilaianClient({ aturan }: { aturan: Aturan }) {
       <AspekKartu
         awal={aturan.aspekBimbingan}
         judul="Aspek bimbingan"
-        bantuan="Aspek prasidang yang dinilai dosen pembimbing. Total bobot harus 100. Sub-aspek, satu per baris, tampil sebagai panduan di form."
+        bantuan="Aspek yang dinilai Dosen Pembimbing I dan II setelah sidang dikunci. Total bobot harus 100. Sub-aspek, satu per baris, tampil sebagai panduan di form."
         kunci="aspek_bimbingan"
         bawaan={DEFAULT_ATURAN.aspekBimbingan}
       />
@@ -138,6 +138,8 @@ export function PenilaianClient({ aturan }: { aturan: Aturan }) {
       <TabelKartu awal={aturan.tabelNilai} />
       <PredikatKartu awal={aturan.predikat} />
       <SksKartu awal={aturan.sksSkripsi} />
+      <BatasHariKartu awal={aturan.batasHariBimbingan} />
+      <PertanyaanKartu awal={aturan.pertanyaanPrasidang} />
       <TanggalKartu awal={aturan.tanggalMulai} />
     </div>
   )
@@ -326,7 +328,7 @@ function TanggalKartu({ awal }: { awal: string }) {
   return (
     <Kartu
       judul="Tanggal mulai penilaian"
-      bantuan="Prasidang dan sidang sebelum tanggal ini dianggap lama: dosen tidak menilai online, hanya Super Admin yang dapat mengisi nilainya."
+      bantuan="Sidang sebelum tanggal ini dianggap lama: jika Super Admin mengunci atas nama Ketua, email revisi tidak dikirim."
       kunci="tanggal_mulai_penilaian"
       error={error}
       nilai={v}
@@ -335,6 +337,54 @@ function TanggalKartu({ awal }: { awal: string }) {
       <div className="max-w-[12rem]">
         <input type="date" className={`${INPUT} mono`} value={v} onChange={(e) => setV(e.target.value)} aria-label="Tanggal mulai penilaian" />
       </div>
+    </Kartu>
+  )
+}
+
+function BatasHariKartu({ awal }: { awal: number }) {
+  const [v, setV] = useState(String(awal))
+  const p = angka(v, 1, 60, 'Batas hari')
+  const error = 'error' in p ? p.error : validateBatasHari(p.value)
+
+  return (
+    <Kartu
+      judul="Batas pengisian nilai bimbingan"
+      bantuan="Jumlah hari setelah Ketua mengunci sidang (hari penguncian = hari ke-0) Dosen Pembimbing I dan II masih dapat mengisi nilai bimbingan. Super Admin dapat mengisi kapan saja."
+      kunci="batas_hari_bimbingan"
+      error={error}
+      nilai={'value' in p ? p.value : null}
+      onDefault={() => setV(String(DEFAULT_ATURAN.batasHariBimbingan))}
+    >
+      <div className="max-w-[8rem]">
+        <input className={`${INPUT} mono`} inputMode="numeric" value={v} onChange={(e) => setV(e.target.value)} aria-label="Batas hari" />
+      </div>
+    </Kartu>
+  )
+}
+
+function PertanyaanKartu({ awal }: { awal: string[] }) {
+  const { list, setList, set, add, remove, move } = useList(awal.map((teks) => ({ teks })))
+  const nilai = list.map((r) => r.teks.trim())
+  const error = validatePertanyaan(nilai)
+
+  return (
+    <Kartu
+      judul="Pertanyaan berita acara prasidang"
+      bantuan="Pertanyaan Ya/Tidak yang dijawab Pembimbing Pendamping dan Pembahas, masing-masing dengan catatan. Mengubah daftar tidak mengubah berita acara yang sudah dikirim."
+      kunci="pertanyaan_prasidang"
+      error={error}
+      nilai={nilai}
+      onDefault={() => setList(DEFAULT_ATURAN.pertanyaanPrasidang.map((teks) => ({ teks })))}
+    >
+      <ol className="m-0 p-0 list-none space-y-[0.5rem]">
+        {list.map((r, i) => (
+          <li key={i} className="flex gap-[0.5rem] items-start">
+            <input className={INPUT} value={r.teks} onChange={(e) => set(i, { teks: e.target.value })} aria-label={`Pertanyaan ${i + 1}`} />
+            <BarisAksi i={i} n={list.length} move={move} remove={remove} />
+          </li>
+        ))}
+      </ol>
+      <button type="button" className={`${BTN} mt-[0.6rem]`} onClick={() => add({ teks: '' })}>+ Tambah pertanyaan</button>
     </Kartu>
   )
 }
