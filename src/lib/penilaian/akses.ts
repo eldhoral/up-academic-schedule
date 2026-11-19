@@ -140,6 +140,21 @@ export const penilaianSidangPath = (id: string): string => `/nilai-sidang/${id}`
 
 export const PERAN_SIDANG: PeranSidang[] = ['ketua', 'anggota_1', 'anggota_2']
 
+/**
+ * What Super Admin may add to a sidang, at any date: a missing anggota grade (its dosen chosen), and,
+ * once both anggota are in, the Ketua's grade with the lock. After the lock it only edits.
+ */
+export function adminSidang(
+  d: Pick<SidangRef, 'penguji_kode' | 'penguji_eksternal_kode' | 'pembimbing_kode'>,
+  ada: Set<PeranSidang>,
+  locked: boolean,
+): { isi: ('anggota_1' | 'anggota_2')[]; kunciKetua: boolean } {
+  if (locked) return { isi: [], kunciKetua: false }
+  const kode = { anggota_1: d.penguji_eksternal_kode, anggota_2: d.pembimbing_kode }
+  const isi = (['anggota_1', 'anggota_2'] as const).filter((p) => !ada.has(p) && !!kode[p])
+  return { isi, kunciKetua: ada.has('anggota_1') && ada.has('anggota_2') && !ada.has('ketua') && !!d.penguji_kode }
+}
+
 /** Labels from SIDANG_PERAN_LABEL (jadwal-dosen/events.ts). */
 export const PERAN_SIDANG_LABEL: Record<PeranSidang, string> = {
   ketua: 'Ketua Sidang',

@@ -319,7 +319,7 @@ cekEnsure().catch((e) => { console.error(e); process.exit(1) })
 
 // ---- formulir penguji: revisi, Penilaian Saya status, old sidang
 import { cekRevisi } from '../src/lib/penilaian/nilai'
-import { STATUS_SIDANG } from '../src/lib/penilaian/akses'
+import { adminSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
 {
   // No revisi: client rows are dropped, never stored.
   assert.deepEqual(cekRevisi(false, [{ halaman: '1', catatan: 'x' }]), { adaRevisi: false, revisi: [] })
@@ -349,6 +349,17 @@ import { STATUS_SIDANG } from '../src/lib/penilaian/akses'
   assert.equal(STATUS_SIDANG['menunggu-anggota'], 'Menunggu anggota')
   assert.equal(STATUS_SIDANG.terkirim, 'Terkirim')
   assert.equal(STATUS_SIDANG.terkunci, 'Terkunci')
+
+  // Super Admin, any date: enters a missing anggota grade; locks for the Ketua once both anggota are in.
+  const ref = { penguji_kode: 'KT', penguji_eksternal_kode: 'EX', pembimbing_kode: 'PB' }
+  const ada = (...p: PeranSidang[]) => new Set<PeranSidang>(p)
+  assert.deepEqual(adminSidang(ref, ada(), false), { isi: ['anggota_1', 'anggota_2'], kunciKetua: false })
+  assert.deepEqual(adminSidang(ref, ada('anggota_1'), false), { isi: ['anggota_2'], kunciKetua: false })
+  assert.deepEqual(adminSidang(ref, ada('anggota_1', 'anggota_2'), false), { isi: [], kunciKetua: true })
+  assert.deepEqual(adminSidang(ref, ada('anggota_1', 'anggota_2', 'ketua'), false), { isi: [], kunciKetua: false }) // the Ketua's own lock is pending
+  assert.deepEqual(adminSidang(ref, ada(), true), { isi: [], kunciKetua: false }) // locked: edit only
+  assert.deepEqual(adminSidang({ ...ref, penguji_eksternal_kode: null }, ada(), false), { isi: ['anggota_2'], kunciKetua: false }) // legacy Anggota I
+  assert.deepEqual(adminSidang({ ...ref, penguji_kode: null }, ada('anggota_1', 'anggota_2'), false), { isi: [], kunciKetua: false }) // no Ketua chosen
 
   console.log('nilai-sidang formulir: all checks passed')
 }

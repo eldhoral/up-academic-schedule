@@ -5,7 +5,7 @@ import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { canAccessProdi } from '@/lib/prodi'
 import { tanggalPanjang } from '@/lib/hari'
 import {
-  ANGGOTA_I_LEGACY, aksesSidang, bolehInputLamaSidang, PERAN_SIDANG, PERAN_SIDANG_LABEL, penilaianSidangPath, peranPenguji,
+  adminSidang, ANGGOTA_I_LEGACY, aksesSidang, PERAN_SIDANG, PERAN_SIDANG_LABEL, penilaianSidangPath, peranPenguji,
   todayJakarta, type PeranSidang,
 } from '@/lib/penilaian/akses'
 import type { BarisNilai } from '@/lib/penilaian/aturan'
@@ -13,7 +13,7 @@ import { identitasPenguji, loadSidang, type HasilRow, type NilaiSidangRow } from
 import { baris, formatNilai, nilaiSidang } from '@/lib/penilaian/nilai'
 import { ALASAN_ATURAN_RUSAK } from '@/lib/penilaian/rekap'
 import {
-  editNilaiSidangAction, editYudisiumAction, inputNilaiSidangLamaAction, kunciSidangAction, kunciSidangLamaAction,
+  editNilaiSidangAction, editYudisiumAction, inputNilaiSidangAdminAction, kunciSidangAction, kunciSidangAdminAction,
   submitNilaiSidangAction,
 } from '../actions'
 import { PengujiForm } from './PengujiForm'
@@ -169,7 +169,8 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
           <>
             {PERAN_SIDANG.map((peran) => {
               const row = data.nilai[peran]
-              const kode = peran === 'ketua' ? defense.penguji_kode : peran === 'anggota_1' ? defense.penguji_eksternal_kode : defense.pembimbing_kode
+              // Super Admin, any date: a missing anggota grade; the Ketua's only together with the lock.
+              const bisa = canManage(user.role) ? adminSidang(defense, new Set(Object.keys(data.nilai) as PeranSidang[]), !!hasil) : null
               return (
                 <section key={peran} className="mb-[1.6rem]">
                   {judulPeran(peran)}
@@ -189,18 +190,31 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                     <Terkirim row={row} tabel={tabel} />
                   ) : peran === 'anggota_1' && legacy ? (
                     <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">{ANGGOTA_I_LEGACY}.</p>
-                  ) : canManage(user.role) && kode && !hasil && bolehInputLamaSidang(defense, aturan.tanggalMulai) ? (
+                  ) : peran !== 'ketua' && bisa?.isi.includes(peran) ? (
                     <>
-                      <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">
-                        Belum dinilai. Sidang ini sebelum tanggal mulai penilaian, jadi nilainya dapat disalin dari berkas lama.
-                      </p>
-                      <h3 className="m-0 mb-[0.6rem] text-[0.93rem] font-semibold">Masukkan nilai lama</h3>
+                      <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">Belum dinilai. Super Admin dapat memasukkan nilai kapan saja.</p>
+                      <h3 className="m-0 mb-[0.6rem] text-[0.93rem] font-semibold">Masukkan nilai</h3>
                       <PengujiForm
                         aspek={aturan.aspekSidang}
                         tabel={tabel}
-                        aksi={inputNilaiSidangLamaAction.bind(null, defense.id, peran, tampil)}
-                        tombol="Simpan nilai lama"
-                        konfirmasi={{ judul: 'Simpan nilai lama?', isi: `Nilai dicatat sebagai input manual untuk ${data.dosen[peran]}.`, tombol: 'Simpan' }}
+                        aksi={inputNilaiSidangAdminAction.bind(null, defense.id, peran, tampil)}
+                        tombol="Simpan nilai"
+                        konfirmasi={{ judul: 'Simpan nilai?', isi: `Nilai dicatat sebagai input admin untuk ${data.dosen[peran]}.`, tombol: 'Simpan' }}
+                      />
+                    </>
+                  ) : peran === 'ketua' && bisa?.kunciKetua ? (
+                    <>
+                      <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">
+                        Belum dinilai. Kedua anggota sudah menilai; Super Admin dapat mengisi nilai Ketua dan mengunci atas namanya.
+                      </p>
+                      <h3 className="m-0 mb-[0.6rem] text-[0.93rem] font-semibold">Kunci atas nama Ketua</h3>
+                      <PengujiForm
+                        aspek={aturan.aspekSidang}
+                        tabel={tabel}
+                        yudisium={aturan.pilihanYudisium}
+                        aksi={kunciSidangAdminAction.bind(null, defense.id, tampil)}
+                        tombol="Kunci atas nama Ketua"
+                        konfirmasi={{ judul: 'Kunci sidang atas nama Ketua?', isi: 'Nilai Ketua dicatat sebagai input admin dan sidang dikunci.', tombol: 'Kunci sidang' }}
                       />
                     </>
                   ) : (
@@ -225,13 +239,6 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                     />
                   )}
                 </>
-              ) : canManage(user.role) && bolehInputLamaSidang(defense, aturan.tanggalMulai) && PERAN_SIDANG.every((p) => data.nilai[p]) ? (
-                <YudisiumForm
-                  pilihan={aturan.pilihanYudisium}
-                  aksi={kunciSidangLamaAction.bind(null, defense.id)}
-                  tombol="Kunci sidang"
-                  konfirmasi={{ judul: 'Kunci sidang?', isi: 'Setelah dikunci, nilai sidang tidak bisa diubah. Email revisi tidak dikirim untuk sidang lama.', tombol: 'Kunci sidang' }}
-                />
               ) : (
                 <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">
                   {legacy ? `Belum dikunci. ${ANGGOTA_I_LEGACY}.` : 'Belum dikunci.'}
@@ -271,7 +278,7 @@ function Meta({ row }: { row: NilaiSidangRow }) {
   return (
     <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">
       Dikirim {waktu(row.submitted_at)}
-      {row.sumber === 'manual' && ' (input manual)'}
+      {row.sumber === 'manual' && ' (input admin)'}
     </p>
   )
 }

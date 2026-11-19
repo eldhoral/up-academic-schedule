@@ -7,7 +7,7 @@ import { humanDbError } from '@/lib/db-error'
 import { kirimRevisi } from '@/lib/mailer'
 import { tanggalPanjang } from '@/lib/hari'
 import {
-  ANGGOTA_I_LEGACY, aksesSidang, bolehInputLamaSidang, PERAN_SIDANG, PERAN_SIDANG_LABEL, penilaianSidangPath, todayJakarta, type PeranSidang,
+  adminSidang, ANGGOTA_I_LEGACY, aksesSidang, PERAN_SIDANG_LABEL, penilaianSidangPath, todayJakarta, type PeranSidang,
 } from '@/lib/penilaian/akses'
 import { identitasPenguji, loadSidang, type Sidang } from '@/lib/penilaian/data'
 import { bolehKirimUlang } from '@/lib/penilaian/rekap'
@@ -197,30 +197,28 @@ export async function editYudisiumAction(defenseId: string, yudisium: string): P
   return { ok: true }
 }
 
-/** Super Admin enters a missing grade from the old sheet, only on a sidang before tanggal mulai penilaian. */
-export async function inputNilaiSidangLamaAction(
+/** Super Admin enters a missing anggota grade at any time (the Ketua's comes with the lock, kunciSidangAdminAction). */
+export async function inputNilaiSidangAdminAction(
   defenseId: string, peran: PeranSidang, tampil: AspekTampil, skor: string[], adaRevisi: boolean, revisi: Revisi,
 ): Promise<Hasil> {
   const user = await getCurrentUser()
   if (!user || !canManage(user.role)) return { error: BUKAN_SUPERADMIN }
-  if (!PERAN_SIDANG.includes(peran)) return { error: TIDAK_ADA }
+  if (peran !== 'anggota_1' && peran !== 'anggota_2') return { error: TIDAK_ADA }
 
   const data = await loadSidang(defenseId)
   if (!data) return { error: TIDAK_ADA }
-  if (!bolehInputLamaSidang(data.defense, data.aturan.tanggalMulai)) {
-    return { error: 'Nilai lama hanya dapat dimasukkan untuk sidang sebelum tanggal mulai penilaian.' }
-  }
   if (data.hasil) return { error: TERKUNCI }
   if (data.nilai[peran]) return { error: SUDAH_DIKIRIM }
-  const kode = kodePeran(data.defense, peran)
-  if (!kode) return { error: peran === 'anggota_1' ? `${ANGGOTA_I_LEGACY}.` : 'Dosen untuk peran ini belum diisi di jadwal sidang.' }
+  if (!adminSidang(data.defense, new Set(Object.keys(data.nilai) as PeranSidang[]), false).isi.includes(peran)) {
+    return { error: peran === 'anggota_1' ? `${ANGGOTA_I_LEGACY}.` : 'Dosen untuk peran ini belum diisi di jadwal sidang.' }
+  }
 
   const n = nilaiForm(data.aturan.aspekSidang, tampil, skor, adaRevisi, revisi)
   if ('error' in n) return n
 
   const supabase = await createClient()
   const { error } = await supabase.from('nilai_sidang').insert({
-    defense_id: data.defense.id, kode_dosen: kode, peran, ...n, sumber: 'manual', submitted_by: user.id,
+    defense_id: data.defense.id, kode_dosen: kodePeran(data.defense, peran), peran, ...n, sumber: 'manual', submitted_by: user.id,
   })
   if (error) return { error: dbError(error) }
 
@@ -228,27 +226,39 @@ export async function inputNilaiSidangLamaAction(
   return { ok: true }
 }
 
-/** Super Admin locks an old sidang on the Ketua's behalf, once all three grades are in. The DB sets email_status 'tidak_perlu'. */
-export async function kunciSidangLamaAction(defenseId: string, yudisium: string): Promise<Hasil> {
+/**
+ * Super Admin enters the Ketua's grade and locks on the Ketua's behalf, at any time, once both anggota are in.
+ * One DB call (kunci_sidang_admin). The revisi email goes out as for the Ketua's lock (never for an old sidang: the DB decides).
+ */
+export async function kunciSidangAdminAction(
+  defenseId: string, tampil: AspekTampil, skor: string[], adaRevisi: boolean, revisi: Revisi, yudisium: string,
+): Promise<Hasil> {
   const user = await getCurrentUser()
   if (!user || !canManage(user.role)) return { error: BUKAN_SUPERADMIN }
   const data = await loadSidang(defenseId)
   if (!data) return { error: TIDAK_ADA }
-  if (!bolehInputLamaSidang(data.defense, data.aturan.tanggalMulai)) {
-    return { error: 'Hanya sidang sebelum tanggal mulai penilaian yang dapat dikunci oleh Super Admin.' }
-  }
   if (data.hasil) return { error: TERKUNCI }
-  if (PERAN_SIDANG.some((p) => !data.nilai[p])) return { error: 'Ketiga nilai penguji harus lengkap sebelum dikunci.' }
+  const ada = new Set(Object.keys(data.nilai) as PeranSidang[])
+  if (!adminSidang(data.defense, ada, false).kunciKetua) {
+    if (ada.has('ketua')) return { error: SUDAH_DIKIRIM }
+    if (!data.defense.penguji_kode) return { error: 'Ketua sidang belum diisi di jadwal sidang.' }
+    const kurang = (['anggota_1', 'anggota_2'] as const).filter((p) => !ada.has(p))
+    return { error: `Menunggu ${kurang.map((p) => PERAN_SIDANG_LABEL[p]).join(' dan ')}.` }
+  }
+
+  const n = nilaiForm(data.aturan.aspekSidang, tampil, skor, adaRevisi, revisi)
+  if ('error' in n) return n
   const y = pilihYudisium(data, yudisium)
   if (!y) return { error: 'Pilih yudisium.' }
 
   const supabase = await createClient()
-  // Only these four: the DB builds aturan and email_status itself.
-  const { error } = await supabase.from('hasil_sidang').insert({
-    defense_id: data.defense.id, yudisium_label: y.label, yudisium_lulus: y.lulus, locked_by: user.id,
+  const { data: email, error } = await supabase.rpc('kunci_sidang_admin', {
+    p_defense: data.defense.id, p_aspek: n.aspek, p_ada_revisi: n.ada_revisi, p_revisi: n.revisi,
+    p_yudisium_label: y.label, p_yudisium_lulus: y.lulus,
   })
-  if (error) return { error: error.code === '23505' ? TERKUNCI : humanDbError(error) }
+  if (error) return { error: dbError(error) }
 
+  const status = email === 'menunggu' ? await kirimAman(data.defense.id) : (email as string)
   revalidate(data.defense.id)
-  return { ok: true }
+  return { ok: true, email: status }
 }
