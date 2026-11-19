@@ -274,18 +274,19 @@ export async function deleteDefenseAction(prodi: Prodi, id: string): Promise<Def
 /** S1 sidang form: the student's gate status (status_prasidang) and Dosen Pembimbing I/II. Null when unknown. */
 export async function infoMahasiswaSidangAction(
   npm: string,
-): Promise<{ status: StatusPrasidang; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null } | null> {
+): Promise<{ status: StatusPrasidang; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null; tanpa_pembimbing_2: boolean } | null> {
   if (!/^\d+$/.test(npm.trim())) return null
   const supabase = await createClient()
   const [status, mhs] = await Promise.all([
     supabase.rpc('status_prasidang', { p_npm: npm.trim() }),
-    supabase.from('students').select('pembimbing_1_kode, pembimbing_2_kode').eq('prodi', 's1').eq('npm', npm.trim()).maybeSingle(),
+    supabase.from('students').select('pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', 's1').eq('npm', npm.trim()).maybeSingle(),
   ])
   if (status.error || mhs.error || !status.data) return null
   return {
     status: status.data as StatusPrasidang,
     pembimbing_1_kode: mhs.data?.pembimbing_1_kode ?? null,
     pembimbing_2_kode: mhs.data?.pembimbing_2_kode ?? null,
+    tanpa_pembimbing_2: !!mhs.data?.tanpa_pembimbing_2,
   }
 }
 

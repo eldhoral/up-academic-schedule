@@ -77,7 +77,7 @@ Sections 3–5 cover context, architecture and the data model (reference materia
 | **MKWU** | University-wide compulsory course taught with no assigned pengampu — a schedule row with zero `schedule_lecturers`. |
 | **Beban** | Teaching load: total SKS per dosen in a term, checked against `maks_sks_dosen`. |
 | **Hari Libur** | Faculty-wide holiday. Kuliah pauses on it; exams/defenses only get a warning. |
-| **Nilai Bimbingan** | S1 supervision grade: the average of the two dosen pembimbing's scores for one prasidang, converted to a letter. |
+| **Nilai Bimbingan** | S1 supervision grade: the average of the two dosen pembimbing's scores, converted to a letter. A student flagged `tanpa_pembimbing_2` has only Pembimbing I, whose score is the grade. |
 | **Dospem I / II** | Dosen Pembimbing I = Pembimbing Pendamping (`defenses.pembimbing_kode`, peran `pembimbing_1`); Dosen Pembimbing II = Dosen Pembahas (`defenses.penguji_kode`, peran `pembimbing_2`). |
 | **Aspek** | One graded criterion with a bobot (%) and guidance sub-points. The list is a rule, edited in Pengaturan Penilaian. |
 | **Tabel Nilai** | Score → letter → bobot mutu table (`A` ≥ 80 by default). A rule, edited in Pengaturan Penilaian. |
@@ -432,7 +432,7 @@ These SQL helper functions gate the policies, all `security definer` with a fixe
 - `is_eksternal_aktif()` — role `EKSTERNAL` and `(now() at time zone 'Asia/Jakarta')::date <= berlaku_sampai`.
 - `my_peran_sidang(defense)` — the caller's peran (`ketua` / `anggota_1` / `anggota_2`) on an S1 sidang, else null; an active EKSTERNAL holds it only when `akun_eksternal.tanggal` equals the sidang date.
 - `may_isi_berita_acara(defense, peran)` — the caller is the DOSEN holding that peran (pendamping / pembahas) on an S1 prasidang dated today (Asia/Jakarta) or earlier.
-- `status_prasidang(npm)` — the student's gate status (§6.13); `pembimbing_lengkap(npm)` — both Dosen Pembimbing set. Both security definer, executable by `authenticated`.
+- `status_prasidang(npm)` — the student's gate status (§6.13); `pembimbing_lengkap(npm)` — Pembimbing I set, and Pembimbing II set or `tanpa_pembimbing_2`. Both security definer, executable by `authenticated`.
 - `may_grade_bimbingan(defense, peran)` — the caller is the student's Dosen Pembimbing for that peran on an S1 sidang locked with a lulus yudisium, and today (Jakarta) is within lock date + `batas_hari_bimbingan`.
 - `may_grade_sidang(defense, peran)` — the caller holds that peran, the sidang date (Jakarta) has come, the sidang is not locked, and for the Ketua both anggota rows exist.
 - `may_lock_sidang(defense)` — all three `nilai_sidang` rows exist and the caller is the Ketua or Super Admin.
@@ -599,7 +599,7 @@ Pure logic in `src/lib/penilaian/` is covered by `check:berita-acara` and `check
 
 **Override (Super Admin only).** On Data Mahasiswa, "Ubah keputusan" sets `keputusan_prasidang (npm pk, prasidang_id, hasil in ('layak','layak_revisi'), alasan required, oleh, pada)`, tied to the student's latest prasidang at that moment; "Hapus keputusan" removes it. A newer prasidang therefore decides again from its own berita acara. Audited. Staff read it; DOSEN never do.
 
-**Dosen Pembimbing on the student.** `students.pembimbing_1_kode` / `pembimbing_2_kode` (FK to `lecturers`, distinct). Required in the S1 Mahasiswa form; optional columns `pembimbing_1_kode` / `pembimbing_2_kode` in the xlsx import/export (absent column = leave as is). Trigger `cek_pembimbing_mahasiswa`: a newly assigned dosen may not be `eksternal`, and a slot cannot change once that Pembimbing has a `nilai_bimbingan` on any of the student's sidang (a kode rename is not a change).
+**Dosen Pembimbing on the student.** `students.pembimbing_1_kode` / `pembimbing_2_kode` (FK to `lecturers`, distinct). Pembimbing I is required in the S1 Mahasiswa form; Pembimbing II is required unless the student is flagged `tanpa_pembimbing_2` (checkbox "Tanpa Dosen Pembimbing II"; check `chk_students_tanpa_pembimbing_2` forbids the flag beside a Pembimbing II, `20261119000004`). Flagged students' Nilai Bimbingan = Pembimbing I's grade; recaps and the berita acara show Pembimbing II as "Tidak ada". Optional columns `pembimbing_1_kode` / `pembimbing_2_kode` / `tanpa_pembimbing_2` (ya/tidak) in the xlsx import/export (absent column = leave as is; ya clears Pembimbing II, a Pembimbing II kode clears the flag, both at once is refused). Trigger `cek_pembimbing_mahasiswa`: a newly assigned dosen may not be `eksternal`, and a slot cannot change once that Pembimbing has a `nilai_bimbingan` on any of the student's sidang (a kode rename is not a change).
 
 **Who grades bimbingan, and when.** Nilai Bimbingan sits on the **S1 sidang** (`nilai_bimbingan.defense_id`, trigger `cek_nilai_bimbingan`), one grade per (sidang, peran): `pembimbing_1` by the student's Dosen Pembimbing I, `pembimbing_2` by Pembimbing II; `kode_dosen` must equal that slot's dosen. `aksesBimbingan()` (and `may_grade_bimbingan` in SQL), in order:
 1. Not an S1 sidang, or the caller is neither Pembimbing → 404.

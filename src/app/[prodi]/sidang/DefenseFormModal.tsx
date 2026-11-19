@@ -90,7 +90,9 @@ export function DefenseFormModal({
   const [link, setLink] = useState(row?.link ?? '')
   const [filledFrom, setFilledFrom] = useState<string | null>(null)
   // S1 sidang: the student's gate status and Dosen Pembimbing, fetched when a student is picked.
-  const [info, setInfo] = useState<{ npm: string; status: StatusPrasidang; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null } | null>(null)
+  const [info, setInfo] = useState<{
+    npm: string; status: StatusPrasidang; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null; tanpa_pembimbing_2: boolean
+  } | null>(null)
   const gerbangS1 = prodi === 's1' && sidang
 
   const [live, setLive] = useState<DefenseClashResult | null>(null)
@@ -165,7 +167,7 @@ export function DefenseFormModal({
     gerbangS1 && !kept && info && info.npm === npm
       ? !lolosGerbang(info.status)
         ? PESAN_GERBANG[info.status as Exclude<StatusPrasidang, 'layak' | 'layak_revisi'>]
-        : !info.pembimbing_1_kode || !info.pembimbing_2_kode
+        : !info.pembimbing_1_kode || (!info.pembimbing_2_kode && !info.tanpa_pembimbing_2)
           ? PESAN_GERBANG.pembimbing
           : null
       : null

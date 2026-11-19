@@ -19,7 +19,11 @@ export type NilaiRow = {
 export type DefensePenilaian = DefenseRef & { npm: string; nama_mahasiswa: string; judul_skripsi: string }
 
 /** The sidang a bimbingan grade sits on, with the student's Dosen Pembimbing (Data Mahasiswa). */
-export type SidangBimbingan = BimbinganRef & { tanggal: string; npm: string; nama_mahasiswa: string; judul_skripsi: string }
+export type SidangBimbingan = BimbinganRef & {
+  tanggal: string; npm: string; nama_mahasiswa: string; judul_skripsi: string
+  /** The student has no Dosen Pembimbing II: Nilai Bimbingan is Pembimbing I's grade. */
+  tanpa_pembimbing_2: boolean
+}
 
 export type Penilaian = {
   defense: SidangBimbingan
@@ -51,7 +55,7 @@ export async function loadPenilaian(defenseId: string): Promise<Penilaian | null
   if (!d || !bisaDinilaiSidang(d)) return null
 
   const [mhs, rows, hasil, aturan] = await Promise.all([
-    db.from('students').select('sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode').eq('prodi', 's1').eq('npm', d.npm).maybeSingle(),
+    db.from('students').select('sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', 's1').eq('npm', d.npm).maybeSingle(),
     db.from('nilai_bimbingan').select('id, peran, kode_dosen, aspek, nilai, sumber, submitted_at').eq('defense_id', d.id),
     db.from('hasil_sidang').select('locked_at, yudisium_lulus').eq('defense_id', d.id).maybeSingle(),
     loadAturan(db, 's1'),
@@ -59,9 +63,10 @@ export async function loadPenilaian(defenseId: string): Promise<Penilaian | null
   const err = mhs.error ?? rows.error ?? hasil.error
   if (err) throw new Error(`Gagal memuat penilaian: ${err.message}`)
   const defense: SidangBimbingan = {
-    ...(d as Omit<SidangBimbingan, 'pembimbing_1_kode' | 'pembimbing_2_kode'>),
+    ...(d as Omit<SidangBimbingan, 'pembimbing_1_kode' | 'pembimbing_2_kode' | 'tanpa_pembimbing_2'>),
     pembimbing_1_kode: mhs.data?.pembimbing_1_kode ?? null,
     pembimbing_2_kode: mhs.data?.pembimbing_2_kode ?? null,
+    tanpa_pembimbing_2: !!mhs.data?.tanpa_pembimbing_2,
   }
 
   const nilai: Partial<Record<Peran, NilaiRow>> = {}
@@ -146,7 +151,7 @@ export async function loadSidang(defenseId: string): Promise<Sidang | null> {
 
   // ponytail: the whole lecturer list (a few dozen rows) also names the student's Pembimbing in one round trip.
   const [mhs, rows, hasil, dosen, aturan, room] = await Promise.all([
-    db.from('students').select('sks_sebelum, bobot_sebelum, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode').eq('prodi', 's1').eq('npm', defense.npm).maybeSingle(),
+    db.from('students').select('sks_sebelum, bobot_sebelum, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', 's1').eq('npm', defense.npm).maybeSingle(),
     db.from('nilai_sidang').select('id, peran, kode_dosen, aspek, nilai, ada_revisi, revisi, sumber, submitted_at').eq('defense_id', defense.id),
     db.from('hasil_sidang').select('yudisium_label, yudisium_lulus, aturan, locked_at, email_status').eq('defense_id', defense.id).maybeSingle(),
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
@@ -171,7 +176,8 @@ export async function loadSidang(defenseId: string): Promise<Sidang | null> {
       bobot: num(mhs.data?.bobot_sebelum),
       tepatWaktu: !!mhs.data?.tepat_waktu,
       pembimbing1: mhs.data?.pembimbing_1_kode ? nama(mhs.data.pembimbing_1_kode) : null,
-      pembimbing2: mhs.data?.pembimbing_2_kode ? nama(mhs.data.pembimbing_2_kode) : null,
+      // Shown as is by the grading page and the berita acara.
+      pembimbing2: mhs.data?.pembimbing_2_kode ? nama(mhs.data.pembimbing_2_kode) : mhs.data?.tanpa_pembimbing_2 ? 'Tidak ada' : null,
     },
     ruang: (() => {
       const r = room.data?.rooms as { nama: string } | { nama: string }[] | null | undefined

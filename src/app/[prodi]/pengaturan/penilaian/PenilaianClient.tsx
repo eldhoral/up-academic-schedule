@@ -123,7 +123,7 @@ export function PenilaianClient({ aturan }: { aturan: Aturan }) {
       <AspekKartu
         awal={aturan.aspekBimbingan}
         judul="Aspek bimbingan"
-        bantuan="Aspek yang dinilai Dosen Pembimbing I dan II setelah sidang dikunci. Total bobot harus 100. Sub-aspek, satu per baris, tampil sebagai panduan di form."
+        bantuan="Aspek yang dinilai Dosen Pembimbing setelah sidang dikunci. Total bobot harus 100. Sub-aspek, satu per baris, tampil sebagai panduan di form."
         kunci="aspek_bimbingan"
         bawaan={DEFAULT_ATURAN.aspekBimbingan}
       />
@@ -350,7 +350,7 @@ function BatasHariKartu({ awal }: { awal: number }) {
   return (
     <Kartu
       judul="Batas pengisian nilai bimbingan"
-      bantuan="Jumlah hari setelah Ketua mengunci sidang (hari penguncian = hari ke-0) Dosen Pembimbing I dan II masih dapat mengisi nilai bimbingan. Super Admin dapat mengisi kapan saja."
+      bantuan="Jumlah hari setelah Ketua mengunci sidang (hari penguncian = hari ke-0) Dosen Pembimbing masih dapat mengisi nilai bimbingan. Super Admin dapat mengisi kapan saja."
       kunci="batas_hari_bimbingan"
       error={error}
       nilai={'value' in p ? p.value : null}
