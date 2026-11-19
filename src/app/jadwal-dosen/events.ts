@@ -72,6 +72,15 @@ export function publicOrigin(h: Headers): string {
 export const linkNilai = (s: Pick<SidangItem, 'id' | 'prodi' | 'jenis' | 'peran'>): string | null =>
   bisaDinilaiSidang(s) ? penilaianSidangPath(s.id) : isPrasidangS1(s) && s.peran !== 'eksternal' ? beritaAcaraPath(s.id) : null
 
+/**
+ * The public page lists only today's prasidang and sidang (the calendar feed keeps every date), in two lists by jam.
+ * Prasidang holds S2's seminar proposal too; sidang holds sidang tesis.
+ */
+export function sidangHariIni(items: SidangItem[], today: string): { prasidang: SidangItem[]; sidang: SidangItem[] } {
+  const hariIni = items.filter((s) => s.tanggal === today).sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai))
+  return { prasidang: hariIni.filter((s) => s.jenis === 'prasidang'), sidang: hariIni.filter((s) => s.jenis === 'sidang') }
+}
+
 /** The calendar line label for linkNilai. */
 const labelLink = (s: Pick<SidangItem, 'jenis'>): string => (s.jenis === 'prasidang' ? 'Berita acara' : 'Penilaian')
 

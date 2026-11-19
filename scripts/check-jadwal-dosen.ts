@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildEvents, kuliahDates, linkNilai, publicOrigin, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
+import { buildEvents, kuliahDates, linkNilai, publicOrigin, sidangHariIni, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
 import { prasidangTempat, toJadwal, type RawExam } from '../src/app/jadwal-dosen/jadwal-data'
 import { isJadwalToken, newJadwalToken } from '../src/app/jadwal-dosen/token'
 
@@ -205,5 +205,22 @@ assert.equal(publicOrigin(new Headers({ host: 'internal:3000', 'x-forwarded-host
 assert.equal(publicOrigin(new Headers({ 'x-forwarded-host': 'a.id, b.id', 'x-forwarded-proto': 'https, http' })), 'https://a.id')
 assert.equal(publicOrigin(new Headers({ host: 'localhost:3000', 'x-forwarded-proto': 'http' })), 'http://localhost:3000')
 assert.equal(publicOrigin(new Headers({ host: 'krs.up.ac.id' })), 'https://krs.up.ac.id', 'no proto header: https')
+
+// --- public page: only today's prasidang and sidang, in two lists, by jam --------------------------
+{
+  const T = '2026-11-20'
+  const items = [
+    sd({ id: 's-kemarin', jenis: 'sidang', tanggal: '2026-11-19' }),
+    sd({ id: 's-siang', jenis: 'sidang', tanggal: T, jam_mulai: '13:00' }),
+    sd({ id: 's-pagi', jenis: 'sidang', tanggal: T, jam_mulai: '08:00' }),
+    sd({ id: 'p-hari-ini', jenis: 'prasidang', tanggal: T, jam_mulai: '09:00' }),
+    sd({ id: 'p-besok', jenis: 'prasidang', tanggal: '2026-11-21' }),
+    sd({ id: 'sempro-s2', jenis: 'prasidang', prodi: 's2', tanggal: T, jam_mulai: '10:00' }),
+  ]
+  const h = sidangHariIni(items, T)
+  assert.deepEqual(h.prasidang.map((x) => x.id), ['p-hari-ini', 'sempro-s2'], 'today only; S2 seminar proposal with prasidang')
+  assert.deepEqual(h.sidang.map((x) => x.id), ['s-pagi', 's-siang'], 'today only, by jam')
+  assert.deepEqual(sidangHariIni(items, '2026-11-22'), { prasidang: [], sidang: [] })
+}
 
 console.log('jadwal dosen: all checks passed')

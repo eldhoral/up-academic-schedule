@@ -6,7 +6,7 @@ import { hariLabel, tanggalPanjang } from '@/lib/hari'
 import { todayJakarta } from '@/lib/penilaian/akses'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { defenseLinkLabel } from '@/app/[prodi]/sidang/defense-types'
-import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, linkNilai, publicOrigin, sidangJudul, ujianPeranText } from '../events'
+import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, linkNilai, publicOrigin, sidangHariIni, sidangJudul, ujianPeranText } from '../events'
 import { loadJadwalDosen } from '../jadwal-data'
 
 export const metadata: Metadata = { title: 'Jadwal Dosen', robots: { index: false, follow: false } }
@@ -23,6 +23,8 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
   const upcomingFirst = <T extends { tanggal: string }>(items: T[]) => [...items.filter((i) => i.tanggal >= today), ...items.filter((i) => i.tanggal < today)]
   const term = jadwal.term
   const hasTermDates = !!(term?.mulai && term?.selesai)
+  // Only today's prasidang and sidang; other dates live in the calendar feed.
+  const hariIni = sidangHariIni(jadwal.sidang, today)
 
   return (
     <div className="min-h-screen bg-[var(--kertas)] text-[var(--tinta)]">
@@ -83,22 +85,27 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
           </ul>
         </Section>
 
-        <Section title="Sidang" empty={jadwal.sidang.length === 0 ? 'Tidak ada jadwal sidang semester ini.' : null}>
-          <ul className="list-none m-0 p-0 divide-y divide-[var(--garis)]">
-            {upcomingFirst(jadwal.sidang).map((s) => (
-              <Row
-                key={s.id}
-                past={s.tanggal < today}
-                when={`${tanggalPanjang(s.tanggal, false)} · ${s.jam_mulai}–${s.jam_selesai}`}
-                what={`${sidangJudul(s)} · ${s.nama_mahasiswa}`}
-                detail={`${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${PRODI_CONFIG[s.prodi].short}${s.tempat ? ` · ${s.tempat}` : ''}`}
-                link={s.link || undefined}
-                nilaiHref={linkNilai(s) ?? undefined}
-                nilaiLabel={s.jenis === 'prasidang' ? 'Isi Berita Acara' : 'Beri Nilai'}
-              />
-            ))}
-          </ul>
-        </Section>
+        {(['prasidang', 'sidang'] as const).map((jenis) => (
+          <Section
+            key={jenis}
+            title={jenis === 'prasidang' ? 'Prasidang hari ini' : 'Sidang hari ini'}
+            empty={hariIni[jenis].length === 0 ? `Tidak ada jadwal ${jenis} hari ini.` : null}
+          >
+            <ul className="list-none m-0 p-0 divide-y divide-[var(--garis)]">
+              {hariIni[jenis].map((s) => (
+                <Row
+                  key={s.id}
+                  when={`${tanggalPanjang(s.tanggal, false)} · ${s.jam_mulai}–${s.jam_selesai}`}
+                  what={`${sidangJudul(s)} · ${s.nama_mahasiswa}`}
+                  detail={`${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${PRODI_CONFIG[s.prodi].short}${s.tempat ? ` · ${s.tempat}` : ''}`}
+                  link={s.link || undefined}
+                  nilaiHref={linkNilai(s) ?? undefined}
+                  nilaiLabel={s.jenis === 'prasidang' ? 'Isi Berita Acara' : 'Beri Nilai'}
+                />
+              ))}
+            </ul>
+          </Section>
+        ))}
       </main>
     </div>
   )

@@ -819,7 +819,7 @@ Conventions that keep the codebase consistent (validated by experience, see `AGE
 | `check:sidang` | Defense time blocks and the defense document |
 | `check:prodi` | Prodi parsing/access/clamping and import row classification |
 | `check:import` | Import engine: parsing, validation classes, template/export buffers, the Mahasiswa/Dosen grading columns and the absent-column rule |
-| `check:jadwal-dosen` | Term-week math, `kuliahDates`, feed event assembly (incl. exdates), prasidang zoom label, the ICS `Penilaian:` line (prasidang and sidang) |
+| `check:jadwal-dosen` | Term-week math, `kuliahDates`, feed event assembly (incl. exdates), prasidang zoom label, the ICS `Berita acara:` / `Penilaian:` lines, and `sidangHariIni` (the public page lists only today's prasidang and sidang, split, by jam; the `.ics` feed keeps every date) |
 | `check:proxy` | Session gate: route skipping, redirects, fail-closed behavior, the DOSEN and narrower EKSTERNAL allowlists (redirect on GET, 403 on POST; no `/atur-kata-sandi` or bimbingan for EKSTERNAL) |
 | `check:settings` | Settings loading (prodi + `all`), typed accessors, active-day parsing |
 | `check:roles` | `loadCurrentUser` role/prodi/`kodeDosen` resolution (DOSEN and EKSTERNAL are S1 only; an expired EKSTERNAL is signed out), `canWrite`/`canManage`/`isDosen`/`isPenguji`, `generatePassword` |
