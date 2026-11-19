@@ -425,7 +425,7 @@ create temp table nb_def as
 grant select on nb_def to authenticated;
 
 do $$ begin
-    assert (select count(*) from aturan_penilaian where prodi = 's1') = 7, 'seven s1 rules seeded';
+    assert (select count(*) from aturan_penilaian where prodi = 's1') = 9, 'nine s1 rules seeded';
     assert (select sum((a ->> 'bobot')::int) from aturan_penilaian, jsonb_array_elements(nilai) a
             where prodi = 's1' and kunci = 'aspek_bimbingan') = 100, 'aspek bobot sums to 100';
     assert (select jsonb_array_length(nilai) from aturan_penilaian where prodi = 's1' and kunci = 'tabel_nilai') = 9, 'nine Nilai rows';
@@ -489,7 +489,7 @@ begin
     assert n = 0, 'a dosen never edits the rules';
     assert (select count(*) from nilai_bimbingan) = 1, 'a dosen reads its own grade';
     assert (select count(*) from audit_log) = 0, 'a dosen reads no audit log';
-    assert (select count(*) from aturan_penilaian) = 7, 'a dosen reads the rules';
+    assert (select count(*) from aturan_penilaian) = 9, 'a dosen reads the rules';
 end $$;
 reset role;
 
@@ -525,12 +525,6 @@ declare pras1 uuid := (select id from nb_def where k = 'pras1');
 begin
     assert exists (select 1 from audit_log where table_name = 'aturan_penilaian' and record_id = 'tanggal_mulai_penilaian'), 'rule edits are audited';
     assert (select count(*) from audit_log where table_name = 'nilai_bimbingan' and actor_id = '00000000-0000-0000-0000-000000000006') = 1, 'the dosen is the audited actor';
-    begin
-        update defenses set pembimbing_kode = 'DSN03' where id = pras1;
-        raise exception 'FAIL: changed a graded pembimbing';
-    exception when raise_exception then
-        assert sqlerrm = 'Dosen pembimbing tidak dapat diubah: prasidang ini sudah dinilai.', sqlerrm;
-    end;
     update defenses set penguji_kode = 'DSN03' where id = pras1;
     -- Renaming a lecturer's kode is not a reassignment: the grade follows it.
     update lecturers set kode_dosen = 'DSN01X' where kode_dosen = 'DSN01';
@@ -661,26 +655,6 @@ begin
 end $$;
 reset role;
 
--- A graded prasidang keeps its student: npm, jenis and prodi are locked; other edits still save.
-do $$
-declare
-    pras1 uuid := (select id from nb_def where k = 'pras1');
-    pras2 uuid := (select id from nb_def where k = 'pras2');
-    c text;
-begin
-    foreach c in array array['npm = ''88009''', 'jenis = ''sidang''', 'prodi = ''s2'''] loop
-        begin
-            execute format('update defenses set %s where id = $1', c) using pras1;
-            raise exception 'FAIL: changed a graded prasidang: %', c;
-        exception when raise_exception then
-            assert sqlerrm = 'Mahasiswa tidak dapat diubah: prasidang ini sudah dinilai.', sqlerrm;
-        end;
-    end loop;
-    update defenses set npm = npm, jenis = jenis, prodi = prodi, jam_mulai = '08:30' where id = pras1;
-    update defenses set npm = '88012' where id = pras2;
-    update defenses set npm = '88002' where id = pras2;
-end $$;
-
 -- Super Admin renames a graded lecturer's kode: the FK cascade still reaches nilai_bimbingan
 -- although authenticated may update only aspek and nilai there (FK actions run as the owner).
 select set_config('request.jwt.claim.sub', :'super', false);
@@ -795,7 +769,7 @@ begin
     assert is_eksternal_aktif(), 'the day account is active';
     assert my_kode_dosen() is null, 'my_kode_dosen() stays DOSEN-only';
     assert my_kode_penguji() = 'EXT01', 'my_kode_penguji() is the EKSTERNAL''s lecturer';
-    assert (select count(*) from aturan_penilaian) = 7, 'an active EKSTERNAL reads the rules';
+    assert (select count(*) from aturan_penilaian) = 9, 'an active EKSTERNAL reads the rules';
     assert (select count(*) from nilai_bimbingan) = 0, 'an EKSTERNAL reads no bimbingan grade, not even its own kode';
     begin
         insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
@@ -1187,5 +1161,264 @@ begin
         raise exception 'FAIL: locked twice';
     exception when insufficient_privilege then null;
     end;
+end $$;
+reset role;
+
+-- Berita Acara Prasidang, keputusan Super Admin, gerbang sidang ----------------------------------
+-- DSN01 (:dosen) = Pendamping, DSN03 (:dosen4) = Pembahas. "Today" is the Jakarta date.
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+do $$
+declare s1 uuid; s2 uuid;
+begin
+    assert (select jsonb_array_length(nilai) from aturan_penilaian where prodi = 's1' and kunci = 'pertanyaan_prasidang') = 3, 'three prasidang questions';
+    assert (select nilai from aturan_penilaian where prodi = 's1' and kunci = 'batas_hari_bimbingan') = '7'::jsonb, 'batas hari 7';
+    -- The cleanup removes S1 prasidang/sidang data and keeps S2.
+    insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, prodi)
+    values ('R0002', 'prasidang', '2026-01-05', '08:00', '09:00', 1, '89990', 'Hapus', 's1') returning id into s1;
+    insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, prodi)
+    values ('R0002', 'prasidang', '2026-01-05', '08:00', '09:00', 1, '89991', 'Tetap', 's2') returning id into s2;
+    delete from nilai_bimbingan; delete from hasil_sidang; delete from nilai_sidang; -- (owner) so the cleanup can run here
+    perform hapus_data_sidang_s1();
+    assert not exists (select 1 from defenses where id = s1), 'cleanup deletes S1 defenses';
+    assert exists (select 1 from defenses where id = s2), 'cleanup keeps S2 defenses';
+    assert not exists (select 1 from akun_eksternal), 'cleanup deletes day accounts';
+    assert not has_function_privilege('authenticated', 'hapus_data_sidang_s1()', 'execute'), 'only the owner cleans up';
+end $$;
+
+insert into students (npm, nama, prodi) values
+    ('89000', 'Ba Lengkap', 's1'), ('89001', 'Ba Tolak', 's1'), ('89002', 'Ba Tanpa', 's1'), ('89003', 'Ba Lama', 's1'), ('89004', 'Ba Lain', 's1');
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, pembimbing_kode, penguji_kode, prodi)
+select 'R0002', 'prasidang', (now() at time zone 'Asia/Jakarta')::date + d, '08:00', '09:00', 1, npm, npm, 'DSN01', 'DSN03', 's1'
+from (values ('89000', -1), ('89001', -2), ('89004', 3)) v(npm, d);
+-- An old sidang (saved as the owner, before the gate) for a student without prasidang.
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+values ('R0002', 'sidang', (now() at time zone 'Asia/Jakarta')::date + 5, '08:00', '10:00', '89003', 'Ba Lama', 's1');
+create temp table ba_def as select npm as k, id from defenses where npm in ('89000', '89001', '89003', '89004');
+grant select on ba_def to authenticated;
+
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$
+declare
+    p0 uuid := (select id from ba_def where k = '89000');
+    p4 uuid := (select id from ba_def where k = '89004');
+    j jsonb := '[{"teks": "Q", "ya": true, "catatan": ""}]';
+    n int;
+begin
+    insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
+    values (p0, 'DSN01', 'pendamping', j, 'layak', auth.uid());
+    begin
+        insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
+        values (p0, 'DSN01', 'pendamping', j, 'layak', auth.uid());
+        raise exception 'FAIL: a berita acara submitted twice';
+    exception when unique_violation then null;
+    end;
+    begin
+        insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
+        values (p0, 'DSN01', 'pembahas', j, 'layak', auth.uid());
+        raise exception 'FAIL: the pendamping filled the pembahas berita acara';
+    exception when insufficient_privilege then null;
+    end;
+    begin
+        insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
+        values (p4, 'DSN01', 'pendamping', j, 'layak', auth.uid());
+        raise exception 'FAIL: a berita acara before the prasidang date';
+    exception when insufficient_privilege then null;
+    end;
+    begin
+        insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
+        values (p0, 'DSN01', 'pendamping', '[{"teks": "Q", "ya": "ya", "catatan": ""}]', 'layak', auth.uid());
+        raise exception 'FAIL: a bad jawaban was accepted';
+    exception when check_violation or unique_violation then null;
+    end;
+    begin
+        update berita_acara_prasidang set hasil = 'tidak_layak';
+        raise exception 'FAIL: a dosen edited a berita acara';
+    exception when insufficient_privilege then null;
+    end;
+    begin
+        delete from berita_acara_prasidang;
+        raise exception 'FAIL: a dosen deleted a berita acara';
+    exception when insufficient_privilege then null;
+    end;
+    assert (select count(*) from berita_acara_prasidang) = 1, 'a dosen reads its own berita acara';
+    assert status_prasidang('89000') = 'belum_lengkap', 'one of two is belum lengkap';
+end $$;
+reset role;
+
+-- The jawaban shape, checked as the owner (RLS bypassed) so only the trigger can refuse.
+do $$
+declare p1 uuid := (select id from ba_def where k = '89001'); bad jsonb;
+begin
+    foreach bad in array array[
+        '[]', '{"teks": "Q"}', '[{"teks": " ", "ya": true, "catatan": ""}]', '[{"teks": "Q", "ya": "ya", "catatan": ""}]',
+        '[{"teks": "Q", "ya": true}]', format('[{"teks": "Q", "ya": true, "catatan": "%s"}]', repeat('x', 1001))
+    ]::jsonb[] loop
+        begin
+            insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil) values (p1, 'DSN01', 'pendamping', bad, 'layak');
+            raise exception 'FAIL: bad jawaban accepted: %', bad;
+        exception when check_violation then null;
+        end;
+    end loop;
+    begin
+        insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil)
+        values ((select id from ba_def where k = '89003'), 'DSN01', 'pendamping', '[{"teks": "Q", "ya": true, "catatan": ""}]', 'layak');
+        raise exception 'FAIL: a berita acara on a sidang';
+    exception when check_violation then null;
+    end;
+end $$;
+
+-- SCHEDULER: the gate.
+select set_config('request.jwt.claim.sub', :'s1', false);
+set role authenticated;
+do $$ begin
+    begin
+        insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+        values ('R0002', 'sidang', '2027-03-01', '08:00', '10:00', '89000', 'Ba Lengkap', 's1');
+        raise exception 'FAIL: a sidang with an incomplete berita acara';
+    exception when check_violation then
+        assert sqlerrm = 'Berita acara prasidang belum lengkap.', sqlerrm;
+    end;
+    begin
+        insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+        values ('R0002', 'sidang', '2027-03-01', '08:00', '10:00', '89002', 'Ba Tanpa', 's1');
+        raise exception 'FAIL: a sidang without prasidang';
+    exception when check_violation then
+        assert sqlerrm = 'Mahasiswa belum memiliki prasidang. Super Admin dapat memberi keputusan di Data Mahasiswa.', sqlerrm;
+    end;
+    -- An existing sidang: unrelated edits save, moving it to another student is gated.
+    update defenses set jam_mulai = '08:30' where id = (select id from ba_def where k = '89003');
+    begin
+        update defenses set npm = '89002' where id = (select id from ba_def where k = '89003');
+        raise exception 'FAIL: moved a sidang to an ungated student';
+    exception when check_violation then null;
+    end;
+    begin
+        insert into keputusan_prasidang (npm, hasil, alasan) values ('89002', 'layak', 'x');
+        raise exception 'FAIL: a scheduler overrode a verdict';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
+
+-- S2 is never gated (a scheduler with access to both prodi).
+select set_config('request.jwt.claim.sub', :'semua', false);
+set role authenticated;
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+values ('R0002', 'sidang', '2027-03-01', '08:00', '10:00', '89999', 'S2', 's2');
+reset role;
+
+-- DSN03 (Pembahas) completes 89000 with layak_revisi and rejects 89001.
+select set_config('request.jwt.claim.sub', :'dosen4', false);
+set role authenticated;
+do $$
+declare j jsonb := '[{"teks": "Q", "ya": false, "catatan": "Ganti alat ukur"}]';
+begin
+    insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
+    values ((select id from ba_def where k = '89000'), 'DSN03', 'pembahas', j, 'layak_revisi', auth.uid());
+    insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
+    values ((select id from ba_def where k = '89001'), 'DSN03', 'pembahas', j, 'tidak_layak', auth.uid());
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
+values ((select id from ba_def where k = '89001'), 'DSN01', 'pendamping', '[{"teks": "Q", "ya": true, "catatan": ""}]', 'layak', auth.uid());
+reset role;
+
+do $$ begin
+    assert status_prasidang('89000') = 'layak_revisi', 'layak + layak_revisi = layak_revisi';
+    assert status_prasidang('89001') = 'tidak_layak', 'one tidak_layak = tidak_layak';
+    assert status_prasidang('89002') = 'tidak_ada', 'no prasidang';
+end $$;
+
+select set_config('request.jwt.claim.sub', :'s1', false);
+set role authenticated;
+do $$ begin
+    insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+    values ('R0002', 'sidang', '2027-03-01', '08:00', '10:00', '89000', 'Ba Lengkap', 's1');
+    begin
+        insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+        values ('R0002', 'sidang', '2027-03-01', '10:00', '12:00', '89001', 'Ba Tolak', 's1');
+        raise exception 'FAIL: a sidang after tidak layak';
+    exception when check_violation then
+        assert sqlerrm = 'Hasil prasidang: skripsi tidak layak untuk dilanjutkan.', sqlerrm;
+    end;
+end $$;
+reset role;
+
+-- Super Admin overrides: 89001 (tied to its prasidang), 89002 (no prasidang).
+select set_config('request.jwt.claim.sub', :'super', false);
+set role authenticated;
+do $$ begin
+    begin
+        insert into keputusan_prasidang (npm, prasidang_id, hasil, alasan) values ('89001', null, 'tidak_layak', 'x');
+        raise exception 'FAIL: an override to tidak_layak';
+    exception when check_violation then null;
+    end;
+    begin
+        insert into keputusan_prasidang (npm, prasidang_id, hasil, alasan) values ('89001', null, 'layak', '  ');
+        raise exception 'FAIL: an override without alasan';
+    exception when check_violation then null;
+    end;
+    insert into keputusan_prasidang (npm, prasidang_id, hasil, alasan)
+    values ('89001', (select id from defenses where npm = '89001' and jenis = 'prasidang'), 'layak', 'Rapat prodi');
+    insert into keputusan_prasidang (npm, prasidang_id, hasil, alasan) values ('89002', null, 'layak_revisi', 'Prasidang luring');
+    assert (select oleh from keputusan_prasidang where npm = '89001') = auth.uid(), 'the override records its author';
+end $$;
+reset role;
+
+do $$ begin
+    assert status_prasidang('89001') = 'layak', 'the override wins over the berita acara';
+    assert status_prasidang('89002') = 'layak_revisi', 'an override without prasidang';
+    assert exists (select 1 from audit_log where table_name = 'keputusan_prasidang'), 'overrides are audited';
+end $$;
+
+select set_config('request.jwt.claim.sub', :'s1', false);
+set role authenticated;
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+values ('R0002', 'sidang', '2027-03-02', '08:00', '10:00', '89001', 'Ba Tolak', 's1');
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+values ('R0002', 'sidang', '2027-03-02', '10:00', '12:00', '89002', 'Ba Tanpa', 's1');
+reset role;
+
+-- A newer prasidang decides again: the override was for the old one.
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, pembimbing_kode, penguji_kode, prodi)
+values ('R0001', 'prasidang', (now() at time zone 'Asia/Jakarta')::date, '08:00', '09:00', 1, '89001', '89001', 'DSN01', 'DSN03', 's1');
+do $$
+declare p0 uuid := (select id from ba_def where k = '89000');
+begin
+    assert status_prasidang('89001') = 'belum_lengkap', 'a newer prasidang ignores the old override';
+    -- A filled prasidang keeps its student and its dosen.
+    begin
+        update defenses set npm = '89004' where id = p0;
+        raise exception 'FAIL: moved a filled prasidang';
+    exception when raise_exception then
+        assert sqlerrm = 'Mahasiswa tidak dapat diubah: prasidang ini sudah diisi berita acaranya.', sqlerrm;
+    end;
+    begin
+        update defenses set pembimbing_kode = 'DSN02' where id = p0;
+        raise exception 'FAIL: changed a filled pendamping';
+    exception when raise_exception then
+        assert sqlerrm = 'Dosen pembimbing tidak dapat diubah: prasidang ini sudah diisi berita acaranya.', sqlerrm;
+    end;
+    update defenses set jam_mulai = '08:15' where id = p0;
+    begin
+        delete from defenses where id = p0;
+        raise exception 'FAIL: deleted a prasidang with berita acara';
+    exception when foreign_key_violation then null;
+    end;
+    assert has_table_privilege('service_role', 'berita_acara_prasidang', 'select'), 'service_role reads berita acara';
+    assert has_table_privilege('service_role', 'keputusan_prasidang', 'select'), 'service_role reads keputusan';
+    assert not has_table_privilege('authenticated', 'berita_acara_prasidang', 'update'), 'nobody updates a berita acara';
+end $$;
+
+-- DOSEN and EKSTERNAL never read overrides; the DOSEN reads only its own berita acara.
+select set_config('request.jwt.claim.sub', :'dosen4', false);
+set role authenticated;
+do $$ begin
+    assert (select count(*) from keputusan_prasidang) = 0, 'a DOSEN reads no override';
+    assert (select count(*) from berita_acara_prasidang) = 2, 'DSN03 reads its own two';
 end $$;
 reset role;
