@@ -3,17 +3,18 @@ import { notFound, redirect } from 'next/navigation'
 import { AppHeader } from '@/components/AppHeader'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { tanggalPanjang } from '@/lib/hari'
-import { aksesDosen, bolehInputLama, penilaianPath, PERAN_LABEL, peranDosen, todayJakarta, type Peran } from '@/lib/penilaian/akses'
+import { aksesBimbingan, penilaianPath, PERAN_LABEL, peranBimbingan, todayJakarta, type Peran } from '@/lib/penilaian/akses'
 import type { BarisNilai } from '@/lib/penilaian/aturan'
 import { loadPenilaian, type NilaiRow } from '@/lib/penilaian/data'
 import { baris, formatNilai } from '@/lib/penilaian/nilai'
-import { editNilaiAction, inputNilaiLamaAction, submitNilaiAction } from '../actions'
+import { editNilaiAction, inputNilaiAdminAction, submitNilaiAction } from '../actions'
 import { NilaiForm } from './NilaiForm'
 
 const PERAN: Peran[] = ['pembimbing_1', 'pembimbing_2']
 const waktu = (iso: string) =>
   new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date(iso))
 const nilaiHuruf = (n: number, tabel: BarisNilai[]) => `${formatNilai(n)} · ${baris(n, tabel).huruf}`
+const KOTAK = 'm-0 p-[1rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] text-[0.93rem]'
 
 export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbingan/[defenseId]'>) {
   const { defenseId } = await props.params
@@ -26,9 +27,14 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
 
   const data = await loadPenilaian(defenseId)
   const akses = dosen
-    ? aksesDosen(data?.defense ?? null, user.kodeDosen!, new Set(Object.keys(data?.nilai ?? {}) as Peran[]), todayJakarta())
+    ? aksesBimbingan(data?.defense ?? null, user.kodeDosen!, {
+      submitted: new Set(Object.keys(data?.nilai ?? {}) as Peran[]),
+      kunci: data?.kunci ?? null,
+      today: todayJakarta(),
+      batasHari: data?.aturan.batasHariBimbingan ?? 0,
+    })
     : null
-  // Not this dosen's S1 prasidang (or none at all): 404 with no hint the record exists.
+  // Not the student's Pembimbing on this S1 sidang (or none at all): 404 with no hint the record exists.
   if (!data || akses?.kind === 'tidak-ada') notFound()
 
   const { defense, aturan } = data
@@ -40,9 +46,9 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
     ['Nama', defense.nama_mahasiswa],
     ['Judul skripsi', defense.judul_skripsi || '—'],
     ['IPK sebelum sidang', <span key="ipk" className="mono">{data.ipk === null ? '—' : formatNilai(data.ipk)}</span>],
-    ['Tanggal prasidang', tanggalPanjang(defense.tanggal, false)],
+    ['Tanggal sidang', tanggalPanjang(defense.tanggal, false)],
   ]
-  const peranSaya = dosen ? peranDosen(defense, user.kodeDosen!) : null
+  const peranSaya = dosen ? peranBimbingan(defense, user.kodeDosen!) : null
   if (peranSaya) fakta.push(['Peran Anda', PERAN_LABEL[peranSaya]])
 
   return (
@@ -62,10 +68,13 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
           ))}
         </dl>
 
-        {akses?.kind === 'belum-dibuka' && (
-          <p className="m-0 p-[1rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] text-[0.93rem]">
-            Penilaian dibuka pada <strong>{tanggalPanjang(akses.tanggal, false)}</strong>.
-          </p>
+        {akses?.kind === 'menunggu-kunci' && <p className={KOTAK}>Penilaian bimbingan dibuka setelah sidang dikunci Ketua.</p>}
+        {akses?.kind === 'tidak-lulus' && <p className={KOTAK}>Sidang tidak lulus: nilai bimbingan tidak dibuka.</p>}
+        {akses?.kind === 'lewat' && (
+          <p className={KOTAK}>Batas pengisian sudah lewat (<strong>{tanggalPanjang(akses.batas, false)}</strong>). Hubungi admin akademik.</p>
+        )}
+        {akses?.kind === 'isi' && (
+          <p className="m-0 mb-[0.8rem] text-[0.87rem] text-[var(--tinta-2)]">Batas pengisian: <strong>{tanggalPanjang(akses.batas, false)}</strong></p>
         )}
         {akses?.kind === 'isi' && (
           <NilaiForm
@@ -78,11 +87,11 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
         )}
         {akses?.kind === 'terkirim' && <Terkirim row={data.nilai[akses.peran]!} tabel={tabel} />}
 
-        {/* Staff: both dosen's grades. Only Super Admin writes: edits a submitted grade, or enters an old one. */}
+        {/* Staff: both dosen's grades. Only Super Admin writes, at any time: edits a submitted grade, or enters a missing one. */}
         {!dosen &&
           PERAN.map((peran) => {
             const row = data.nilai[peran]
-            const kode = peran === 'pembimbing_1' ? defense.pembimbing_kode : defense.penguji_kode
+            const kode = peran === 'pembimbing_1' ? defense.pembimbing_1_kode : defense.pembimbing_2_kode
             return (
               <section key={peran} className="mb-[1.6rem]">
                 <h2 className="m-0 mb-[0.6rem] text-[1.2rem] font-semibold tracking-[-0.01em]">
@@ -102,22 +111,22 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
                   </>
                 ) : row ? (
                   <Terkirim row={row} tabel={tabel} />
-                ) : canManage(user.role) && kode && bolehInputLama(defense, aturan.tanggalMulai) ? (
+                ) : canManage(user.role) && kode ? (
                   <>
-                    <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">
-                      Belum dinilai. Prasidang ini sebelum tanggal mulai penilaian, jadi nilainya dapat disalin dari berkas lama.
-                    </p>
-                    <h3 className="m-0 mb-[0.6rem] text-[0.93rem] font-semibold">Masukkan nilai lama</h3>
+                    <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">Belum dinilai. Super Admin dapat memasukkan nilai kapan saja.</p>
+                    <h3 className="m-0 mb-[0.6rem] text-[0.93rem] font-semibold">Masukkan nilai</h3>
                     <NilaiForm
                       aspek={aturan.aspekBimbingan}
                       tabel={tabel}
-                      aksi={inputNilaiLamaAction.bind(null, defense.id, peran, tampil)}
-                      tombol="Simpan nilai lama"
-                      konfirmasi={{ judul: 'Simpan nilai lama?', isi: `Nilai dicatat sebagai input manual untuk ${data.dosen[peran]}.`, tombol: 'Simpan' }}
+                      aksi={inputNilaiAdminAction.bind(null, defense.id, peran, tampil)}
+                      tombol="Simpan nilai"
+                      konfirmasi={{ judul: 'Simpan nilai?', isi: `Nilai dicatat sebagai input admin untuk ${data.dosen[peran]}.`, tombol: 'Simpan' }}
                     />
                   </>
                 ) : (
-                  <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">Belum dinilai.</p>
+                  <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">
+                    {kode ? 'Belum dinilai.' : 'Dosen Pembimbing untuk peran ini belum diisi di Data Mahasiswa.'}
+                  </p>
                 )}
               </section>
             )
@@ -131,7 +140,7 @@ function Meta({ row }: { row: NilaiRow }) {
   return (
     <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">
       Dikirim {waktu(row.submitted_at)}
-      {row.sumber === 'manual' && ' (input manual)'}
+      {row.sumber === 'manual' && ' (input admin)'}
     </p>
   )
 }

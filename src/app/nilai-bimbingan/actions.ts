@@ -5,34 +5,39 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser, canManage, isDosen } from '@/lib/roles'
 import { humanDbError } from '@/lib/db-error'
 import { tanggalPanjang } from '@/lib/hari'
-import { aksesDosen, bolehInputLama, penilaianPath, todayJakarta, type Peran } from '@/lib/penilaian/akses'
+import { aksesBimbingan, penilaianPath, todayJakarta, type Peran } from '@/lib/penilaian/akses'
 import { loadPenilaian } from '@/lib/penilaian/data'
 import { ASPEK_BERUBAH, SUDAH_DIKIRIM, aspekSama, nilaiDariSnapshot, snapshotDariSkor, type SkorAspek } from '@/lib/penilaian/nilai'
 
 export type Hasil = { error: string } | { ok: true }
 
 const TIDAK_ADA = 'Penilaian tidak ditemukan.'
-const SUDAH = SUDAH_DIKIRIM
 const PERAN: readonly string[] = ['pembimbing_1', 'pembimbing_2']
 
-/** The unique (defense_id, peran) is the last word on a double submit (two tabs). */
-const dbError = (e: { code?: string; message: string }) => (e.code === '23505' ? SUDAH : humanDbError(e))
+/** The unique (defense_id, peran) is the last word on a double submit (two tabs, or the dosen and Super Admin). */
+const dbError = (e: { code?: string; message: string }) => (e.code === '23505' ? SUDAH_DIKIRIM : humanDbError(e))
 
 /** The aspek list the form showed, as [label, bobot]: a grade is refused if the rules changed while the form was open. */
 export type AspekTampil = [string, number][]
 
-/** A DOSEN grades its own peran, from the prasidang date, once. Every rule is re-checked here; RLS checks them again. */
+/** A Dosen Pembimbing grades its own slot, after the Ketua's lulus lock, within the window, once. RLS checks again. */
 export async function submitNilaiAction(defenseId: string, peran: Peran, tampil: AspekTampil, skor: string[]): Promise<Hasil> {
   const user = await getCurrentUser()
   if (!user || !isDosen(user.role) || !user.kodeDosen) return { error: TIDAK_ADA }
 
   const data = await loadPenilaian(defenseId)
-  const submitted = new Set(Object.keys(data?.nilai ?? {}) as Peran[])
-  const akses = aksesDosen(data?.defense ?? null, user.kodeDosen, submitted, todayJakarta())
+  const akses = aksesBimbingan(data?.defense ?? null, user.kodeDosen, {
+    submitted: new Set(Object.keys(data?.nilai ?? {}) as Peran[]),
+    kunci: data?.kunci ?? null,
+    today: todayJakarta(),
+    batasHari: data?.aturan.batasHariBimbingan ?? 0,
+  })
   if (!data || akses.kind === 'tidak-ada') return { error: TIDAK_ADA }
-  if (akses.kind === 'belum-dibuka') return { error: `Penilaian dibuka pada ${tanggalPanjang(akses.tanggal, false)}.` }
+  if (akses.kind === 'terkirim') return { error: SUDAH_DIKIRIM }
+  if (akses.kind === 'menunggu-kunci') return { error: 'Penilaian bimbingan dibuka setelah sidang dikunci Ketua.' }
+  if (akses.kind === 'tidak-lulus') return { error: 'Sidang tidak lulus: nilai bimbingan tidak dibuka.' }
+  if (akses.kind === 'lewat') return { error: `Batas pengisian sudah lewat (${tanggalPanjang(akses.batas, false)}). Hubungi admin akademik.` }
   if (akses.peran !== peran) return { error: TIDAK_ADA }
-  if (akses.kind === 'terkirim') return { error: SUDAH }
   if (!aspekSama(tampil, data.aturan.aspekBimbingan)) return { error: ASPEK_BERUBAH }
 
   const snap = snapshotDariSkor(data.aturan.aspekBimbingan, skor)
@@ -78,21 +83,17 @@ export async function editNilaiAction(nilaiId: string, skor: string[]): Promise<
   return { ok: true }
 }
 
-/** Super Admin enters a missing grade from the old xlsx, only on a prasidang before tanggal mulai penilaian. */
-export async function inputNilaiLamaAction(defenseId: string, peran: Peran, tampil: AspekTampil, skor: string[]): Promise<Hasil> {
+/** Super Admin enters a missing grade at any time, for the student's Pembimbing in that slot. */
+export async function inputNilaiAdminAction(defenseId: string, peran: Peran, tampil: AspekTampil, skor: string[]): Promise<Hasil> {
   const user = await getCurrentUser()
-  if (!user || !canManage(user.role)) return { error: 'Hanya Super Admin yang dapat memasukkan nilai lama.' }
+  if (!user || !canManage(user.role)) return { error: 'Hanya Super Admin yang dapat memasukkan nilai.' }
   if (!PERAN.includes(peran)) return { error: TIDAK_ADA }
 
   const data = await loadPenilaian(defenseId)
   if (!data) return { error: TIDAK_ADA }
-  if (!bolehInputLama(data.defense, data.aturan.tanggalMulai)) {
-    return { error: 'Nilai lama hanya dapat dimasukkan untuk prasidang sebelum tanggal mulai penilaian.' }
-  }
-  if (data.nilai[peran]) return { error: SUDAH }
-  // The DB doesn't tie kode_dosen to the peran on a manual row, so it is taken from the defense here.
-  const kode = peran === 'pembimbing_1' ? data.defense.pembimbing_kode : data.defense.penguji_kode
-  if (!kode) return { error: 'Dosen untuk peran ini belum diisi di jadwal prasidang.' }
+  if (data.nilai[peran]) return { error: SUDAH_DIKIRIM }
+  const kode = peran === 'pembimbing_1' ? data.defense.pembimbing_1_kode : data.defense.pembimbing_2_kode
+  if (!kode) return { error: 'Dosen Pembimbing untuk peran ini belum diisi di Data Mahasiswa.' }
   if (!aspekSama(tampil, data.aturan.aspekBimbingan)) return { error: ASPEK_BERUBAH }
 
   const snap = snapshotDariSkor(data.aturan.aspekBimbingan, skor)
@@ -106,5 +107,6 @@ export async function inputNilaiLamaAction(defenseId: string, peran: Peran, tamp
   if (error) return { error: dbError(error) }
 
   revalidatePath(penilaianPath(data.defense.id))
+  revalidatePath('/penilaian')
   return { ok: true }
 }

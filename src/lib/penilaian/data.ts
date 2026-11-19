@@ -1,10 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { isPenguji, type Role } from '@/lib/role-types'
-import { bisaDinilai, bisaDinilaiSidang, type DefenseRef, type Peran, type PeranSidang, type SidangRef } from './akses'
+import { bisaDinilaiSidang, isPrasidangS1, type BimbinganRef, type DefenseRef, type Peran, type PeranSidang, type SidangRef } from './akses'
 import { loadAturan, parseAturanBeku, type Aturan, type AturanBeku } from './aturan'
 import { ipkSebelum, type Revisi, type SkorAspek } from './nilai'
-import { isPrasidangS1 } from './akses'
 import type { Hasil, Jawaban, PeranPrasidang, StatusPrasidang } from './prasidang'
 
 export type NilaiRow = {
@@ -19,11 +18,16 @@ export type NilaiRow = {
 
 export type DefensePenilaian = DefenseRef & { npm: string; nama_mahasiswa: string; judul_skripsi: string }
 
+/** The sidang a bimbingan grade sits on, with the student's Dosen Pembimbing (Data Mahasiswa). */
+export type SidangBimbingan = BimbinganRef & { tanggal: string; npm: string; nama_mahasiswa: string; judul_skripsi: string }
+
 export type Penilaian = {
-  defense: DefensePenilaian
+  defense: SidangBimbingan
   ipk: number | null
   nilai: Partial<Record<Peran, NilaiRow>>
   dosen: Record<Peran, string>
+  /** The Ketua's lock, null until locked. */
+  kunci: { lockedAt: string; lulus: boolean } | null
   aturan: Aturan
 }
 
@@ -31,36 +35,44 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v))
 
 /**
- * One S1 prasidang with both grades, for the grading page and its actions. Admin client: a DOSEN
+ * One S1 sidang with both bimbingan grades, for the grading page and its actions. Admin client: a DOSEN
  * can't read defenses or students under RLS. Callers authorize first (role) and then check the
- * returned record (aksesDosen) before showing or writing anything. Null = no such S1 prasidang.
+ * returned record (aksesBimbingan) before showing or writing anything. Null = no such S1 sidang.
  */
 export async function loadPenilaian(defenseId: string): Promise<Penilaian | null> {
   if (!UUID.test(defenseId)) return null
   const db = createAdminClient()
   const { data: d, error } = await db
     .from('defenses')
-    .select('id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode')
+    .select('id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi')
     .eq('id', defenseId)
     .maybeSingle()
-  if (error) throw new Error(`Gagal memuat prasidang: ${error.message}`)
-  if (!d || !bisaDinilai(d)) return null
-  const defense = d as DefensePenilaian
+  if (error) throw new Error(`Gagal memuat sidang: ${error.message}`)
+  if (!d || !bisaDinilaiSidang(d)) return null
 
-  const kode = [defense.pembimbing_kode, defense.penguji_kode].filter((k): k is string => !!k)
-  const [mhs, rows, dosen, aturan] = await Promise.all([
-    db.from('students').select('sks_sebelum, bobot_sebelum').eq('prodi', 's1').eq('npm', defense.npm).maybeSingle(),
-    db.from('nilai_bimbingan').select('id, peran, kode_dosen, aspek, nilai, sumber, submitted_at').eq('defense_id', defense.id),
-    db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang').in('kode_dosen', kode),
+  const [mhs, rows, hasil, aturan] = await Promise.all([
+    db.from('students').select('sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode').eq('prodi', 's1').eq('npm', d.npm).maybeSingle(),
+    db.from('nilai_bimbingan').select('id, peran, kode_dosen, aspek, nilai, sumber, submitted_at').eq('defense_id', d.id),
+    db.from('hasil_sidang').select('locked_at, yudisium_lulus').eq('defense_id', d.id).maybeSingle(),
     loadAturan(db, 's1'),
   ])
-  const err = mhs.error ?? rows.error ?? dosen.error
+  const err = mhs.error ?? rows.error ?? hasil.error
   if (err) throw new Error(`Gagal memuat penilaian: ${err.message}`)
+  const defense: SidangBimbingan = {
+    ...(d as Omit<SidangBimbingan, 'pembimbing_1_kode' | 'pembimbing_2_kode'>),
+    pembimbing_1_kode: mhs.data?.pembimbing_1_kode ?? null,
+    pembimbing_2_kode: mhs.data?.pembimbing_2_kode ?? null,
+  }
 
   const nilai: Partial<Record<Peran, NilaiRow>> = {}
   for (const r of rows.data ?? []) nilai[r.peran as Peran] = { ...r, nilai: Number(r.nilai) } as NilaiRow
+  // A submitted grade names its own dosen; an open slot names the student's current Pembimbing.
+  const kode = (p: Peran) => nilai[p]?.kode_dosen ?? (p === 'pembimbing_1' ? defense.pembimbing_1_kode : defense.pembimbing_2_kode)
+  const kodes = (['pembimbing_1', 'pembimbing_2'] as const).map(kode).filter((k): k is string => !!k)
+  const { data: dosen, error: dErr } = await db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang').in('kode_dosen', kodes)
+  if (dErr) throw new Error(`Gagal memuat penilaian: ${dErr.message}`)
   const nama = (k: string | null) => {
-    const l = (dosen.data ?? []).find((x) => x.kode_dosen === k)
+    const l = (dosen ?? []).find((x) => x.kode_dosen === k)
     return l ? lecturerDisplayName(l) : (k ?? '—')
   }
 
@@ -68,7 +80,8 @@ export async function loadPenilaian(defenseId: string): Promise<Penilaian | null
     defense,
     ipk: ipkSebelum(num(mhs.data?.bobot_sebelum), num(mhs.data?.sks_sebelum)),
     nilai,
-    dosen: { pembimbing_1: nama(defense.pembimbing_kode), pembimbing_2: nama(defense.penguji_kode) },
+    dosen: { pembimbing_1: nama(kode('pembimbing_1')), pembimbing_2: nama(kode('pembimbing_2')) },
+    kunci: hasil.data ? { lockedAt: hasil.data.locked_at as string, lulus: !!hasil.data.yudisium_lulus } : null,
     aturan,
   }
 }

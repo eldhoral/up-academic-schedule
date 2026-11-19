@@ -8,7 +8,7 @@ const KOLOM: [string, number][] = [
   ['No', 5], ['NPM', 14], ['Nama', 30], ['Judul Skripsi', 50], ['IPK', 8],
   ['Dosen Pembimbing I', 32], ['Nilai I', 9], ['Huruf I', 8],
   ['Dosen Pembimbing II', 32], ['Nilai II', 9], ['Huruf II', 8],
-  ['Nilai Bimbingan', 16], ['Huruf', 8],
+  ['Nilai Bimbingan', 16], ['Huruf', 8], ['Batas Pengisian', 16],
 ]
 const ANGKA = [5, 7, 10, 12] // 1-based columns holding numbers
 
@@ -19,14 +19,14 @@ export async function buildRekapBimbinganXlsx(rows: RekapBimbingan[], tabel: Bar
   sheet.columns = KOLOM.map(([header, width]) => ({ header, width }))
   const huruf = (n: number | null) => (n === null ? null : baris(n, tabel).huruf)
   // Marked on the name, not the grade, so the grade cell stays a number.
-  const dosen = (d: DosenNilai) => (d.manual ? `${d.nama} (input manual)` : d.nama)
+  const dosen = (d: DosenNilai) => (d.manual ? `${d.nama} (input admin)` : d.nama)
 
   rows.forEach((r, i) => {
     sheet.addRow([
       i + 1, r.npm, r.nama, r.judul, r.ipk,
       dosen(r.dospem1), r.dospem1.nilai, huruf(r.dospem1.nilai),
       dosen(r.dospem2), r.dospem2.nilai, huruf(r.dospem2.nilai),
-      r.bimbingan, huruf(r.bimbingan),
+      r.bimbingan, huruf(r.bimbingan), r.batas,
     ])
   })
 

@@ -33,15 +33,11 @@ export function humanDbError(error: DbErrorLike, entity?: string): string {
   }
   // The dosen-lock trigger on defenses: its message is already plain Indonesian.
   if (code === 'P0001' && lower.includes('sudah dinilai')) return msg
-  // Deleting a prasidang that has grades (nilai_bimbingan.defense_id is on delete restrict). Only that FK:
-  // nilai_bimbingan.kode_dosen -> lecturers also names nilai_bimbingan but is a different problem.
+  // Deleting a sidang that has grades (nilai_bimbingan / nilai_sidang / hasil_sidang -> defenses, on delete restrict).
+  // Constraint names only: nilai_bimbingan.kode_dosen -> lecturers also names the table but is a different problem.
   const fkText = `${lower} ${(error.details ?? '').toLowerCase()}`
-  if (fkText.includes('nilai_bimbingan_defense_id_fkey') || (fkText.includes('nilai_bimbingan') && fkText.includes('table "defenses"'))) {
-    return 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.'
-  }
   if (fkText.includes('berita_acara_prasidang_defense_id_fkey')) return 'Prasidang ini sudah diisi berita acaranya, sehingga tidak bisa dihapus.'
-  // Same for sidang: nilai_sidang / hasil_sidang -> defenses. Constraint name only (S4), never the table name.
-  if (fkText.includes('nilai_sidang_defense_id_fkey') || fkText.includes('hasil_sidang_defense_id_fkey')) {
+  if (fkText.includes('nilai_bimbingan_defense_id_fkey') || fkText.includes('nilai_sidang_defense_id_fkey') || fkText.includes('hasil_sidang_defense_id_fkey')) {
     return 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.'
   }
   if (code === '23503' || lower.includes('violates foreign key constraint')) {

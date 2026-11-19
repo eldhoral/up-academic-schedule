@@ -177,28 +177,27 @@ async function main() {
   await assert.rejects(loadAturan(fakeDb(null, { message: 'boom' }), 's1'), /boom/)
 
   // humanDbError: the dosen lock trigger and the nilai_bimbingan FK get their own wording
-  const kunci = 'Dosen pembimbing tidak dapat diubah: prasidang ini sudah dinilai.'
-  assert.equal(humanDbError({ code: 'P0001', message: kunci }), kunci)
-  const mhs = 'Mahasiswa tidak dapat diubah: prasidang ini sudah dinilai.'
-  assert.equal(humanDbError({ code: 'P0001', message: mhs }), mhs)
   const fk = { code: '23503', message: 'update or delete on table "defenses" violates foreign key constraint "nilai_bimbingan_defense_id_fkey" on table "nilai_bimbingan"', details: 'Key (id)=(x) is still referenced from table "nilai_bimbingan".' }
-  assert.equal(humanDbError(fk), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
-  assert.equal(humanDbError({ code: '23503', message: 'update or delete on table "defenses" violates foreign key constraint "nilai_bimbingan_defense_id_fkey" on table "nilai_bimbingan"' }), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
+  assert.equal(humanDbError(fk), 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.')
   // deleting a graded lecturer hits nilai_bimbingan.kode_dosen: generic wording, not the prasidang one
   const fkDosen = { code: '23503', message: 'update or delete on table "lecturers" violates foreign key constraint "nilai_bimbingan_kode_dosen_fkey" on table "nilai_bimbingan"', details: 'Key (kode_dosen)=(X) is still referenced from table "nilai_bimbingan".' }
   assert.match(humanDbError(fkDosen), /masih dipakai/)
-  assert.doesNotMatch(humanDbError(fkDosen), /Prasidang/)
+  assert.doesNotMatch(humanDbError(fkDosen), /Sidang/)
   assert.match(humanDbError({ code: '23503', message: 'violates foreign key constraint "schedules_x"' }), /masih dipakai/) // other FKs unchanged
   assert.doesNotMatch(humanDbError({ code: 'P0001', message: 'boom' }), /boom/) // other P0001 stays hidden
 
-  // ---- rekap: one row per prasidang, sorted by tanggal then nama; both grades -> average, one missing -> null
-  const d = (id: string, tanggal: string, nama: string, p1: string | null = 'A', p2: string | null = 'B') =>
-    ({ id, tanggal, npm: `n-${id}`, nama_mahasiswa: nama, judul_skripsi: `Judul ${nama}`, pembimbing_kode: p1, penguji_kode: p2 })
+  // ---- rekap: one row per S1 sidang, sorted by tanggal then nama; dosen from the student's Pembimbing I/II;
+  // both grades -> average, one missing -> null; batas = lock date + n while locked.
+  const d = (id: string, tanggal: string, nama: string) => ({ id, tanggal, npm: `n-${id}`, nama_mahasiswa: nama, judul_skripsi: `Judul ${nama}` })
+  const mhs = (id: string, p1: string | null, p2: string | null, sks: number | null = null, bobot: number | null = null) =>
+    ({ npm: `n-${id}`, sks_sebelum: sks, bobot_sebelum: bobot, pembimbing_1_kode: p1, pembimbing_2_kode: p2 })
   const n = (defense_id: string, peran: Peran, nilai: number, sumber: 'dosen' | 'manual' = 'dosen') => ({ defense_id, peran, nilai, sumber })
   const rekap = buildRekapBimbingan(
-    [d('3', '2026-11-12', 'Zed'), d('1', '2026-11-10', 'Budi'), d('2', '2026-11-10', 'Ani'), d('4', '2026-11-13', 'Cici', null, 'B')],
-    [{ npm: 'n-1', sks_sebelum: 139, bobot_sebelum: 404.57 }, { npm: 'n-2', sks_sebelum: null, bobot_sebelum: null }],
+    [d('3', '2026-11-12', 'Zed'), d('1', '2026-11-10', 'Budi'), d('2', '2026-11-10', 'Ani'), d('4', '2026-11-13', 'Cici')],
+    [mhs('1', 'A', 'B', 139, 404.57), mhs('2', 'A', 'B'), mhs('4', null, 'B')],
     [n('1', 'pembimbing_1', 80), n('1', 'pembimbing_2', 77, 'manual'), n('2', 'pembimbing_1', 70), n('4', 'pembimbing_2', 90)],
+    [{ defense_id: '1', locked_at: '2026-11-10T03:00:00Z' }],
+    7,
     (k) => `Dr. ${k}`,
   )
   assert.deepEqual(rekap.map((r) => r.nama), ['Ani', 'Budi', 'Zed', 'Cici'])
@@ -209,12 +208,15 @@ async function main() {
   assert.deepEqual(budi.dospem2, { nama: 'Dr. B', nilai: 77, manual: true })
   assert.equal(budi.defenseId, '1')
   assert.equal(budi.judul, 'Judul Budi')
+  assert.equal(budi.batas, '2026-11-17')
+  assert.equal(rekap[0].batas, null) // not locked
   assert.equal(rekap[0].bimbingan, null) // only Dospem I graded
   assert.equal(rekap[0].dospem2.nilai, null)
   assert.equal(rekap[0].ipk, null) // no sks/bobot
   assert.equal(rekap[2].ipk, null) // no student row
+  assert.equal(rekap[2].dospem1.nama, '—') // no student row, no pembimbing
   assert.equal(rekap[2].bimbingan, null)
-  assert.equal(rekap[3].dospem1.nama, '—') // no pembimbing chosen
+  assert.equal(rekap[3].dospem1.nama, '—') // no Pembimbing I set
   assert.equal(rekap[3].bimbingan, null)
 
   // The Excel recap marks a manual grade on the dosen name; the grade cell stays a number.
@@ -222,7 +224,7 @@ async function main() {
   await xlsx.xlsx.load((await buildRekapBimbinganXlsx([budi], tabel)).buffer)
   const sel = xlsx.getWorksheet('Nilai Bimbingan')!.getRow(2)
   assert.equal(sel.getCell(6).value, 'Dr. A')
-  assert.equal(sel.getCell(9).value, 'Dr. B (input manual)')
+  assert.equal(sel.getCell(9).value, 'Dr. B (input admin)')
   assert.equal(sel.getCell(10).value, 77)
 
   console.log('nilai-bimbingan: all checks passed')

@@ -319,7 +319,7 @@ cekEnsure().catch((e) => { console.error(e); process.exit(1) })
 
 // ---- formulir penguji: revisi, Penilaian Saya status, old sidang
 import { cekRevisi } from '../src/lib/penilaian/nilai'
-import { bolehInputLamaSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
+import { STATUS_SIDANG } from '../src/lib/penilaian/akses'
 {
   // No revisi: client rows are dropped, never stored.
   assert.deepEqual(cekRevisi(false, [{ halaman: '1', catatan: 'x' }]), { adaRevisi: false, revisi: [] })
@@ -350,10 +350,6 @@ import { bolehInputLamaSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
   assert.equal(STATUS_SIDANG.terkirim, 'Terkirim')
   assert.equal(STATUS_SIDANG.terkunci, 'Terkunci')
 
-  const sd: SidangRef = { id: 's', prodi: 's1', jenis: 'sidang', tanggal: '2026-11-09', pembimbing_kode: 'PB', penguji_kode: 'KT', penguji_eksternal_kode: 'EX' }
-  assert.equal(bolehInputLamaSidang(sd, '2026-11-10'), true)
-  assert.equal(bolehInputLamaSidang(sd, '2026-11-09'), false)
-  assert.equal(bolehInputLamaSidang({ ...sd, jenis: 'prasidang' }, '2026-11-10'), false)
   console.log('nilai-sidang formulir: all checks passed')
 }
 
@@ -516,10 +512,10 @@ cekEmail().catch((e) => { console.error(e); process.exit(1) })
   const fkSidang = (c: string, t: string) => ({ code: '23503', message: `update or delete on table "defenses" violates foreign key constraint "${c}" on table "${t}"`, details: `Key (id)=(x) is still referenced from table "${t}".` })
   assert.equal(humanDbError(fkSidang('nilai_sidang_defense_id_fkey', 'nilai_sidang')), 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.')
   assert.equal(humanDbError(fkSidang('hasil_sidang_defense_id_fkey', 'hasil_sidang')), 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.')
-  // by constraint name only: the lecturer FK on nilai_sidang is a different problem, and bimbingan keeps its own wording
+  // by constraint name only: the lecturer FK on nilai_sidang is a different problem; bimbingan is graded on the sidang too
   assert.match(humanDbError(fkSidang('nilai_sidang_kode_dosen_fkey', 'nilai_sidang')), /masih dipakai/)
   assert.doesNotMatch(humanDbError(fkSidang('nilai_sidang_kode_dosen_fkey', 'nilai_sidang')), /Sidang ini/)
-  assert.equal(humanDbError(fkSidang('nilai_bimbingan_defense_id_fkey', 'nilai_bimbingan')), 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.')
+  assert.equal(humanDbError(fkSidang('nilai_bimbingan_defense_id_fkey', 'nilai_bimbingan')), 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.')
   // RPC race: already locked
   assert.equal(humanDbError({ code: '42501', message: 'Nilai sidang sudah dikunci.' }), 'Nilai sidang ini sudah dikunci. Muat ulang halaman.')
   assert.match(humanDbError({ code: '42501', message: 'permission denied for table x' }), /izin/) // other 42501 unchanged
@@ -533,7 +529,7 @@ cekEmail().catch((e) => { console.error(e); process.exit(1) })
 
 // ---- rekap Nilai Akhir
 import { ANGGOTA_I_LEGACY } from '../src/lib/penilaian/akses'
-import { ALASAN_ATURAN_RUSAK, bimbinganTerbaru, bolehKirimUlang, buildRekapAkhir, EMAIL_LABEL, parseDetailEmail } from '../src/lib/penilaian/rekap'
+import { ALASAN_ATURAN_RUSAK, bimbinganPerSidang, bolehKirimUlang, buildRekapAkhir, EMAIL_LABEL, parseDetailEmail } from '../src/lib/penilaian/rekap'
 import { smtpOpsi } from '../src/lib/mailer'
 {
   const sd = (id: string, npm: string, nama: string, over: Record<string, unknown> = {}) => ({
@@ -562,34 +558,20 @@ import { smtpOpsi } from '../src/lib/mailer'
   ]
   const namaDosen = (k: string) => `Dosen ${k}`
 
-  // Bimbingan: the LATEST prasidang of the NPM decides, even when an older one is complete or the newest is still open.
-  const pra = [
-    { id: 'p-lama', tanggal: '2025-05-01', npm: '2021110001' },
-    { id: 'p-baru', tanggal: '2026-05-01', npm: '2021110001' },
-    { id: 'p-sebagian', tanggal: '2026-05-02', npm: '2021110002' },
-    { id: 'p-tua', tanggal: '2025-01-01', npm: '2021110003' },
-    { id: 'p-kosong', tanggal: '2026-01-01', npm: '2021110003' },
-    { id: 'p-ulang', tanggal: '2026-12-01', npm: '2021110001' }, // retake AFTER the sidang (2026-11-10): must not change the locked result
-    { id: 'p-sama-hari', tanggal: '2026-11-10', npm: '2021110005' }, // same day as the sidang still counts
-  ]
+  // Bimbingan: graded on the sidang itself, so each sidang has its own (a retake gets a fresh one).
   const nb = [
-    { defense_id: 'p-lama', peran: 'pembimbing_1' as const, nilai: 60 }, { defense_id: 'p-lama', peran: 'pembimbing_2' as const, nilai: 60 },
-    { defense_id: 'p-baru', peran: 'pembimbing_1' as const, nilai: 78 }, { defense_id: 'p-baru', peran: 'pembimbing_2' as const, nilai: 79 },
-    { defense_id: 'p-sebagian', peran: 'pembimbing_1' as const, nilai: 80 },
-    { defense_id: 'p-tua', peran: 'pembimbing_1' as const, nilai: 70 }, { defense_id: 'p-tua', peran: 'pembimbing_2' as const, nilai: 70 },
-    { defense_id: 'p-ulang', peran: 'pembimbing_1' as const, nilai: 50 }, { defense_id: 'p-ulang', peran: 'pembimbing_2' as const, nilai: 50 },
-    { defense_id: 'p-sama-hari', peran: 'pembimbing_1' as const, nilai: 90 }, { defense_id: 'p-sama-hari', peran: 'pembimbing_2' as const, nilai: 90 },
+    { defense_id: 'd-ok', peran: 'pembimbing_1' as const, nilai: 78 }, { defense_id: 'd-ok', peran: 'pembimbing_2' as const, nilai: 79 },
+    { defense_id: 'd-bim', peran: 'pembimbing_1' as const, nilai: 80 },
+    { defense_id: 'd-rusak', peran: 'pembimbing_1' as const, nilai: 90 }, { defense_id: 'd-rusak', peran: 'pembimbing_2' as const, nilai: 90 },
+    { defense_id: 'd-ulang', peran: 'pembimbing_1' as const, nilai: 50 }, { defense_id: 'd-ulang', peran: 'pembimbing_2' as const, nilai: 50 },
   ]
-  // Keyed by sidang id; only prasidang dated on or before that sidang count (a later retake never changes a locked Nilai Akhir).
-  const bim = bimbinganTerbaru(pra, nb, sidang)
-  assert.equal(bim.get('d-ok'), 78.5) // latest of the two before the sidang, not 60, and not the 50/50 retake of 2026-12-01
+  const bim = bimbinganPerSidang(nb)
+  assert.equal(bim.get('d-ok'), 78.5)
   assert.equal(bim.get('d-bim'), null) // one dosen only
-  assert.equal(bim.get('d-gagal'), null) // latest has no grades; the older complete one is not used
-  assert.equal(bim.has('d-legacy'), false)
-  assert.equal(bim.get('d-rusak'), 90) // prasidang on the sidang's own day counts
-  assert.deepEqual(Object.fromEntries(bimbinganTerbaru([...pra].reverse(), [...nb].reverse(), sidang)), Object.fromEntries(bim)) // input order does not matter
-  // A sidang before every prasidang of its NPM has no bimbingan at all.
-  assert.equal(bimbinganTerbaru(pra, nb, [sd('d-awal', '2021110001', 'X', { tanggal: '2025-01-01' })]).has('d-awal'), false)
+  assert.equal(bim.has('d-gagal'), false) // nothing graded
+  assert.equal(bim.get('d-rusak'), 90)
+  assert.equal(bim.get('d-ulang'), 50) // another sidang of the same NPM keeps its own
+  assert.deepEqual(Object.fromEntries(bimbinganPerSidang([...nb].reverse())), Object.fromEntries(bim)) // input order does not matter
 
   const rows = buildRekapAkhir(sidang, students, nilai, hs, bim, namaDosen)
   assert.deepEqual(rows.map((r) => r.defenseId), ['d-legacy', 'd-ok', 'd-bim', 'd-gagal', 'd-rusak']) // tanggal, then nama

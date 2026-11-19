@@ -1,4 +1,4 @@
-import { ANGGOTA_I_LEGACY, PERAN_SIDANG, type Peran, type PeranSidang } from './akses'
+import { ANGGOTA_I_LEGACY, batasBimbingan, PERAN_SIDANG, type Peran, type PeranSidang } from './akses'
 import { parseAturanBeku } from './aturan'
 import { baris, hasilAkhir, ipkSebelum, nilaiBimbingan, nilaiSidang, type HasilAkhir } from './nilai'
 
@@ -13,6 +13,8 @@ export type RekapBimbingan = {
   dospem1: DosenNilai
   dospem2: DosenNilai
   bimbingan: number | null
+  /** Last day the Dosen Pembimbing may grade; null until the Ketua locks the sidang. */
+  batas: string | null
 }
 
 type DefenseIn = {
@@ -21,30 +23,36 @@ type DefenseIn = {
   npm: string
   nama_mahasiswa: string
   judul_skripsi: string
-  pembimbing_kode: string | null
-  penguji_kode: string | null
 }
 type StudentIn = { npm: string; sks_sebelum: number | null; bobot_sebelum: number | null }
+type StudentPembimbingIn = StudentIn & { pembimbing_1_kode: string | null; pembimbing_2_kode: string | null }
 type NilaiIn = { defense_id: string; peran: Peran; nilai: number; sumber: 'dosen' | 'manual' }
 
-/** One row per S1 prasidang, by tanggal then nama. Pure: the page and the Excel file are both built from it. */
+/**
+ * One row per S1 sidang, by tanggal then nama. The dosen are the student's Pembimbing I/II (Data Mahasiswa).
+ * Pure: the page and the Excel file are both built from it.
+ */
 export function buildRekapBimbingan(
-  defenses: DefenseIn[],
-  students: StudentIn[],
+  sidang: DefenseIn[],
+  students: StudentPembimbingIn[],
   nilai: NilaiIn[],
+  kunci: { defense_id: string; locked_at: string }[],
+  batasHari: number,
   namaDosen: (kode: string) => string,
 ): RekapBimbingan[] {
   const mhs = new Map(students.map((s) => [s.npm, s]))
   const skor = new Map(nilai.map((n) => [`${n.defense_id}/${n.peran}`, n]))
-  return defenses
+  const locked = new Map(kunci.map((k) => [k.defense_id, k.locked_at]))
+  return sidang
     .map((d): RekapBimbingan => {
-      const dosen = (kode: string | null, peran: Peran): DosenNilai => {
+      const s = mhs.get(d.npm)
+      const dosen = (kode: string | null | undefined, peran: Peran): DosenNilai => {
         const n = skor.get(`${d.id}/${peran}`)
         return { nama: kode ? namaDosen(kode) : '—', nilai: n?.nilai ?? null, manual: n?.sumber === 'manual' }
       }
-      const s = mhs.get(d.npm)
-      const dospem1 = dosen(d.pembimbing_kode, 'pembimbing_1')
-      const dospem2 = dosen(d.penguji_kode, 'pembimbing_2')
+      const dospem1 = dosen(s?.pembimbing_1_kode, 'pembimbing_1')
+      const dospem2 = dosen(s?.pembimbing_2_kode, 'pembimbing_2')
+      const lockedAt = locked.get(d.id)
       return {
         defenseId: d.id,
         tanggal: d.tanggal,
@@ -55,6 +63,7 @@ export function buildRekapBimbingan(
         dospem1,
         dospem2,
         bimbingan: nilaiBimbingan(dospem1.nilai, dospem2.nilai),
+        batas: lockedAt ? batasBimbingan(lockedAt, batasHari) : null,
       }
     })
     .sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.nama.localeCompare(b.nama))
@@ -82,7 +91,7 @@ export type RekapAkhir = {
   lockedAt: string | null
 }
 
-type SidangIn = DefenseIn & { penguji_eksternal_kode: string | null }
+type SidangIn = DefenseIn & { pembimbing_kode: string | null; penguji_kode: string | null; penguji_eksternal_kode: string | null }
 type StudentAkhirIn = StudentIn & { tepat_waktu: boolean }
 type NilaiSidangIn = { defense_id: string; peran: PeranSidang; nilai: number }
 type HasilIn = {
@@ -122,26 +131,11 @@ export function bolehKirimUlang(status: string | null, lockedAt: string | null, 
   return status === 'menunggu' && now.getTime() - t > 2 * 60_000
 }
 
-/**
- * Sidang id -> Nilai Bimbingan of that NPM's LATEST prasidang dated on or before the sidang (any year); null while that one
- * is incomplete. Older ones never fill in, and a prasidang retaken after the sidang never changes a locked Nilai Akhir.
- */
-export function bimbinganTerbaru(
-  prasidang: { id: string; tanggal: string; npm: string }[],
-  nilai: { defense_id: string; peran: Peran; nilai: number }[],
-  sidang: { id: string; tanggal: string; npm: string }[],
-): Map<string, number | null> {
-  const skor = (id: string, peran: Peran) => nilai.find((n) => n.defense_id === id && n.peran === peran)?.nilai ?? null
-  const hasil = new Map<string, number | null>()
-  for (const s of sidang) {
-    let terbaru: { id: string; tanggal: string } | undefined
-    for (const p of prasidang) {
-      if (p.npm !== s.npm || p.tanggal > s.tanggal) continue
-      if (!terbaru || p.tanggal > terbaru.tanggal || (p.tanggal === terbaru.tanggal && p.id > terbaru.id)) terbaru = p
-    }
-    if (terbaru) hasil.set(s.id, nilaiBimbingan(skor(terbaru.id, 'pembimbing_1'), skor(terbaru.id, 'pembimbing_2')))
-  }
-  return hasil
+/** Sidang id -> Nilai Bimbingan graded on that sidang; null while only one Pembimbing has graded. */
+export function bimbinganPerSidang(nilai: { defense_id: string; peran: Peran; nilai: number }[]): Map<string, number | null> {
+  const per = new Map<string, Partial<Record<Peran, number>>>()
+  for (const n of nilai) per.set(n.defense_id, { ...per.get(n.defense_id), [n.peran]: n.nilai })
+  return new Map([...per].map(([id, p]) => [id, nilaiBimbingan(p.pembimbing_1 ?? null, p.pembimbing_2 ?? null)]))
 }
 
 /** One row per S1 sidang, by tanggal then nama. Pure: the page and the Excel file are both built from it. */
