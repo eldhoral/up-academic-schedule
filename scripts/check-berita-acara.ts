@@ -89,6 +89,7 @@ for (const m of [
 ]) assert.equal(humanDbError({ code: '23514', message: m }), m, m)
 for (const m of [
   'Mahasiswa tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
+  'Tanggal tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
   'Dosen pembimbing tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
   'Dosen pembimbing tidak dapat diubah: nilai bimbingan sudah dikirim.',
   'Dosen eksternal tidak dapat menjadi Dosen Pembimbing.',

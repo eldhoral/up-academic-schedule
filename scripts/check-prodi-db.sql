@@ -615,6 +615,13 @@ begin
     end;
     update students set pembimbing_2_kode = 'DSN03' where npm = '88003';
     update students set judul_skripsi = 'Baru' where npm = '88000';
+    -- A sidang with only a bimbingan grade (Super Admin, before any examiner) keeps its student too.
+    begin
+        update defenses set npm = '88099' where id = (select id from nb_def where k = 'nbU');
+        raise exception 'FAIL: moved a sidang that has a bimbingan grade';
+    exception when raise_exception then
+        assert sqlerrm = 'Mahasiswa tidak dapat diubah: sidang ini sudah dinilai.', sqlerrm;
+    end;
     -- Renaming a lecturer's kode is not a reassignment: the grade and the student follow it.
     update lecturers set kode_dosen = 'DSN01X' where kode_dosen = 'DSN01';
     assert (select kode_dosen from nilai_bimbingan where defense_id = nbA and peran = 'pembimbing_1') = 'DSN01X', 'grade follows the renamed kode';
@@ -1321,7 +1328,7 @@ begin
     exception when insufficient_privilege then null;
     end;
     assert (select count(*) from berita_acara_prasidang) = 1, 'a dosen reads its own berita acara';
-    assert status_prasidang('89000') = 'belum_lengkap', 'one of two is belum lengkap';
+    assert status_prasidang('89000') is null, 'a DOSEN reads no verdict';
 end $$;
 reset role;
 
@@ -1329,6 +1336,7 @@ reset role;
 do $$
 declare p1 uuid := (select id from ba_def where k = '89001'); bad jsonb;
 begin
+    assert status_prasidang('89000') = 'belum_lengkap', 'one of two is belum lengkap';
     foreach bad in array array[
         '[]', '{"teks": "Q"}', '[{"teks": " ", "ya": true, "catatan": ""}]', '[{"teks": "Q", "ya": "ya", "catatan": ""}]',
         '[{"teks": "Q", "ya": true}]', format('[{"teks": "Q", "ya": true, "catatan": "%s"}]', repeat('x', 1001))
@@ -1482,6 +1490,13 @@ begin
         assert sqlerrm = 'Dosen pembimbing tidak dapat diubah: prasidang ini sudah diisi berita acaranya.', sqlerrm;
     end;
     update defenses set jam_mulai = '08:15' where id = p0;
+    -- Moving a filled prasidang's date would change which prasidang is "latest" for the gate.
+    begin
+        update defenses set tanggal = tanggal + 30 where id = p0;
+        raise exception 'FAIL: moved a filled prasidang''s date';
+    exception when raise_exception then
+        assert sqlerrm = 'Tanggal tidak dapat diubah: prasidang ini sudah diisi berita acaranya.', sqlerrm;
+    end;
     begin
         delete from defenses where id = p0;
         raise exception 'FAIL: deleted a prasidang with berita acara';
@@ -1492,11 +1507,12 @@ begin
     assert not has_table_privilege('authenticated', 'berita_acara_prasidang', 'update'), 'nobody updates a berita acara';
 end $$;
 
--- DOSEN and EKSTERNAL never read overrides; the DOSEN reads only its own berita acara.
+-- DOSEN and EKSTERNAL never read overrides or any student's verdict; the DOSEN reads only its own berita acara.
 select set_config('request.jwt.claim.sub', :'dosen4', false);
 set role authenticated;
 do $$ begin
     assert (select count(*) from keputusan_prasidang) = 0, 'a DOSEN reads no override';
+    assert status_prasidang('89001') is null, 'a DOSEN reads no verdict through status_prasidang';
     assert (select count(*) from berita_acara_prasidang) = 2, 'DSN03 reads its own two';
 end $$;
 reset role;

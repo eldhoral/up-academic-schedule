@@ -194,6 +194,8 @@ grant select on keputusan_prasidang to service_role;
 
 -- 5. Status and gate ---------------------------------------------------------------------
 -- layak | layak_revisi | tidak_layak | belum_lengkap | tidak_ada. Same rules as statusPrasidang() in TS.
+-- Staff only for a signed-in session (a DOSEN or EKSTERNAL gets null): the verdict is staff data. The
+-- role setting, not current_user, tells who called: inside security definer current_user is the owner.
 create or replace function status_prasidang(p_npm varchar)
 returns text
 language plpgsql
@@ -207,6 +209,7 @@ declare
     a text;
     b text;
 begin
+    if current_setting('role', true) in ('authenticated', 'anon') and not is_staff() then return null; end if;
     select id into pras from defenses
     where npm = p_npm and prodi = 's1' and jenis = 'prasidang'
     order by tanggal desc, created_at desc
@@ -274,9 +277,14 @@ begin
         if exists (select 1 from berita_acara_prasidang where defense_id = OLD.id) then
             raise exception 'Mahasiswa tidak dapat diubah: prasidang ini sudah diisi berita acaranya.';
         end if;
-        if exists (select 1 from nilai_sidang where defense_id = OLD.id) then
+        if exists (select 1 from nilai_sidang where defense_id = OLD.id)
+                or exists (select 1 from nilai_bimbingan where defense_id = OLD.id) then
             raise exception 'Mahasiswa tidak dapat diubah: sidang ini sudah dinilai.';
         end if;
+    end if;
+    -- The latest prasidang decides the gate, so a filled one keeps its date.
+    if NEW.tanggal is distinct from OLD.tanggal and exists (select 1 from berita_acara_prasidang where defense_id = OLD.id) then
+        raise exception 'Tanggal tidak dapat diubah: prasidang ini sudah diisi berita acaranya.';
     end if;
     if (NEW.pembimbing_kode is distinct from OLD.pembimbing_kode
             and exists (select 1 from lecturers where kode_dosen = OLD.pembimbing_kode)

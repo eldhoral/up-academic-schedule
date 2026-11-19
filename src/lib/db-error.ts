@@ -11,6 +11,7 @@ const PESAN_DB = new Set<string>([
   'Dosen Pembimbing untuk peran ini belum diisi di Data Mahasiswa.',
   'Nilai bimbingan hanya untuk sidang S1.',
   'Mahasiswa tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
+  'Tanggal tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
   'Dosen pembimbing tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
   'Dosen pembimbing tidak dapat diubah: nilai bimbingan sudah dikirim.',
   'Dosen eksternal tidak dapat menjadi Dosen Pembimbing.',
