@@ -9,7 +9,7 @@ import {
   aksesBeritaAcara, aksesBimbingan, aksesSidang, penilaianPath, penilaianSidangPath, PERAN_LABEL, PERAN_SIDANG_LABEL, peranPenguji,
   peranPrasidang, STATUS_SIDANG, todayJakarta, type Peran, type PeranSidang,
 } from '@/lib/penilaian/akses'
-import { beritaAcaraPath, PERAN_PRASIDANG_LABEL, type PeranPrasidang } from '@/lib/penilaian/prasidang'
+import { batasBeritaAcara, beritaAcaraPath, PERAN_PRASIDANG_LABEL, type PeranPrasidang } from '@/lib/penilaian/prasidang'
 import { identitasPenguji, SIDANG_COLS, type DefensePenilaian, type DefenseSidang } from '@/lib/penilaian/data'
 import { loadAturan } from '@/lib/penilaian/aturan'
 
@@ -82,7 +82,7 @@ export default async function PenilaianSayaPage() {
     const akses = aksesBeritaAcara(d, kode, new Set((isian.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as PeranPrasidang)), today)
     const peran = peranPrasidang(d, kode)
     if (akses.kind === 'tidak-ada' || !peran) continue
-    rows.push({ id: `ba-${d.id}`, href: beritaAcaraPath(d.id), tanggal: d.tanggal, npm: d.npm, nama: d.nama_mahasiswa, judul: d.judul_skripsi, jenis: 'Berita Acara Prasidang', peran: PERAN_PRASIDANG_LABEL[peran], status: STATUS_PRASIDANG[akses.kind] })
+    rows.push({ id: `ba-${d.id}`, href: beritaAcaraPath(d.id), tanggal: d.tanggal, npm: d.npm, nama: d.nama_mahasiswa, judul: d.judul_skripsi, jenis: 'Berita Acara Prasidang', peran: PERAN_PRASIDANG_LABEL[peran], status: akses.kind === 'isi' ? `Belum diisi (batas ${tanggalPanjang(batasBeritaAcara(d.tanggal), false)})` : STATUS_PRASIDANG[akses.kind] })
   }
   for (const d of sidang.values()) {
     const submitted = new Set((ns.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as PeranSidang))

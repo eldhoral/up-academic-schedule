@@ -1255,7 +1255,9 @@ select set_config('request.jwt.claim.sub', '', false);
 do $$
 declare s1 uuid; s2 uuid;
 begin
-    assert (select jsonb_array_length(nilai) from aturan_penilaian where prodi = 's1' and kunci = 'pertanyaan_prasidang') = 3, 'three prasidang questions';
+    assert (select jsonb_array_length(nilai) from aturan_penilaian where prodi = 's1' and kunci = 'pertanyaan_prasidang') = 5, 'five prasidang questions';
+    assert (select count(*) from aturan_penilaian, jsonb_array_elements(nilai) q
+            where prodi = 's1' and kunci = 'pertanyaan_prasidang' and q ->> 'jenis' = 'uraian') = 2, 'two uraian questions';
     assert (select nilai from aturan_penilaian where prodi = 's1' and kunci = 'batas_hari_bimbingan') = '7'::jsonb, 'batas hari 7';
     -- The cleanup removes S1 prasidang/sidang data and keeps S2.
     insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, prodi)
@@ -1288,7 +1290,7 @@ do $$
 declare
     p0 uuid := (select id from ba_def where k = '89000');
     p4 uuid := (select id from ba_def where k = '89004');
-    j jsonb := '[{"teks": "Q", "ya": true, "catatan": ""}]';
+    j jsonb := '[{"teks": "Q", "jenis": "ya_tidak", "ya": true, "catatan": ""}]';
     n int;
 begin
     insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
@@ -1313,7 +1315,7 @@ begin
     end;
     begin
         insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
-        values (p0, 'DSN01', 'pendamping', '[{"teks": "Q", "ya": "ya", "catatan": ""}]', 'layak', auth.uid());
+        values (p0, 'DSN01', 'pendamping', '[{"teks": "Q", "jenis": "ya_tidak", "ya": "ya", "catatan": ""}]', 'layak', auth.uid());
         raise exception 'FAIL: a bad jawaban was accepted';
     exception when check_violation or unique_violation then null;
     end;
@@ -1338,8 +1340,11 @@ declare p1 uuid := (select id from ba_def where k = '89001'); bad jsonb;
 begin
     assert status_prasidang('89000') = 'belum_lengkap', 'one of two is belum lengkap';
     foreach bad in array array[
-        '[]', '{"teks": "Q"}', '[{"teks": " ", "ya": true, "catatan": ""}]', '[{"teks": "Q", "ya": "ya", "catatan": ""}]',
-        '[{"teks": "Q", "ya": true}]', format('[{"teks": "Q", "ya": true, "catatan": "%s"}]', repeat('x', 1001))
+        '[]', '{"teks": "Q"}', '[{"teks": " ", "jenis": "ya_tidak", "ya": true, "catatan": ""}]', '[{"teks": "Q", "jenis": "ya_tidak", "ya": "ya", "catatan": ""}]',
+        '[{"teks": "Q", "jenis": "ya_tidak", "ya": true}]', format('[{"teks": "Q", "jenis": "ya_tidak", "ya": true, "catatan": "%s"}]', repeat('x', 1001)),
+        '[{"teks": "Q", "ya": true, "catatan": ""}]', '[{"teks": "Q", "jenis": "lain", "ya": true, "catatan": ""}]',
+        '[{"teks": "U", "jenis": "uraian", "ya": null, "catatan": "  "}]', '[{"teks": "U", "jenis": "uraian", "ya": true, "catatan": "isi"}]',
+        format('[{"teks": "U", "jenis": "uraian", "ya": null, "catatan": "%s"}]', repeat('x', 2001))
     ]::jsonb[] loop
         begin
             insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil) values (p1, 'DSN01', 'pendamping', bad, 'layak');
@@ -1349,7 +1354,7 @@ begin
     end loop;
     begin
         insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil)
-        values ((select id from ba_def where k = '89003'), 'DSN01', 'pendamping', '[{"teks": "Q", "ya": true, "catatan": ""}]', 'layak');
+        values ((select id from ba_def where k = '89003'), 'DSN01', 'pendamping', '[{"teks": "Q", "jenis": "ya_tidak", "ya": true, "catatan": ""}]', 'layak');
         raise exception 'FAIL: a berita acara on a sidang';
     exception when check_violation then null;
     end;
@@ -1399,7 +1404,7 @@ reset role;
 select set_config('request.jwt.claim.sub', :'dosen4', false);
 set role authenticated;
 do $$
-declare j jsonb := '[{"teks": "Q", "ya": false, "catatan": "Ganti alat ukur"}]';
+declare j jsonb := '[{"teks": "Q", "jenis": "ya_tidak", "ya": false, "catatan": "Ganti alat ukur"}, {"teks": "U", "jenis": "uraian", "ya": null, "catatan": "Perbaiki bab 2"}]';
 begin
     insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
     values ((select id from ba_def where k = '89000'), 'DSN03', 'pembahas', j, 'layak_revisi', auth.uid());
@@ -1410,7 +1415,7 @@ reset role;
 select set_config('request.jwt.claim.sub', :'dosen', false);
 set role authenticated;
 insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
-values ((select id from ba_def where k = '89001'), 'DSN01', 'pendamping', '[{"teks": "Q", "ya": true, "catatan": ""}]', 'layak', auth.uid());
+values ((select id from ba_def where k = '89001'), 'DSN01', 'pendamping', '[{"teks": "Q", "jenis": "ya_tidak", "ya": true, "catatan": ""}]', 'layak', auth.uid());
 reset role;
 
 do $$ begin

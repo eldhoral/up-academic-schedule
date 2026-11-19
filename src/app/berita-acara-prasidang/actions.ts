@@ -7,6 +7,7 @@ import { humanDbError } from '@/lib/db-error'
 import { tanggalPanjang } from '@/lib/hari'
 import { aksesBeritaAcara, todayJakarta } from '@/lib/penilaian/akses'
 import { loadBeritaAcara } from '@/lib/penilaian/data'
+import type { Pertanyaan } from '@/lib/penilaian/aturan'
 import { beritaAcaraPath, cekJawaban, HASIL, SUDAH_DIKIRIM_BA, type Hasil, type PeranPrasidang } from '@/lib/penilaian/prasidang'
 
 export type HasilAksi = { error: string } | { ok: true }
@@ -15,7 +16,7 @@ const TIDAK_ADA = 'Berita acara tidak ditemukan.'
 
 /** A DOSEN fills its own peran, from the prasidang date, once. Every rule is re-checked here; RLS checks them again. */
 export async function submitBeritaAcaraAction(
-  defenseId: string, peran: PeranPrasidang, tampil: string[], ya: (boolean | null)[], catatan: string[], hasil: Hasil,
+  defenseId: string, peran: PeranPrasidang, tampil: Pertanyaan[], ya: (boolean | null)[], catatan: string[], hasil: Hasil,
 ): Promise<HasilAksi> {
   const user = await getCurrentUser()
   if (!user || !isDosen(user.role) || !user.kodeDosen) return { error: TIDAK_ADA }

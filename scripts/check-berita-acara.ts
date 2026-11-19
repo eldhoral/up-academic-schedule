@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { DEFAULT_ATURAN, validateBatasHari, validatePertanyaan } from '../src/lib/penilaian/aturan'
 import { aksesBeritaAcara, halamanDosen } from '../src/lib/penilaian/akses'
-import { beritaAcaraPath, cekJawaban, gabungHasil, lolosGerbang, type StatusPrasidang } from '../src/lib/penilaian/prasidang'
+import { batasBeritaAcara, beritaAcaraPath, cekJawaban, gabungHasil, HASIL_LABEL, lolosGerbang, type StatusPrasidang } from '../src/lib/penilaian/prasidang'
 import { statusPrasidang } from '../src/lib/penilaian/rekap-prasidang'
 import { humanDbError } from '../src/lib/db-error'
 
@@ -17,23 +17,43 @@ assert.deepEqual(
   [true, true, false, false, false],
 )
 
-// ---- questions
+// ---- questions: ya_tidak (Ya/Tidak + optional catatan) and uraian (required text)
 const q = DEFAULT_ATURAN.pertanyaanPrasidang
-assert.equal(q.length, 3)
-assert.equal(q[0], 'Apakah Variabel Penelitian dapat dipertahankan?')
-assert.equal(q[1], 'Apakah terdapat perubahan pertanyaan penelitian?')
-assert.equal(q[2], 'Apakah alat ukur yang diusulkan dapat digunakan untuk penelitian ini?')
-assert.match((cekJawaban(q, [...q, 'x'], [true, true, true], ['', '', '']) as { error: string }).error, /berubah/)
-assert.ok('error' in cekJawaban(q, q, [true, null, true], ['', '', '']))
-assert.ok('error' in cekJawaban(q, q, [true, true], ['', '']))
-assert.ok('error' in cekJawaban(q, q, [true, true, true], ['', 'x'.repeat(1001), '']))
-assert.ok('error' in cekJawaban(q, q, 'x', ['', '', '']))
-assert.deepEqual(cekJawaban(q, q, [true, false, true], [' a ', '', '']), {
-  jawaban: [{ teks: q[0], ya: true, catatan: 'a' }, { teks: q[1], ya: false, catatan: '' }, { teks: q[2], ya: true, catatan: '' }],
+assert.deepEqual(q, [
+  { teks: 'Apakah Variabel Penelitian dapat dipertahankan?', jenis: 'ya_tidak' },
+  { teks: 'Apakah terdapat perubahan pertanyaan penelitian?', jenis: 'ya_tidak' },
+  { teks: 'Apakah alat ukur yang diusulkan dapat digunakan untuk penelitian ini?', jenis: 'ya_tidak' },
+  { teks: 'Sistematika Penulisan Proposal', jenis: 'uraian' },
+  { teks: 'Substansi (isi) Proposal', jenis: 'uraian' },
+])
+const ya5 = [true, false, true, null, null]
+const isi5 = [' a ', '', '', ' Rapi ', 'Kuat']
+assert.match((cekJawaban(q, [...q, { teks: 'x', jenis: 'uraian' }], ya5, isi5) as { error: string }).error, /berubah/)
+assert.match((cekJawaban(q, q.map((x, i) => (i === 3 ? { ...x, jenis: 'ya_tidak' } : x)), ya5, isi5) as { error: string }).error, /berubah/, 'a changed kind is a changed list')
+assert.ok('error' in cekJawaban(q, q, [true, null, true, null, null], isi5), 'a ya_tidak needs Ya or Tidak')
+assert.ok('error' in cekJawaban(q, q, ya5, [' a ', '', '', '  ', 'Kuat']), 'an uraian needs text')
+assert.ok('error' in cekJawaban(q, q, ya5.slice(0, 4), isi5.slice(0, 4)))
+assert.ok('error' in cekJawaban(q, q, ya5, ['', 'x'.repeat(1001), '', 'a', 'b']), 'catatan max 1000')
+assert.ok('error' in cekJawaban(q, q, ya5, ['', '', '', 'x'.repeat(2001), 'b']), 'uraian max 2000')
+assert.ok(!('error' in cekJawaban(q, q, ya5, ['', '', '', 'x'.repeat(2000), 'b'])))
+assert.ok('error' in cekJawaban(q, q, 'x', isi5))
+assert.deepEqual(cekJawaban(q, q, [true, false, true, true, false], isi5), {
+  jawaban: [
+    { teks: q[0].teks, jenis: 'ya_tidak', ya: true, catatan: 'a' },
+    { teks: q[1].teks, jenis: 'ya_tidak', ya: false, catatan: '' },
+    { teks: q[2].teks, jenis: 'ya_tidak', ya: true, catatan: '' },
+    { teks: q[3].teks, jenis: 'uraian', ya: null, catatan: 'Rapi' }, // an uraian never stores a Ya/Tidak
+    { teks: q[4].teks, jenis: 'uraian', ya: null, catatan: 'Kuat' },
+  ],
 })
 assert.notEqual(validatePertanyaan([]), null)
-assert.notEqual(validatePertanyaan([' ']), null)
+assert.notEqual(validatePertanyaan([{ teks: ' ', jenis: 'uraian' }]), null)
+assert.notEqual(validatePertanyaan([{ teks: 'A', jenis: 'lain' as 'uraian' }]), null)
 assert.equal(validatePertanyaan(q), null)
+assert.equal(HASIL_LABEL.tidak_layak, 'Skripsi tidak layak untuk dilanjutkan (Mahasiswa diharapkan mengganti topik atau variabel penelitian)')
+// Shown, not enforced: the faculty asks for it by the day after the prasidang.
+assert.equal(batasBeritaAcara('2026-11-30'), '2026-12-01')
+assert.equal(batasBeritaAcara('2026-12-31'), '2027-01-01')
 assert.equal(validateBatasHari(7), null)
 assert.equal(validateBatasHari(60), null)
 assert.notEqual(validateBatasHari(0), null)

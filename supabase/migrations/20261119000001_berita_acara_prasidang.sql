@@ -41,16 +41,19 @@ alter table aturan_penilaian add constraint chk_aturan_penilaian_kunci
                      'aspek_sidang', 'pilihan_yudisium', 'pertanyaan_prasidang', 'batas_hari_bimbingan'));
 
 insert into aturan_penilaian (prodi, kunci, nilai) values
+    -- ya_tidak: Ya/Tidak + optional catatan; uraian: a required text answer (the Google Form's two text fields).
     ('s1', 'pertanyaan_prasidang', '[
-        "Apakah Variabel Penelitian dapat dipertahankan?",
-        "Apakah terdapat perubahan pertanyaan penelitian?",
-        "Apakah alat ukur yang diusulkan dapat digunakan untuk penelitian ini?"
+        {"teks": "Apakah Variabel Penelitian dapat dipertahankan?", "jenis": "ya_tidak"},
+        {"teks": "Apakah terdapat perubahan pertanyaan penelitian?", "jenis": "ya_tidak"},
+        {"teks": "Apakah alat ukur yang diusulkan dapat digunakan untuk penelitian ini?", "jenis": "ya_tidak"},
+        {"teks": "Sistematika Penulisan Proposal", "jenis": "uraian"},
+        {"teks": "Substansi (isi) Proposal", "jenis": "uraian"}
     ]'::jsonb),
     ('s1', 'batas_hari_bimbingan', '7'::jsonb)
 on conflict (prodi, kunci) do nothing;
 
 -- 3. Berita acara ------------------------------------------------------------------------
--- jawaban is the snapshot [{teks, ya, catatan}] the dosen answered.
+-- jawaban is the snapshot [{teks, jenis, ya, catatan}] the dosen answered (ya is null for an uraian).
 create table if not exists berita_acara_prasidang (
     id uuid primary key default gen_random_uuid(),
     defense_id uuid not null references defenses(id) on delete restrict,
@@ -89,8 +92,13 @@ begin
             where not (
                 jsonb_typeof(j) = 'object'
                 and coalesce(jsonb_typeof(j -> 'teks') = 'string' and btrim(j ->> 'teks') <> '', false)
-                and coalesce(jsonb_typeof(j -> 'ya') = 'boolean', false)
-                and coalesce(jsonb_typeof(j -> 'catatan') = 'string' and length(j ->> 'catatan') <= 1000, false)
+                and coalesce(jsonb_typeof(j -> 'catatan') = 'string', false)
+                and case j ->> 'jenis'
+                    when 'ya_tidak' then coalesce(jsonb_typeof(j -> 'ya') = 'boolean' and length(j ->> 'catatan') <= 1000, false)
+                    when 'uraian' then coalesce(jsonb_typeof(j -> 'ya') = 'null' and btrim(j ->> 'catatan') <> ''
+                                                and length(j ->> 'catatan') <= 2000, false)
+                    else false
+                end
             )
         ) then
         raise exception 'Berita acara tidak valid.' using errcode = 'check_violation';

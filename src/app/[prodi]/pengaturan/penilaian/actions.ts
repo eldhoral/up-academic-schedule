@@ -6,7 +6,7 @@ import { humanDbError } from '@/lib/db-error'
 import { managerOnly } from '@/lib/prodi-server'
 import {
   validateAspek, validateBatasHari, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
-  type Aspek, type BarisNilai, type BarisPredikat, type Yudisium,
+  type Aspek, type BarisNilai, type BarisPredikat, type Pertanyaan, type Yudisium,
 } from '@/lib/penilaian/aturan'
 
 export type Kunci =
@@ -49,8 +49,8 @@ function periksa(kunci: Kunci, value: unknown): { error: string } | { nilai: unk
     return validatePredikat(p) ? { error: validatePredikat(p)! } : { nilai: p }
   }
   if (kunci === 'pertanyaan_prasidang') {
-    if (!Array.isArray(value) || !value.every(isStr)) return { error: BENTUK }
-    const q = value.map((t) => t.trim())
+    if (!r || !r.every((x) => isStr(x.teks) && isStr(x.jenis))) return { error: BENTUK }
+    const q = r.map((x) => ({ teks: (x.teks as string).trim(), jenis: x.jenis as Pertanyaan['jenis'] }))
     return validatePertanyaan(q) ? { error: validatePertanyaan(q)! } : { nilai: q }
   }
   if (kunci === 'batas_hari_bimbingan') {

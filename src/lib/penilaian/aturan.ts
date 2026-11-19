@@ -6,6 +6,8 @@ export type Aspek = { label: string; bobot: number; sub: string[] }
 export type BarisNilai = { min: number; huruf: string; mutu: number }
 export type BarisPredikat = { min: number; max: number; predikat: string; butuhTepatWaktu: boolean }
 export type Yudisium = { label: string; lulus: boolean }
+export type JenisPertanyaan = 'ya_tidak' | 'uraian'
+export type Pertanyaan = { teks: string; jenis: JenisPertanyaan }
 export type Aturan = {
   aspekBimbingan: Aspek[]
   aspekSidang: Aspek[]
@@ -14,8 +16,8 @@ export type Aturan = {
   predikat: BarisPredikat[]
   sksSkripsi: number
   tanggalMulai: string
-  /** Berita Acara Prasidang: each is a Ya/Tidak question with an optional catatan. */
-  pertanyaanPrasidang: string[]
+  /** Berita Acara Prasidang: ya_tidak = Ya/Tidak + optional catatan; uraian = a required text answer. */
+  pertanyaanPrasidang: Pertanyaan[]
   /** Days after the sidang lock a Dosen Pembimbing may still grade bimbingan (lock day = day 0). */
   batasHariBimbingan: number
 }
@@ -99,9 +101,11 @@ export const DEFAULT_ATURAN: Aturan = {
   sksSkripsi: 6,
   tanggalMulai: todayJakarta(),
   pertanyaanPrasidang: [
-    'Apakah Variabel Penelitian dapat dipertahankan?',
-    'Apakah terdapat perubahan pertanyaan penelitian?',
-    'Apakah alat ukur yang diusulkan dapat digunakan untuk penelitian ini?',
+    { teks: 'Apakah Variabel Penelitian dapat dipertahankan?', jenis: 'ya_tidak' },
+    { teks: 'Apakah terdapat perubahan pertanyaan penelitian?', jenis: 'ya_tidak' },
+    { teks: 'Apakah alat ukur yang diusulkan dapat digunakan untuk penelitian ini?', jenis: 'ya_tidak' },
+    { teks: 'Sistematika Penulisan Proposal', jenis: 'uraian' },
+    { teks: 'Substansi (isi) Proposal', jenis: 'uraian' },
   ],
   batasHariBimbingan: 7,
 }
@@ -157,9 +161,10 @@ export function validateSks(n: number): string | null {
   return Number.isInteger(n) && n > 0 ? null : 'SKS skripsi harus bilangan bulat lebih dari 0'
 }
 
-export function validatePertanyaan(p: string[]): string | null {
+export function validatePertanyaan(p: Pertanyaan[]): string | null {
   if (p.length < 1) return 'Minimal satu pertanyaan'
-  return p.every((t) => t.trim()) ? null : 'Pertanyaan wajib diisi'
+  if (!p.every((q) => q.jenis === 'ya_tidak' || q.jenis === 'uraian')) return 'Jenis pertanyaan tidak dikenali'
+  return p.every((q) => q.teks.trim()) ? null : 'Pertanyaan wajib diisi'
 }
 
 export function validateBatasHari(n: number): string | null {
@@ -201,9 +206,10 @@ function parsePilihan(v: unknown): Yudisium[] | null {
   return validatePilihanYudisium(p) ? null : p
 }
 
-function parsePertanyaan(v: unknown): string[] | null {
-  if (!Array.isArray(v) || !v.every(str)) return null
-  return validatePertanyaan(v) ? null : v
+function parsePertanyaan(v: unknown): Pertanyaan[] | null {
+  if (!arr(v) || !v.every((r) => str(r.teks) && str(r.jenis))) return null
+  const p = v.map((r) => ({ teks: r.teks as string, jenis: r.jenis as JenisPertanyaan }))
+  return validatePertanyaan(p) ? null : p
 }
 
 /** The rules a locked sidang froze (hasil_sidang.aturan, built by the DB); null when the stored copy is unusable. */

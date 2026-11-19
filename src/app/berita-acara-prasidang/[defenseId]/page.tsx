@@ -6,7 +6,7 @@ import { tanggalPanjang } from '@/lib/hari'
 import { aksesBeritaAcara, peranPrasidang, todayJakarta } from '@/lib/penilaian/akses'
 import { loadBeritaAcara, type BeritaAcaraRow } from '@/lib/penilaian/data'
 import {
-  beritaAcaraPath, HASIL_LABEL, PERAN_PRASIDANG, PERAN_PRASIDANG_LABEL, STATUS_LABEL, type PeranPrasidang,
+  batasBeritaAcara, beritaAcaraPath, HASIL_LABEL, PERAN_PRASIDANG, PERAN_PRASIDANG_LABEL, STATUS_LABEL, type PeranPrasidang,
 } from '@/lib/penilaian/prasidang'
 import { submitBeritaAcaraAction } from '../actions'
 import { BeritaAcaraForm } from './BeritaAcaraForm'
@@ -62,8 +62,11 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
         {akses?.kind === 'isi' && (
           <>
             <h2 className="m-0 mb-[0.3rem] text-[1.2rem] font-semibold tracking-[-0.01em]">Saran Perbaikan Proposal Skripsi</h2>
-            <p className="m-0 mb-[1rem] text-[0.87rem] text-[var(--tinta-3)]">
+            <p className="m-0 mb-[0.4rem] text-[0.87rem] text-[var(--tinta-3)]">
               Uraian mengenai masukan dan perbaikan yang harus dilakukan peserta prasidang dalam rangka perbaikan proposal skripsi yang disampaikan.
+            </p>
+            <p className="m-0 mb-[1rem] text-[0.87rem] text-[var(--tinta-2)]">
+              Batas pengisian: <strong>{tanggalPanjang(batasBeritaAcara(defense.tanggal), false)}</strong> (paling lambat 1 hari setelah prasidang).
             </p>
             <BeritaAcaraForm
               pertanyaan={aturan.pertanyaanPrasidang}
@@ -114,8 +117,14 @@ function Terkirim({ row }: { row: BeritaAcaraRow }) {
         {row.jawaban.map((j, i) => (
           <li key={i} className="p-[0.9rem]">
             <p className="m-0 font-medium">{j.teks}</p>
-            <p className="m-0 mt-[0.2rem]">{j.ya ? 'Ya' : 'Tidak'}</p>
-            {j.catatan && <p className="m-0 mt-[0.2rem] text-[var(--tinta-2)] whitespace-pre-line">{j.catatan}</p>}
+            {j.jenis === 'uraian' ? (
+              <p className="m-0 mt-[0.2rem] whitespace-pre-line">{j.catatan}</p>
+            ) : (
+              <>
+                <p className="m-0 mt-[0.2rem]">{j.ya ? 'Ya' : 'Tidak'}</p>
+                {j.catatan && <p className="m-0 mt-[0.2rem] text-[var(--tinta-2)] whitespace-pre-line">{j.catatan}</p>}
+              </>
+            )}
           </li>
         ))}
       </ol>

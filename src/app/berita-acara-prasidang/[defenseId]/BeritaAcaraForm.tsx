@@ -2,11 +2,12 @@
 
 import { useId, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { HASIL, HASIL_LABEL, SUDAH_DIKIRIM_BA, type Hasil } from '@/lib/penilaian/prasidang'
+import type { Pertanyaan } from '@/lib/penilaian/aturan'
+import { HASIL, HASIL_LABEL, MAKS_CATATAN, MAKS_URAIAN, SUDAH_DIKIRIM_BA, type Hasil } from '@/lib/penilaian/prasidang'
 import type { HasilAksi } from '../actions'
 
 type Props = {
-  pertanyaan: string[]
+  pertanyaan: Pertanyaan[]
   /** The server action bound to its record, peran and the displayed question list. */
   aksi: (ya: (boolean | null)[], catatan: string[], hasil: Hasil) => Promise<HasilAksi>
 }
@@ -14,7 +15,7 @@ type Props = {
 const BTN = 'min-h-[2.4rem] px-[0.9rem] rounded-[var(--r-kecil)] text-[0.93rem] cursor-pointer disabled:opacity-60'
 const RADIO = 'inline-flex items-center gap-[0.4rem] text-[0.93rem] cursor-pointer'
 
-/** Ya/Tidak + catatan per question, then the verdict, then an in-page confirm before the action runs. */
+/** Per question Ya/Tidak + catatan, or a required uraian; then the verdict; then an in-page confirm before the action runs. */
 export function BeritaAcaraForm({ pertanyaan, aksi }: Props) {
   const [ya, setYa] = useState<(boolean | null)[]>(() => pertanyaan.map(() => null))
   const [catatan, setCatatan] = useState<string[]>(() => pertanyaan.map(() => ''))
@@ -26,7 +27,8 @@ export function BeritaAcaraForm({ pertanyaan, aksi }: Props) {
   const router = useRouter()
   const uid = useId()
 
-  const lengkap = ya.every((v) => v !== null) && hasil !== null
+  const kosong = (i: number) => (pertanyaan[i].jenis === 'uraian' ? !catatan[i].trim() : ya[i] === null)
+  const lengkap = pertanyaan.every((_, i) => !kosong(i)) && hasil !== null
 
   function ajukan(e: React.FormEvent) {
     e.preventDefault()
@@ -56,14 +58,34 @@ export function BeritaAcaraForm({ pertanyaan, aksi }: Props) {
     <form onSubmit={ajukan} noValidate>
       <ol className="m-0 p-0 list-none border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] divide-y divide-[var(--garis)]">
         {pertanyaan.map((q, i) => {
-          const salah = dicoba && ya[i] === null
+          const salah = dicoba && kosong(i)
           const id = `${uid}-q-${i}`
+          const ubahCatatan = (e: React.ChangeEvent<HTMLTextAreaElement>) => setCatatan((s) => s.map((x, j) => (j === i ? e.target.value : x)))
+          const wajib = <span className="text-[var(--merah-teks)]" aria-hidden="true">*</span>
+          const pesan = salah && <p id={`${id}-err`} className="m-0 mt-[0.25rem] text-[0.8rem] text-[var(--merah-teks)]">Wajib {q.jenis === 'uraian' ? 'diisi' : 'dijawab'}</p>
+          if (q.jenis === 'uraian') {
+            return (
+              <li key={i} className="p-[0.9rem]">
+                <label htmlFor={`${id}-c`} className="block text-[0.93rem] font-medium">{q.teks} {wajib}</label>
+                <textarea
+                  id={`${id}-c`}
+                  rows={3}
+                  maxLength={MAKS_URAIAN}
+                  required
+                  aria-invalid={!!salah}
+                  aria-describedby={salah ? `${id}-err` : undefined}
+                  value={catatan[i]}
+                  onChange={ubahCatatan}
+                  className={`mt-[0.4rem] w-full px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] border bg-[var(--cekung)] text-[0.93rem] ${salah ? 'border-[var(--merah)]' : 'border-[var(--garis-kuat)]'}`}
+                />
+                {pesan}
+              </li>
+            )
+          }
           return (
             <li key={i} className="p-[0.9rem]">
               <fieldset className="m-0 p-0 border-0" aria-describedby={salah ? `${id}-err` : undefined}>
-                <legend className="text-[0.93rem] font-medium">
-                  {q} <span className="text-[var(--merah-teks)]" aria-hidden="true">*</span>
-                </legend>
+                <legend className="text-[0.93rem] font-medium">{q.teks} {wajib}</legend>
                 <div className="mt-[0.5rem] flex gap-[1.2rem]">
                   {([true, false] as const).map((v) => (
                     <label key={String(v)} className={RADIO}>
@@ -72,15 +94,15 @@ export function BeritaAcaraForm({ pertanyaan, aksi }: Props) {
                     </label>
                   ))}
                 </div>
-                {salah && <p id={`${id}-err`} className="m-0 mt-[0.25rem] text-[0.8rem] text-[var(--merah-teks)]">Wajib dijawab</p>}
+                {pesan}
               </fieldset>
               <label htmlFor={`${id}-c`} className="block mt-[0.7rem] text-[0.8rem] text-[var(--tinta-3)]">Catatan prasidang</label>
               <textarea
                 id={`${id}-c`}
                 rows={2}
-                maxLength={1000}
+                maxLength={MAKS_CATATAN}
                 value={catatan[i]}
-                onChange={(e) => setCatatan((s) => s.map((x, j) => (j === i ? e.target.value : x)))}
+                onChange={ubahCatatan}
                 className="mt-[0.25rem] w-full px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] bg-[var(--cekung)] text-[0.93rem]"
               />
             </li>

@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition, type ReactNode } from 'react'
 import {
   DEFAULT_ATURAN, validateAspek, validateBatasHari, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks,
-  validateTabelNilai, validateTanggal, type Aturan,
+  validateTabelNilai, validateTanggal, type Aturan, type Pertanyaan,
 } from '@/lib/penilaian/aturan'
 import { todayJakarta } from '@/lib/penilaian/akses'
 import { parseAngka, round2 } from '@/lib/penilaian/nilai'
@@ -362,29 +362,38 @@ function BatasHariKartu({ awal }: { awal: number }) {
   )
 }
 
-function PertanyaanKartu({ awal }: { awal: string[] }) {
-  const { list, setList, set, add, remove, move } = useList(awal.map((teks) => ({ teks })))
-  const nilai = list.map((r) => r.teks.trim())
+function PertanyaanKartu({ awal }: { awal: Pertanyaan[] }) {
+  const { list, setList, set, add, remove, move } = useList(awal)
+  const nilai = list.map((r) => ({ teks: r.teks.trim(), jenis: r.jenis }))
   const error = validatePertanyaan(nilai)
 
   return (
     <Kartu
       judul="Pertanyaan berita acara prasidang"
-      bantuan="Pertanyaan Ya/Tidak yang dijawab Pembimbing Pendamping dan Pembahas, masing-masing dengan catatan. Mengubah daftar tidak mengubah berita acara yang sudah dikirim."
+      bantuan="Pertanyaan yang diisi Pembimbing Pendamping dan Pembahas. Ya/Tidak: wajib dijawab, dengan catatan opsional. Uraian: jawaban teks wajib. Mengubah daftar tidak mengubah berita acara yang sudah dikirim."
       kunci="pertanyaan_prasidang"
       error={error}
       nilai={nilai}
-      onDefault={() => setList(DEFAULT_ATURAN.pertanyaanPrasidang.map((teks) => ({ teks })))}
+      onDefault={() => setList(DEFAULT_ATURAN.pertanyaanPrasidang)}
     >
       <ol className="m-0 p-0 list-none space-y-[0.5rem]">
         {list.map((r, i) => (
           <li key={i} className="flex gap-[0.5rem] items-start">
             <input className={INPUT} value={r.teks} onChange={(e) => set(i, { teks: e.target.value })} aria-label={`Pertanyaan ${i + 1}`} />
+            <select
+              className={`${INPUT} w-[8.5rem] shrink-0`}
+              value={r.jenis}
+              onChange={(e) => set(i, { jenis: e.target.value as Pertanyaan['jenis'] })}
+              aria-label={`Jenis pertanyaan ${i + 1}`}
+            >
+              <option value="ya_tidak">Ya/Tidak</option>
+              <option value="uraian">Uraian</option>
+            </select>
             <BarisAksi i={i} n={list.length} move={move} remove={remove} />
           </li>
         ))}
       </ol>
-      <button type="button" className={`${BTN} mt-[0.6rem]`} onClick={() => add({ teks: '' })}>+ Tambah pertanyaan</button>
+      <button type="button" className={`${BTN} mt-[0.6rem]`} onClick={() => add({ teks: '', jenis: 'ya_tidak' })}>+ Tambah pertanyaan</button>
     </Kartu>
   )
 }

@@ -145,10 +145,10 @@ async function main() {
     { kunci: 'aspek_bimbingan', nilai: [{ label: 'X', bobot: 100, sub: ['a'] }] },
     { kunci: 'tabel_nilai', nilai: [{ min: 0, huruf: 'E', mutu: 0 }, { min: 50, huruf: 'A', mutu: 4 }] },
     { kunci: 'predikat', nilai: [{ min: 3, max: 4, predikat: 'Z', butuhTepatWaktu: true }] },
-    { kunci: 'pertanyaan_prasidang', nilai: ['Q1', 'Q2'] },
+    { kunci: 'pertanyaan_prasidang', nilai: [{ teks: 'Q1', jenis: 'ya_tidak' }, { teks: 'Q2', jenis: 'uraian' }] },
     { kunci: 'batas_hari_bimbingan', nilai: 14 },
   ]), 's1')
-  assert.deepEqual(sebagian.pertanyaanPrasidang, ['Q1', 'Q2'])
+  assert.deepEqual(sebagian.pertanyaanPrasidang, [{ teks: 'Q1', jenis: 'ya_tidak' }, { teks: 'Q2', jenis: 'uraian' }])
   assert.equal(sebagian.batasHariBimbingan, 14)
   assert.equal(sebagian.sksSkripsi, 8)
   assert.equal(sebagian.tanggalMulai, '2026-11-01')
@@ -161,7 +161,7 @@ async function main() {
     { kunci: 'aspek_bimbingan', nilai: [{ label: 'X', bobot: 50, sub: [] }] },
     { kunci: 'tabel_nilai', nilai: { not: 'array' } },
     { kunci: 'predikat', nilai: [{ min: 1 }] },
-    { kunci: 'pertanyaan_prasidang', nilai: [] },
+    { kunci: 'pertanyaan_prasidang', nilai: ['bukan objek'] },
     { kunci: 'batas_hari_bimbingan', nilai: 0 },
   ]), 's1')
   assert.deepEqual(rusak.pertanyaanPrasidang, DEFAULT_ATURAN.pertanyaanPrasidang)

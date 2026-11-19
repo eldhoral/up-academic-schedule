@@ -1,3 +1,4 @@
+import type { JenisPertanyaan, Pertanyaan } from './aturan'
 /** Berita Acara Prasidang (S1): two prasidang dosen, three fixed verdicts. Values match the DB checks. */
 export type Hasil = 'layak' | 'layak_revisi' | 'tidak_layak'
 export type StatusPrasidang = Hasil | 'belum_lengkap' | 'tidak_ada'
@@ -7,7 +8,7 @@ export const HASIL: Hasil[] = ['layak', 'layak_revisi', 'tidak_layak']
 export const HASIL_LABEL: Record<Hasil, string> = {
   layak: 'Skripsi layak untuk dilanjutkan',
   layak_revisi: 'Skripsi layak untuk dilanjutkan dengan revisi',
-  tidak_layak: 'Skripsi tidak layak untuk dilanjutkan',
+  tidak_layak: 'Skripsi tidak layak untuk dilanjutkan (Mahasiswa diharapkan mengganti topik atau variabel penelitian)',
 }
 export const STATUS_LABEL: Record<StatusPrasidang, string> = {
   ...HASIL_LABEL,
@@ -31,21 +32,45 @@ export function gabungHasil(a: Hasil | null, b: Hasil | null): StatusPrasidang {
 /** Whether a sidang may be scheduled for this verdict. */
 export const lolosGerbang = (s: StatusPrasidang): boolean => s === 'layak' || s === 'layak_revisi'
 
-export type Jawaban = { teks: string; ya: boolean; catatan: string }
+/** One answered question. ya is null for an uraian, whose answer is catatan. */
+export type Jawaban = { teks: string; jenis: JenisPertanyaan; ya: boolean | null; catatan: string }
 
 export const SUDAH_DIKIRIM_BA = 'Berita acara sudah dikirim.'
 export const PERTANYAAN_BERUBAH = 'Daftar pertanyaan berubah. Muat ulang halaman lalu isi kembali.'
-const CATATAN_MAKS = 1000
+export const MAKS_CATATAN = 1000
+export const MAKS_URAIAN = 2000
 
-/** The answers a form sent, against the current question list. Returns the snapshot to store. */
-export function cekJawaban(pertanyaan: string[], tampil: unknown, ya: unknown, catatan: unknown): { error: string } | { jawaban: Jawaban[] } {
-  const sama = Array.isArray(tampil) && tampil.length === pertanyaan.length && tampil.every((t, i) => t === pertanyaan[i])
+/** The answers a form sent, against the current question list (text and kind). Returns the snapshot to store. */
+export function cekJawaban(pertanyaan: Pertanyaan[], tampil: unknown, ya: unknown, catatan: unknown): { error: string } | { jawaban: Jawaban[] } {
+  const n = pertanyaan.length
+  const sama = Array.isArray(tampil) && tampil.length === n &&
+    tampil.every((t, i) => typeof t === 'object' && t !== null && t.teks === pertanyaan[i].teks && t.jenis === pertanyaan[i].jenis)
   if (!sama) return { error: PERTANYAAN_BERUBAH }
-  if (!Array.isArray(ya) || ya.length !== pertanyaan.length || !ya.every((v) => typeof v === 'boolean')) return { error: 'Jawab semua pertanyaan.' }
-  if (!Array.isArray(catatan) || catatan.length !== pertanyaan.length || !catatan.every((c) => typeof c === 'string')) return { error: 'Jawab semua pertanyaan.' }
-  const c = (catatan as string[]).map((x) => x.trim())
-  if (c.some((x) => x.length > CATATAN_MAKS)) return { error: `Catatan maksimal ${CATATAN_MAKS} karakter.` }
-  return { jawaban: pertanyaan.map((teks, i) => ({ teks, ya: ya[i] as boolean, catatan: c[i] })) }
+  if (!Array.isArray(ya) || ya.length !== n || !Array.isArray(catatan) || catatan.length !== n || !catatan.every((c) => typeof c === 'string')) {
+    return { error: 'Jawab semua pertanyaan.' }
+  }
+  const jawaban: Jawaban[] = []
+  for (let i = 0; i < n; i++) {
+    const { teks, jenis } = pertanyaan[i]
+    const c = (catatan[i] as string).trim()
+    if (jenis === 'uraian') {
+      if (!c) return { error: `"${teks}" wajib diisi.` }
+      if (c.length > MAKS_URAIAN) return { error: `"${teks}" maksimal ${MAKS_URAIAN} karakter.` }
+      jawaban.push({ teks, jenis, ya: null, catatan: c })
+    } else {
+      if (typeof ya[i] !== 'boolean') return { error: 'Jawab semua pertanyaan.' }
+      if (c.length > MAKS_CATATAN) return { error: `Catatan maksimal ${MAKS_CATATAN} karakter.` }
+      jawaban.push({ teks, jenis, ya: ya[i] as boolean, catatan: c })
+    }
+  }
+  return { jawaban }
+}
+
+/** The faculty asks for the berita acara by the day after the prasidang. Shown only, never enforced (user decision). */
+export function batasBeritaAcara(tanggal: string): string {
+  const d = new Date(`${tanggal}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
 }
 
 export const beritaAcaraPath = (id: string): string => `/berita-acara-prasidang/${id}`
