@@ -227,6 +227,8 @@ do $$ begin
     assert exists (select 1 from information_schema.columns where table_name = 'academic_years' and column_name = 'mulai_kuliah'), 'academic_years.mulai_kuliah';
     assert has_table_privilege('service_role', 'exams', 'select'), 'service_role reads exams';
     assert has_table_privilege('service_role', 'schedule_lecturers', 'select'), 'service_role reads schedule_lecturers';
+    assert has_table_privilege('service_role', 'settings', 'select'), 'service_role reads settings (prasidang Zoom)';
+    assert has_table_privilege('service_role', 'holidays', 'select'), 'service_role reads holidays';
     begin
         insert into academic_years (id, label, mulai_kuliah, selesai_kuliah) values ('T9991', 'x', '2026-09-01', '2026-08-01');
         raise exception 'FAIL: selesai before mulai accepted';

@@ -174,6 +174,8 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
     db.from('settings').select('prodi, key, value').in('key', ['prasidang_zoom_id', 'prasidang_zoom_passcode']),
   ])
   for (const r of [taught, exams]) if (r.error) throw r.error
+  // The Zoom line is optional (the page falls back to "(Zoom)"), but a failed read must not stay silent.
+  if (zoomQuery.error) console.error('jadwal-dosen: prasidang Zoom settings unreadable:', zoomQuery.error.message)
 
   const zoom: ZoomPerProdi = {}
   for (const row of (zoomQuery.data ?? []) as { prodi: string; key: string; value: string }[]) {
