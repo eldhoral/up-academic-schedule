@@ -8,7 +8,7 @@ const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[v
 
 /** Tahun akademik picker and the Excel download for the recap (bisaUnduh null: the recap has no Excel). */
 export function RekapBar({ years, ay, bisaUnduh, slug = 'nilai-bimbingan', objek = 'sidang' }: {
-  years: { id: string; label: string }[]; ay: string; bisaUnduh: boolean | null; slug?: 'nilai-bimbingan' | 'nilai-akhir' | 'hasil-prasidang'; objek?: string
+  years: { id: string; label: string }[]; ay: string; bisaUnduh: boolean | null; slug?: 'nilai-bimbingan' | 'nilai-akhir' | 'hasil-prasidang' | 'nilai-sidang'; objek?: string
 }) {
   const prodi = useProdi()
   const router = useRouter()

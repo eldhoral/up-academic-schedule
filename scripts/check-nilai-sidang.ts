@@ -1,3 +1,5 @@
+import { statusNilaiSidang } from '../src/lib/penilaian/rekap'
+import { sectionOf } from '../src/components/nav-sections'
 import assert from 'node:assert/strict'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
@@ -700,3 +702,32 @@ void (async () => {
   for (const c of [4, 10, 11, 15, 16, 18, 19, 20]) assert.equal(b.getCell(c).value, null, `col ${c}`)
   console.log('nilai-sidang rekap akhir xlsx: all checks passed')
 })().catch((e) => { console.error(e); process.exit(1) })
+
+// ---- Nilai Sidang recap status, and the S1 sidang menu (Penilaian dropdown)
+{
+  const row = (n: [number | null, number | null, number | null], o: { tanggal?: string; yudisium?: string | null; lockedAt?: string | null } = {}) => ({
+    tanggal: o.tanggal ?? '2026-11-10',
+    penguji: { ketua: { nama: 'K', nilai: n[0] }, anggota_1: { nama: 'A1', nilai: n[1] }, anggota_2: { nama: 'A2', nilai: n[2] } },
+    yudisium: o.yudisium ?? null,
+    lockedAt: o.lockedAt ?? null,
+  })
+  const T = '2026-11-10'
+  assert.equal(statusNilaiSidang(row([null, null, null], { tanggal: '2026-11-11' }), T), 'Belum dibuka')
+  assert.equal(statusNilaiSidang(row([null, 80, null], { tanggal: '2026-11-11' }), T), 'Menunggu Anggota Penguji II', 'an admin grade before the date counts')
+  assert.equal(statusNilaiSidang(row([null, null, null]), T), 'Menunggu Anggota Penguji I dan Anggota Penguji II')
+  assert.equal(statusNilaiSidang(row([null, 80, null]), T), 'Menunggu Anggota Penguji II')
+  assert.equal(statusNilaiSidang(row([null, null, 80]), T), 'Menunggu Anggota Penguji I')
+  assert.equal(statusNilaiSidang(row([null, 80, 80]), T), 'Menunggu Ketua')
+  assert.equal(statusNilaiSidang(row([80, 80, 80], { yudisium: 'Lulus Dengan Revisi', lockedAt: '2026-11-10T05:00:00Z' }), T), 'Terkunci · Lulus Dengan Revisi')
+
+  const s1 = sectionOf('/sidang/nilai-bimbingan', 's1', true, true)!
+  assert.deepEqual(s1.tabs.map((t) => t.label), ['Jadwal Sidang', 'Kalender', 'Cetak'])
+  assert.equal(s1.group?.label, 'Penilaian')
+  assert.deepEqual(s1.group?.items.map((t) => t.href), [
+    '/s1/sidang/hasil-prasidang', '/s1/sidang/nilai-sidang', '/s1/sidang/nilai-bimbingan', '/s1/sidang/nilai-akhir', '/s1/sidang/akun-eksternal',
+  ])
+  assert.deepEqual(sectionOf('/sidang', 's1', false, false)!.group?.items.map((t) => t.label), ['Hasil Prasidang', 'Nilai Sidang', 'Nilai Bimbingan', 'Nilai Akhir'], 'no day accounts without access')
+  assert.equal(sectionOf('/sidang', 's2', true, true)!.group, undefined, 'S2 has no grading menu')
+  assert.equal(sectionOf('/sidang/nilai-sidang', 's1', false, false)!.title, 'S1 · Jadwal Prasidang & Sidang')
+  console.log('nilai-sidang rekap & menu: all checks passed')
+}

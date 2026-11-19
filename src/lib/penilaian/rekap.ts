@@ -1,4 +1,4 @@
-import { ANGGOTA_I_LEGACY, batasBimbingan, PERAN_SIDANG, type Peran, type PeranSidang } from './akses'
+import { ANGGOTA_I_LEGACY, batasBimbingan, PERAN_SIDANG, PERAN_SIDANG_LABEL, type Peran, type PeranSidang } from './akses'
 import { parseAturanBeku } from './aturan'
 import { baris, hasilAkhir, ipkSebelum, nilaiBimbingan, nilaiSidang, type HasilAkhir } from './nilai'
 
@@ -187,4 +187,19 @@ export function buildRekapAkhir(
       }
     })
     .sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.nama.localeCompare(b.nama))
+}
+
+/**
+ * The Nilai Sidang recap's progress label. A sidang not yet held and with nothing graded is "Belum dibuka";
+ * once anything is graded (Super Admin may enter early) the missing examiners are named.
+ */
+export function statusNilaiSidang(
+  r: Pick<RekapAkhir, 'tanggal' | 'penguji' | 'yudisium' | 'lockedAt'>,
+  today: string,
+): string {
+  if (r.lockedAt) return `Terkunci · ${r.yudisium ?? ''}`.trim()
+  const kurang = (['anggota_1', 'anggota_2'] as const).filter((p) => r.penguji[p].nilai === null)
+  if (today < r.tanggal && kurang.length === 2 && r.penguji.ketua.nilai === null) return 'Belum dibuka'
+  if (kurang.length) return `Menunggu ${kurang.map((p) => PERAN_SIDANG_LABEL[p]).join(' dan ')}`
+  return 'Menunggu Ketua'
 }

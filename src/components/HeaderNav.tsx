@@ -1,86 +1,7 @@
 import Link from 'next/link'
-import { PRODI_CONFIG, type Prodi } from '@/lib/prodi'
-
-type Tab = { href: string; label: string }
-type Section = { title: string; tabs: Tab[] }
-
-// Tab hrefs are prodi-less; a prodi page prefixes them with /s1 or /s2.
-const KULIAH: Tab[] = [
-  { href: '/kuliah', label: 'Penjadwalan' },
-  { href: '/kuliah/kalender', label: 'Kalender' },
-  { href: '/kuliah/cetak', label: 'Cetak Jadwal' },
-  { href: '/kuliah/rekap', label: 'Rekap Dosen' },
-]
-
-const UJIAN: Tab[] = [
-  { href: '/ujian', label: 'Jadwal Ujian' },
-  { href: '/ujian/kalender', label: 'Kalender' },
-  { href: '/ujian/cetak', label: 'Cetak' },
-  { href: '/ujian/rekap', label: 'Rekap Pengawas' },
-]
-
-const SIDANG: Tab[] = [
-  { href: '/sidang', label: 'Jadwal Sidang' },
-  { href: '/sidang/kalender', label: 'Kalender' },
-  { href: '/sidang/cetak', label: 'Cetak' },
-]
-
-const MASTER_PRODI: Tab[] = [
-  { href: '/mata-kuliah', label: 'Mata Kuliah' },
-  { href: '/mahasiswa', label: 'Mahasiswa' },
-  { href: '/sesi', label: 'Sesi' },
-  { href: '/pengaturan', label: 'Pengaturan' },
-]
-
-// S1 only: the prasidang berita acara (Hasil Prasidang) and sidang grading (Nilai Bimbingan, Nilai Akhir).
-const HASIL_PRASIDANG: Tab = { href: '/sidang/hasil-prasidang', label: 'Hasil Prasidang' }
-
-const NILAI_BIMBINGAN: Tab = { href: '/sidang/nilai-bimbingan', label: 'Nilai Bimbingan' }
-
-const NILAI_AKHIR: Tab = { href: '/sidang/nilai-akhir', label: 'Nilai Akhir' }
-
-// Super Admin and Penjadwal, S1 only: day logins for external sidang examiners.
-const AKUN_EKSTERNAL: Tab = { href: '/sidang/akun-eksternal', label: 'Akun Penguji Eksternal' }
-
-// Super Admin only, S1 only (online grading is S1 prasidang).
-const PENILAIAN: Tab = { href: '/pengaturan/penilaian', label: 'Penilaian' }
-
-const MASTER_SHARED: Tab[] = [
-  { href: '/dosen', label: 'Dosen' },
-  { href: '/ruangan', label: 'Ruangan' },
-  { href: '/tahun-akademik', label: 'Tahun Akademik' },
-]
-
-/** The section a page belongs to; null on the menu itself ("/"). */
-function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean, akunEksternal: boolean): Section | null {
-  if (prodi) {
-    const c = PRODI_CONFIG[prodi]
-    const own = (title: string, tabs: Tab[]) => ({ title: `${c.short} · ${title}`, tabs: tabs.map((t) => ({ ...t, href: `/${prodi}${t.href}` })) })
-    if (active.startsWith('/kuliah')) return own('Jadwal Mata Kuliah & Dosen', KULIAH)
-    if (active.startsWith('/ujian')) return own('Jadwal UTS & UAS', UJIAN)
-    if (active.startsWith('/sidang')) {
-      const tabs = SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t))
-      const nilai = [HASIL_PRASIDANG, NILAI_BIMBINGAN, NILAI_AKHIR]
-      const s1 = akunEksternal ? [...tabs, ...nilai, AKUN_EKSTERNAL] : [...tabs, ...nilai]
-      return own(`Jadwal ${c.defense.section}`, prodi === 's1' ? s1 : tabs)
-    }
-    const master = canManage && prodi === 's1' ? [...MASTER_PRODI, PENILAIAN] : MASTER_PRODI
-    if (master.some((t) => t.href === active)) return own('Data Master', master)
-  }
-  if (MASTER_SHARED.some((t) => t.href === active)) return { title: 'Data Bersama', tabs: MASTER_SHARED }
-  if (active === '/kalender') return { title: 'Kalender Gabungan', tabs: [] }
-  if (active === '/pengguna') return { title: 'Manajemen Pengguna', tabs: [] }
-  if (active === '/log-aktivitas') return { title: 'Audit Log', tabs: [] }
-  if (active === '/atur-kata-sandi') return { title: 'Ganti Kata Sandi', tabs: [] }
-  return null
-}
-
-const linkClass = (isActive: boolean) =>
-  `block px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.93rem] transition-colors ${
-    isActive
-      ? 'bg-[var(--biru-lembut)] text-[var(--biru)] font-medium'
-      : 'text-[var(--tinta)] hover:bg-[var(--cekung)]'
-  }`
+import type { Prodi } from '@/lib/prodi'
+import { linkClass, sectionOf } from './nav-sections'
+import { NavDropdown } from './NavDropdown'
 
 /** Back to the menu, the section's name, and its tabs. Nothing on the menu itself. */
 export function HeaderNav({ active, prodi, canManage = false, akunEksternal = false }: { active: string; prodi?: Prodi; canManage?: boolean; akunEksternal?: boolean }) {
@@ -104,6 +25,7 @@ export function HeaderNav({ active, prodi, canManage = false, akunEksternal = fa
           {tab.label}
         </Link>
       ))}
+      {section.group && <NavDropdown label={section.group.label} items={section.group.items} current={current} />}
     </nav>
   )
 }
