@@ -58,7 +58,7 @@ export default async function RekapBimbinganPage(props: PageProps<'/[prodi]/sida
         {rows.length === 0 ? (
           <EmptySheet
             title="Belum ada sidang"
-            detail={`${years.find((y) => y.id === ay)?.label ?? 'Tahun ini'} belum memiliki jadwal sidang. Nilai bimbingan diisi Dosen Pembimbing I dan II setelah Ketua mengunci sidang.`}
+            detail={`${years.find((y) => y.id === ay)?.label ?? 'Tahun ini'} belum memiliki jadwal sidang. Nilai bimbingan diisi Dosen Pembimbing setelah Ketua mengunci sidang.`}
             actionHref={`/${prodi}/sidang?${new URLSearchParams({ ay, jenis: 'sidang' })}`}
             actionLabel="Buka Jadwal Sidang"
           />
@@ -76,8 +76,8 @@ export default async function RekapBimbinganPage(props: PageProps<'/[prodi]/sida
                     <td className={cell()}>{r.dospem1.nama}</td>
                     <td className={cell('center')}>{nilaiCell(r.defenseId, r.dospem1)}</td>
                     <td className={cell('center')}>{huruf(r.dospem1.nilai)}</td>
-                    <td className={cell()}>{r.dospem2.nama}</td>
-                    <td className={cell('center')}>{nilaiCell(r.defenseId, r.dospem2)}</td>
+                    <td className={r.tanpaP2 ? `${cell()} text-[var(--tinta-3)]` : cell()}>{r.dospem2.nama}</td>
+                    <td className={cell('center')}>{r.tanpaP2 ? '—' : nilaiCell(r.defenseId, r.dospem2)}</td>
                     <td className={cell('center')}>{huruf(r.dospem2.nilai)}</td>
                     <td className={`${cell('center')} mono font-semibold`}>{r.bimbingan === null ? BELUM : formatNilai(r.bimbingan)}</td>
                     <td className={`${cell('center')} font-semibold`}>{huruf(r.bimbingan)}</td>

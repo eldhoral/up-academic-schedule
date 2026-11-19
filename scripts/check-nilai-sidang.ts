@@ -592,6 +592,8 @@ import { smtpOpsi } from '../src/lib/mailer'
   assert.equal(bim.get('d-rusak'), 90)
   assert.equal(bim.get('d-ulang'), 50) // another sidang of the same NPM keeps its own
   assert.deepEqual(Object.fromEntries(bimbinganPerSidang([...nb].reverse())), Object.fromEntries(bim)) // input order does not matter
+  assert.equal(bimbinganPerSidang(nb, new Set(['d-bim'])).get('d-bim'), 80) // tanpa Pembimbing II: Pembimbing I alone
+  assert.equal(bimbinganPerSidang(nb, new Set(['d-bim'])).get('d-ok'), 78.5) // others unchanged
 
   const rows = buildRekapAkhir(sidang, students, nilai, hs, bim, namaDosen)
   assert.deepEqual(rows.map((r) => r.defenseId), ['d-legacy', 'd-ok', 'd-bim', 'd-gagal', 'd-rusak']) // tanggal, then nama

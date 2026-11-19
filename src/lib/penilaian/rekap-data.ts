@@ -20,7 +20,7 @@ export async function loadRekapBimbingan(db: SupabaseClient, ay: string): Promis
   const [d, s, l, aturan] = await Promise.all([
     db.from('defenses').select('id, tanggal, npm, nama_mahasiswa, judul_skripsi')
       .eq('prodi', 's1').eq('jenis', 'sidang').eq('academic_year_id', ay),
-    db.from('students').select('npm, sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode').eq('prodi', 's1'),
+    db.from('students').select('npm, sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', 's1'),
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     loadAturan(db, 's1'),
   ])
@@ -44,7 +44,7 @@ export async function loadRekapBimbingan(db: SupabaseClient, ay: string): Promis
     sidang,
     (s.data ?? []).map((x) => ({
       npm: x.npm, sks_sebelum: num(x.sks_sebelum), bobot_sebelum: num(x.bobot_sebelum),
-      pembimbing_1_kode: x.pembimbing_1_kode, pembimbing_2_kode: x.pembimbing_2_kode,
+      pembimbing_1_kode: x.pembimbing_1_kode, pembimbing_2_kode: x.pembimbing_2_kode, tanpa_pembimbing_2: !!x.tanpa_pembimbing_2,
     })),
     (n.data ?? []).map((x) => ({ defense_id: x.defense_id, peran: x.peran as Peran, nilai: Number(x.nilai), sumber: x.sumber as 'dosen' | 'manual' })),
     (h.data ?? []).map((x) => ({ defense_id: x.defense_id as string, locked_at: x.locked_at as string })),
@@ -61,7 +61,7 @@ export async function loadRekapAkhir(db: SupabaseClient, ay: string): Promise<Re
   const [d, s, l, n, h] = await Promise.all([
     db.from('defenses').select('id, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode, penguji_eksternal_kode')
       .eq('prodi', 's1').eq('jenis', 'sidang').eq('academic_year_id', ay),
-    db.from('students').select('npm, sks_sebelum, bobot_sebelum, tepat_waktu').eq('prodi', 's1'),
+    db.from('students').select('npm, sks_sebelum, bobot_sebelum, tepat_waktu, tanpa_pembimbing_2').eq('prodi', 's1'),
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     db.from('nilai_sidang').select('defense_id, peran, nilai, defenses!inner(academic_year_id)').eq('defenses.academic_year_id', ay),
     db.from('hasil_sidang')
@@ -80,6 +80,8 @@ export async function loadRekapAkhir(db: SupabaseClient, ay: string): Promise<Re
 
   const nama = new Map((l.data ?? []).map((x) => [x.kode_dosen as string, lecturerDisplayName(x)]))
   const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
+  const tanpaNpm = new Set((s.data ?? []).filter((x) => x.tanpa_pembimbing_2).map((x) => x.npm as string))
+  const tanpaP2 = new Set(sidang.filter((x) => tanpaNpm.has(x.npm)).map((x) => x.id as string))
   return buildRekapAkhir(
     sidang,
     (s.data ?? []).map((x) => ({ npm: x.npm, sks_sebelum: num(x.sks_sebelum), bobot_sebelum: num(x.bobot_sebelum), tepat_waktu: !!x.tepat_waktu })),
@@ -88,7 +90,7 @@ export async function loadRekapAkhir(db: SupabaseClient, ay: string): Promise<Re
       defense_id: x.defense_id, yudisium_label: x.yudisium_label, yudisium_lulus: x.yudisium_lulus, aturan: x.aturan,
       locked_at: x.locked_at, email_status: x.email_status, email_detail: x.email_detail,
     })),
-    bimbinganPerSidang((nb.data ?? []).map((x) => ({ defense_id: x.defense_id, peran: x.peran as Peran, nilai: Number(x.nilai) }))),
+    bimbinganPerSidang((nb.data ?? []).map((x) => ({ defense_id: x.defense_id, peran: x.peran as Peran, nilai: Number(x.nilai) })), tanpaP2),
     (kode) => nama.get(kode) ?? kode,
   )
 }

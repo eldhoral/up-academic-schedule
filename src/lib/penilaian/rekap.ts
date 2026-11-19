@@ -12,6 +12,8 @@ export type RekapBimbingan = {
   ipk: number | null
   dospem1: DosenNilai
   dospem2: DosenNilai
+  /** The student has no Dosen Pembimbing II: Nilai Bimbingan is Pembimbing I's grade. */
+  tanpaP2: boolean
   bimbingan: number | null
   /** Last day the Dosen Pembimbing may grade; null until the Ketua locks the sidang. */
   batas: string | null
@@ -25,7 +27,7 @@ type DefenseIn = {
   judul_skripsi: string
 }
 type StudentIn = { npm: string; sks_sebelum: number | null; bobot_sebelum: number | null }
-type StudentPembimbingIn = StudentIn & { pembimbing_1_kode: string | null; pembimbing_2_kode: string | null }
+type StudentPembimbingIn = StudentIn & { pembimbing_1_kode: string | null; pembimbing_2_kode: string | null; tanpa_pembimbing_2: boolean }
 type NilaiIn = { defense_id: string; peran: Peran; nilai: number; sumber: 'dosen' | 'manual' }
 
 /**
@@ -51,7 +53,8 @@ export function buildRekapBimbingan(
         return { nama: kode ? namaDosen(kode) : '—', nilai: n?.nilai ?? null, manual: n?.sumber === 'manual' }
       }
       const dospem1 = dosen(s?.pembimbing_1_kode, 'pembimbing_1')
-      const dospem2 = dosen(s?.pembimbing_2_kode, 'pembimbing_2')
+      const tanpaP2 = !!s?.tanpa_pembimbing_2
+      const dospem2 = tanpaP2 ? { nama: 'Tidak ada', nilai: null, manual: false } : dosen(s?.pembimbing_2_kode, 'pembimbing_2')
       const lockedAt = locked.get(d.id)
       return {
         defenseId: d.id,
@@ -62,7 +65,8 @@ export function buildRekapBimbingan(
         ipk: ipkSebelum(s?.bobot_sebelum ?? null, s?.sks_sebelum ?? null),
         dospem1,
         dospem2,
-        bimbingan: nilaiBimbingan(dospem1.nilai, dospem2.nilai),
+        tanpaP2,
+        bimbingan: nilaiBimbingan(dospem1.nilai, dospem2.nilai, tanpaP2),
         batas: lockedAt ? batasBimbingan(lockedAt, batasHari) : null,
       }
     })
@@ -131,11 +135,17 @@ export function bolehKirimUlang(status: string | null, lockedAt: string | null, 
   return status === 'menunggu' && now.getTime() - t > 2 * 60_000
 }
 
-/** Sidang id -> Nilai Bimbingan graded on that sidang; null while only one Pembimbing has graded. */
-export function bimbinganPerSidang(nilai: { defense_id: string; peran: Peran; nilai: number }[]): Map<string, number | null> {
+/**
+ * Sidang id -> Nilai Bimbingan graded on that sidang; null while only one Pembimbing has graded.
+ * tanpaP2: the sidang whose student has no Pembimbing II (Pembimbing I's grade alone).
+ */
+export function bimbinganPerSidang(
+  nilai: { defense_id: string; peran: Peran; nilai: number }[],
+  tanpaP2: ReadonlySet<string> = new Set(),
+): Map<string, number | null> {
   const per = new Map<string, Partial<Record<Peran, number>>>()
   for (const n of nilai) per.set(n.defense_id, { ...per.get(n.defense_id), [n.peran]: n.nilai })
-  return new Map([...per].map(([id, p]) => [id, nilaiBimbingan(p.pembimbing_1 ?? null, p.pembimbing_2 ?? null)]))
+  return new Map([...per].map(([id, p]) => [id, nilaiBimbingan(p.pembimbing_1 ?? null, p.pembimbing_2 ?? null, tanpaP2.has(id))]))
 }
 
 /** One row per S1 sidang, by tanggal then nama. Pure: the page and the Excel file are both built from it. */

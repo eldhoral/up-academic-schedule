@@ -23,8 +23,9 @@ export function nilaiDariSnapshot(rows: SkorAspek[]): number {
   return round2(rows.reduce((sum, r) => sum + (r.skor * r.bobot) / 100, 0))
 }
 
-/** Average of both dosen, only once both have graded. */
-export function nilaiBimbingan(a: number | null, b: number | null): number | null {
+/** Average of both dosen, only once both have graded. A student without Pembimbing II (tanpaP2): Pembimbing I's grade. */
+export function nilaiBimbingan(a: number | null, b: number | null, tanpaP2 = false): number | null {
+  if (tanpaP2) return a === null ? null : round2(a)
   return a === null || b === null ? null : round2((a + b) / 2)
 }
 

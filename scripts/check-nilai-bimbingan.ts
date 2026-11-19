@@ -49,6 +49,9 @@ assert.equal(baris(78.5, tabel).huruf, 'A-')
 assert.equal(nilaiBimbingan(80, null), null)
 assert.equal(nilaiBimbingan(null, 80), null)
 assert.equal(nilaiBimbingan(76, 75.99), 76)
+assert.equal(nilaiBimbingan(80, null, true), 80) // tanpa Pembimbing II: Pembimbing I alone
+assert.equal(nilaiBimbingan(80.005, null, true), 80.01)
+assert.equal(nilaiBimbingan(null, null, true), null)
 for (const [n, h] of [[79.99, 'A-'], [75.99, 'B+'], [55.99, 'D'], [44.99, 'E'], [75.995, 'A-'], [100, 'A'], [0, 'E']] as const) {
   assert.equal(baris(n, tabel).huruf, h, `${n} -> ${h}`)
 }
@@ -189,8 +192,8 @@ async function main() {
   // ---- rekap: one row per S1 sidang, sorted by tanggal then nama; dosen from the student's Pembimbing I/II;
   // both grades -> average, one missing -> null; batas = lock date + n while locked.
   const d = (id: string, tanggal: string, nama: string) => ({ id, tanggal, npm: `n-${id}`, nama_mahasiswa: nama, judul_skripsi: `Judul ${nama}` })
-  const mhs = (id: string, p1: string | null, p2: string | null, sks: number | null = null, bobot: number | null = null) =>
-    ({ npm: `n-${id}`, sks_sebelum: sks, bobot_sebelum: bobot, pembimbing_1_kode: p1, pembimbing_2_kode: p2 })
+  const mhs = (id: string, p1: string | null, p2: string | null, sks: number | null = null, bobot: number | null = null, tanpa = false) =>
+    ({ npm: `n-${id}`, sks_sebelum: sks, bobot_sebelum: bobot, pembimbing_1_kode: p1, pembimbing_2_kode: p2, tanpa_pembimbing_2: tanpa })
   const n = (defense_id: string, peran: Peran, nilai: number, sumber: 'dosen' | 'manual' = 'dosen') => ({ defense_id, peran, nilai, sumber })
   const rekap = buildRekapBimbingan(
     [d('3', '2026-11-12', 'Zed'), d('1', '2026-11-10', 'Budi'), d('2', '2026-11-10', 'Ani'), d('4', '2026-11-13', 'Cici')],
@@ -218,6 +221,14 @@ async function main() {
   assert.equal(rekap[2].bimbingan, null)
   assert.equal(rekap[3].dospem1.nama, '—') // no Pembimbing I set
   assert.equal(rekap[3].bimbingan, null)
+  assert.equal(budi.tanpaP2, false)
+
+  // Tanpa Pembimbing II: Nilai Bimbingan is Pembimbing I's grade; the Pembimbing II cell says so.
+  const [solo] = buildRekapBimbingan([d('5', '2026-11-14', 'Dedi')], [mhs('5', 'A', null, null, null, true)],
+    [n('5', 'pembimbing_1', 82)], [], 7, (k) => `Dr. ${k}`)
+  assert.equal(solo.tanpaP2, true)
+  assert.equal(solo.bimbingan, 82)
+  assert.deepEqual(solo.dospem2, { nama: 'Tidak ada', nilai: null, manual: false })
 
   // The Excel recap marks a manual grade on the dosen name; the grade cell stays a number.
   const xlsx = new ExcelJS.Workbook()
