@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { DEFAULT_ATURAN, validateBatasHari, validatePertanyaan } from '../src/lib/penilaian/aturan'
 import { aksesBeritaAcara, halamanDosen } from '../src/lib/penilaian/akses'
 import { beritaAcaraPath, cekJawaban, gabungHasil, lolosGerbang, type StatusPrasidang } from '../src/lib/penilaian/prasidang'
+import { statusPrasidang } from '../src/lib/penilaian/rekap-prasidang'
 
 // ---- combined verdict: tidak_layak > layak_revisi > layak; a missing one = belum_lengkap
 assert.equal(gabungHasil('layak', 'layak'), 'layak')
@@ -54,5 +55,26 @@ assert.equal(beritaAcaraPath('abc'), '/berita-acara-prasidang/abc')
 assert.ok(halamanDosen('/berita-acara-prasidang/x'))
 assert.ok(!halamanDosen('/berita-acara-prasidang/x', 'EKSTERNAL'))
 assert.ok(!halamanDosen('/berita-acara-prasidang/x/y'))
+
+// ---- statusPrasidang mirrors status_prasidang() in the DB
+const pras = [
+  { id: 'p1', npm: '1', tanggal: '2026-10-01', created_at: '2026-09-01T00:00:00Z' },
+  { id: 'p2', npm: '1', tanggal: '2026-11-01', created_at: '2026-09-02T00:00:00Z' },
+  { id: 'p3', npm: '3', tanggal: '2026-11-01', created_at: '2026-09-01T00:00:00Z' },
+  { id: 'p4', npm: '3', tanggal: '2026-11-01', created_at: '2026-09-05T00:00:00Z' },
+]
+const isi = [
+  { defense_id: 'p1', peran: 'pendamping' as const, hasil: 'tidak_layak' as const },
+  { defense_id: 'p2', peran: 'pendamping' as const, hasil: 'layak' as const },
+  { defense_id: 'p2', peran: 'pembahas' as const, hasil: 'layak_revisi' as const },
+  { defense_id: 'p3', peran: 'pendamping' as const, hasil: 'layak' as const },
+  { defense_id: 'p3', peran: 'pembahas' as const, hasil: 'layak' as const },
+]
+assert.equal(statusPrasidang('1', pras, isi, []), 'layak_revisi', 'the latest prasidang decides')
+assert.equal(statusPrasidang('2', pras, isi, []), 'tidak_ada')
+assert.equal(statusPrasidang('2', pras, isi, [{ npm: '2', prasidang_id: null, hasil: 'layak' }]), 'layak', 'override with no prasidang')
+assert.equal(statusPrasidang('3', pras, isi, []), 'belum_lengkap', 'same date: the later created one (p4) decides')
+assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p1', hasil: 'layak' }]), 'layak_revisi', 'an override for an older prasidang is ignored')
+assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p2', hasil: 'layak' }]), 'layak', 'an override for the latest wins')
 
 console.log('berita acara: all checks passed')

@@ -6,8 +6,11 @@ import { ImportPanel } from '@/components/import/ImportPanel'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { formatNilai, ipkSebelum } from '@/lib/penilaian/nilai'
+import { HASIL_LABEL, lolosGerbang, STATUS_LABEL, type Hasil, type StatusPrasidang } from '@/lib/penilaian/prasidang'
 import { useProdi } from '@/lib/use-prodi'
-import { createStudentAction, deleteStudentAction, updateStudentAction, type FormState } from './actions'
+import {
+  createStudentAction, deleteStudentAction, hapusKeputusanAction, simpanKeputusanAction, updateStudentAction, type FormState,
+} from './actions'
 
 export type Student = {
   id: string
@@ -18,14 +21,24 @@ export type Student = {
   sks_sebelum: number | null
   bobot_sebelum: number | null
   tepat_waktu: boolean
+  pembimbing_1_kode: string | null
+  pembimbing_2_kode: string | null
+  /** S1 only: the sidang gate status (null for S2). */
+  status: StatusPrasidang | null
+  keputusan: { hasil: Hasil; alasan: string } | null
 }
+
+export type Dosen = { kode: string; nama: string; eksternal: boolean }
 
 const INPUT = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]'
 
-export function MahasiswaClient({ students, canEdit }: { students: Student[]; canEdit: boolean }) {
+export function MahasiswaClient({ students, dosen, canEdit }: { students: Student[]; dosen: Dosen[]; canEdit: boolean }) {
   const router = useRouter()
   const prodi = useProdi()
+  const s1 = prodi === 's1'
   const [editing, setEditing] = useState<Student | 'new' | null>(null)
+  const [memutus, setMemutus] = useState<Student | null>(null)
+  const namaDosen = (k: string | null) => (k ? dosen.find((d) => d.kode === k)?.nama ?? k : '—')
   const [query, setQuery] = useState('')
 
   const q = query.trim().toLowerCase()
@@ -67,6 +80,8 @@ export function MahasiswaClient({ students, canEdit }: { students: Student[]; ca
                 <Th>{PRODI_CONFIG[prodi].defense.judul}</Th>
                 <Th>Email</Th>
                 <Th className="text-right">IPK</Th>
+                {s1 && <Th>Dosen Pembimbing I / II</Th>}
+                {s1 && <Th>Keputusan Prasidang</Th>}
                 <Th className="text-right">&nbsp;</Th>
               </tr>
             </thead>
@@ -78,6 +93,28 @@ export function MahasiswaClient({ students, canEdit }: { students: Student[]; ca
                   <Td className="text-[var(--tinta-2)]">{s.judul_skripsi || '—'}</Td>
                   <Td className="text-[var(--tinta-2)]">{s.email || '—'}</Td>
                   <Td className="mono text-right whitespace-nowrap">{ipk(s)}</Td>
+                  {s1 && (
+                    <Td className="text-[var(--tinta-2)]">
+                      {s.pembimbing_1_kode && s.pembimbing_2_kode
+                        ? <>{namaDosen(s.pembimbing_1_kode)}<br />{namaDosen(s.pembimbing_2_kode)}</>
+                        : <span className="text-[var(--merah-teks)]">Belum lengkap</span>}
+                    </Td>
+                  )}
+                  {s1 && s.status && (
+                    <Td>
+                      <span className={lolosGerbang(s.status) ? 'text-[var(--hijau)]' : 'text-[var(--tinta-2)]'}>{STATUS_LABEL[s.status]}</span>
+                      {s.keputusan && <span className="block text-[0.8rem] text-[var(--tinta-3)]">Keputusan Super Admin</span>}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => setMemutus(s)}
+                          className="block text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.8rem]"
+                        >
+                          Ubah keputusan
+                        </button>
+                      )}
+                    </Td>
+                  )}
                   <Td className="text-right">
                     {canEdit && (
                       <button
@@ -93,7 +130,7 @@ export function MahasiswaClient({ students, canEdit }: { students: Student[]; ca
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
+                  <td colSpan={s1 ? 8 : 6} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
                     {students.length === 0
                       ? 'Belum ada data mahasiswa — tambahkan satu, atau impor dari Excel di bawah.'
                       : <>Tidak ada mahasiswa yang cocok dengan &ldquo;{query}&rdquo;.</>}
@@ -107,7 +144,8 @@ export function MahasiswaClient({ students, canEdit }: { students: Student[]; ca
 
       {canEdit && <ImportPanel tableSlug="students" label="Mahasiswa" prodi={prodi} onCommitted={() => router.refresh()} />}
 
-      {editing && <StudentFormModal student={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <StudentFormModal student={editing === 'new' ? null : editing} dosen={dosen} onClose={() => setEditing(null)} />}
+      {memutus && <KeputusanModal student={memutus} onClose={() => setMemutus(null)} />}
     </div>
   )
 }
@@ -118,7 +156,7 @@ const ipk = (s: Student) => {
   return v === null ? '—' : formatNilai(v)
 }
 
-function StudentFormModal({ student, onClose }: { student: Student | null; onClose: () => void }) {
+function StudentFormModal({ student, dosen, onClose }: { student: Student | null; dosen: Dosen[]; onClose: () => void }) {
   const action = student ? updateStudentAction.bind(null, student.id) : createStudentAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
   const router = useRouter()
@@ -168,6 +206,21 @@ function StudentFormModal({ student, onClose }: { student: Student | null; onClo
             <input type="checkbox" name="tepat_waktu" defaultChecked={student?.tepat_waktu} className="w-[1rem] h-[1rem]" />
             Lulus tepat waktu
           </label>
+          {prodi === 's1' && (
+            <div className="flex flex-col sm:flex-row gap-[0.8rem]">
+              {(['pembimbing_1_kode', 'pembimbing_2_kode'] as const).map((f, i) => (
+                <Field key={f} label={`Dosen Pembimbing ${i === 0 ? 'I' : 'II'}`} className="flex-1">
+                  <select name={f} required defaultValue={student?.[f] ?? ''} className={INPUT}>
+                    <option value="">— pilih dosen —</option>
+                    {/* Eksternal dosen can't supervise; one already assigned stays selectable so the form still saves. */}
+                    {dosen.filter((d) => !d.eksternal || d.kode === student?.[f]).map((d) => (
+                      <option key={d.kode} value={d.kode}>{d.nama}</option>
+                    ))}
+                  </select>
+                </Field>
+              ))}
+            </div>
+          )}
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {student && (
@@ -197,6 +250,72 @@ function StudentFormModal({ student, onClose }: { student: Student | null; onClo
             </div>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+/** Super Admin's override of the prasidang verdict, tied by the server to the student's latest prasidang. */
+function KeputusanModal({ student, onClose }: { student: Student; onClose: () => void }) {
+  const router = useRouter()
+  const prodi = useProdi()
+  const [hasil, setHasil] = useState<'layak' | 'layak_revisi'>(student.keputusan?.hasil === 'layak' ? 'layak' : 'layak_revisi')
+  const [alasan, setAlasan] = useState(student.keputusan?.alasan ?? '')
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
+
+  const jalankan = async (f: () => Promise<FormState>) => {
+    setPending(true)
+    setError('')
+    const r = await f().catch((): FormState => ({ error: 'Tidak dapat menyimpan. Periksa koneksi lalu coba lagi.' }))
+    setPending(false)
+    if (r && 'error' in r) setError(r.error)
+    else {
+      router.refresh()
+      onClose()
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="keputusan-judul">
+      <div className="w-full max-w-[30rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
+        <h3 id="keputusan-judul" className="m-0 text-[1.1rem] font-semibold">Keputusan prasidang · {student.npm}</h3>
+        <p className="m-0 mt-[0.3rem] mb-[1rem] text-[0.87rem] text-[var(--tinta-3)]">
+          {student.nama}. Status sekarang: {student.status ? STATUS_LABEL[student.status] : '—'}. Keputusan ini berlaku untuk prasidang terakhir mahasiswa;
+          prasidang baru akan menilai ulang dari berita acaranya.
+        </p>
+        {error && (
+          <div role="alert" className="bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.87rem] text-[var(--merah)] mb-[1rem]">{error}</div>
+        )}
+        <fieldset className="m-0 p-0 border-0 space-y-[0.4rem]">
+          <legend className="text-[0.8rem] font-medium text-[var(--tinta-2)] mb-[0.25rem]">Keputusan</legend>
+          {(['layak', 'layak_revisi'] as const).map((h) => (
+            <label key={h} className="flex items-center gap-[0.4rem] text-[0.93rem] cursor-pointer">
+              <input type="radio" name="hasil" checked={hasil === h} onChange={() => setHasil(h)} />
+              {HASIL_LABEL[h]}
+            </label>
+          ))}
+        </fieldset>
+        <Field label="Alasan" className="mt-[0.8rem]">
+          <textarea rows={3} value={alasan} onChange={(e) => setAlasan(e.target.value)} className={`${INPUT} resize-y`} />
+        </Field>
+        <div className="flex gap-[0.6rem] justify-between pt-[1rem]">
+          {student.keputusan && (
+            <button type="button" disabled={pending} onClick={() => jalankan(() => hapusKeputusanAction(prodi, student.npm))}
+              className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] text-[var(--merah-teks)] cursor-pointer hover:bg-[var(--cekung)] disabled:opacity-60">
+              Hapus keputusan
+            </button>
+          )}
+          <div className="flex gap-[0.6rem] ml-auto">
+            <button type="button" onClick={onClose} className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]">
+              Batal
+            </button>
+            <button type="button" disabled={pending} onClick={() => jalankan(() => simpanKeputusanAction(prodi, student.npm, hasil, alasan))}
+              className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] disabled:opacity-60">
+              {pending ? 'Menyimpan…' : 'Simpan keputusan'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

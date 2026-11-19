@@ -98,8 +98,20 @@ async function main() {
     assert.match(reason({ sks_sebelum: 'abc' }), /^Baris 1: .*sks/i)
     assert.match(reason({ tepat_waktu: 'mungkin' }), /^Baris 1: .*tepat_waktu/i)
 
-    const a = { npm: '1', nama: 'A', judul_skripsi: '', email: '', sks_sebelum: 139, bobot_sebelum: 404.57, tepat_waktu: true }
+    // Dosen Pembimbing I/II: kode as typed (the DB FK checks it exists), blank = none, absent = leave alone.
+    const pb = studentsTable.parseRow({ npm: '1', nama: 'A', pembimbing_1_kode: ' D1 ', pembimbing_2_kode: '' }, 2)
+    assert.ok('data' in pb)
+    if ('data' in pb) {
+      assert.equal(pb.data.pembimbing_1_kode, 'D1')
+      assert.equal(pb.data.pembimbing_2_kode, null)
+    }
+    if ('data' in old) assert.ok(!('pembimbing_1_kode' in old.data), 'no pembimbing key without the column')
+    assert.equal(reason({ pembimbing_1_kode: 'D1', pembimbing_2_kode: 'D1' }), 'Baris 1: Dosen Pembimbing I dan II harus berbeda.')
+    assert.ok(studentsTable.headers.includes('pembimbing_1_kode') && studentsTable.headers.includes('pembimbing_2_kode'))
+
+    const a = { npm: '1', nama: 'A', judul_skripsi: '', email: '', sks_sebelum: 139, bobot_sebelum: 404.57, tepat_waktu: true, pembimbing_1_kode: 'D1', pembimbing_2_kode: 'D2' }
     assert.ok(studentsTable.equal(a, { ...a }))
+    assert.ok(!studentsTable.equal(a, { ...a, pembimbing_2_kode: 'D3' }), 'equal compares pembimbing_2_kode')
     for (const k of ['email', 'sks_sebelum', 'bobot_sebelum', 'tepat_waktu'] as const) {
       const b = { ...a, [k]: k === 'email' ? 'x@y.id' : k === 'tepat_waktu' ? false : null }
       assert.ok(!studentsTable.equal(a, b as typeof a), `equal compares ${k}`)

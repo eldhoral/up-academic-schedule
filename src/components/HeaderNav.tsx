@@ -32,7 +32,9 @@ const MASTER_PRODI: Tab[] = [
   { href: '/pengaturan', label: 'Pengaturan' },
 ]
 
-// S1 only: online grading is S1 prasidang (Nilai Bimbingan) and sidang (Nilai Akhir).
+// S1 only: the prasidang berita acara (Hasil Prasidang) and sidang grading (Nilai Bimbingan, Nilai Akhir).
+const HASIL_PRASIDANG: Tab = { href: '/sidang/hasil-prasidang', label: 'Hasil Prasidang' }
+
 const NILAI_BIMBINGAN: Tab = { href: '/sidang/nilai-bimbingan', label: 'Nilai Bimbingan' }
 
 const NILAI_AKHIR: Tab = { href: '/sidang/nilai-akhir', label: 'Nilai Akhir' }
@@ -58,7 +60,8 @@ function sectionOf(active: string, prodi: Prodi | undefined, canManage: boolean,
     if (active.startsWith('/ujian')) return own('Jadwal UTS & UAS', UJIAN)
     if (active.startsWith('/sidang')) {
       const tabs = SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t))
-      const s1 = akunEksternal ? [...tabs, NILAI_BIMBINGAN, NILAI_AKHIR, AKUN_EKSTERNAL] : [...tabs, NILAI_BIMBINGAN, NILAI_AKHIR]
+      const nilai = [HASIL_PRASIDANG, NILAI_BIMBINGAN, NILAI_AKHIR]
+      const s1 = akunEksternal ? [...tabs, ...nilai, AKUN_EKSTERNAL] : [...tabs, ...nilai]
       return own(`Jadwal ${c.defense.section}`, prodi === 's1' ? s1 : tabs)
     }
     const master = canManage && prodi === 's1' ? [...MASTER_PRODI, PENILAIAN] : MASTER_PRODI
