@@ -1,4 +1,20 @@
+import { PESAN_GERBANG } from '@/lib/penilaian/prasidang'
+
 type DbErrorLike = { message: string; code?: string; details?: string | null } | null | undefined
+
+/**
+ * Messages our own triggers raise in plain Indonesian (sidang gate, berita acara and bimbingan locks).
+ * Exact strings only: anything else from the DB stays hidden behind generic wording.
+ */
+const PESAN_DB = new Set<string>([
+  ...Object.values(PESAN_GERBANG),
+  'Dosen Pembimbing untuk peran ini belum diisi di Data Mahasiswa.',
+  'Nilai bimbingan hanya untuk sidang S1.',
+  'Mahasiswa tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
+  'Dosen pembimbing tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
+  'Dosen pembimbing tidak dapat diubah: nilai bimbingan sudah dikirim.',
+  'Dosen eksternal tidak dapat menjadi Dosen Pembimbing.',
+])
 
 /**
  * Turns a raw Postgres/Supabase error into wording a non-developer can act
@@ -11,6 +27,7 @@ export function humanDbError(error: DbErrorLike, entity?: string): string {
   const msg = error.message ?? ''
   const lower = msg.toLowerCase()
 
+  if ((code === '23514' || code === 'P0001') && PESAN_DB.has(msg)) return msg
   if (code === '23505' || lower.includes('duplicate key value violates unique constraint')) {
     return entity ? `${entity} ini sudah digunakan. Pakai kode atau nama lain.` : 'Data ini sudah ada. Gunakan kode atau nama lain.'
   }
@@ -22,6 +39,7 @@ export function humanDbError(error: DbErrorLike, entity?: string): string {
   if (fkText.includes('nilai_bimbingan_defense_id_fkey') || (fkText.includes('nilai_bimbingan') && fkText.includes('table "defenses"'))) {
     return 'Prasidang ini sudah dinilai, sehingga tidak bisa dihapus.'
   }
+  if (fkText.includes('berita_acara_prasidang_defense_id_fkey')) return 'Prasidang ini sudah diisi berita acaranya, sehingga tidak bisa dihapus.'
   // Same for sidang: nilai_sidang / hasil_sidang -> defenses. Constraint name only (S4), never the table name.
   if (fkText.includes('nilai_sidang_defense_id_fkey') || fkText.includes('hasil_sidang_defense_id_fkey')) {
     return 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.'

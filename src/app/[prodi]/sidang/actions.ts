@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureAkunEksternal } from '@/lib/penilaian/akun-eksternal'
 import { bisaDinilaiSidang } from '@/lib/penilaian/akses'
+import type { StatusPrasidang } from '@/lib/penilaian/prasidang'
 import { humanDbError } from '@/lib/db-error'
 import { orientFinding } from '@/lib/clash'
 import { parseProdi, prodiTag, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
@@ -268,6 +269,24 @@ export async function deleteDefenseAction(prodi: Prodi, id: string): Promise<Def
 
   revalidatePath('/[prodi]/sidang', 'page')
   return { success: true }
+}
+
+/** S1 sidang form: the student's gate status (status_prasidang) and Dosen Pembimbing I/II. Null when unknown. */
+export async function infoMahasiswaSidangAction(
+  npm: string,
+): Promise<{ status: StatusPrasidang; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null } | null> {
+  if (!/^\d+$/.test(npm.trim())) return null
+  const supabase = await createClient()
+  const [status, mhs] = await Promise.all([
+    supabase.rpc('status_prasidang', { p_npm: npm.trim() }),
+    supabase.from('students').select('pembimbing_1_kode, pembimbing_2_kode').eq('prodi', 's1').eq('npm', npm.trim()).maybeSingle(),
+  ])
+  if (status.error || mhs.error || !status.data) return null
+  return {
+    status: status.data as StatusPrasidang,
+    pembimbing_1_kode: mhs.data?.pembimbing_1_kode ?? null,
+    pembimbing_2_kode: mhs.data?.pembimbing_2_kode ?? null,
+  }
 }
 
 /** The pembimbing from the student's latest earlier defense (any year), so a sidang starts from their prasidang. */

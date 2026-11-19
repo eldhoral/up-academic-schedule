@@ -3,6 +3,7 @@ import { DEFAULT_ATURAN, validateBatasHari, validatePertanyaan } from '../src/li
 import { aksesBeritaAcara, halamanDosen } from '../src/lib/penilaian/akses'
 import { beritaAcaraPath, cekJawaban, gabungHasil, lolosGerbang, type StatusPrasidang } from '../src/lib/penilaian/prasidang'
 import { statusPrasidang } from '../src/lib/penilaian/rekap-prasidang'
+import { humanDbError } from '../src/lib/db-error'
 
 // ---- combined verdict: tidak_layak > layak_revisi > layak; a missing one = belum_lengkap
 assert.equal(gabungHasil('layak', 'layak'), 'layak')
@@ -76,5 +77,26 @@ assert.equal(statusPrasidang('2', pras, isi, [{ npm: '2', prasidang_id: null, ha
 assert.equal(statusPrasidang('3', pras, isi, []), 'belum_lengkap', 'same date: the later created one (p4) decides')
 assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p1', hasil: 'layak' }]), 'layak_revisi', 'an override for an older prasidang is ignored')
 assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p2', hasil: 'layak' }]), 'layak', 'an override for the latest wins')
+
+// ---- DB messages written for people pass through humanDbError unchanged
+for (const m of [
+  'Mahasiswa belum memiliki prasidang. Super Admin dapat memberi keputusan di Data Mahasiswa.',
+  'Berita acara prasidang belum lengkap.',
+  'Hasil prasidang: skripsi tidak layak untuk dilanjutkan.',
+  'Dosen Pembimbing I dan II mahasiswa belum diisi di Data Mahasiswa.',
+  'Dosen Pembimbing untuk peran ini belum diisi di Data Mahasiswa.',
+  'Nilai bimbingan hanya untuk sidang S1.',
+]) assert.equal(humanDbError({ code: '23514', message: m }), m, m)
+for (const m of [
+  'Mahasiswa tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
+  'Dosen pembimbing tidak dapat diubah: prasidang ini sudah diisi berita acaranya.',
+  'Dosen pembimbing tidak dapat diubah: nilai bimbingan sudah dikirim.',
+  'Dosen eksternal tidak dapat menjadi Dosen Pembimbing.',
+]) assert.equal(humanDbError({ code: 'P0001', message: m }), m, m)
+assert.doesNotMatch(humanDbError({ code: '23514', message: 'new row violates check constraint "x"' }), /constraint/)
+assert.equal(
+  humanDbError({ code: '23503', message: 'update or delete on table "defenses" violates foreign key constraint "berita_acara_prasidang_defense_id_fkey" on table "berita_acara_prasidang"' }),
+  'Prasidang ini sudah diisi berita acaranya, sehingga tidak bisa dihapus.',
+)
 
 console.log('berita acara: all checks passed')

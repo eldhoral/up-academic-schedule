@@ -10,6 +10,7 @@ import { liburOn, type HariLibur } from '@/lib/hari-libur'
 import {
   checkDefenseClashes,
   deleteDefenseAction,
+  infoMahasiswaSidangAction,
   lookupPembimbingAction,
   saveDefenseAction,
   type DefenseClashResult,
@@ -20,7 +21,8 @@ import {
 import { jenisLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import { useProdi } from '@/lib/use-prodi'
 import { PRODI_CONFIG } from '@/lib/prodi'
-import type { Peran, PeranSidang } from '@/lib/penilaian/akses'
+import type { PeranSidang } from '@/lib/penilaian/akses'
+import { lolosGerbang, PESAN_GERBANG, type PeranPrasidang, type StatusPrasidang } from '@/lib/penilaian/prasidang'
 
 type Option = { value: string; label: string; eksternal?: boolean }
 export type DefenseDraft = {
@@ -54,7 +56,7 @@ export function DefenseFormModal({
   context: DefenseContext
   draft: DefenseDraft
   lecturers: Option[]
-  graded: (Peran | PeranSidang)[] // roles that already have a grade: that dosen and the date can't change
+  graded: (PeranPrasidang | PeranSidang)[] // roles already graded (sidang) or filled (prasidang berita acara): that dosen and the date can't change
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
   students: Student[]
@@ -87,6 +89,9 @@ export function DefenseFormModal({
   const [eksternal, setEksternal] = useState(row?.penguji_eksternal ?? '')
   const [link, setLink] = useState(row?.link ?? '')
   const [filledFrom, setFilledFrom] = useState<string | null>(null)
+  // S1 sidang: the student's gate status and Dosen Pembimbing, fetched when a student is picked.
+  const [info, setInfo] = useState<{ npm: string; status: StatusPrasidang; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null } | null>(null)
+  const gerbangS1 = prodi === 's1' && sidang
 
   const [live, setLive] = useState<DefenseClashResult | null>(null)
   const [, startCheck] = useTransition()
@@ -130,18 +135,40 @@ export function DefenseFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [complete, tanggal, jamMulai, jamSelesai, roomId, kelompok, pembimbing, penguji, eksternalKode, eksternal])
 
-  // A sidang starts from the student's prasidang: the pembimbing comes from there if still blank.
+  // S1 sidang: Anggota Penguji II starts from the student's Dosen Pembimbing I (Data Mahasiswa), and the gate is shown.
+  // Otherwise the pembimbing comes from the student's latest earlier defense, if still blank.
   async function pick(s: Student) {
     setNpm(s.npm)
     setCari('')
     setFilledFrom(null)
+    const kosong = !(row || pembimbing) || !!filledFrom
     if (filledFrom) setPembimbing('') // the previous pick's, not a choice
-    else if (row || pembimbing) return
+    if (gerbangS1) {
+      setInfo(null)
+      const i = await infoMahasiswaSidangAction(s.npm)
+      setInfo(i && { npm: s.npm, ...i })
+      if (kosong && i?.pembimbing_1_kode) {
+        setPembimbing(i.pembimbing_1_kode)
+        setFilledFrom('Dosen Pembimbing I di Data Mahasiswa')
+      }
+      return
+    }
+    if (!kosong) return
     const found = await lookupPembimbingAction(s.npm)
     if (!found) return
     setPembimbing(found.pembimbing_kode)
-    setFilledFrom(found.from)
+    setFilledFrom(`${found.from}`)
   }
+
+  // The DB refuses a new S1 sidang (or a changed student) while this holds; the form says why first.
+  const alasanBlok =
+    gerbangS1 && !kept && info && info.npm === npm
+      ? !lolosGerbang(info.status)
+        ? PESAN_GERBANG[info.status as Exclude<StatusPrasidang, 'layak' | 'layak_revisi'>]
+        : !info.pembimbing_1_kode || !info.pembimbing_2_kode
+          ? PESAN_GERBANG.pembimbing
+          : null
+      : null
 
   function save() {
     setError(null)
@@ -285,8 +312,13 @@ export function DefenseFormModal({
             <Link href={`/${prodi}/mahasiswa`} className="underline">
               Data Master Mahasiswa
             </Link>
-            .{filledFrom && ` Pembimbing diisi dari ${filledFrom}.`}
+            .{filledFrom && ` Anggota penguji II / pembimbing diisi dari ${filledFrom}.`}
           </p>
+          {alasanBlok && (
+            <p role="alert" className="m-0 bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.87rem] text-[var(--merah-teks)]">
+              {alasanBlok}
+            </p>
+          )}
 
           {sidang ? (
             <div className="grid gap-[0.8rem] sm:grid-cols-3 items-end">
@@ -313,11 +345,11 @@ export function DefenseFormModal({
             </div>
           ) : (
             <div className="grid gap-[0.8rem] sm:grid-cols-2 items-end">
-              <Field label="Dosen pembimbing pendamping" hint={graded.includes('pembimbing_1') ? SUDAH_DINILAI : undefined}>
-                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Dosen pembimbing pendamping" options={internalOptions(pembimbing)} disabled={graded.includes('pembimbing_1')} className={CONTROL} />
+              <Field label="Dosen pembimbing pendamping" hint={graded.includes('pendamping') ? SUDAH_DINILAI : undefined}>
+                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Dosen pembimbing pendamping" options={internalOptions(pembimbing)} disabled={graded.includes('pendamping')} className={CONTROL} />
               </Field>
-              <Field label="Dosen pembahas" hint={graded.includes('pembimbing_2') ? SUDAH_DINILAI : undefined}>
-                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Dosen pembahas" options={internalOptions(penguji)} disabled={graded.includes('pembimbing_2')} className={CONTROL} />
+              <Field label="Dosen pembahas" hint={graded.includes('pembahas') ? SUDAH_DINILAI : undefined}>
+                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Dosen pembahas" options={internalOptions(penguji)} disabled={graded.includes('pembahas')} className={CONTROL} />
               </Field>
             </div>
           )}
@@ -376,7 +408,7 @@ export function DefenseFormModal({
               </button>
               <button
                 type="submit"
-                disabled={isSaving}
+                disabled={isSaving || !!alasanBlok}
                 className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] disabled:opacity-60"
               >
                 {isSaving ? 'Menyimpan…' : 'Simpan'}

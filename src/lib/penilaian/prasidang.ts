@@ -49,3 +49,11 @@ export function cekJawaban(pertanyaan: string[], tampil: unknown, ya: unknown, c
 }
 
 export const beritaAcaraPath = (id: string): string => `/berita-acara-prasidang/${id}`
+
+/** The sidang gate's messages, word for word as the DB trigger raises them (gerbang_sidang). */
+export const PESAN_GERBANG = {
+  tidak_ada: 'Mahasiswa belum memiliki prasidang. Super Admin dapat memberi keputusan di Data Mahasiswa.',
+  belum_lengkap: 'Berita acara prasidang belum lengkap.',
+  tidak_layak: 'Hasil prasidang: skripsi tidak layak untuk dilanjutkan.',
+  pembimbing: 'Dosen Pembimbing I dan II mahasiswa belum diisi di Data Mahasiswa.',
+} as const
