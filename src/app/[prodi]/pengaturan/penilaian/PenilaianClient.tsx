@@ -9,7 +9,9 @@ import { todayJakarta } from '@/lib/penilaian/akses'
 import { parseAngka, round2 } from '@/lib/penilaian/nilai'
 import { saveAturanAction, type Hasil, type Kunci } from './actions'
 
-const INPUT = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem] disabled:opacity-60'
+// Without a width: a fixed-width control uses this, since w-full beside w-[..] wins by CSS order, not class order.
+const KONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem] disabled:opacity-60'
+const INPUT = `w-full ${KONTROL}`
 const BTN = 'min-h-[2.4rem] px-[0.7rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--cekung)] cursor-pointer text-[0.87rem] disabled:opacity-40 disabled:cursor-default'
 const HEAD = 'text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]'
 
@@ -380,9 +382,9 @@ function PertanyaanKartu({ awal }: { awal: Pertanyaan[] }) {
       <ol className="m-0 p-0 list-none space-y-[0.5rem]">
         {list.map((r, i) => (
           <li key={i} className="flex gap-[0.5rem] items-start">
-            <input className={INPUT} value={r.teks} onChange={(e) => set(i, { teks: e.target.value })} aria-label={`Pertanyaan ${i + 1}`} />
+            <input className={`${INPUT} flex-1 min-w-0`} value={r.teks} onChange={(e) => set(i, { teks: e.target.value })} aria-label={`Pertanyaan ${i + 1}`} />
             <select
-              className={`${INPUT} w-[8.5rem] shrink-0`}
+              className={`${KONTROL} w-[8.5rem] shrink-0`}
               value={r.jenis}
               onChange={(e) => set(i, { jenis: e.target.value as Pertanyaan['jenis'] })}
               aria-label={`Jenis pertanyaan ${i + 1}`}
