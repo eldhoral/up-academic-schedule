@@ -1,6 +1,22 @@
 import assert from 'node:assert/strict'
 import { loadCurrentUser, canWrite, canManage, isDosen, isPenguji, ROLES, ROLE_LABEL } from '../src/lib/roles'
 import { generatePassword } from '../src/lib/password'
+import { usernameDosen } from '../src/lib/akun-dosen'
+
+// ---- dev account script: username = NIDN, else a placeholder from the kode; unique, lowercase
+{
+  const u = usernameDosen([
+    { kode_dosen: 'D001', nidn: ' 0311106301 ' },
+    { kode_dosen: 'D.02 X', nidn: null },
+    { kode_dosen: 'D003', nidn: '' },
+    { kode_dosen: 'D004', nidn: '0311106301' }, // the same NIDN twice
+    { kode_dosen: 'd003', nidn: null }, // a placeholder that collides once lowercased
+  ])
+  assert.deepEqual([...u], [
+    ['D001', '0311106301'], ['D.02 X', 'dev-d02x'], ['D003', 'dev-d003'], ['D004', '0311106301-2'], ['d003', 'dev-d003-2'],
+  ])
+  assert.ok([...u.values()].every((x) => !x.includes('@')), 'a bare username: the login form appends the domain')
+}
 
 type Profile = { role: string; prodi_access: string | null; kode_dosen?: string | null; berlaku_sampai?: string | null }
 
