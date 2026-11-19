@@ -1,3 +1,4 @@
+import { aksiKanal, topikKanal } from '../src/lib/penilaian/live'
 import { buildBeritaAcaraXlsx } from '../src/lib/penilaian/berita-acara-xlsx'
 import { barAspek, barPenguji, rataRata } from '../src/lib/penilaian/grafik'
 import { hasilBeritaAcara } from '../src/lib/penilaian/berita-acara-sidang'
@@ -806,5 +807,31 @@ void (async () => {
     assert.ok(gagal.cari('IPK setelah Sidang Skripsi').includes('Sidang tidak lulus.'))
     assert.ok(!gagal.rows.some((r) => r.some((v) => typeof v === 'number' && Number.isNaN(v))), 'never NaN')
     console.log('nilai-sidang berita acara xlsx: all checks passed')
+  })().catch((e) => { console.error(e); process.exit(1) })
+}
+
+// ---- final review fixes: live channel status, renamed yudisium
+{
+  // Every (re)subscribe refreshes, so grades sent while disconnected show up; errors show the note.
+  assert.deepEqual(aksiKanal('SUBSCRIBED'), { putus: false, segarkan: true })
+  assert.deepEqual(aksiKanal('CHANNEL_ERROR'), { putus: true, segarkan: false })
+  assert.deepEqual(aksiKanal('TIMED_OUT'), { putus: true, segarkan: false })
+  assert.deepEqual(aksiKanal('CLOSED'), { putus: true, segarkan: false })
+  assert.notEqual(topikKanal('d1'), topikKanal('d1'), 'a fresh topic per mount: never reuse a channel still leaving')
+  assert.ok(topikKanal('d1').startsWith('sidang-d1-'))
+
+  void (async () => {
+    const wb = new ExcelJS.Workbook()
+    const beku = bekukan(DEFAULT_ATURAN)
+    await wb.xlsx.load((await buildBeritaAcaraXlsx({
+      npm: '1', nama: 'A', judul: '', tanggal: '2026-11-10', pembimbing1: null, pembimbing2: null,
+      penguji: [{ peran: 'ketua', nama: 'K', nilai: 80 }, { peran: 'anggota_1', nama: 'A1', nilai: 80 }, { peran: 'anggota_2', nama: 'A2', nilai: 80 }],
+      aturan: beku, pilihan: DEFAULT_ATURAN.pilihanYudisium, yudisium: { label: 'Lulus (nama lama)', lulus: true },
+      sks: 139, bobot: 404.57, tepatWaktu: true,
+    })).buffer as ArrayBuffer)
+    const rows: unknown[][] = []
+    wb.worksheets[0].eachRow((r) => rows.push((r.values as unknown[]).slice(1)))
+    assert.ok(rows.some((r) => r[0] === 'Lulus (nama lama)' && r[1] === '☒'), 'a yudisium renamed after the lock is still printed, ticked')
+    console.log('nilai-sidang review fixes: all checks passed')
   })().catch((e) => { console.error(e); process.exit(1) })
 }

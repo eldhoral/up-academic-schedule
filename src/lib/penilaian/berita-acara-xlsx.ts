@@ -94,7 +94,9 @@ export async function buildBeritaAcaraXlsx(d: BeritaAcaraSidang): Promise<Uint8A
 
   // III. Yudisium
   tebal(ws.addRow(['III. Yudisium']))
-  for (const y of d.pilihan) {
+  // A yudisium renamed after the lock is not in today's list: print it anyway, ticked.
+  const pilihan = d.pilihan.some((y) => y.label === d.yudisium.label) ? d.pilihan : [...d.pilihan, d.yudisium]
+  for (const y of pilihan) {
     const pilih = y.label === d.yudisium.label
     ws.addRow([y.label, pilih ? '☒' : '☐'])
     if (PENJELASAN[y.label]) ws.addRow([PENJELASAN[y.label]]).getCell(1).alignment = { wrapText: true }

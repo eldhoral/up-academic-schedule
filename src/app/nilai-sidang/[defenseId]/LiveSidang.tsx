@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { aksiKanal, topikKanal } from '@/lib/penilaian/live'
 
 /**
  * Keeps the grading page fresh while a sidang is open: any grade sent or the lock (Supabase Realtime on
@@ -21,10 +22,14 @@ export function LiveSidang({ defenseId }: { defenseId: string }) {
     }
     const filter = `defense_id=eq.${defenseId}`
     const channel = supabase
-      .channel(`sidang-${defenseId}`)
+      .channel(topikKanal(defenseId))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'nilai_sidang', filter }, segarkan)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hasil_sidang', filter }, segarkan)
-      .subscribe((status) => setPutus(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED'))
+      .subscribe((status) => {
+        const a = aksiKanal(status)
+        setPutus(a.putus)
+        if (a.segarkan) segarkan() // catch up on anything sent while (re)connecting
+      })
     return () => {
       if (timer.current) clearTimeout(timer.current)
       supabase.removeChannel(channel)
