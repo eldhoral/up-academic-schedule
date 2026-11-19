@@ -442,7 +442,7 @@ update hasil_sidang set locked_at = now() - interval '8 days' where defense_id =
 update hasil_sidang set locked_at = now() - interval '7 days' where defense_id = (select id from nb_def where k = 'nbC');
 
 do $$ begin
-    assert (select count(*) from aturan_penilaian where prodi = 's1') = 9, 'nine s1 rules seeded';
+    assert (select count(*) from aturan_penilaian where prodi = 's1') = 10, 'ten s1 rules seeded';
     assert (select sum((a ->> 'bobot')::int) from aturan_penilaian, jsonb_array_elements(nilai) a
             where prodi = 's1' and kunci = 'aspek_bimbingan') = 100, 'aspek bobot sums to 100';
     assert (select jsonb_array_length(nilai) from aturan_penilaian where prodi = 's1' and kunci = 'tabel_nilai') = 9, 'nine Nilai rows';
@@ -513,7 +513,7 @@ begin
     assert n = 0, 'a dosen never edits the rules';
     assert (select count(*) from nilai_bimbingan) = 2, 'a dosen reads its own grades';
     assert (select count(*) from audit_log) = 0, 'a dosen reads no audit log';
-    assert (select count(*) from aturan_penilaian) = 9, 'a dosen reads the rules';
+    assert (select count(*) from aturan_penilaian) = 10, 'a dosen reads the rules';
 end $$;
 reset role;
 
@@ -558,11 +558,15 @@ begin
            (nbK, 'DSN01', 'anggota_2', a, 70, false, '[]', 'manual', auth.uid()),
            (nbO, 'EXTB', 'anggota_1', a, 70, true, '[{"catatan": "Perbaiki abstrak"}]', 'manual', auth.uid()),
            (nbO, 'DSN01', 'anggota_2', a, 70, false, '[]', 'manual', auth.uid());
-    s := kunci_sidang_admin(nbK, a, false, '[]', 'Lulus Dengan Revisi', true);
+    -- Super Admin enters the Ketua grade like any other, then locks (a plain hasil_sidang insert).
+    insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber, submitted_by)
+    values (nbK, 'DSN03', 'ketua', a, 70, 'manual', auth.uid()), (nbO, 'DSN03', 'ketua', a, 70, 'manual', auth.uid());
+    insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by) values (nbK, 'Lulus Dengan Revisi', true, auth.uid())
+    returning email_status into s;
     assert s = 'menunggu', 'an admin lock with revisi sends the email: ' || s;
-    assert (select kode_dosen || '/' || sumber from nilai_sidang where defense_id = nbK and peran = 'ketua') = 'DSN03/manual', 'the Ketua row is the admin''s';
     assert (select locked_by from hasil_sidang where defense_id = nbK) = auth.uid(), 'the admin locked it';
-    s := kunci_sidang_admin(nbO, a, false, '[]', 'Lulus Tanpa Revisi', true);
+    insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by) values (nbO, 'Lulus Tanpa Revisi', true, auth.uid())
+    returning email_status into s;
     assert s = 'tidak_perlu', 'an old sidang sends no email: ' || s;
 end $$;
 reset role;
@@ -574,11 +578,6 @@ do $$ begin
         insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
         values ((select id from nb_def where k = 'nbY'), 'DSN01', 'pembimbing_1', '[{"label": "A", "bobot": 100, "skor": 80}]', 80, auth.uid());
         raise exception 'FAIL: graded after the yudisium became tidak lulus';
-    exception when insufficient_privilege then null;
-    end;
-    begin
-        perform kunci_sidang_admin((select id from nb_def where k = 'nbU'), '[{"label": "A", "bobot": 100, "skor": 80}]', false, '[]', 'Lulus Tanpa Revisi', true);
-        raise exception 'FAIL: a dosen called kunci_sidang_admin';
     exception when insufficient_privilege then null;
     end;
 end $$;
@@ -660,7 +659,6 @@ do $$ begin
     assert not has_function_privilege('authenticated', 'purge_old_audit_log()', 'execute'), 'authenticated cannot purge audit_log';
     assert not has_function_privilege('anon', 'purge_old_audit_log()', 'execute'), 'anon cannot purge audit_log';
     assert has_function_privilege('postgres', 'purge_old_audit_log()', 'execute'), 'the cron owner still purges';
-    assert not has_function_privilege('anon', 'kunci_sidang_admin(uuid, jsonb, boolean, jsonb, text, boolean)', 'execute'), 'anon cannot lock';
 end $$;
 select set_config('nb.total', (select count(*)::text from nilai_bimbingan), false);
 
@@ -859,7 +857,7 @@ begin
     assert is_eksternal_aktif(), 'the day account is active';
     assert my_kode_dosen() is null, 'my_kode_dosen() stays DOSEN-only';
     assert my_kode_penguji() = 'EXT01', 'my_kode_penguji() is the EKSTERNAL''s lecturer';
-    assert (select count(*) from aturan_penilaian) = 9, 'an active EKSTERNAL reads the rules';
+    assert (select count(*) from aturan_penilaian) = 10, 'an active EKSTERNAL reads the rules';
     assert (select count(*) from nilai_bimbingan) = 0, 'an EKSTERNAL reads no bimbingan grade, not even its own kode';
     begin
         insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
@@ -870,7 +868,7 @@ begin
 end $$;
 reset role;
 
--- The Ketua grades last.
+-- The Ketua grades in any order (the insert passes; it is undone so the flow below is unchanged).
 select set_config('request.jwt.claim.sub', :'dosen', false);
 set role authenticated;
 do $$ begin
@@ -878,8 +876,9 @@ do $$ begin
     begin
         insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
         values ((select id from sd_def where k = 'sd1'), 'DSN01', 'ketua', '[{"label": "A", "bobot": 100, "skor": 80}]', 80, auth.uid());
-        raise exception 'FAIL: the Ketua graded before the anggota';
-    exception when insufficient_privilege then null;
+        raise exception 'UNDO';
+    exception when raise_exception then
+        if sqlerrm <> 'UNDO' then raise; end if;
     end;
 end $$;
 reset role;
@@ -946,7 +945,7 @@ begin
     end;
     insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
     values ((select id from sd_def where k = 'sd1'), 'DSN02', 'anggota_2', a, 70, auth.uid());
-    assert (select count(*) from nilai_sidang) = 1, 'anggota_2 reads only its own grade';
+    assert (select count(*) from nilai_sidang where defense_id = (select id from sd_def where k = 'sd1')) = 2, 'anggota_2 reads both anggota grades of its sidang';
     begin
         insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, aturan, locked_by)
         values ((select id from sd_def where k = 'sd1'), 'Lulus Tanpa Revisi', true, '{}', auth.uid());
@@ -1183,7 +1182,9 @@ set role authenticated;
 do $$ begin
     insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
     values ((select id from sd_def where k = 'sd4'), 'EXT01', 'anggota_1', '[{"label": "A", "bobot": 100, "skor": 80}]', 80, auth.uid());
-    assert (select count(*) from nilai_sidang) = 2, 'the day account reads its day''s grades';
+    assert exists (select 1 from nilai_sidang where defense_id = (select id from sd_def where k = 'sd4') and peran = 'anggota_1'), 'the day account reads its own grade';
+    assert not exists (select 1 from nilai_sidang where defense_id not in (select id from sd_def where k in ('sd1', 'sd4'))),
+        'the day account reads only grades of its own day''s sidang';
 end $$;
 reset role;
 
@@ -1201,13 +1202,13 @@ do $$ begin
     assert exists (select 1 from auth.users where id = '00000000-0000-0000-0000-000000000006'), 'a DOSEN stays';
 end $$;
 
--- The Ketua's grade and the lock are one call (kunci_sidang): both commit or neither.
+-- The Ketua sends its grade like an anggota, then locks separately once all three are in.
 \set dosen4 '00000000-0000-0000-0000-000000000010'
 insert into auth.users (id, email) values (:'dosen4', 'dosen4@test');
 update profiles set role = 'DOSEN', kode_dosen = 'DSN03' where id = :'dosen4';
 do $$ begin
-    assert not has_function_privilege('anon', 'kunci_sidang(uuid, jsonb, boolean, jsonb, text, boolean)', 'execute'), 'anon cannot lock';
-    assert has_function_privilege('authenticated', 'kunci_sidang(uuid, jsonb, boolean, jsonb, text, boolean)', 'execute'), 'an examiner calls kunci_sidang';
+    assert to_regprocedure('kunci_sidang(uuid, jsonb, boolean, jsonb, text, boolean)') is null, 'kunci_sidang is gone';
+    assert to_regprocedure('kunci_sidang_admin(uuid, jsonb, boolean, jsonb, text, boolean)') is null, 'kunci_sidang_admin is gone';
 end $$;
 select set_config('request.jwt.claim.sub', :'dosen3', false);
 set role authenticated;
@@ -1216,11 +1217,6 @@ declare sd4 uuid := (select id from sd_def where k = 'sd4');
 begin
     insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
     values (sd4, 'DSN02', 'anggota_2', '[{"label": "A", "bobot": 100, "skor": 70}]', 70, auth.uid());
-    begin
-        perform kunci_sidang(sd4, '[{"label": "A", "bobot": 100, "skor": 70}]', false, '[]', 'Lulus Tanpa Revisi', true);
-        raise exception 'FAIL: an anggota locked through kunci_sidang';
-    exception when insufficient_privilege then null;
-    end;
 end $$;
 reset role;
 select set_config('request.jwt.claim.sub', :'dosen4', false);
@@ -1231,19 +1227,22 @@ declare
     a jsonb := '[{"label": "A", "bobot": 40, "skor": 90}, {"label": "B", "bobot": 60, "skor": 80}]';
     s text;
 begin
+    insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, ada_revisi, revisi, submitted_by)
+    values (sd4, 'DSN03', 'ketua', a, 0, true, '[{"halaman": "", "catatan": "Perbaiki abstrak"}]', auth.uid());
+    assert (select nilai from nilai_sidang where defense_id = sd4 and peran = 'ketua') = 84, 'the Ketua grade is stored and scored';
+    assert (select count(*) from nilai_sidang where defense_id = sd4) = 3, 'the Ketua reads all three';
     begin
-        perform kunci_sidang(sd4, a, false, '[]', 'Lulus Bersyarat', true);
-        raise exception 'FAIL: kunci_sidang took a yudisium outside pilihan_yudisium';
+        insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by) values (sd4, 'Lulus Bersyarat', true, auth.uid());
+        raise exception 'FAIL: a yudisium outside pilihan_yudisium';
     exception when check_violation then null;
     end;
-    s := kunci_sidang(sd4, a, true, '[{"halaman": "", "catatan": "Perbaiki abstrak"}]', 'Lulus Dengan Revisi', true);
-    assert s = 'menunggu', 'kunci_sidang returns the email status: ' || s;
-    assert (select nilai from nilai_sidang where defense_id = sd4 and peran = 'ketua' and kode_dosen = 'DSN03') = 84, 'the Ketua grade is stored and scored';
-    assert (select yudisium_label from hasil_sidang where defense_id = sd4) = 'Lulus Dengan Revisi', 'and the sidang is locked';
+    insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by) values (sd4, 'Lulus Dengan Revisi', true, auth.uid())
+    returning email_status into s;
+    assert s = 'menunggu', 'the lock decides the email: ' || s;
     begin
-        perform kunci_sidang(sd4, a, false, '[]', 'Lulus Tanpa Revisi', true);
+        insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by) values (sd4, 'Lulus Tanpa Revisi', true, auth.uid());
         raise exception 'FAIL: locked twice';
-    exception when insufficient_privilege then null;
+    exception when unique_violation or insufficient_privilege then null;
     end;
 end $$;
 reset role;
@@ -1520,4 +1519,84 @@ do $$ begin
     assert status_prasidang('89001') is null, 'a DOSEN reads no verdict through status_prasidang';
     assert (select count(*) from berita_acara_prasidang) = 2, 'DSN03 reads its own two';
 end $$;
+reset role;
+
+-- Nilai Sidang live: every examiner reads all three, the Ketua locks only with three, realtime is optional --------
+do $$ begin
+    assert (select jsonb_array_length(nilai) from aturan_penilaian where prodi = 's1' and kunci = 'ketentuan_sidang') = 5, 'five ketentuan lines';
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, penguji_kode, penguji_eksternal_kode, pembimbing_kode, prodi)
+values ('R0001', 'sidang', (now() at time zone 'Asia/Jakarta')::date, '15:00', '16:00', '88200', 'Live', 'DSN03', 'EXT01', 'DSN02', 's1');
+create temp table live_def as select id from defenses where npm = '88200';
+grant select on live_def to authenticated;
+
+select set_config('request.jwt.claim.sub', :'dosen4', false);
+set role authenticated;
+do $$
+declare d uuid := (select id from live_def);
+begin
+    -- The Ketua sends first, before any anggota.
+    insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
+    values (d, 'DSN03', 'ketua', '[{"label": "A", "bobot": 100, "skor": 80}]', 80, auth.uid());
+    begin
+        insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by) values (d, 'Lulus Tanpa Revisi', true, auth.uid());
+        raise exception 'FAIL: locked with one grade';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'dosen3', false);
+set role authenticated;
+do $$
+declare d uuid := (select id from live_def);
+begin
+    assert (select count(*) from nilai_sidang where defense_id = d) = 1, 'an anggota reads the Ketua''s sent grade';
+    insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
+    values (d, 'DSN02', 'anggota_2', '[{"label": "A", "bobot": 100, "skor": 75}]', 75, auth.uid());
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'dosen4', false);
+set role authenticated;
+do $$
+declare d uuid := (select id from live_def);
+begin
+    begin
+        insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by) values (d, 'Lulus Tanpa Revisi', true, auth.uid());
+        raise exception 'FAIL: locked with two grades';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
+insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber)
+values ((select id from live_def), 'EXT01', 'anggota_1', '[{"label": "A", "bobot": 100, "skor": 70}]', 70, 'manual');
+
+select set_config('request.jwt.claim.sub', :'dosen3', false);
+set role authenticated;
+do $$
+declare d uuid := (select id from live_def);
+begin
+    assert (select count(*) from nilai_sidang where defense_id = d) = 3, 'an anggota reads all three';
+    begin
+        insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by) values (d, 'Lulus Tanpa Revisi', true, auth.uid());
+        raise exception 'FAIL: an anggota locked';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
+
+-- An examiner of other sidang reads none of this one.
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    assert (select count(*) from nilai_sidang where defense_id = (select id from live_def)) = 0, 'DSN01 is not on this sidang';
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'dosen4', false);
+set role authenticated;
+insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by)
+values ((select id from live_def), 'Lulus Tanpa Revisi', true, auth.uid());
 reset role;
