@@ -67,7 +67,7 @@ function nilaiForm(aspek: { label: string; bobot: number }[], tampil: unknown, s
   return { aspek: snap.aspek, nilai: nilaiDariSnapshot(snap.aspek), ada_revisi: rev.adaRevisi, revisi: rev.revisi }
 }
 
-/** An anggota grades its own peran, from the sidang date, once. The Ketua uses kunciSidangAction. */
+/** An examiner (Ketua included) grades its own peran, from the sidang date, once, in any order. The Ketua then locks with kunciSidangAction. */
 export async function submitNilaiSidangAction(
   defenseId: string, peran: PeranSidang, tampil: AspekTampil, skor: string[], adaRevisi: boolean, revisi: Revisi,
 ): Promise<Hasil> {
@@ -93,41 +93,36 @@ export async function submitNilaiSidangAction(
   return { ok: true }
 }
 
-/**
- * The Ketua's own grade, the yudisium and the lock, in one DB call (kunci_sidang): both commit or neither.
- * Needs both anggota graded. The DB freezes the rules and sets email_status; the result returns it.
- */
-export async function kunciSidangAction(
-  defenseId: string, tampil: AspekTampil, skor: string[], adaRevisi: boolean, revisi: Revisi, yudisium: string,
-): Promise<Hasil> {
+/** Lock the sidang with a yudisium: a plain hasil_sidang insert (the DB freezes the rules and decides the email). */
+async function kunci(data: Sidang, userId: string, yudisium: string): Promise<Hasil> {
+  const y = pilihYudisium(data, yudisium)
+  if (!y) return { error: 'Pilih yudisium.' }
+  const supabase = await createClient()
+  const { data: row, error } = await supabase
+    .from('hasil_sidang')
+    .insert({ defense_id: data.defense.id, yudisium_label: y.label, yudisium_lulus: y.lulus, locked_by: userId })
+    .select('email_status')
+    .single()
+  if (error) return { error: error.code === '23505' ? 'Nilai sidang ini sudah dikunci. Muat ulang halaman.' : humanDbError(error) }
+
+  // The lock is committed. The send (10 s cap) only updates email_status; whatever happens, the lock stands.
+  const status = row.email_status === 'menunggu' ? await kirimAman(data.defense.id) : (row.email_status as string)
+  revalidate(data.defense.id)
+  return { ok: true, email: status }
+}
+
+/** The Ketua locks once all three grades are sent, choosing the yudisium. Its own grade went in through submitNilaiSidangAction. */
+export async function kunciSidangAction(defenseId: string, yudisium: string): Promise<Hasil> {
   const a = await aksesAksi(defenseId)
   if (!a) return { error: TIDAK_ADA }
-  const { data, akses } = a
+  const { user, data, akses } = a
   if (akses.kind === 'terkunci') return { error: TERKUNCI }
-  if (akses.kind === 'belum-dibuka') return { error: `Penilaian dibuka pada ${tanggalPanjang(akses.tanggal, false)}.` }
-  if (akses.kind === 'terkirim') return { error: SUDAH_DIKIRIM }
   if (akses.kind === 'menunggu-anggota') {
     if (!data.defense.penguji_eksternal_kode) return { error: `${ANGGOTA_I_LEGACY}.` }
     return { error: `Menunggu ${akses.kurang.map((p) => PERAN_SIDANG_LABEL[p]).join(' dan ')}.` }
   }
   if (akses.kind !== 'kunci') return { error: TIDAK_ADA }
-
-  const n = nilaiForm(data.aturan.aspekSidang, tampil, skor, adaRevisi, revisi)
-  if ('error' in n) return n
-  const y = pilihYudisium(data, yudisium)
-  if (!y) return { error: 'Pilih yudisium.' }
-
-  const supabase = await createClient()
-  const { data: email, error } = await supabase.rpc('kunci_sidang', {
-    p_defense: data.defense.id, p_aspek: n.aspek, p_ada_revisi: n.ada_revisi, p_revisi: n.revisi,
-    p_yudisium_label: y.label, p_yudisium_lulus: y.lulus,
-  })
-  if (error) return { error: dbError(error) }
-
-  // The lock is committed. The send (10 s cap) only updates email_status; whatever happens, the lock stands.
-  const status = email === 'menunggu' ? await kirimAman(data.defense.id) : (email as string)
-  revalidate(data.defense.id)
-  return { ok: true, email: status }
+  return kunci(data, user.id, yudisium)
 }
 
 /** kirimRevisi that never throws: a DB problem while sending leaves email_status as it was ('menunggu'). */
@@ -197,13 +192,12 @@ export async function editYudisiumAction(defenseId: string, yudisium: string): P
   return { ok: true }
 }
 
-/** Super Admin enters a missing anggota grade at any time (the Ketua's comes with the lock, kunciSidangAdminAction). */
+/** Super Admin enters any missing grade (the Ketua's too) at any time. */
 export async function inputNilaiSidangAdminAction(
   defenseId: string, peran: PeranSidang, tampil: AspekTampil, skor: string[], adaRevisi: boolean, revisi: Revisi,
 ): Promise<Hasil> {
   const user = await getCurrentUser()
   if (!user || !canManage(user.role)) return { error: BUKAN_SUPERADMIN }
-  if (peran !== 'anggota_1' && peran !== 'anggota_2') return { error: TIDAK_ADA }
 
   const data = await loadSidang(defenseId)
   if (!data) return { error: TIDAK_ADA }
@@ -226,39 +220,17 @@ export async function inputNilaiSidangAdminAction(
   return { ok: true }
 }
 
-/**
- * Super Admin enters the Ketua's grade and locks on the Ketua's behalf, at any time, once both anggota are in.
- * One DB call (kunci_sidang_admin). The revisi email goes out as for the Ketua's lock (never for an old sidang: the DB decides).
- */
-export async function kunciSidangAdminAction(
-  defenseId: string, tampil: AspekTampil, skor: string[], adaRevisi: boolean, revisi: Revisi, yudisium: string,
-): Promise<Hasil> {
+/** Super Admin locks on the Ketua's behalf, at any time, once all three grades exist. The revisi email follows the DB's rule. */
+export async function kunciSidangAdminAction(defenseId: string, yudisium: string): Promise<Hasil> {
   const user = await getCurrentUser()
   if (!user || !canManage(user.role)) return { error: BUKAN_SUPERADMIN }
   const data = await loadSidang(defenseId)
   if (!data) return { error: TIDAK_ADA }
   if (data.hasil) return { error: TERKUNCI }
   const ada = new Set(Object.keys(data.nilai) as PeranSidang[])
-  if (!adminSidang(data.defense, ada, false).kunciKetua) {
-    if (ada.has('ketua')) return { error: SUDAH_DIKIRIM }
-    if (!data.defense.penguji_kode) return { error: 'Ketua sidang belum diisi di jadwal sidang.' }
-    const kurang = (['anggota_1', 'anggota_2'] as const).filter((p) => !ada.has(p))
-    return { error: `Menunggu ${kurang.map((p) => PERAN_SIDANG_LABEL[p]).join(' dan ')}.` }
+  if (!adminSidang(data.defense, ada, false).kunci) {
+    const kurang = (['ketua', 'anggota_1', 'anggota_2'] as const).filter((p) => !ada.has(p))
+    return { error: `Menunggu ${kurang.map((p) => PERAN_SIDANG_LABEL[p]).join(', ')}.` }
   }
-
-  const n = nilaiForm(data.aturan.aspekSidang, tampil, skor, adaRevisi, revisi)
-  if ('error' in n) return n
-  const y = pilihYudisium(data, yudisium)
-  if (!y) return { error: 'Pilih yudisium.' }
-
-  const supabase = await createClient()
-  const { data: email, error } = await supabase.rpc('kunci_sidang_admin', {
-    p_defense: data.defense.id, p_aspek: n.aspek, p_ada_revisi: n.ada_revisi, p_revisi: n.revisi,
-    p_yudisium_label: y.label, p_yudisium_lulus: y.lulus,
-  })
-  if (error) return { error: dbError(error) }
-
-  const status = email === 'menunggu' ? await kirimAman(data.defense.id) : (email as string)
-  revalidate(data.defense.id)
-  return { ok: true, email: status }
+  return kunci(data, user.id, yudisium)
 }

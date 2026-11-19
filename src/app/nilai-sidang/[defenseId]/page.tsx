@@ -16,6 +16,8 @@ import {
   editNilaiSidangAction, editYudisiumAction, inputNilaiSidangAdminAction, kunciSidangAction, kunciSidangAdminAction,
   submitNilaiSidangAction,
 } from '../actions'
+import { Grafik, WARNA_PERAN } from './Grafik'
+import { LiveSidang } from './LiveSidang'
 import { PengujiForm } from './PengujiForm'
 import { YudisiumForm } from './YudisiumForm'
 
@@ -27,6 +29,7 @@ const KOTAK = 'm-0 p-[1rem] border border-[var(--garis-kuat)] rounded-[var(--r-s
 const KECIL = 'block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]'
 const TH = 'font-medium px-[0.53rem] py-[0.4rem]'
 const TD = 'px-[0.53rem] py-[0.4rem]'
+const UNDUH = 'inline-block px-[0.8rem] py-[0.45rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.87rem] font-medium no-underline hover:bg-[var(--cekung)]'
 
 export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[defenseId]'>) {
   const { defenseId } = await props.params
@@ -60,12 +63,19 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   const legacy = !defense.penguji_eksternal_kode
   const peranSaya = saya ? peranPenguji(defense, saya.kode) : null
   const nSidang = nilaiSidang(PERAN_SIDANG.map((p) => data.nilai[p]?.nilai ?? null))
+  const st = data.student
+  const angka = (n: number | null, key: string) => <span key={key} className="mono">{n === null ? '—' : formatNilai(n)}</span>
   const fakta: [string, React.ReactNode][] = [
     ['NPM', <span key="npm" className="mono">{defense.npm}</span>],
     ['Nama', defense.nama_mahasiswa],
     ['Judul skripsi', defense.judul_skripsi || '—'],
-    ['IPK sebelum sidang', <span key="ipk" className="mono">{data.student.ipk === null ? '—' : formatNilai(data.student.ipk)}</span>],
-    ['Tanggal sidang', tanggalPanjang(defense.tanggal, false)],
+    ['Tanggal sidang', `${tanggalPanjang(defense.tanggal, false)}${data.ruang ? ` · ${data.ruang}` : ''}`],
+    ['Dosen Pembimbing I', st.pembimbing1 ?? '—'],
+    ['Dosen Pembimbing II', st.pembimbing2 ?? '—'],
+    ['SKS sebelum sidang', <span key="sks" className="mono">{st.sks ?? '—'}</span>],
+    ['Bobot sebelum sidang', angka(st.bobot, 'bobot')],
+    ['IPK sebelum sidang', angka(st.ipk, 'ipk')],
+    ['Lulus tepat waktu', st.tepatWaktu ? 'Ya' : 'Tidak'],
   ]
   if (peranSaya) fakta.push(['Peran Anda', PERAN_SIDANG_LABEL[peranSaya]])
 
@@ -109,117 +119,157 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
       <main className="flex-1 w-full max-w-[52rem] mx-auto px-[1.3rem] py-[1.6rem]">
         {kepala}
 
+        {!hasil && <LiveSidang defenseId={defense.id} />}
+
+        {/* Every examiner and staff member sees the three sent grades, live (kiprat: they grade together). */}
+        <section className="mb-[1.6rem]">
+          <h2 className={H2}>Nilai penguji</h2>
+          <div className="grid gap-[0.6rem] sm:grid-cols-3">
+            {PERAN_SIDANG.map((p) => {
+              const row = data.nilai[p]
+              return (
+                <div key={p} className="border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] p-[0.8rem]" style={{ borderTop: `3px solid ${WARNA_PERAN[p]}` }}>
+                  <p className="m-0 text-[0.8rem] text-[var(--tinta-3)]">{PERAN_SIDANG_LABEL[p]}</p>
+                  <p className="m-0 text-[0.87rem] font-medium">{data.dosen[p]}</p>
+                  <p className="m-0 mt-[0.4rem] mono text-[1.3rem] font-semibold">{row ? nilaiHuruf(row.nilai, tabel) : <span className="text-[0.87rem] font-normal text-[var(--tinta-3)]">belum dikirim</span>}</p>
+                </div>
+              )
+            })}
+          </div>
+          {nSidang !== null && (
+            <p className="m-0 mt-[0.6rem] text-[0.93rem]">Nilai sidang (rata-rata): <span className="mono font-semibold">{nilaiHuruf(nSidang, tabel)}</span></p>
+          )}
+          {PERAN_SIDANG.some((p) => data.nilai[p]) && (
+            <details className="mt-[0.8rem]">
+              <summary className="cursor-pointer text-[0.87rem] text-[var(--biru)]">Rincian aspek dan revisi tiap penguji</summary>
+              {PERAN_SIDANG.map((p) =>
+                data.nilai[p] ? (
+                  <section key={p} className="mt-[1rem]">
+                    {judulPeran(p)}
+                    <Terkirim row={data.nilai[p]!} tabel={tabel} />
+                  </section>
+                ) : null,
+              )}
+            </details>
+          )}
+        </section>
+
+        <Grafik
+          nilai={Object.fromEntries(PERAN_SIDANG.flatMap((p) => (data.nilai[p] ? [[p, data.nilai[p]!.nilai]] : [])))}
+          snapshot={Object.fromEntries(PERAN_SIDANG.flatMap((p) => (data.nilai[p] ? [[p, data.nilai[p]!.aspek]] : [])))}
+          aspek={aturan.aspekSidang}
+        />
+
+        <details open className="mb-[1.6rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] p-[1rem]">
+          <summary className="cursor-pointer text-[1.05rem] font-semibold">Ketentuan umum</summary>
+          <ol className="m-0 mt-[0.6rem] pl-[1.2rem] space-y-[0.2rem] text-[0.87rem]">
+            {aturan.ketentuanSidang.map((k, i) => <li key={i}>{k}</li>)}
+          </ol>
+          <div className="mt-[0.8rem] grid gap-[1rem] sm:grid-cols-2 text-[0.87rem]">
+            <div>
+              <h3 className="m-0 mb-[0.3rem] text-[0.87rem] font-semibold">Konversi nilai</h3>
+              <table className="w-full border-collapse border border-[var(--garis-kuat)]">
+                <thead className="bg-[var(--cekung)] text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">
+                  <tr><th className={`text-left ${TH}`}>Angka</th><th className={`text-left ${TH}`}>Huruf</th></tr>
+                </thead>
+                <tbody>
+                  {tabel.map((r, i) => (
+                    <tr key={r.huruf} className="border-t border-[var(--garis)]">
+                      <td className={`${TD} mono`}>{i === 0 ? `${formatNilai(r.min)}–100` : `${formatNilai(r.min)}–${formatNilai(tabel[i - 1].min - 0.01)}`}</td>
+                      <td className={TD}>{r.huruf}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <h3 className="m-0 mb-[0.3rem] text-[0.87rem] font-semibold">Predikat yudisium (IPK kelulusan)</h3>
+              <ul className="m-0 pl-[1.1rem] space-y-[0.2rem]">
+                {(hasil?.aturan?.predikat ?? aturan.predikat).map((r) => (
+                  <li key={r.predikat}>
+                    <span className="mono">{formatNilai(r.min)}–{formatNilai(r.max)}</span> {r.predikat}
+                    {r.butuhTepatWaktu && <span className="text-[var(--tinta-3)]"> (hanya bila lulus tepat waktu)</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </details>
+
         {akses?.kind === 'belum-dibuka' && (
           <p className={KOTAK}>Penilaian dibuka pada <strong>{tanggalPanjang(akses.tanggal, false)}</strong>.</p>
         )}
         {akses?.kind === 'isi' && (
-          <PengujiForm
-            aspek={aturan.aspekSidang}
-            tabel={tabel}
-            aksi={submitNilaiSidangAction.bind(null, defense.id, akses.peran, tampil)}
-            tombol="Kirim nilai"
-            konfirmasi={{ judul: 'Kirim nilai?', isi: 'Setelah dikirim, nilai tidak bisa diubah.', tombol: 'Kirim nilai' }}
-          />
+          <section className="mb-[1.6rem]">
+            <h2 className={H2}>Nilai Anda</h2>
+            <PengujiForm
+              aspek={aturan.aspekSidang}
+              tabel={tabel}
+              aksi={submitNilaiSidangAction.bind(null, defense.id, akses.peran, tampil)}
+              tombol="Kirim nilai"
+              konfirmasi={{ judul: 'Kirim nilai?', isi: 'Setelah dikirim, nilai tidak bisa diubah.', tombol: 'Kirim nilai' }}
+            />
+          </section>
         )}
-        {akses?.kind === 'terkirim' && <Terkirim row={data.nilai[akses.peran]!} tabel={tabel} />}
+        {akses?.kind === 'terkirim' && <p className={KOTAK}>Nilai Anda sudah dikirim. Ketua Sidang mengunci setelah ketiga nilai masuk.</p>}
+        {/* The Ketua, own grade sent: waits for the anggota, then picks the yudisium and locks. */}
         {akses?.kind === 'menunggu-anggota' && (
           <p className={KOTAK}>
-            {legacy ? `${ANGGOTA_I_LEGACY}. Sidang belum dapat dikunci.` : `Menunggu ${akses.kurang.map((p) => PERAN_SIDANG_LABEL[p]).join(' dan ')}.`}
+            {legacy ? `${ANGGOTA_I_LEGACY}. Sidang belum dapat dikunci.` : `Nilai Anda sudah dikirim. Menunggu ${akses.kurang.map((p) => PERAN_SIDANG_LABEL[p]).join(' dan ')} sebelum mengunci.`}
           </p>
         )}
-        {/* The Ketua: both anggota's grades and revisi, then its own grade with the yudisium, sent and locked in one go. */}
         {akses?.kind === 'kunci' && (
-          <>
-            {(['anggota_1', 'anggota_2'] as const).map((p) => (
-              <section key={p} className="mb-[1.6rem]">
-                {judulPeran(p)}
-                <Terkirim row={data.nilai[p]!} tabel={tabel} />
-              </section>
-            ))}
-            <section>
-              <h2 className={H2}>Nilai Anda</h2>
-              <PengujiForm
-                aspek={aturan.aspekSidang}
-                tabel={tabel}
-                yudisium={aturan.pilihanYudisium}
-                aksi={kunciSidangAction.bind(null, defense.id, tampil)}
-                tombol="Kirim nilai dan kunci"
-                konfirmasi={{ judul: 'Kirim nilai dan kunci sidang?', isi: 'Setelah dikunci, nilai sidang tidak bisa diubah.', tombol: 'Kirim nilai dan kunci' }}
-              />
-            </section>
-          </>
+          <section className="mb-[1.6rem]">
+            <h2 className={H2}>Kunci sidang</h2>
+            <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-2)]">Ketiga nilai sudah masuk. Pilih yudisium lalu kunci.</p>
+            <YudisiumForm
+              pilihan={aturan.pilihanYudisium}
+              aksi={kunciSidangAction.bind(null, defense.id)}
+              tombol="Kunci sidang"
+              konfirmasi={{ judul: 'Kunci sidang?', isi: 'Setelah dikunci, nilai sidang tidak bisa diubah.', tombol: 'Kunci sidang' }}
+            />
+          </section>
         )}
-        {/* Locked: the result, and the grades this examiner may read (the Ketua all three, an anggota its own). */}
-        {akses?.kind === 'terkunci' && peranSaya && (
-          <>
-            <Hasil hasil={hasil!} nilaiSidang={peranSaya === 'ketua' ? nSidang : null} tabel={tabel} />
-            {(peranSaya === 'ketua' ? PERAN_SIDANG : [peranSaya]).map((p) =>
-              data.nilai[p] ? (
-                <section key={p} className="mb-[1.6rem]">
-                  {judulPeran(p)}
-                  <Terkirim row={data.nilai[p]} tabel={tabel} />
-                </section>
-              ) : null,
-            )}
-          </>
-        )}
+        {akses?.kind === 'terkunci' && peranSaya && <Hasil hasil={hasil!} nilaiSidang={nSidang} tabel={tabel} />}
 
-        {/* Staff: all three grades and the result. Only Super Admin writes: edits, or enters an old sidang's grades and locks it. */}
+        {/* Staff: the result; Super Admin edits, enters any missing grade and locks, at any time. */}
         {!penguji && (
           <>
-            {PERAN_SIDANG.map((peran) => {
+            {canManage(user.role) && PERAN_SIDANG.map((peran) => {
               const row = data.nilai[peran]
-              // Super Admin, any date: a missing anggota grade; the Ketua's only together with the lock.
-              const bisa = canManage(user.role) ? adminSidang(defense, new Set(Object.keys(data.nilai) as PeranSidang[]), !!hasil) : null
+              const bisa = adminSidang(defense, new Set(Object.keys(data.nilai) as PeranSidang[]), !!hasil)
+              if (row) {
+                return (
+                  <section key={peran} className="mb-[1.6rem]">
+                    {judulPeran(peran)}
+                    <Meta row={row} />
+                    <PengujiForm
+                      aspek={row.aspek}
+                      awal={{ skor: row.aspek.map((a) => a.skor), adaRevisi: row.ada_revisi, revisi: row.revisi }}
+                      tabel={tabel}
+                      aksi={editNilaiSidangAction.bind(null, row.id)}
+                      tombol="Simpan perubahan"
+                      konfirmasi={{ judul: 'Simpan perubahan nilai?', isi: 'Nilai dan revisi sebelumnya diganti. Email revisi tidak dikirim ulang. Perubahan tercatat di Log Aktivitas.', tombol: 'Simpan' }}
+                    />
+                  </section>
+                )
+              }
+              if (!bisa.isi.includes(peran)) {
+                return peran === 'anggota_1' && legacy ? (
+                  <section key={peran} className="mb-[1.6rem]">{judulPeran(peran)}<p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">{ANGGOTA_I_LEGACY}.</p></section>
+                ) : null
+              }
               return (
                 <section key={peran} className="mb-[1.6rem]">
                   {judulPeran(peran)}
-                  {row && canManage(user.role) ? (
-                    <>
-                      <Meta row={row} />
-                      <PengujiForm
-                        aspek={row.aspek}
-                        awal={{ skor: row.aspek.map((a) => a.skor), adaRevisi: row.ada_revisi, revisi: row.revisi }}
-                        tabel={tabel}
-                        aksi={editNilaiSidangAction.bind(null, row.id)}
-                        tombol="Simpan perubahan"
-                        konfirmasi={{ judul: 'Simpan perubahan nilai?', isi: 'Nilai dan revisi sebelumnya diganti. Email revisi tidak dikirim ulang. Perubahan tercatat di Log Aktivitas.', tombol: 'Simpan' }}
-                      />
-                    </>
-                  ) : row ? (
-                    <Terkirim row={row} tabel={tabel} />
-                  ) : peran === 'anggota_1' && legacy ? (
-                    <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">{ANGGOTA_I_LEGACY}.</p>
-                  ) : peran !== 'ketua' && bisa?.isi.includes(peran) ? (
-                    <>
-                      <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">Belum dinilai. Super Admin dapat memasukkan nilai kapan saja.</p>
-                      <h3 className="m-0 mb-[0.6rem] text-[0.93rem] font-semibold">Masukkan nilai</h3>
-                      <PengujiForm
-                        aspek={aturan.aspekSidang}
-                        tabel={tabel}
-                        aksi={inputNilaiSidangAdminAction.bind(null, defense.id, peran, tampil)}
-                        tombol="Simpan nilai"
-                        konfirmasi={{ judul: 'Simpan nilai?', isi: `Nilai dicatat sebagai input admin untuk ${data.dosen[peran]}.`, tombol: 'Simpan' }}
-                      />
-                    </>
-                  ) : peran === 'ketua' && bisa?.kunciKetua ? (
-                    <>
-                      <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">
-                        Belum dinilai. Kedua anggota sudah menilai; Super Admin dapat mengisi nilai Ketua dan mengunci atas namanya.
-                      </p>
-                      <h3 className="m-0 mb-[0.6rem] text-[0.93rem] font-semibold">Kunci atas nama Ketua</h3>
-                      <PengujiForm
-                        aspek={aturan.aspekSidang}
-                        tabel={tabel}
-                        yudisium={aturan.pilihanYudisium}
-                        aksi={kunciSidangAdminAction.bind(null, defense.id, tampil)}
-                        tombol="Kunci atas nama Ketua"
-                        konfirmasi={{ judul: 'Kunci sidang atas nama Ketua?', isi: 'Nilai Ketua dicatat sebagai input admin dan sidang dikunci.', tombol: 'Kunci sidang' }}
-                      />
-                    </>
-                  ) : (
-                    <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">Belum dinilai.</p>
-                  )}
+                  <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">Belum dinilai. Super Admin dapat memasukkan nilai kapan saja.</p>
+                  <PengujiForm
+                    aspek={aturan.aspekSidang}
+                    tabel={tabel}
+                    aksi={inputNilaiSidangAdminAction.bind(null, defense.id, peran, tampil)}
+                    tombol="Simpan nilai"
+                    konfirmasi={{ judul: 'Simpan nilai?', isi: `Nilai dicatat sebagai input admin untuk ${data.dosen[peran]}.`, tombol: 'Simpan' }}
+                  />
                 </section>
               )
             })}
@@ -229,6 +279,10 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
               {hasil ? (
                 <>
                   <Hasil hasil={hasil} nilaiSidang={nSidang} tabel={tabel} />
+                  <p className="m-0 mb-[1rem] flex flex-wrap gap-[0.6rem]">
+                    <a href={`/api/berita-acara/${defense.id}?format=xlsx`} className={UNDUH}>Unduh Berita Acara (Excel)</a>
+                    <a href={`/api/berita-acara/${defense.id}?format=pdf`} className={UNDUH}>Unduh Berita Acara (PDF)</a>
+                  </p>
                   {canManage(user.role) && (
                     <YudisiumForm
                       pilihan={aturan.pilihanYudisium}
@@ -239,6 +293,13 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                     />
                   )}
                 </>
+              ) : canManage(user.role) && adminSidang(defense, new Set(Object.keys(data.nilai) as PeranSidang[]), false).kunci ? (
+                <YudisiumForm
+                  pilihan={aturan.pilihanYudisium}
+                  aksi={kunciSidangAdminAction.bind(null, defense.id)}
+                  tombol="Kunci atas nama Ketua"
+                  konfirmasi={{ judul: 'Kunci sidang atas nama Ketua?', isi: 'Setelah dikunci, nilai sidang tidak bisa diubah.', tombol: 'Kunci sidang' }}
+                />
               ) : (
                 <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">
                   {legacy ? `Belum dikunci. ${ANGGOTA_I_LEGACY}.` : 'Belum dikunci.'}

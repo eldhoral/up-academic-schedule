@@ -113,7 +113,16 @@ export type DefenseSidang = SidangRef & { npm: string; nama_mahasiswa: string; j
 
 export type Sidang = {
   defense: DefenseSidang
-  student: { ipk: number | null }
+  /** The student's facts for the grading page and the berita acara. */
+  student: {
+    ipk: number | null
+    sks: number | null
+    bobot: number | null
+    tepatWaktu: boolean
+    pembimbing1: string | null
+    pembimbing2: string | null
+  }
+  ruang: string | null
   nilai: Partial<Record<PeranSidang, NilaiSidangRow>>
   hasil: HasilRow | null
   dosen: Record<PeranSidang, string>
@@ -135,15 +144,16 @@ export async function loadSidang(defenseId: string): Promise<Sidang | null> {
   if (!d || !bisaDinilaiSidang(d)) return null
   const defense = d as DefenseSidang
 
-  const kode = [defense.penguji_kode, defense.penguji_eksternal_kode, defense.pembimbing_kode].filter((k): k is string => !!k)
-  const [mhs, rows, hasil, dosen, aturan] = await Promise.all([
-    db.from('students').select('sks_sebelum, bobot_sebelum').eq('prodi', 's1').eq('npm', defense.npm).maybeSingle(),
+  // ponytail: the whole lecturer list (a few dozen rows) also names the student's Pembimbing in one round trip.
+  const [mhs, rows, hasil, dosen, aturan, room] = await Promise.all([
+    db.from('students').select('sks_sebelum, bobot_sebelum, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode').eq('prodi', 's1').eq('npm', defense.npm).maybeSingle(),
     db.from('nilai_sidang').select('id, peran, kode_dosen, aspek, nilai, ada_revisi, revisi, sumber, submitted_at').eq('defense_id', defense.id),
     db.from('hasil_sidang').select('yudisium_label, yudisium_lulus, aturan, locked_at, email_status').eq('defense_id', defense.id).maybeSingle(),
-    db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang').in('kode_dosen', kode),
+    db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     loadAturan(db, 's1'),
+    db.from('defenses').select('rooms(nama)').eq('id', defense.id).maybeSingle(),
   ])
-  const err = mhs.error ?? rows.error ?? hasil.error ?? dosen.error
+  const err = mhs.error ?? rows.error ?? hasil.error ?? dosen.error ?? room.error
   if (err) throw new Error(`Gagal memuat penilaian sidang: ${err.message}`)
 
   const nilai: Partial<Record<PeranSidang, NilaiSidangRow>> = {}
@@ -155,7 +165,19 @@ export async function loadSidang(defenseId: string): Promise<Sidang | null> {
 
   return {
     defense,
-    student: { ipk: ipkSebelum(num(mhs.data?.bobot_sebelum), num(mhs.data?.sks_sebelum)) },
+    student: {
+      ipk: ipkSebelum(num(mhs.data?.bobot_sebelum), num(mhs.data?.sks_sebelum)),
+      sks: num(mhs.data?.sks_sebelum),
+      bobot: num(mhs.data?.bobot_sebelum),
+      tepatWaktu: !!mhs.data?.tepat_waktu,
+      pembimbing1: mhs.data?.pembimbing_1_kode ? nama(mhs.data.pembimbing_1_kode) : null,
+      pembimbing2: mhs.data?.pembimbing_2_kode ? nama(mhs.data.pembimbing_2_kode) : null,
+    },
+    ruang: (() => {
+      const r = room.data?.rooms as { nama: string } | { nama: string }[] | null | undefined
+      const one = Array.isArray(r) ? r[0] : r
+      return one ? `Ruang ${one.nama}` : null
+    })(),
     nilai,
     hasil: hasil.data ? { ...hasil.data, aturan: parseAturanBeku(hasil.data.aturan) } as HasilRow : null,
     dosen: { ketua: nama(defense.penguji_kode), anggota_1: nama(defense.penguji_eksternal_kode), anggota_2: nama(defense.pembimbing_kode) },
