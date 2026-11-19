@@ -14,6 +14,10 @@ export type Aturan = {
   predikat: BarisPredikat[]
   sksSkripsi: number
   tanggalMulai: string
+  /** Berita Acara Prasidang: each is a Ya/Tidak question with an optional catatan. */
+  pertanyaanPrasidang: string[]
+  /** Days after the sidang lock a Dosen Pembimbing may still grade bimbingan (lock day = day 0). */
+  batasHariBimbingan: number
 }
 
 /**
@@ -94,6 +98,12 @@ export const DEFAULT_ATURAN: Aturan = {
   ],
   sksSkripsi: 6,
   tanggalMulai: todayJakarta(),
+  pertanyaanPrasidang: [
+    'Apakah Variabel Penelitian dapat dipertahankan?',
+    'Apakah terdapat perubahan pertanyaan penelitian?',
+    'Apakah alat ukur yang diusulkan dapat digunakan untuk penelitian ini?',
+  ],
+  batasHariBimbingan: 7,
 }
 
 const num = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n)
@@ -147,6 +157,15 @@ export function validateSks(n: number): string | null {
   return Number.isInteger(n) && n > 0 ? null : 'SKS skripsi harus bilangan bulat lebih dari 0'
 }
 
+export function validatePertanyaan(p: string[]): string | null {
+  if (p.length < 1) return 'Minimal satu pertanyaan'
+  return p.every((t) => t.trim()) ? null : 'Pertanyaan wajib diisi'
+}
+
+export function validateBatasHari(n: number): string | null {
+  return Number.isInteger(n) && n >= 1 && n <= 60 ? null : 'Batas hari harus bilangan bulat 1–60'
+}
+
 export function validateTanggal(v: string): string | null {
   return parseTanggal(v) ? null : 'Tanggal tidak valid'
 }
@@ -182,6 +201,11 @@ function parsePilihan(v: unknown): Yudisium[] | null {
   return validatePilihanYudisium(p) ? null : p
 }
 
+function parsePertanyaan(v: unknown): string[] | null {
+  if (!Array.isArray(v) || !v.every(str)) return null
+  return validatePertanyaan(v) ? null : v
+}
+
 /** The rules a locked sidang froze (hasil_sidang.aturan, built by the DB); null when the stored copy is unusable. */
 export type AturanBeku = { tabelNilai: BarisNilai[]; predikat: BarisPredikat[]; sksSkripsi: number }
 
@@ -209,6 +233,7 @@ export async function loadAturan(db: SupabaseClient, prodi: 's1'): Promise<Atura
   if (error) throw new Error(`Gagal memuat aturan penilaian: ${error.message}`)
   const raw = new Map<string, unknown>((data ?? []).map((r: { kunci: string; nilai: unknown }) => [r.kunci, r.nilai]))
   const sks = raw.get('sks_skripsi')
+  const batas = raw.get('batas_hari_bimbingan')
   return {
     aspekBimbingan: parseAspek(raw.get('aspek_bimbingan')) ?? DEFAULT_ATURAN.aspekBimbingan,
     aspekSidang: parseAspek(raw.get('aspek_sidang')) ?? DEFAULT_ATURAN.aspekSidang,
@@ -217,5 +242,7 @@ export async function loadAturan(db: SupabaseClient, prodi: 's1'): Promise<Atura
     predikat: parsePredikat(raw.get('predikat')) ?? DEFAULT_ATURAN.predikat,
     sksSkripsi: num(sks) && !validateSks(sks) ? sks : DEFAULT_ATURAN.sksSkripsi,
     tanggalMulai: parseTanggal(raw.get('tanggal_mulai_penilaian')) ?? todayJakarta(),
+    pertanyaanPrasidang: parsePertanyaan(raw.get('pertanyaan_prasidang')) ?? DEFAULT_ATURAN.pertanyaanPrasidang,
+    batasHariBimbingan: num(batas) && !validateBatasHari(batas) ? batas : DEFAULT_ATURAN.batasHariBimbingan,
   }
 }

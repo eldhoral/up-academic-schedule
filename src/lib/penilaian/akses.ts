@@ -1,3 +1,5 @@
+import type { PeranPrasidang } from './prasidang'
+
 export type Peran = 'pembimbing_1' | 'pembimbing_2'
 export type DefenseRef = {
   id: string
@@ -7,38 +9,73 @@ export type DefenseRef = {
   pembimbing_kode: string | null
   penguji_kode: string | null
 }
-export type AksesDosen =
-  | { kind: 'tidak-ada' }
-  | { kind: 'belum-dibuka'; tanggal: string }
-  | { kind: 'isi'; peran: Peran }
-  | { kind: 'terkirim'; peran: Peran }
-
 /** Today in Asia/Jakarta as YYYY-MM-DD (en-CA formats as ISO). */
 export const todayJakarta = (now: Date = new Date()): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(now)
 
-/** Only S1 prasidang is graded online. */
-export const bisaDinilai = (s: { prodi: string; jenis: string }): boolean => s.prodi === 's1' && s.jenis === 'prasidang'
+// ---- Berita Acara Prasidang (S1): Pendamping = pembimbing_kode, Pembahas = penguji_kode.
+export type AksesBeritaAcara =
+  | { kind: 'tidak-ada' }
+  | { kind: 'belum-dibuka'; tanggal: string }
+  | { kind: 'isi'; peran: PeranPrasidang }
+  | { kind: 'terkirim'; peran: PeranPrasidang }
 
-export function peranDosen(d: DefenseRef, kode: string): Peran | null {
-  if (!bisaDinilai(d)) return null
-  if (d.pembimbing_kode === kode) return 'pembimbing_1'
-  if (d.penguji_kode === kode) return 'pembimbing_2'
+export const isPrasidangS1 = (s: { prodi: string; jenis: string }): boolean => s.prodi === 's1' && s.jenis === 'prasidang'
+
+export function peranPrasidang(d: DefenseRef, kode: string): PeranPrasidang | null {
+  if (!isPrasidangS1(d) || !kode) return null
+  if (d.pembimbing_kode === kode) return 'pendamping'
+  if (d.penguji_kode === kode) return 'pembahas'
   return null
 }
 
-/** Rules 2-5 of the spec (submitted wins over the date gate). 'tidak-ada' means 404 with no hint the record exists. */
-export function aksesDosen(d: DefenseRef | null, kode: string, submitted: Set<Peran>, today: string): AksesDosen {
-  const peran = d && peranDosen(d, kode)
+/** 'tidak-ada' means 404 with no hint the record exists. Submitted wins over the date gate (a rescheduled prasidang). */
+export function aksesBeritaAcara(d: DefenseRef | null, kode: string, submitted: Set<PeranPrasidang>, today: string): AksesBeritaAcara {
+  const peran = d && peranPrasidang(d, kode)
   if (!d || !peran) return { kind: 'tidak-ada' }
-  // Submitted first: tanggal can still move after grading, and the grade must stay visible.
   if (submitted.has(peran)) return { kind: 'terkirim', peran }
   if (today < d.tanggal) return { kind: 'belum-dibuka', tanggal: d.tanggal }
   return { kind: 'isi', peran }
 }
 
-/** Old prasidang (before the start date) get manual entry by Super Admin. */
-export const bolehInputLama = (d: DefenseRef, tanggalMulai: string): boolean => bisaDinilai(d) && d.tanggal < tanggalMulai
+// ---- Nilai Bimbingan (S1): on the sidang, by the student's Pembimbing I/II, after the Ketua's lulus lock, for n days.
+export type BimbinganRef = { id: string; prodi: string; jenis: string; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null }
+export type AksesBimbingan =
+  | { kind: 'tidak-ada' }
+  | { kind: 'terkirim'; peran: Peran }
+  | { kind: 'menunggu-kunci' }
+  | { kind: 'tidak-lulus' }
+  | { kind: 'lewat'; batas: string }
+  | { kind: 'isi'; peran: Peran; batas: string }
+
+export function peranBimbingan(d: BimbinganRef, kode: string): Peran | null {
+  if (!bisaDinilaiSidang(d) || !kode) return null
+  if (d.pembimbing_1_kode === kode) return 'pembimbing_1'
+  if (d.pembimbing_2_kode === kode) return 'pembimbing_2'
+  return null
+}
+
+/** The last grading day: the lock's Jakarta date (day 0) plus n days. */
+export function batasBimbingan(lockedAt: string, n: number): string {
+  const d = new Date(`${todayJakarta(new Date(lockedAt))}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Spec rules 1-6, in order. Submitted first: a grade stays visible whatever happens to the lock or the window. */
+export function aksesBimbingan(
+  d: BimbinganRef | null,
+  kode: string,
+  o: { submitted: Set<Peran>; kunci: { lockedAt: string; lulus: boolean } | null; today: string; batasHari: number },
+): AksesBimbingan {
+  const peran = d && peranBimbingan(d, kode)
+  if (!d || !peran) return { kind: 'tidak-ada' }
+  if (o.submitted.has(peran)) return { kind: 'terkirim', peran }
+  if (!o.kunci) return { kind: 'menunggu-kunci' }
+  if (!o.kunci.lulus) return { kind: 'tidak-lulus' }
+  const batas = batasBimbingan(o.kunci.lockedAt, o.batasHari)
+  return o.today > batas ? { kind: 'lewat', batas } : { kind: 'isi', peran, batas }
+}
 
 export const penilaianPath = (id: string): string => `/nilai-bimbingan/${id}`
 
@@ -51,7 +88,8 @@ export const PERAN_LABEL: Record<Peran, string> = { pembimbing_1: 'Dosen Pembimb
 export const halamanDosen = (path: string, role: string = 'DOSEN'): boolean =>
   path === '/penilaian' ||
   /^\/nilai-sidang\/[^/]+$/.test(path) ||
-  (role !== 'EKSTERNAL' && (path === '/atur-kata-sandi' || /^\/nilai-bimbingan\/[^/]+$/.test(path)))
+  (role !== 'EKSTERNAL' &&
+    (path === '/atur-kata-sandi' || /^\/nilai-bimbingan\/[^/]+$/.test(path) || /^\/berita-acara-prasidang\/[^/]+$/.test(path)))
 
 // ---- Sidang Skripsi (S1): Ketua = penguji_kode, Anggota I = penguji_eksternal_kode, Anggota II = pembimbing_kode.
 export type PeranSidang = 'ketua' | 'anggota_1' | 'anggota_2'
@@ -99,9 +137,6 @@ export function aksesSidang(
 export const eksternalAktif = (berlakuSampai: string, now: Date = new Date()): boolean => todayJakarta(now) <= berlakuSampai
 
 export const penilaianSidangPath = (id: string): string => `/nilai-sidang/${id}`
-
-/** Old sidang (before the start date): Super Admin enters missing grades and locks for the Ketua. */
-export const bolehInputLamaSidang = (d: SidangRef, tanggalMulai: string): boolean => bisaDinilaiSidang(d) && d.tanggal < tanggalMulai
 
 export const PERAN_SIDANG: PeranSidang[] = ['ketua', 'anggota_1', 'anggota_2']
 
