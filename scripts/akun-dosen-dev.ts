@@ -6,8 +6,9 @@
  * - Deletes all auth users whose profile role is DOSEN (their grades stay; submitted_by becomes null).
  * - Creates one account per lecturer with eksternal = false: username = NIDN, or dev-<kode> when the NIDN is
  *   empty (not written to Data Dosen). The login form takes the bare username (emailLogin adds the domain).
- * - Random passwords, written with the usernames to docs/akun-dosen-dev.csv (docs/ is gitignored). Nothing
- *   secret is printed. Reads NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from .env.local.
+ * - One shared password for every dosen (dev convenience): DEV_PASSWORD_DOSEN from .env.local, or a random one
+ *   made for this run. It is printed once and written with the usernames to docs/akun-dosen-dev.csv (docs/ is
+ *   gitignored). Reads NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from .env.local.
  *
  * Not a migration on purpose: migrations run in every environment, and this wipes logins.
  */
@@ -44,12 +45,14 @@ async function main() {
     .from('lecturers').select('kode_dosen, nidn, nama, gelar_depan, gelar_belakang').eq('eksternal', false).order('kode_dosen')
   if (e2) throw new Error(`Gagal membaca data dosen: ${e2.message}`)
   const username = usernameDosen(dosen ?? [])
+  // ponytail: one shared password is fine on a dev project only; never point this script at production.
+  const password = process.env.DEV_PASSWORD_DOSEN || generatePassword()
+  if (password.length < 8) throw new Error('DEV_PASSWORD_DOSEN minimal 8 karakter.')
 
   const baris = ['kode_dosen,nama,username,password']
   const gagal: string[] = []
   for (const l of dosen ?? []) {
     const u = username.get(l.kode_dosen)!
-    const password = generatePassword()
     const { data, error } = await db.auth.admin.createUser({ email: emailLogin(u), password, email_confirm: true })
     if (error || !data.user) {
       gagal.push(`${l.kode_dosen}: ${error?.message ?? 'tidak ada user'}`)
@@ -68,6 +71,7 @@ async function main() {
   mkdirSync('docs', { recursive: true })
   writeFileSync(OUT, `${baris.join('\n')}\n`, { mode: 0o600 })
   console.log(`Dibuat: ${baris.length - 1} akun dosen → ${OUT}`)
+  console.log(`Kata sandi semua dosen: ${password}${process.env.DEV_PASSWORD_DOSEN ? ' (dari DEV_PASSWORD_DOSEN)' : ' (acak; simpan sebagai DEV_PASSWORD_DOSEN di .env.local agar tetap sama)'}`)
   if (gagal.length) {
     console.log(`Gagal: ${gagal.length}`)
     for (const g of gagal) console.log(`  ${g}`)
