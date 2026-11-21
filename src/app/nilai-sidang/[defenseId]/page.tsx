@@ -282,6 +282,8 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                   <p className="m-0 mb-[1rem] flex flex-wrap gap-[0.6rem]">
                     <a href={`/api/berita-acara/${defense.id}?format=xlsx`} className={UNDUH}>Unduh Berita Acara (Excel)</a>
                     <a href={`/api/berita-acara/${defense.id}?format=pdf`} className={UNDUH}>Unduh Berita Acara (PDF)</a>
+                    <a href={`/api/form-revisi/${defense.id}?format=xlsx`} className={UNDUH}>Unduh Form Revisi (Excel)</a>
+                    <a href={`/api/form-revisi/${defense.id}?format=pdf`} className={UNDUH}>Unduh Form Revisi (PDF)</a>
                   </p>
                   {canManage(user.role) && (
                     <YudisiumForm
