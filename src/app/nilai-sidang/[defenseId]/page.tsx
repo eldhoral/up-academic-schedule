@@ -77,7 +77,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
     ['IPK sebelum sidang', angka(st.ipk, 'ipk')],
     ['Lulus tepat waktu', st.tepatWaktu ? 'Ya' : 'Tidak'],
   ]
-  if (peranSaya) fakta.push(['Peran Anda', PERAN_SIDANG_LABEL[peranSaya]])
+  if (peranSaya) fakta.push(['Peran Anda', `${data.dosen[peranSaya]} (${PERAN_SIDANG_LABEL[peranSaya]})`])
 
   const judulPeran = (peran: PeranSidang) => (
     <h2 className={H2}>

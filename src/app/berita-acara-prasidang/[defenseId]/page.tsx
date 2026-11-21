@@ -39,7 +39,7 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
     ['Tanggal prasidang', tanggalPanjang(defense.tanggal, false)],
   ]
   const peranSaya = dosen ? peranPrasidang(defense, user.kodeDosen!) : null
-  if (peranSaya) fakta.push(['Peran Anda', PERAN_PRASIDANG_LABEL[peranSaya]])
+  if (peranSaya) fakta.push(['Peran Anda', `${data.dosen[peranSaya]} (${PERAN_PRASIDANG_LABEL[peranSaya]})`])
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">

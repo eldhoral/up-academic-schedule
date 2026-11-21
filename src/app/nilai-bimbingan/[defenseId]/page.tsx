@@ -49,7 +49,7 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
     ['Tanggal sidang', tanggalPanjang(defense.tanggal, false)],
   ]
   const peranSaya = dosen ? peranBimbingan(defense, user.kodeDosen!) : null
-  if (peranSaya) fakta.push(['Peran Anda', PERAN_LABEL[peranSaya]])
+  if (peranSaya) fakta.push(['Peran Anda', `${data.dosen[peranSaya]} (${PERAN_LABEL[peranSaya]})`])
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
