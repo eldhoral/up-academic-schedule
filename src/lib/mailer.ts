@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { emailError, lecturerDisplayName } from '@/lib/import/tables'
 import { PERAN_SIDANG, PERAN_SIDANG_LABEL, type PeranSidang } from '@/lib/penilaian/akses'
 import { renderRevisi } from '@/lib/penilaian/email-revisi'
+import { loadSettings } from '@/lib/settings'
 import { parseDetailEmail, type DetailEmail } from '@/lib/penilaian/rekap'
 import type { Revisi } from '@/lib/penilaian/nilai'
 
@@ -22,6 +23,8 @@ export type MailData = {
   yudisium: string
   mahasiswaEmail: string | null
   penguji: { peranLabel: string; nama: string; email: string | null; revisi: Revisi }[]
+  /** Pengaturan S1 'email_revisi_subjek' / 'email_revisi_isi'; missing = the built-in defaults. */
+  template?: { subjek: string; isi: string }
 }
 export type MailDeps = {
   muat: (defenseId: string) => Promise<MailData | null>
@@ -57,10 +60,11 @@ const dbDeps: MailDeps = {
       .from('defenses').select('id, npm, nama_mahasiswa, judul_skripsi, tanggal').eq('id', defenseId).maybeSingle()
     if (error) throw new Error(`Gagal memuat sidang: ${error.message}`)
     if (!d) return null
-    const [hasil, nilai, mhs] = await Promise.all([
+    const [hasil, nilai, mhs, settings] = await Promise.all([
       db.from('hasil_sidang').select('yudisium_label, email_status, email_detail').eq('defense_id', defenseId).maybeSingle(),
       db.from('nilai_sidang').select('peran, kode_dosen, ada_revisi, revisi').eq('defense_id', defenseId),
       db.from('students').select('email').eq('prodi', 's1').eq('npm', d.npm).maybeSingle(),
+      loadSettings(db, 's1', false),
     ])
     const err = hasil.error ?? nilai.error ?? mhs.error
     if (err) throw new Error(`Gagal memuat sidang: ${err.message}`)
@@ -76,6 +80,7 @@ const dbDeps: MailDeps = {
     return {
       status: hasil.data.email_status, detailLama: parseDetailEmail(hasil.data.email_detail), nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal,
       yudisium: hasil.data.yudisium_label, mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null, penguji,
+      template: { subjek: settings.email_revisi_subjek ?? '', isi: settings.email_revisi_isi ?? '' },
     }
   },
   async simpan(defenseId, status, detail) {

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { humanDbError } from '@/lib/db-error'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { useProdi } from '@/lib/use-prodi'
+import { renderRevisi } from '@/lib/penilaian/email-revisi'
 import { saveSettingsAction, type FormState } from './actions'
 
 const FOTO_LOGIN_BUCKET = 'up_kiprat'
@@ -24,7 +25,7 @@ export type SettingRow = {
   urutan: number
 }
 
-const GROUP_ORDER = ['waktu', 'kelas', 'bentrok', 'cetak', 'tanda_tangan', 'surat', 'ujian', 'sidang']
+const GROUP_ORDER = ['waktu', 'kelas', 'bentrok', 'cetak', 'tanda_tangan', 'surat', 'ujian', 'sidang', 'email']
 const GROUP_LABEL: Record<string, string> = {
   waktu: 'Waktu & Sesi',
   kelas: 'Kelas',
@@ -33,6 +34,7 @@ const GROUP_LABEL: Record<string, string> = {
   tanda_tangan: 'Tanda Tangan',
   surat: 'Surat Penugasan',
   ujian: 'Jadwal Ujian',
+  email: 'Email Revisi Sidang',
 }
 
 const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
@@ -84,7 +86,7 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
 // The rows stay in the database (no migration); show them again once an output uses them.
 const HIDDEN_KEYS = new Set(['nama_universitas', 'nama_prodi'])
 
-const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'catatan_ujian', 'tembusan'])
+const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'catatan_ujian', 'tembusan', 'email_revisi_isi'])
 
 export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]; canEdit: boolean }) {
   const prodi = useProdi()
@@ -122,11 +124,15 @@ export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]
           <h2 className="m-0 text-[1.07rem] font-semibold mb-[1rem] pb-[0.8rem] border-b border-[var(--garis)]">
             {groupLabel(group) ?? group}
           </h2>
-          <div className="space-y-[1rem]">
-            {rows.map((row) => (
-              <SettingField key={`${row.prodi}:${row.key}`} row={row} canEdit={canEdit} />
-            ))}
-          </div>
+          {group === 'email' ? (
+            <EmailRevisiFields rows={rows} canEdit={canEdit} />
+          ) : (
+            <div className="space-y-[1rem]">
+              {rows.map((row) => (
+                <SettingField key={`${row.prodi}:${row.key}`} row={row} canEdit={canEdit} />
+              ))}
+            </div>
+          )}
         </section>
       ))}
 
@@ -140,6 +146,56 @@ export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]
         {isPending ? 'Menyimpan…' : 'Simpan pengaturan'}
       </button>
     </form>
+  )
+}
+
+// Sample sidang for the live preview: two examiners with revisi, as a real mail would carry.
+const CONTOH_REVISI = {
+  nama: 'Budi Santoso',
+  npm: '2021110099',
+  judul: 'Pengaruh Dukungan Sosial terhadap Resiliensi Mahasiswa',
+  tanggal: '2026-11-19',
+  yudisium: 'Lulus Dengan Revisi',
+  revisi: [
+    { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani Wulandari, M.Psi.', rows: [{ halaman: '12', catatan: 'Perbaiki tabel 4.2.' }, { halaman: '', catatan: 'Tambahkan saran penelitian lanjutan.' }] },
+    { peranLabel: 'Anggota Penguji II', nama: 'Dr. Cici Lestari, M.Si.', rows: [{ halaman: '35', catatan: 'Lengkapi daftar pustaka.' }] },
+  ],
+}
+
+/** The revisi email's subject and body, with a live preview filled from sample data as the admin types. */
+function EmailRevisiFields({ rows, canEdit }: { rows: SettingRow[]; canEdit: boolean }) {
+  const value = (key: string) => rows.find((r) => r.key === key)?.value ?? ''
+  const [template, setTemplate] = useState({ subjek: value('email_revisi_subjek'), isi: value('email_revisi_isi') })
+  const mail = renderRevisi({ ...CONTOH_REVISI, template })
+
+  return (
+    <div className="space-y-[1rem]">
+      {/* Input events bubble, so the fields stay plain uncontrolled settings and the preview just listens. */}
+      <div
+        className="space-y-[1rem]"
+        onInput={(e) => {
+          const t = e.target as HTMLInputElement | HTMLTextAreaElement
+          if (t.name === 'setting:email_revisi_subjek') setTemplate((p) => ({ ...p, subjek: t.value }))
+          if (t.name === 'setting:email_revisi_isi') setTemplate((p) => ({ ...p, isi: t.value }))
+        }}
+      >
+        {rows.map((row) => (
+          <SettingField key={`${row.prodi}:${row.key}`} row={row} canEdit={canEdit} />
+        ))}
+      </div>
+      <div>
+        <p className="m-0 mb-[0.4rem] text-[0.93rem] font-medium">Pratinjau</p>
+        <p className="m-0 mb-[0.6rem] text-[0.8rem] text-[var(--tinta-3)]">Contoh dengan data mahasiswa dan revisi fiktif; berubah saat Anda mengetik.</p>
+        <div className="border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] overflow-hidden">
+          <p className="m-0 px-[0.8rem] py-[0.5rem] bg-[var(--cekung)] border-b border-[var(--garis)] text-[0.87rem]">
+            <span className="text-[var(--tinta-3)]">Subjek: </span>
+            <span className="font-medium">{mail.subject}</span>
+          </p>
+          {/* sandbox="": no scripts, no navigation; the email's own styles stay inside the frame */}
+          <iframe title="Pratinjau email revisi" sandbox="" srcDoc={mail.html} className="block w-full h-[22rem] bg-white" />
+        </div>
+      </div>
+    </div>
   )
 }
 

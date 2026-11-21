@@ -399,6 +399,15 @@ async function cekEmail() {
   assert.equal(digit(satu.text), null, satu.text)
   assert.equal(digit(satu.html), null)
 
+  // The admin's template (Pengaturan): placeholders filled, its own text escaped in HTML, {revisi} where it says.
+  const t = renderRevisi({ ...input, template: { subjek: 'Revisi {npm}\nbaru', isi: 'Halo {nama} <i>x</i>\n{revisi}\nSalam' } })
+  assert.equal(t.subject, 'Revisi 2021110099 baru')
+  assert.ok(t.text.startsWith('Halo Budi 87,50 A <i>x</i>\nKetua Sidang: Dr. Ani') && t.text.endsWith('Salam'), t.text)
+  assert.ok(t.html.includes('Halo Budi 87,50 A &lt;i&gt;x&lt;/i&gt;') && t.html.indexOf('Dr. Cici') < t.html.indexOf('Salam'), t.html)
+  // A body without {revisi} still carries the tables; a blank template falls back to the default.
+  assert.ok(renderRevisi({ ...input, template: { subjek: '', isi: 'Halo {nama}' } }).text.includes('Tambah saran'))
+  assert.equal(renderRevisi({ ...input, template: { subjek: ' ', isi: ' ' } }).text, m.text)
+
   // smtpTransport: null until all three env vars are set; never throws.
   const env = { u: process.env.SMTP_USER, p: process.env.SMTP_PASS, f: process.env.SMTP_FROM }
   delete process.env.SMTP_USER; delete process.env.SMTP_PASS; delete process.env.SMTP_FROM
