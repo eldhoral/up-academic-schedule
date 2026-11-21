@@ -1,7 +1,8 @@
 import { PRODI_CONFIG, type Prodi } from '@/lib/prodi'
+import { BAGIAN_PENGATURAN, pengaturanHref } from '@/lib/pengaturan-bagian'
 
 export type Tab = { href: string; label: string }
-/** group: the S1 grading pages, shown as one dropdown after the tabs. */
+/** group: pages shown as one dropdown after the tabs (S1 grading pages, the Pengaturan pages). */
 export type Section = { title: string; tabs: Tab[]; group?: { label: string; items: Tab[] } }
 
 // Tab hrefs are prodi-less; a prodi page prefixes them with /s1 or /s2.
@@ -29,7 +30,6 @@ const MASTER_PRODI: Tab[] = [
   { href: '/mata-kuliah', label: 'Mata Kuliah' },
   { href: '/mahasiswa', label: 'Mahasiswa' },
   { href: '/sesi', label: 'Sesi' },
-  { href: '/pengaturan', label: 'Pengaturan' },
 ]
 
 // S1 only, under the "Penilaian" dropdown: the prasidang berita acara and the sidang grading recaps.
@@ -68,8 +68,13 @@ export function sectionOf(active: string, prodi: Prodi | undefined, canManage: b
       const nilai = [HASIL_PRASIDANG, NILAI_SIDANG, NILAI_BIMBINGAN, NILAI_AKHIR, ...(akunEksternal ? [AKUN_EKSTERNAL] : [])]
       return { ...section, group: { label: 'Penilaian', items: pre(nilai) } }
     }
-    const master = canManage && prodi === 's1' ? [...MASTER_PRODI, PENILAIAN] : MASTER_PRODI
-    if (master.some((t) => t.href === active)) return own('Data Master', master)
+    const pengaturan: Tab[] = [
+      ...BAGIAN_PENGATURAN.map((b) => ({ href: pengaturanHref(b.slug), label: b.slug === 'sidang' ? `Jadwal ${c.defense.section}` : b.label })),
+      ...(canManage && prodi === 's1' ? [PENILAIAN] : []),
+    ]
+    if ([...MASTER_PRODI, ...pengaturan].some((t) => t.href === active)) {
+      return { ...own('Data Master', MASTER_PRODI), group: { label: 'Pengaturan', items: pre(pengaturan) } }
+    }
   }
   if (MASTER_SHARED.some((t) => t.href === active)) return { title: 'Data Bersama', tabs: MASTER_SHARED }
   if (active === '/kalender') return { title: 'Kalender Gabungan', tabs: [] }

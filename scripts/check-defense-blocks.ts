@@ -74,14 +74,14 @@ assert.equal(tanggalPanjang('2025-11-24', false), 'Senin, 24 November 2025')
 // --- the Excel files -----------------------------------------------------------------------------
 async function main() {
   const common = { zoomId: '315 414 7118', zoomPasscode: '2025', namaWakilDekan: 'DR. VINAYA, M.SI', jabatanWakilDekan: 'WAKIL DEKAN I', namaPenandatangan: 'Dr. Kaprodi', jabatanPenandatangan: 'KETUA PROGRAM STUDI' }
-  const sheetsOf = (rows: DefenseRow[], jenis: 'sidang' | 'prasidang') => {
+  const sheetsOf = (rows: DefenseRow[]) => {
     const taken = new Set<string>()
     return buildDefenseBlocks(rows, names).map((b) => ({ ...b, name: sheetName(b, taken), headerLines: ['JADWAL', 'SELASA, 3 FEBRUARI 2026', 'RUANG 301'] }))
   }
   const merges = async (zip: JSZip, n: number) => [...(await zip.file(`xl/worksheets/sheet${n}.xml`)!.async('string')).matchAll(/<mergeCell ref="([^"]+)"/g)].map((m) => m[1])
 
   // sidang: two blocks -> two sheets; 3 title lines + jabatan and nama on both sides
-  const sidang = await JSZip.loadAsync(await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'sidang', sheets: sheetsOf([row({ npm: '0012345' }), row({ npm: '9', room_nama: '302', room_id: 'r302' })], 'sidang') }))
+  const sidang = await JSZip.loadAsync(await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'sidang', sheets: sheetsOf([row({ npm: '0012345' }), row({ npm: '9', room_nama: '302', room_id: 'r302' })]) }))
   const book = await sidang.file('xl/workbook.xml')!.async('string')
   assert.ok(book.includes('03-02 R301') && book.includes('03-02 R302'), 'one sheet per room')
   const sm = await merges(sidang, 1)
@@ -95,7 +95,7 @@ async function main() {
 
   // prasidang: zoom row (3 merges), MENGETAHUI, signatures
   const prasidang = await JSZip.loadAsync(
-    await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'prasidang', sheets: sheetsOf([row({ jenis: 'prasidang', room_id: null, room_nama: null, kelompok: 1, penguji_eksternal: '' })], 'prasidang') }),
+    await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'prasidang', sheets: sheetsOf([row({ jenis: 'prasidang', room_id: null, room_nama: null, kelompok: 1, penguji_eksternal: '' })]) }),
   )
   const pm = await merges(prasidang, 1)
   assert.equal(pm.length, 3 + 3 + 1 + 4, pm.join(' '))
@@ -103,7 +103,7 @@ async function main() {
   assert.ok(pstrings.includes('MENGETAHUI,') && pstrings.includes('BREAK OUT ROOM KELOMPOK 1') && pstrings.includes('ID ZOOM : 315 414 7118'))
 
   // prasidang in a room: no Zoom row (legacy kelompok only)
-  const praRoom = await JSZip.loadAsync(await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'prasidang', sheets: sheetsOf([row({ jenis: 'prasidang', penguji_eksternal: '' })], 'prasidang') }))
+  const praRoom = await JSZip.loadAsync(await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'prasidang', sheets: sheetsOf([row({ jenis: 'prasidang', penguji_eksternal: '' })]) }))
   assert.ok(!(await praRoom.file('xl/sharedStrings.xml')!.async('string')).includes('ID ZOOM'), 'room prasidang prints no Zoom row')
 
   // nothing to print still gives a valid file

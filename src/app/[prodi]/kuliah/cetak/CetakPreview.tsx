@@ -35,6 +35,7 @@ export function CetakPreview({ sheets, doc, prodi }: { sheets: PreviewSheet[]; d
       ))}
       panel={
         <DocFacts
+          bagian="cetak"
           prodi={prodi}
           title="Isi file selain jadwal"
           items={[

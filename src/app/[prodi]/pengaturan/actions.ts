@@ -23,6 +23,6 @@ export async function saveSettingsAction(_prev: FormState, formData: FormData): 
   const failed = results.find((r) => r.error)
   if (failed?.error) return { error: humanDbError(failed.error) }
 
-  revalidatePath('/[prodi]/pengaturan', 'page')
+  revalidatePath('/[prodi]/pengaturan', 'layout') // every Pengaturan page
   return { success: true }
 }

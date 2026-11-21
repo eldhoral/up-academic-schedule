@@ -14,6 +14,7 @@ export function UjianCetakPreview({ sheets, doc, prodi }: { sheets: UjianSheet[]
       ))}
       panel={
         <DocFacts
+          bagian="ujian"
           prodi={prodi}
           title="Isi file selain jadwal"
           items={[

@@ -75,7 +75,7 @@ export function RekapIndex({ rows, ay, facts: f, prodi }: { rows: IndexRow[]; ay
           </PreviewTable>
         </section>
       }
-      panel={<DocFacts prodi={prodi} title="Isi surat (sama untuk semua)" items={facts(f)} />}
+      panel={<DocFacts prodi={prodi} bagian="surat" title="Isi surat (sama untuk semua)" items={facts(f)} />}
     />
   )
 }
@@ -118,7 +118,7 @@ export function RekapLetter({ letter, ay, facts: f, prodi }: { letter: LetterVie
           </PreviewTable>
         </>
       }
-      panel={<DocFacts prodi={prodi} title="Isi surat" items={facts(f)} />}
+      panel={<DocFacts prodi={prodi} bagian="surat" title="Isi surat" items={facts(f)} />}
     />
   )
 }

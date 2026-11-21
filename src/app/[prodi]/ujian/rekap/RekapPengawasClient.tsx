@@ -144,6 +144,7 @@ export function RekapPengawasClient({
           }
           panel={
             <DocFacts
+              bagian="ujian"
               prodi={prodi}
               title="Isi file selain tabel"
               items={[

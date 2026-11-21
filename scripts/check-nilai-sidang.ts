@@ -745,6 +745,12 @@ void (async () => {
     '/s1/sidang/hasil-prasidang', '/s1/sidang/nilai-sidang', '/s1/sidang/nilai-bimbingan', '/s1/sidang/nilai-akhir', '/s1/sidang/akun-eksternal',
   ])
   assert.deepEqual(sectionOf('/sidang', 's1', false, false)!.group?.items.map((t) => t.label), ['Hasil Prasidang', 'Nilai Sidang', 'Nilai Bimbingan', 'Nilai Akhir'], 'no day accounts without access')
+  // Pengaturan: one dropdown of pages on every Data Master page; Penilaian only for Super Admin on S1.
+  const master = sectionOf('/pengaturan/cetak', 's1', true, false)!
+  assert.deepEqual(master.tabs.map((t) => t.label), ['Mata Kuliah', 'Mahasiswa', 'Sesi'])
+  assert.deepEqual(master.group?.items.map((t) => t.href), ['/s1/pengaturan', '/s1/pengaturan/cetak', '/s1/pengaturan/surat', '/s1/pengaturan/ujian', '/s1/pengaturan/sidang', '/s1/pengaturan/foto-login', '/s1/pengaturan/penilaian'])
+  assert.equal(sectionOf('/mahasiswa', 's2', true, false)!.group?.items.some((t) => t.label === 'Penilaian'), false)
+  assert.equal(sectionOf('/pengaturan/penilaian', 's1', false, false), null, 'Penilaian is not in an admin-less menu')
   assert.equal(sectionOf('/sidang', 's2', true, true)!.group, undefined, 'S2 has no grading menu')
   assert.equal(sectionOf('/sidang/nilai-sidang', 's1', false, false)!.title, 'S1 · Jadwal Prasidang & Sidang')
   console.log('nilai-sidang rekap & menu: all checks passed')

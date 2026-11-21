@@ -24,6 +24,7 @@ export function SidangCetakPreview({ jenis, sheets, doc, prodi }: { jenis: Defen
       ))}
       panel={
         <DocFacts
+          bagian="sidang"
           prodi={prodi}
           title="Isi file selain jadwal"
           items={[

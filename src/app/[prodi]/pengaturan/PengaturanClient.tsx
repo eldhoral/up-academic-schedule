@@ -25,7 +25,6 @@ export type SettingRow = {
   urutan: number
 }
 
-const GROUP_ORDER = ['waktu', 'kelas', 'bentrok', 'cetak', 'tanda_tangan', 'surat', 'ujian', 'sidang', 'email']
 const GROUP_LABEL: Record<string, string> = {
   waktu: 'Waktu & Sesi',
   kelas: 'Kelas',
@@ -88,12 +87,13 @@ const HIDDEN_KEYS = new Set(['nama_universitas', 'nama_prodi'])
 
 const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'catatan_ujian', 'tembusan', 'email_revisi_isi'])
 
-export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]; canEdit: boolean }) {
+/** One Pengaturan page: the setting groups it owns (in order) and, on its page, the login photos. */
+export function PengaturanClient({ settings, canEdit, groups: groupOrder, fotoLogin = false }: { settings: SettingRow[]; canEdit: boolean; groups: string[]; fotoLogin?: boolean }) {
   const prodi = useProdi()
   const groupLabel = (g: string) => (g === 'sidang' ? `Jadwal ${PRODI_CONFIG[prodi].defense.section}` : GROUP_LABEL[g])
   const [state, formAction, isPending] = useActionState<FormState, FormData>(saveSettingsAction, null)
 
-  const groups = GROUP_ORDER.map((g) => ({
+  const groups = groupOrder.map((g) => ({
     group: g,
     rows: settings.filter((s) => s.group === g && !HIDDEN_KEYS.has(s.key)).sort((a, b) => a.urutan - b.urutan),
   })).filter((g) => g.rows.length > 0)
@@ -113,7 +113,7 @@ export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]
         </div>
       )}
 
-      {settings.length === 0 && (
+      {groupOrder.length > 0 && settings.length === 0 && (
         <div className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem] text-center text-[0.93rem] text-[var(--tinta-3)]">
           Belum ada pengaturan. Jalankan seed migration untuk mengisi kunci bawaan.
         </div>
@@ -136,15 +136,17 @@ export function PengaturanClient({ settings, canEdit }: { settings: SettingRow[]
         </section>
       ))}
 
-      <FotoLoginSection canEdit={canEdit} />
+      {fotoLogin && <FotoLoginSection canEdit={canEdit} />}
 
-      <button
-        type="submit"
-        disabled={isPending || settings.length === 0 || !canEdit}
-        className="px-[1rem] py-[0.6rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.93rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] disabled:opacity-60 transition-colors"
-      >
-        {isPending ? 'Menyimpan…' : 'Simpan pengaturan'}
-      </button>
+      {groupOrder.length > 0 && (
+        <button
+          type="submit"
+          disabled={isPending || settings.length === 0 || !canEdit}
+          className="px-[1rem] py-[0.6rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.93rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] disabled:opacity-60 transition-colors"
+        >
+          {isPending ? 'Menyimpan…' : 'Simpan pengaturan'}
+        </button>
+      )}
     </form>
   )
 }

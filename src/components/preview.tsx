@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { pengaturanHref } from '@/lib/pengaturan-bagian'
 import type { ReactNode } from 'react'
 import type { Prodi } from '@/lib/prodi'
 
@@ -61,7 +62,8 @@ export function PreviewLayout({ main, panel }: { main: ReactNode; panel: ReactNo
 }
 
 /** The settings-driven parts of the file that aren't rows (zoom, keterangan, signer...). */
-export function DocFacts({ title, items, prodi }: { title: string; items: { label: string; value: string | string[] }[]; prodi: Prodi }) {
+/** bagian: the Pengaturan page (slug) that holds most of these facts. */
+export function DocFacts({ title, items, prodi, bagian = '' }: { title: string; items: { label: string; value: string | string[] }[]; prodi: Prodi; bagian?: string }) {
   return (
     <aside
       aria-label={title}
@@ -81,7 +83,7 @@ export function DocFacts({ title, items, prodi }: { title: string; items: { labe
           )
         })}
       </dl>
-      <Link href={`/${prodi}/pengaturan`} className="text-[0.87rem]">
+      <Link href={`/${prodi}${pengaturanHref(bagian)}`} className="text-[0.87rem]">
         Ubah di Pengaturan
       </Link>
     </aside>
