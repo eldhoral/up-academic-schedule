@@ -13,6 +13,7 @@ import { BeritaAcaraForm } from './BeritaAcaraForm'
 
 const waktu = (iso: string) =>
   new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date(iso))
+const UNDUH = 'inline-block px-[0.8rem] py-[0.45rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.87rem] font-medium no-underline hover:bg-[var(--cekung)]'
 const KOTAK = 'm-0 p-[1rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] text-[0.93rem]'
 
 export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-prasidang/[defenseId]'>) {
@@ -93,6 +94,10 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
                 )}
               </p>
             </section>
+            <p className="m-0 mb-[1.6rem] flex flex-wrap gap-[0.6rem]">
+              <a href={`/api/berita-acara-prasidang/${defense.id}?format=xlsx`} className={UNDUH}>Unduh Berita Acara (Excel)</a>
+              <a href={`/api/berita-acara-prasidang/${defense.id}?format=pdf`} className={UNDUH}>Unduh Berita Acara (PDF)</a>
+            </p>
             {PERAN_PRASIDANG.map((peran) => (
               <section key={peran} className="mb-[1.6rem]">
                 <h2 className="m-0 mb-[0.6rem] text-[1.2rem] font-semibold tracking-[-0.01em]">
