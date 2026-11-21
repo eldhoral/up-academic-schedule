@@ -14,7 +14,7 @@ type Props = Pick<SidangCetakData, 'sheets' | 'zoomId' | 'zoomPasscode' | 'namaW
   gambarTandaTangan?: string
 }
 
-/** One worksheet per block (date x room, or date x kelompok), so a PDF is one page run per block. */
+/** One worksheet per block (date x room; a legacy prasidang: date x kelompok), so a PDF is one page run per block. */
 export async function buildSidangXlsx(props: Props): Promise<Uint8Array<ArrayBuffer>> {
   const workbook = new ExcelJS.Workbook()
   if (props.sheets.length === 0) {
@@ -25,7 +25,7 @@ export async function buildSidangXlsx(props: Props): Promise<Uint8Array<ArrayBuf
   return new Uint8Array(await workbook.xlsx.writeBuffer())
 }
 
-function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, kelompok }: Props['sheets'][number], props: Props) {
+function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, ruang, kelompok }: Props['sheets'][number], props: Props) {
   const columns = defenseColumns(props.prodi, props.jenis)
   const count = columns.length
   const size = props.jenis === 'sidang' ? 12 : 11 // the templates' type sizes
@@ -63,12 +63,12 @@ function addSheet(workbook: ExcelJS.Workbook, { name, headerLines, rows, kelompo
   }
   r++
 
-  if (props.jenis === 'prasidang') {
-    // Prasidang is on Zoom, one breakout room per kelompok.
+  if (props.jenis === 'prasidang' && !ruang && kelompok !== null) {
+    // A prasidang saved before rooms was on Zoom, one breakout room per kelompok.
     sheet.getRow(r).height = titleHeight
     merged(r, 1, 3, `ID ZOOM : ${props.zoomId}`, true, 'center')
     merged(r, 4, 5, `PASSCODE : ${props.zoomPasscode}`, true, 'center')
-    merged(r, 6, 7, `(BREAK OUT ROOM KELOMPOK ${kelompok ?? ''})`, true, 'center')
+    merged(r, 6, 7, `(BREAK OUT ROOM KELOMPOK ${kelompok})`, true, 'center')
     r += 2
   } else {
     r++ // sidang leaves two blank rows above the table

@@ -31,7 +31,6 @@ export type DefenseDraft = {
   jam_mulai: string
   jam_selesai: string
   room_id: string
-  kelompok: number | null
 }
 
 const CONTROL = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]'
@@ -74,7 +73,6 @@ export function DefenseFormModal({
   const [jamMulai, setJamMulai] = useState(draft.jam_mulai)
   const [jamSelesai, setJamSelesai] = useState(draft.jam_selesai)
   const [roomId, setRoomId] = useState(draft.room_id)
-  const [kelompok, setKelompok] = useState<number | null>(draft.kelompok)
   const [npm, setNpm] = useState(row?.npm ?? '')
   const [cari, setCari] = useState('')
   // A saved entry keeps the nama and judul it was scheduled with (history); a new pick shows the master's.
@@ -116,7 +114,6 @@ export function DefenseFormModal({
       jam_mulai: jamMulai,
       jam_selesai: jamSelesai,
       room_id: roomId || null,
-      kelompok,
       npm,
       nama_mahasiswa: nama,
       judul_skripsi: judul,
@@ -135,7 +132,7 @@ export function DefenseFormModal({
     const t = setTimeout(() => startCheck(async () => setLive(await checkDefenseClashes(buildInput()))), 300)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [complete, tanggal, jamMulai, jamSelesai, roomId, kelompok, pembimbing, penguji, eksternalKode, eksternal])
+  }, [complete, tanggal, jamMulai, jamSelesai, roomId, pembimbing, penguji, eksternalKode, eksternal])
 
   // S1 sidang: Anggota Penguji II starts from the student's Dosen Pembimbing I (Data Mahasiswa), and the gate is shown.
   // Otherwise the pembimbing comes from the student's latest earlier defense, if still blank.
@@ -224,21 +221,9 @@ export function DefenseFormModal({
                 </p>
               )}
             </Field>
-            {sidang ? (
-              <Field label="Ruang">
-                <Select value={roomId} onValueChange={setRoomId} placeholder="— pilih ruang —" ariaLabel="Ruang sidang" options={rooms} className={CONTROL} />
-              </Field>
-            ) : (
-              <Field label="Kelompok (breakout room)">
-                <input
-                  type="number"
-                  min={1}
-                  value={kelompok ?? ''}
-                  onChange={(e) => setKelompok(e.target.value ? parseInt(e.target.value, 10) : null)}
-                  className={`${CONTROL} mono`}
-                />
-              </Field>
-            )}
+            <Field label="Ruang">
+              <Select value={roomId} onValueChange={setRoomId} placeholder="— pilih ruang —" ariaLabel={`Ruang ${jenisLabel(prodi, context.jenis).toLowerCase()}`} options={rooms} className={CONTROL} />
+            </Field>
           </div>
 
           <Field label="Waktu" hint={sidangDinilai ? SUDAH_DINILAI : undefined}>

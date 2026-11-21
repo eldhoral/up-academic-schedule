@@ -52,14 +52,22 @@ assert.equal(tanggalPanjang('2025-11-24', false), 'Senin, 24 November 2025')
   assert.equal(blocks[0].rows[0].cells.length, 7)
 }
 
+// --- prasidang in a room blocks like sidang; a legacy kelompok row keeps its own block ----------------
+{
+  const p = (o: Partial<DefenseRow>) => row({ jenis: 'prasidang', penguji_eksternal: '', ...o })
+  const blocks = buildDefenseBlocks([p({ npm: 'a' }), p({ npm: 'b', room_id: null, room_nama: null, kelompok: 2 }), p({ npm: 'c', room_nama: '302', room_id: 'r302' })], names)
+  assert.deepEqual(blocks.map((b) => [b.ruang, b.kelompok]), [['', 2], ['301', null], ['302', null]])
+}
+
 // --- sheet names ------------------------------------------------------------------------------
 {
   const taken = new Set<string>()
   const sidangBlock = { tanggal: '2026-02-03', ruang: '301', kelompok: null } as DefenseBlock
-  assert.equal(sheetName(sidangBlock, 'sidang', taken), '03-02 R301')
-  assert.equal(sheetName(sidangBlock, 'sidang', taken), '03-02 R301 2', 'a clash gets a counter')
-  assert.equal(sheetName({ tanggal: '2025-11-24', ruang: '', kelompok: 1 } as DefenseBlock, 'prasidang', taken), '24-11 K1')
-  const odd = sheetName({ tanggal: '2026-02-03', ruang: 'Lab: [A]/B*? ' + 'x'.repeat(40), kelompok: null } as DefenseBlock, 'sidang', new Set())
+  assert.equal(sheetName(sidangBlock, taken), '03-02 R301')
+  assert.equal(sheetName(sidangBlock, taken), '03-02 R301 2', 'a clash gets a counter')
+  assert.equal(sheetName({ tanggal: '2025-11-24', ruang: '', kelompok: 1 } as DefenseBlock, taken), '24-11 K1', 'legacy kelompok')
+  assert.equal(sheetName({ tanggal: '2025-11-24', ruang: '301', kelompok: null } as DefenseBlock, taken), '24-11 R301', 'prasidang in a room')
+  const odd = sheetName({ tanggal: '2026-02-03', ruang: 'Lab: [A]/B*? ' + 'x'.repeat(40), kelompok: null } as DefenseBlock, new Set())
   assert.ok(odd.length <= 31 && !/[[\]:*?/\\]/.test(odd), odd)
 }
 
@@ -68,7 +76,7 @@ async function main() {
   const common = { zoomId: '315 414 7118', zoomPasscode: '2025', namaWakilDekan: 'DR. VINAYA, M.SI', jabatanWakilDekan: 'WAKIL DEKAN I', namaPenandatangan: 'Dr. Kaprodi', jabatanPenandatangan: 'KETUA PROGRAM STUDI' }
   const sheetsOf = (rows: DefenseRow[], jenis: 'sidang' | 'prasidang') => {
     const taken = new Set<string>()
-    return buildDefenseBlocks(rows, names).map((b) => ({ ...b, name: sheetName(b, jenis, taken), headerLines: ['JADWAL', 'SELASA, 3 FEBRUARI 2026', 'RUANG 301'] }))
+    return buildDefenseBlocks(rows, names).map((b) => ({ ...b, name: sheetName(b, taken), headerLines: ['JADWAL', 'SELASA, 3 FEBRUARI 2026', 'RUANG 301'] }))
   }
   const merges = async (zip: JSZip, n: number) => [...(await zip.file(`xl/worksheets/sheet${n}.xml`)!.async('string')).matchAll(/<mergeCell ref="([^"]+)"/g)].map((m) => m[1])
 
@@ -93,6 +101,10 @@ async function main() {
   assert.equal(pm.length, 3 + 3 + 1 + 4, pm.join(' '))
   const pstrings = await prasidang.file('xl/sharedStrings.xml')!.async('string')
   assert.ok(pstrings.includes('MENGETAHUI,') && pstrings.includes('BREAK OUT ROOM KELOMPOK 1') && pstrings.includes('ID ZOOM : 315 414 7118'))
+
+  // prasidang in a room: no Zoom row (legacy kelompok only)
+  const praRoom = await JSZip.loadAsync(await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'prasidang', sheets: sheetsOf([row({ jenis: 'prasidang', penguji_eksternal: '' })], 'prasidang') }))
+  assert.ok(!(await praRoom.file('xl/sharedStrings.xml')!.async('string')).includes('ID ZOOM'), 'room prasidang prints no Zoom row')
 
   // nothing to print still gives a valid file
   const empty = await JSZip.loadAsync(await buildSidangXlsx({ ...common, prodi: 's1', jenis: 'sidang', sheets: [] }))

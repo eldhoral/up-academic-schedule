@@ -33,7 +33,7 @@ const PRODI_LABEL: Record<Prodi, string> = { s1: 'S1', s2: 'S2' }
 const UJIAN_LABEL: Record<'uts' | 'uas', string> = { uts: 'UTS', uas: 'UAS' }
 
 /** Tempat on the board: prasidang sits in a breakout room, sidang in a room. */
-const sidangTempat = (d: KalSidang) => (d.jenis === 'prasidang' ? `Kelompok ${d.kelompok ?? ''} (Zoom)` : d.room_nama ? `Ruang ${d.room_nama}` : '—')
+const sidangTempat = (d: KalSidang) => (d.room_nama ? `Ruang ${d.room_nama}` : d.kelompok !== null ? `Kelompok ${d.kelompok} (Zoom)` : '—')
 
 /** The action inside the detail modal: same language as the public jadwal-dosen rows. */
 function MateriLink({ link }: { link: string }) {

@@ -50,12 +50,12 @@ export async function buildSidangCetakData(prodi: Prodi, params: { ay?: string |
       term: space === -1 ? '' : label.slice(space + 1).toUpperCase(),
       tahun: space === -1 ? label : label.slice(0, space),
       tanggal: tanggalPanjang(block.tanggal),
-      ruang: block.ruang,
+      ruang: block.ruang || (block.kelompok === null ? '' : `Kelompok ${block.kelompok}`),
       kelompok: String(block.kelompok ?? ''),
     }
     return {
       ...block,
-      name: sheetName(block, jenis, taken),
+      name: sheetName(block, taken),
       headerLines: template.map((line) => substituteTemplate(line, vars)).filter(Boolean),
     }
   })

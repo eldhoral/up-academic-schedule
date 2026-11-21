@@ -27,13 +27,13 @@ export type DefenseClash = { type: DefenseClashType; a: DefenseClashInput; b: De
 
 const dosenOf = (d: DefenseClashInput) => [d.pembimbing_kode, d.penguji_kode, d.penguji_eksternal_kode]
 
-/** What a defense occupies: its dosen, a typed external examiner, and its room or breakout group. */
+/** What a defense occupies: its dosen, a typed external examiner, and its room (or a legacy breakout group). */
 export function defenseKeys(d: DefenseClashInput): string[] {
   const keys = dosenOf(d).filter((k): k is string => !!k).map((k) => `dosen:${k}`)
   if (d.penguji_eksternal.trim()) keys.push(`nama:${normalizeName(d.penguji_eksternal)}`)
-  if (d.jenis === 'sidang' && d.room_id) keys.push(`ruang:${d.room_id}`)
-  // Each prodi has its own Zoom meeting, so kelompok 1 of S1 and of S2 are different breakout rooms.
-  if (d.jenis === 'prasidang' && d.kelompok !== null) keys.push(`kelompok:${d.prodi}:${d.kelompok}`)
+  if (d.room_id) keys.push(`ruang:${d.room_id}`)
+  // Legacy prasidang: each prodi has its own Zoom meeting, so kelompok 1 of S1 and of S2 are different breakout rooms.
+  if (d.jenis === 'prasidang' && d.kelompok !== null && !d.room_id) keys.push(`kelompok:${d.prodi}:${d.kelompok}`)
   return keys
 }
 

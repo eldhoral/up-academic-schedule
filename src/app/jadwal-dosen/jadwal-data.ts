@@ -118,7 +118,7 @@ export function toJadwal(raw: RawJadwal): JadwalDosen {
         jam_selesai: hm(d.jam_selesai),
         nama_mahasiswa: d.nama_mahasiswa,
         peran,
-        tempat: d.jenis === 'prasidang' ? prasidangTempat(d.kelompok, raw.zoom?.[d.prodi]) : ruang(one(d.rooms)),
+        tempat: d.jenis === 'prasidang' && d.kelompok !== null && !one(d.rooms) ? prasidangTempat(d.kelompok, raw.zoom?.[d.prodi]) : ruang(one(d.rooms)),
         link: d.link?.trim() ?? '',
       }]
     })

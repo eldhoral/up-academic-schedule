@@ -164,6 +164,7 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
 
   assert.deepEqual(defenseKeys(d('a', {})), ['dosen:D1', 'dosen:D2', 'nama:PROF. FARIDA', 'ruang:r301'])
   assert.deepEqual(defenseKeys(d('a', { jenis: 'prasidang', room_id: null, kelompok: 2, penguji_eksternal: '' })), ['dosen:D1', 'dosen:D2', 'kelompok:s1:2'])
+  assert.deepEqual(defenseKeys(d('a', { jenis: 'prasidang', kelompok: null, penguji_eksternal: '' })), ['dosen:D1', 'dosen:D2', 'ruang:r301'], 'prasidang in a room occupies it like sidang')
 
   // Same dosen in two rooms at once, and a different external examiner each time.
   const dosen = run([d('a', { room_id: 'r301', penguji_eksternal: 'X' }), d('b', { room_id: 'r302', penguji_eksternal: 'Y', penguji_kode: 'D3' })])

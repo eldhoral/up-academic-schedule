@@ -7,7 +7,7 @@ import { DetailModal, TimeGrid, courseColor, type GridColumn } from '@/component
 import { WeekNav } from '@/components/WeekNav'
 import { hariFromTanggal, tanggalPanjang } from '@/lib/hari'
 import { dayLabel, defaultWeek, eventWeeks, mondayOf, weekDays } from '@/lib/week'
-import { jenisLabel, type DefenseRow } from '../defense-types'
+import { jenisLabel, placeLabel, type DefenseRow } from '../defense-types'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 import { useProdi } from '@/lib/use-prodi'
 import { PRODI_CONFIG } from '@/lib/prodi'
@@ -16,7 +16,6 @@ const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[v
 
 type Context = { academic_year_id: string; jenis: 'prasidang' | 'sidang' | 'all' }
 
-const place = (d: DefenseRow) => (d.jenis === 'sidang' ? `Ruang ${d.room_nama ?? '—'}` : `Kelompok ${d.kelompok ?? '—'}`)
 
 export function SidangKalenderClient({
   academicYears,
@@ -64,8 +63,8 @@ export function SidangKalenderClient({
         id: d.id,
         jam_mulai: d.jam_mulai,
         jam_selesai: d.jam_selesai,
-        title: `${d.nama_mahasiswa} (${d.npm}) — ${jenisLabel(prodi, d.jenis)} — ${d.jam_mulai}–${d.jam_selesai} — ${place(d)}`,
-        badge: d.jenis === 'sidang' ? d.room_nama ?? '—' : `K${d.kelompok ?? ''}`,
+        title: `${d.nama_mahasiswa} (${d.npm}) — ${jenisLabel(prodi, d.jenis)} — ${d.jam_mulai}–${d.jam_selesai} — ${placeLabel(d)}`,
+        badge: d.room_nama ?? (d.kelompok !== null ? `K${d.kelompok}` : '—'),
         name: d.nama_mahasiswa,
         sub: `${jenisLabel(prodi, d.jenis)} · ${d.npm}`,
         // Prasidang and sidang each keep one colour, so the two kinds read apart at a glance.
@@ -124,7 +123,7 @@ export function SidangKalenderClient({
           warning={selected.is_override ? { title: 'Jadwal ini menerobos aturan bentrok.' } : undefined}
           rows={[
             ['Hari & jam', `${tanggalPanjang(selected.tanggal, false)}, ${selected.jam_mulai}–${selected.jam_selesai}`],
-            [selected.jenis === 'sidang' ? 'Ruang' : 'Kelompok', selected.jenis === 'sidang' ? (selected.room_nama ?? '—') : String(selected.kelompok ?? '—')],
+            [selected.room_nama || selected.kelompok === null ? 'Ruang' : 'Kelompok', selected.room_nama ?? (selected.kelompok !== null ? String(selected.kelompok) : '—')],
             [PRODI_CONFIG[prodi].defense.judul, selected.judul_skripsi || '—'],
             ...(selected.jenis === 'sidang'
               ? ([

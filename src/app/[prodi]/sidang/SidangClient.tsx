@@ -17,6 +17,7 @@ type Option = { value: string; label: string; eksternal?: boolean }
 
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
 const ADD_ROOM = '__add_room__'
+const KELOMPOK = 'kelompok:' // column id prefix of a legacy prasidang (kelompok, no room)
 
 export function SidangClient({
   academicYears,
@@ -49,7 +50,7 @@ export function SidangClient({
   const router = useRouter()
   const sidang = context.jenis === 'sidang'
   const [addedDates, setAddedDates] = useState<string[]>(initialTanggal ? [initialTanggal] : [])
-  const [extraCols, setExtraCols] = useState<string[]>([]) // rooms (sidang) or kelompok numbers (prasidang) opened but not used yet
+  const [extraCols, setExtraCols] = useState<string[]>([]) // rooms opened but not used yet
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState<DefenseDraft | null>(null)
 
@@ -85,12 +86,11 @@ export function SidangClient({
 
   const dayRows = useMemo(() => defenses.filter((d) => d.tanggal === tanggal), [defenses, tanggal])
 
-  // Board columns: the rooms (or kelompok) the day uses, plus any opened with "+".
-  const colIds = sidang
-    ? [...new Set([...dayRows.map((d) => d.room_id).filter((r): r is string => !!r), ...extraCols])].sort((a, b) => (roomName[a] ?? '').localeCompare(roomName[b] ?? ''))
-    : Array.from({ length: Math.max(1, ...dayRows.map((d) => d.kelompok ?? 0), ...extraCols.map(Number)) }, (_, i) => String(i + 1))
-  const colLabel = (id: string) => (sidang ? `Ruang ${roomName[id] ?? '?'}` : `Kelompok ${id}`)
-  const colOf = (d: DefenseRow) => (sidang ? d.room_id : d.kelompok === null ? null : String(d.kelompok))
+  // Board columns: the rooms the day uses, plus any opened with "+". A prasidang saved before rooms
+  // (kelompok only) keeps its own "Kelompok n" column until it is edited and given a room.
+  const colOf = (d: DefenseRow) => d.room_id ?? (d.kelompok !== null ? `${KELOMPOK}${d.kelompok}` : null)
+  const colIds = [...new Set([...dayRows.map(colOf).filter((r): r is string => !!r), ...extraCols])].sort((a, b) => (roomName[a] ?? a).localeCompare(roomName[b] ?? b, 'id', { numeric: true }))
+  const colLabel = (id: string) => (id.startsWith(KELOMPOK) ? `Kelompok ${id.slice(KELOMPOK.length)}` : `Ruang ${roomName[id] ?? '?'}`)
 
   // Board rows: the configured slots, plus any odd time actually in use.
   const slots = useMemo(() => {
@@ -123,8 +123,7 @@ export function SidangClient({
       tanggal: row?.tanggal ?? tanggal,
       jam_mulai: row?.jam_mulai ?? slot?.mulai ?? '',
       jam_selesai: row?.jam_selesai ?? slot?.selesai ?? '',
-      room_id: row?.room_id ?? (sidang ? (col ?? '') : ''),
-      kelompok: row?.kelompok ?? (sidang ? null : col ? Number(col) : 1),
+      room_id: row?.room_id ?? (col?.startsWith(KELOMPOK) ? '' : (col ?? '')),
     })
   }
 
@@ -300,25 +299,15 @@ export function SidangClient({
 
             {canEdit && (
               <div className="mt-[0.8rem]">
-                {sidang ? (
-                  freeRooms.length > 0 && (
-                    <Select
-                      value=""
-                      onValueChange={(v) => v !== ADD_ROOM && setExtraCols((c) => [...c, v])}
-                      placeholder="+ Ruang"
-                      ariaLabel="Tambah ruang"
-                      options={freeRooms}
-                      className={CONTROL}
-                    />
-                  )
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setExtraCols((c) => [...c, String(colIds.length + 1)])}
-                    className="px-[0.8rem] py-[0.33rem] min-h-[2.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] bg-[var(--cekung)] text-[0.93rem] cursor-pointer hover:bg-[var(--lembar)] transition-colors"
-                  >
-                    + Kelompok
-                  </button>
+                {freeRooms.length > 0 && (
+                  <Select
+                    value=""
+                    onValueChange={(v) => v !== ADD_ROOM && setExtraCols((c) => [...c, v])}
+                    placeholder="+ Ruang"
+                    ariaLabel="Tambah ruang"
+                    options={freeRooms}
+                    className={CONTROL}
+                  />
                 )}
               </div>
             )}
@@ -329,7 +318,7 @@ export function SidangClient({
       {draft && (
         <DefenseFormModal
           // A different row (or slot) is a fresh form.
-          key={`${draft.row?.id ?? 'new'}-${draft.tanggal}-${draft.jam_mulai}-${draft.room_id}-${draft.kelompok}`}
+          key={`${draft.row?.id ?? 'new'}-${draft.tanggal}-${draft.jam_mulai}-${draft.room_id}`}
           context={context}
           draft={draft}
           lecturers={lecturers}

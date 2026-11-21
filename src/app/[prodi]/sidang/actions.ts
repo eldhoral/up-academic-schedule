@@ -24,8 +24,7 @@ export type DefenseInput = {
   tanggal: string
   jam_mulai: string
   jam_selesai: string
-  room_id: string | null // sidang
-  kelompok: number | null // prasidang
+  room_id: string | null
   npm: string
   nama_mahasiswa: string
   judul_skripsi: string
@@ -68,8 +67,8 @@ function candidateOf(i: DefenseInput): DefenseClashInput {
     tanggal: i.tanggal,
     jam_mulai: i.jam_mulai,
     jam_selesai: i.jam_selesai,
-    room_id: i.jenis === 'sidang' ? i.room_id : null,
-    kelompok: i.jenis === 'prasidang' ? i.kelompok : null,
+    room_id: i.room_id,
+    kelompok: null,
     npm: i.npm,
     nama_mahasiswa: i.nama_mahasiswa,
     pembimbing_kode: i.pembimbing_kode,
@@ -165,8 +164,7 @@ function validate(i: DefenseInput): string | null {
   if (!i.jam_mulai || !i.jam_selesai) return 'Jam mulai dan jam selesai wajib diisi.'
   if (i.jam_selesai <= i.jam_mulai) return 'Jam selesai harus setelah jam mulai.'
   if (!/^\d+$/.test(i.npm.trim())) return 'Pilih mahasiswa dari Data Master Mahasiswa.'
-  if (i.jenis === 'sidang' && !i.room_id) return `Pilih ruang ${jenisLabel(i.prodi, 'sidang').toLowerCase()}.`
-  if (i.jenis === 'prasidang' && !(i.kelompok && i.kelompok > 0)) return `Kelompok ${jenisLabel(i.prodi, 'prasidang').toLowerCase()} wajib diisi.`
+  if (!i.room_id) return `Pilih ruang ${jenisLabel(i.prodi, i.jenis).toLowerCase()}.`
   const dosen = [i.pembimbing_kode, i.penguji_kode, i.jenis === 'sidang' ? i.penguji_eksternal_kode : null].filter(Boolean)
   if (new Set(dosen).size < dosen.length) return 'Satu dosen tidak boleh memegang dua peran pada mahasiswa yang sama.'
   // normalizeDefenseLink: '' stays '', a real URL is trimmed, everything else is invalid —
@@ -217,8 +215,8 @@ export async function saveDefenseAction(input: DefenseInput): Promise<DefenseFor
     tanggal: input.tanggal,
     jam_mulai: input.jam_mulai,
     jam_selesai: input.jam_selesai,
-    room_id: sidang ? input.room_id : null,
-    kelompok: sidang ? null : input.kelompok,
+    room_id: input.room_id,
+    kelompok: null, // rooms replaced kelompok; saving a legacy row moves it to its room
     npm: input.npm.trim(),
     ...(student && { nama_mahasiswa: student.nama, judul_skripsi: student.judul_skripsi }),
     pembimbing_kode: input.pembimbing_kode || null,

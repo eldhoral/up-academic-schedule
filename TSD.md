@@ -71,7 +71,7 @@ Sections 3–5 cover context, architecture and the data model (reference materia
 | **Kebijakan bentrok** | Per-type policy: `blok` (refuse save), `peringatan` (warn), `abaikan` (ignore). |
 | **Override** | A blocked clash saved deliberately, with a written reason (`is_override`, `override_reason`). |
 | **UTS / UAS** | Mid-term / final exams. |
-| **Prasidang** | S1 thesis proposal hearing — held on Zoom in numbered breakout rooms (`kelompok`); on S2 it is the Seminar Proposal. |
+| **Prasidang** | S1 thesis proposal hearing — held in a room (`room_id`), like sidang; rows from before rooms keep their Zoom breakout `kelompok`; on S2 it is the Seminar Proposal. |
 | **Sidang** | Thesis defense — held in a physical room, with Pembimbing, Ketua Sidang, Anggota Penguji I (penguji eksternal) and Anggota Penguji II. |
 | **Pengawas** | Exam invigilator (a dosen), stored as a JSON array on the exam row. |
 | **MKWU** | University-wide compulsory course taught with no assigned pengampu — a schedule row with zero `schedule_lecturers`. |
@@ -337,7 +337,7 @@ The visual system is "Bilah": an Indonesian paper/ink palette (`--kertas`, `--le
 
 **`defenses`** — Prasidang & Sidang.
 - `jenis in ('prasidang','sidang')`, `tanggal`, `jam_mulai`, `jam_selesai`.
-- `kelompok smallint > 0` (prasidang breakout room) XOR `room_id` (sidang room) — `chk_defenses_place` also forces `penguji_eksternal = ''` on prasidang.
+- `room_id` (sidang and prasidang room) — a prasidang has `room_id` XOR the legacy `kelompok smallint > 0` (Zoom breakout, from before rooms); `chk_defenses_place` also forces `penguji_eksternal = ''` on prasidang.
 - Student: `npm` (digits only) + `nama_mahasiswa` + `judul_skripsi` (free text snapshot), `unique (academic_year_id, jenis, npm)`.
 - Examiners: `pembimbing_kode`, `penguji_kode`, plus `penguji_eksternal_kode → lecturers` (Anggota Penguji I as a dosen, preferred) or legacy free-text `penguji_eksternal` (kept for names typed before). `chk_defenses_distinct` forbids pembimbing = penguji; `chk_defenses_eksternal_kode` keeps the dosen code and the free text mutually exclusive and distinct from the other roles.
 - `link text` — defense **material** URL (Google Drive), `''` or `^https?://` only (`chk_defenses_link`).
@@ -522,7 +522,7 @@ Pure functions in `src/lib/clash.ts` (covered by `check:clash`):
 
 ### 6.5 Prasidang & Sidang (defenses)
 
-- **Prasidang**: Zoom, in numbered breakout rooms (`kelompok`); examiner roles are Pembimbing Pendamping and Dosen Pembahas; no Anggota Penguji I. On S1 these two dosen grade the student online (§6.13).
+- **Prasidang**: in a room like sidang (legacy rows: Zoom breakout `kelompok`); examiner roles are Pembimbing Pendamping and Dosen Pembahas; no Anggota Penguji I. On S1 these two dosen grade the student online (§6.13).
 - **Sidang**: physical room + Penguji Eksternal (Anggota Penguji I), Ketua Sidang, Anggota Penguji II (Pembimbing). On S1 these three grade the student online (§6.14); saving an S1 sidang whose Anggota Penguji I is a `lecturers.eksternal` dosen also makes that day's login (§6.14).
 - The form looks students up from `students` by NPM (free text still accepted), and penguji from the dosen master (`penguji_eksternal_kode`); legacy typed names remain in `penguji_eksternal`.
 - **Dosen eksternal** (`lecturers.eksternal`) may only be Anggota Penguji I, in both jenis and both prodi. The form omits them from the Pembimbing Pendamping, Dosen Pembahas, Ketua Sidang and Anggota Penguji II selects, and `saveDefenseAction` refuses them with "Dosen eksternal hanya dapat menjadi Anggota Penguji I." Only a dosen newly put in a role is checked: a row saved earlier keeps its dosen (still listed in its own select) and the board flags it with a banner.

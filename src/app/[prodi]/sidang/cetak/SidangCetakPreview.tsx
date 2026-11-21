@@ -27,7 +27,7 @@ export function SidangCetakPreview({ jenis, sheets, doc, prodi }: { jenis: Defen
           prodi={prodi}
           title="Isi file selain jadwal"
           items={[
-            ...(jenis === 'prasidang' ? [{ label: 'Bor Zoom', value: [doc.zoomId && `ID ${doc.zoomId}`, doc.zoomPasscode && `Passcode ${doc.zoomPasscode}`] }] : []),
+            ...(jenis === 'prasidang' && sheets.some((s) => !s.ruang && s.kelompok !== null) ? [{ label: 'Bor Zoom', value: [doc.zoomId && `ID ${doc.zoomId}`, doc.zoomPasscode && `Passcode ${doc.zoomPasscode}`] }] : []),
             { label: 'Mengetahui', value: [doc.jabatanWakilDekan, doc.namaWakilDekan] },
             { label: 'Penandatangan', value: [doc.jabatanPenandatangan, doc.namaPenandatangan] },
             { label: 'Kertas', value: 'A4 · Lanskap' },
@@ -40,7 +40,7 @@ export function SidangCetakPreview({ jenis, sheets, doc, prodi }: { jenis: Defen
 
 function BlockSection({ jenis, prodi, sheet, doc }: { jenis: DefenseJenis; prodi: Prodi; sheet: SidangSheet; doc: SidangDoc }) {
   const columns = defenseColumns(prodi, jenis)
-  const place = jenis === 'sidang' ? `Ruang ${sheet.ruang}` : `Kelompok ${sheet.kelompok}${doc.zoomId ? ` · Zoom ${doc.zoomId}` : ''}`
+  const place = sheet.ruang ? `Ruang ${sheet.ruang}` : sheet.kelompok !== null ? `Kelompok ${sheet.kelompok}${doc.zoomId ? ` · Zoom ${doc.zoomId}` : ''}` : '—'
 
   return (
     <section aria-label={`${tanggalPanjang(sheet.tanggal, false)} ${place}`}>

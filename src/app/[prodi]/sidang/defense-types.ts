@@ -17,9 +17,9 @@ export type DefenseRow = {
   tanggal: string // 'YYYY-MM-DD'
   jam_mulai: string // 'HH:MM'
   jam_selesai: string
-  room_id: string | null // sidang
+  room_id: string | null
   room_nama: string | null
-  kelompok: number | null // prasidang
+  kelompok: number | null // legacy prasidang breakout room; new prasidang use room_id like sidang
   npm: string
   nama_mahasiswa: string
   judul_skripsi: string
@@ -30,6 +30,10 @@ export type DefenseRow = {
   is_override: boolean
   link: string // a link to the defense material (Google Drive); '' = belum ada
 }
+
+/** Where a defense is held: its room, or the breakout kelompok of a prasidang saved before prasidang used rooms. */
+export const placeLabel = (d: { room_nama: string | null; kelompok: number | null }) =>
+  d.room_nama ? `Ruang ${d.room_nama}` : d.kelompok !== null ? `Kelompok ${d.kelompok}` : '—'
 
 /** Trim; '' stays '' (no link); anything that is not an http(s) URL is rejected (null). */
 export function normalizeDefenseLink(input: string): string | null {

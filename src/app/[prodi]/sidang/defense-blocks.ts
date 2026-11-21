@@ -45,15 +45,15 @@ export type BlockRow = { cells: string[] } // one string per column, SESI first
 export type DefenseBlock = {
   key: string
   tanggal: string // 'YYYY-MM-DD'
-  ruang: string // sidang: the room's name, else ''
-  kelompok: number | null // prasidang
+  ruang: string // the room's name, '' for a legacy prasidang
+  kelompok: number | null // legacy prasidang (saved before prasidang used rooms)
   rows: BlockRow[]
 }
 
 const jam = (mulai: string, selesai: string) => `${mulai.replace(':', '.')}-${selesai.replace(':', '.')}`
 
 /**
- * One block (one printed sheet) per date and room (sidang) or kelompok (prasidang), in date order
+ * One block (one printed sheet) per date and room (a legacy prasidang: kelompok), in date order
  * then room name / kelompok number. Rows run in time order and SESI is numbered within the block.
  * Only the slots actually in use print.
  */
@@ -61,7 +61,7 @@ export function buildDefenseBlocks(rows: DefenseRow[], names: Map<string, string
   const name = (kode: string | null) => (kode ? (names.get(kode) ?? kode) : '')
   const groups = new Map<string, DefenseRow[]>()
   for (const r of rows) {
-    const key = `${r.tanggal}|${r.jenis === 'sidang' ? (r.room_nama ?? '') : String(r.kelompok ?? 0).padStart(4, '0')}`
+    const key = `${r.tanggal}|${r.room_nama ?? (r.kelompok !== null ? `~${String(r.kelompok).padStart(4, '0')}` : '')}`
     groups.set(key, [...(groups.get(key) ?? []), r])
   }
 
@@ -73,7 +73,7 @@ export function buildDefenseBlocks(rows: DefenseRow[], names: Map<string, string
       return {
         key,
         tanggal: head.tanggal,
-        ruang: head.jenis === 'sidang' ? (head.room_nama ?? '') : '',
+        ruang: head.room_nama ?? '',
         kelompok: head.kelompok,
         rows: sorted.map((r, i) => ({
           cells: [
@@ -91,10 +91,10 @@ export function buildDefenseBlocks(rows: DefenseRow[], names: Map<string, string
     })
 }
 
-/** An Excel sheet name for a block: "03-02 R301" / "24-11 K1". At most 31 characters, none of []:*?/\. */
-export function sheetName(block: DefenseBlock, jenis: DefenseJenis, taken: Set<string>): string {
+/** An Excel sheet name for a block: "03-02 R301" / "24-11 K1" (legacy kelompok). At most 31 characters, none of []:*?/\. */
+export function sheetName(block: DefenseBlock, taken: Set<string>): string {
   const day = `${block.tanggal.slice(8, 10)}-${block.tanggal.slice(5, 7)}`
-  const place = jenis === 'sidang' ? `R${block.ruang}` : `K${block.kelompok ?? ''}`
+  const place = block.ruang || block.kelompok === null ? `R${block.ruang}` : `K${block.kelompok}`
   const base = `${day} ${place}`.replace(/[[\]:*?/\\]/g, '').trim().slice(0, 28)
   let name = base
   for (let n = 2; taken.has(name); n++) name = `${base} ${n}`
