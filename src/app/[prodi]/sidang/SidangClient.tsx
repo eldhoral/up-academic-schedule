@@ -32,6 +32,7 @@ export function SidangClient({
   initialTanggal,
   libur,
   canEdit,
+  canForceDelete,
 }: {
   academicYears: AcademicYear[]
   context: DefenseContext
@@ -45,6 +46,7 @@ export function SidangClient({
   initialTanggal: string | null
   libur: HariLibur[]
   canEdit: boolean
+  canForceDelete: boolean
 }) {
   const prodi = useProdi()
   const router = useRouter()
@@ -327,6 +329,7 @@ export function SidangClient({
           sesi={sesi}
           students={students}
           libur={libur}
+          canForceDelete={canForceDelete}
           onClose={() => setDraft(null)}
         />
       )}

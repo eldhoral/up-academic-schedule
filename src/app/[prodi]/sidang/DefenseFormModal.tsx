@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
+import { HapusPaksa } from './HapusPaksa'
 import { Select } from '@/components/Select'
 import { hariFromTanggal, hariLabel } from '@/lib/hari'
 import { liburOn, type HariLibur } from '@/lib/hari-libur'
@@ -50,6 +51,7 @@ export function DefenseFormModal({
   sesi,
   students,
   libur,
+  canForceDelete,
   onClose,
 }: {
   context: DefenseContext
@@ -60,6 +62,7 @@ export function DefenseFormModal({
   sesi: { mulai: string; selesai: string }[]
   students: Student[]
   libur: HariLibur[]
+  canForceDelete: boolean // Super Admin: a prasidang with a filled berita acara can still be deleted, after typing the NPM
   onClose: () => void
 }) {
   const prodi = useProdi()
@@ -377,7 +380,16 @@ export function DefenseFormModal({
           )}
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem] border-t border-[var(--garis)]">
-            {row ? (
+            {row && canForceDelete && context.jenis === 'prasidang' && graded.length > 0 ? (
+              <HapusPaksa
+                row={row}
+                terisi={graded as PeranPrasidang[]}
+                onDeleted={() => {
+                  router.refresh()
+                  onClose()
+                }}
+              />
+            ) : row ? (
               <ConfirmDeleteButton
                 onConfirm={async () => {
                   const res = await deleteDefenseAction(prodi, row.id)

@@ -1620,3 +1620,55 @@ set role authenticated;
 insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus, locked_by)
 values ((select id from live_def), 'Lulus Tanpa Revisi', true, auth.uid());
 reset role;
+
+-- Super Admin force-deletes a prasidang whose berita acara is filled, typing its NPM; nobody else can.
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+insert into students (npm, nama, prodi, pembimbing_1_kode, pembimbing_2_kode) values ('89050', 'Ba Hapus', 's1', 'DSN01', 'DSN03');
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, kelompok, npm, nama_mahasiswa, pembimbing_kode, penguji_kode, prodi)
+values ('R0002', 'prasidang', (now() at time zone 'Asia/Jakarta')::date - 1, '10:00', '11:00', 1, '89050', 'Ba Hapus', 'DSN01', 'DSN03', 's1');
+insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil)
+values ((select id from defenses where npm = '89050'), 'DSN01', 'pendamping', '[{"teks": "Q", "jenis": "ya_tidak", "ya": true, "catatan": ""}]', 'layak');
+create temp table hapus_def as select id from defenses where npm = '89050';
+grant select on hapus_def to authenticated;
+do $$ begin
+    assert not has_function_privilege('anon', 'hapus_prasidang_paksa(uuid, varchar)', 'execute'), 'anon cannot force-delete';
+end $$;
+
+select set_config('request.jwt.claim.sub', :'s1', false);
+set role authenticated;
+do $$ begin
+    begin
+        perform hapus_prasidang_paksa((select id from hapus_def), '89050');
+        raise exception 'FAIL: a Penjadwal force-deleted a prasidang';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'super', false);
+set role authenticated;
+do $$ begin
+    begin
+        perform hapus_prasidang_paksa((select id from hapus_def), '89051');
+        raise exception 'FAIL: force-deleted with the wrong NPM';
+    exception when raise_exception then
+        assert sqlerrm = 'NPM tidak cocok.', sqlerrm;
+    end;
+    begin
+        perform hapus_prasidang_paksa((select id from defenses where npm = '89000' and jenis = 'sidang'), '89000');
+        raise exception 'FAIL: force-deleted a sidang';
+    exception when raise_exception then
+        assert sqlerrm = 'Prasidang tidak ditemukan.', sqlerrm;
+    end;
+    perform hapus_prasidang_paksa((select id from hapus_def), ' 89050 ');
+    assert not exists (select 1 from defenses where id = (select id from hapus_def)), 'the prasidang is gone';
+end $$;
+reset role;
+
+do $$ begin
+    assert not exists (select 1 from berita_acara_prasidang where defense_id = (select id from hapus_def)), 'its berita acara is gone';
+    assert exists (select 1 from audit_log where table_name = 'berita_acara_prasidang' and action = 'DELETE'
+                   and record_id is not null and old_data ->> 'defense_id' = (select id::text from hapus_def)
+                   and actor_id = '00000000-0000-0000-0000-000000000004'), 'the deleted berita acara stays in the audit log';
+end $$;

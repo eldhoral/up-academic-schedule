@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser, canManage } from '@/lib/roles'
 import { humanDbError } from '@/lib/db-error'
@@ -105,10 +106,11 @@ async function kunci(data: Sidang, userId: string, yudisium: string): Promise<Ha
     .single()
   if (error) return { error: error.code === '23505' ? 'Nilai sidang ini sudah dikunci. Muat ulang halaman.' : humanDbError(error) }
 
-  // The lock is committed. The send (PDF 10 s + SMTP 20 s caps) only updates email_status; whatever happens, the lock stands.
-  const status = row.email_status === 'menunggu' ? await kirimAman(data.defense.id) : (row.email_status as string)
+  // The lock is committed. The send (PDF 10 s + SMTP 20 s caps) runs after the response, so the Ketua does not wait;
+  // it only updates email_status, and a send that never finishes shows as stuck 'menunggu' with a retry after 2 minutes.
+  if (row.email_status === 'menunggu') after(() => kirimAman(data.defense.id))
   revalidate(data.defense.id)
-  return { ok: true, email: status }
+  return { ok: true, email: row.email_status as string }
 }
 
 /** The Ketua locks once all three grades are sent, choosing the yudisium. Its own grade went in through submitNilaiSidangAction. */

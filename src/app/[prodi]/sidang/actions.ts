@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { canManage, getCurrentRole } from '@/lib/roles'
 import { ensureAkunEksternal } from '@/lib/penilaian/akun-eksternal'
 import { bisaDinilaiSidang } from '@/lib/penilaian/akses'
 import type { StatusPrasidang } from '@/lib/penilaian/prasidang'
@@ -263,6 +264,20 @@ export async function deleteDefenseAction(prodi: Prodi, id: string): Promise<Def
   if ('error' in gate) return { error: gate.error }
   const supabase = await createClient()
   const { error } = await supabase.from('defenses').delete().eq('id', id).eq('prodi', gate.prodi)
+  if (error) return { error: humanDbError(error) }
+
+  revalidatePath('/[prodi]/sidang', 'page')
+  return { success: true }
+}
+
+/**
+ * Super Admin deletes an S1 prasidang whose berita acara is filled, after typing the student's NPM. The DB function
+ * checks the role and the NPM again and deletes both in one transaction; the audit log keeps the deleted rows.
+ */
+export async function hapusPrasidangPaksaAction(id: string, npm: string): Promise<DefenseFormState> {
+  if (!canManage(await getCurrentRole())) return { error: 'Hanya Super Admin yang dapat menghapus prasidang yang sudah diisi berita acaranya.' }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('hapus_prasidang_paksa', { p_id: id, p_npm: npm })
   if (error) return { error: humanDbError(error) }
 
   revalidatePath('/[prodi]/sidang', 'page')

@@ -1,6 +1,6 @@
 import { AppHeader } from '@/components/AppHeader'
 import { prodiParam } from '@/lib/prodi-server'
-import { canWrite, getCurrentRole } from '@/lib/roles'
+import { canManage, canWrite, getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { getSettings, settingText } from '@/lib/settings'
 import { lecturerDisplayName } from '@/lib/import/tables'
@@ -66,6 +66,7 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
         libur={libur}
         initialTanggal={tanggal}
         canEdit={canWrite(role)}
+        canForceDelete={canManage(role)}
       />
     </div>
   )
