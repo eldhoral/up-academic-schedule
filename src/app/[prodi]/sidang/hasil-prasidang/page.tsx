@@ -4,32 +4,44 @@ import { AppHeader } from '@/components/AppHeader'
 import { EmptySheet } from '@/components/EmptySheet'
 import { PreviewTable, cell } from '@/components/preview'
 import { prodiParam } from '@/lib/prodi-server'
-import { canManage, getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { lecturerDisplayName } from '@/lib/import/tables'
-import { beritaAcaraPath, HASIL_LABEL, lolosGerbang, STATUS_LABEL, type Hasil, type PeranPrasidang } from '@/lib/penilaian/prasidang'
+import { beritaAcaraPath, HASIL_LABEL, lolosGerbang, STATUS_LABEL, type Hasil, type PeranPrasidang, type StatusPrasidang } from '@/lib/penilaian/prasidang'
 import { buildRekapPrasidang } from '@/lib/penilaian/rekap-prasidang'
-import { pilihTahun } from '@/lib/penilaian/rekap-data'
+import { pilihTahun, terapkanCari } from '@/lib/penilaian/rekap-data'
+import { bacaFilter, cariSql, kolomUrut, urutkan } from '@/lib/penilaian/rekap-filter'
 import { RekapBar } from '../nilai-bimbingan/RekapBar'
+import { RekapFilter, TidakCocok } from '../nilai-bimbingan/RekapFilter'
 
-const COLUMNS = [
-  { label: 'No', align: 'center' as const }, { label: 'NPM' }, { label: 'Nama' }, { label: 'Judul Skripsi' },
-  { label: 'Pembimbing Pendamping' }, { label: 'Hasil' }, { label: 'Pembahas' }, { label: 'Hasil' },
-  { label: 'Hasil Gabungan' }, { label: 'Keputusan Super Admin' }, { label: 'Sidang', align: 'center' as const },
-]
-const BELUM = <span className="text-[var(--tinta-3)]">belum diisi</span>
+const C = 'center' as const
+const URUT = ['tanggal', 'npm', 'nama', 'hasil'] as const
+const STATUS = [
+  { value: 'layak', label: STATUS_LABEL.layak },
+  { value: 'layak_revisi', label: STATUS_LABEL.layak_revisi },
+  { value: 'tidak_layak', label: STATUS_LABEL.tidak_layak },
+  { value: 'belum_lengkap', label: STATUS_LABEL.belum_lengkap },
+] as const
+// Sort order of the hasil column: passed first, then revisi, rejected, still open.
+const PERINGKAT: Record<StatusPrasidang, number> = { layak: 0, layak_revisi: 1, tidak_layak: 2, belum_lengkap: 3, tidak_ada: 4 }
 
+/**
+ * The summary only: each berita acara, its verdict and the Super Admin decision's reason are on the berita acara
+ * page (click the name). Filter and sort come from the URL, on the server.
+ */
 export default async function HasilPrasidangPage(props: PageProps<'/[prodi]/sidang/hasil-prasidang'>) {
   const prodi = await prodiParam(props.params)
   if (prodi !== 's1') notFound() // the berita acara is S1 prasidang only
   const searchParams = await props.searchParams
   const supabase = await createClient()
-  const [{ years, ay }, role] = await Promise.all([pilihTahun(supabase, searchParams.ay as string | undefined), getCurrentRole()])
+  const { years, ay } = await pilihTahun(supabase, searchParams.ay as string | undefined)
+  const path = `/${prodi}/sidang/hasil-prasidang`
+  const f = bacaFilter(searchParams, { urut: URUT, status: STATUS.map((s) => s.value) })
 
   const [d, isian, kep, sid, dosen] = await Promise.all([
-    supabase.from('defenses')
+    // Search and tanggal/NPM/nama order in SQL; the hasil filter and sort after (it is computed).
+    terapkanCari(supabase.from('defenses')
       .select('id, npm, tanggal, created_at, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode')
-      .eq('prodi', 's1').eq('jenis', 'prasidang').eq('academic_year_id', ay),
+      .eq('prodi', 's1').eq('jenis', 'prasidang').eq('academic_year_id', ay), cariSql(f)),
     supabase.from('berita_acara_prasidang').select('defense_id, peran, hasil, defenses!inner(academic_year_id)').eq('defenses.academic_year_id', ay),
     supabase.from('keputusan_prasidang').select('npm, prasidang_id, hasil, alasan'),
     supabase.from('defenses').select('npm').eq('prodi', 's1').eq('jenis', 'sidang'),
@@ -39,22 +51,30 @@ export default async function HasilPrasidangPage(props: PageProps<'/[prodi]/sida
   if (err) throw new Error(`Gagal memuat hasil prasidang: ${err.message}`)
 
   const nama = new Map((dosen.data ?? []).map((x) => [x.kode_dosen as string, lecturerDisplayName(x)]))
-  const rows = buildRekapPrasidang(
+  const semua = buildRekapPrasidang(
     d.data ?? [],
     (isian.data ?? []).map((x) => ({ defense_id: x.defense_id as string, peran: x.peran as PeranPrasidang, hasil: x.hasil as Hasil })),
     (kep.data ?? []).map((x) => ({ npm: x.npm as string, prasidang_id: x.prasidang_id as string | null, hasil: x.hasil as Hasil, alasan: x.alasan as string })),
     new Set((sid.data ?? []).map((x) => x.npm as string)),
     (k) => nama.get(k) ?? k,
   )
-  const admin = canManage(role)
-  const hasil = (h: Hasil | null) => (h ? HASIL_LABEL[h] : BELUM)
+  // A Super Admin decision for this prasidang overrides the berita acara pair.
+  const hasil = (r: (typeof semua)[number]): StatusPrasidang => r.keputusan?.hasil ?? r.gabungan
+  const cocok = f.status ? semua.filter((r) => hasil(r) === f.status) : semua
+  const rows = f.urut === 'hasil' ? urutkan(cocok, (r) => PERINGKAT[hasil(r)], f.arah) : cocok
+  const aktif = !!(f.q || f.status)
+  const k = (key: (typeof URUT)[number]) => kolomUrut(path, ay, f, key)
+  const columns = [
+    { label: 'No', align: C }, { label: 'NPM', ...k('npm') }, { label: 'Nama', ...k('nama') }, { label: 'Hasil', ...k('hasil') },
+    { label: 'Sidang', align: C },
+  ]
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
       <AppHeader active="/sidang/hasil-prasidang" prodi={prodi} />
       <div className="flex flex-col flex-1">
         <RekapBar years={years} ay={ay} bisaUnduh={null} slug="hasil-prasidang" />
-        {rows.length === 0 ? (
+        {rows.length === 0 && !aktif ? (
           <EmptySheet
             title="Belum ada prasidang"
             detail={`${years.find((y) => y.id === ay)?.label ?? 'Tahun ini'} belum memiliki jadwal prasidang. Hasil berita acara muncul di sini setelah prasidang dijadwalkan.`}
@@ -62,28 +82,27 @@ export default async function HasilPrasidangPage(props: PageProps<'/[prodi]/sida
             actionLabel="Buka Jadwal Prasidang"
           />
         ) : (
-          <div className="px-[1.3rem] py-[1rem]">
-            <PreviewTable label="Rekap Hasil Prasidang" columns={COLUMNS}>
-              {rows.map((r, i) => (
-                <tr key={r.defenseId} className="border-t border-[var(--garis)] align-top">
-                  <td className={`${cell('center')} mono`}>{i + 1}</td>
-                  <td className={`${cell()} mono whitespace-nowrap`}>{r.npm}</td>
-                  <td className={cell()}><Link href={beritaAcaraPath(r.defenseId)}>{r.nama}</Link></td>
-                  <td className={`${cell()} min-w-[16rem]`}>{r.judul || '—'}</td>
-                  <td className={cell()}>{r.pendamping.nama}</td>
-                  <td className={cell()}>{hasil(r.pendamping.hasil)}</td>
-                  <td className={cell()}>{r.pembahas.nama}</td>
-                  <td className={cell()}>{hasil(r.pembahas.hasil)}</td>
-                  <td className={`${cell()} font-semibold ${lolosGerbang(r.gabungan) ? 'text-[var(--hijau)]' : ''}`}>{STATUS_LABEL[r.gabungan]}</td>
-                  <td className={cell()}>
-                    {r.keputusan ? <>{HASIL_LABEL[r.keputusan.hasil]}<span className="block text-[0.8rem] text-[var(--tinta-3)]">{r.keputusan.alasan}</span></> : '—'}
-                    {admin && <Link href={`/${prodi}/mahasiswa`} className="block text-[0.8rem]">Ubah di Data Mahasiswa</Link>}
-                  </td>
-                  <td className={cell('center')}>{r.adaSidang ? 'Ada' : '—'}</td>
-                </tr>
-              ))}
-            </PreviewTable>
-          </div>
+          <>
+            <RekapFilter path={path} ay={ay} f={f} status={[...STATUS]} />
+            <div className="px-[1.3rem] py-[1rem]">
+              {rows.length === 0 ? <TidakCocok /> : (
+                <PreviewTable label="Rekap Hasil Prasidang" columns={columns}>
+                  {rows.map((r, i) => (
+                    <tr key={r.defenseId} className="border-t border-[var(--garis)] align-top">
+                      <td className={`${cell(C)} mono`}>{i + 1}</td>
+                      <td className={`${cell()} mono whitespace-nowrap`}>{r.npm}</td>
+                      <td className={cell()}><Link href={beritaAcaraPath(r.defenseId)}>{r.nama}</Link></td>
+                      <td className={`${cell()} font-semibold ${lolosGerbang(hasil(r)) ? 'text-[var(--hijau)]' : ''}`}>
+                        {r.keputusan ? HASIL_LABEL[r.keputusan.hasil] : STATUS_LABEL[r.gabungan]}
+                        {r.keputusan && <span className="block text-[0.8rem] font-normal text-[var(--tinta-3)]">Keputusan Super Admin</span>}
+                      </td>
+                      <td className={cell(C)}>{r.adaSidang ? 'Ada' : '—'}</td>
+                    </tr>
+                  ))}
+                </PreviewTable>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

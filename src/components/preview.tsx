@@ -12,7 +12,10 @@ export type Align = 'left' | 'center'
 export const cell = (align: Align = 'left') =>
   `px-[0.53rem] py-[0.27rem] text-[0.93rem] ${align === 'center' ? 'text-center' : 'text-left'}`
 
-export function PreviewTable({ label, columns, children }: { label: string; columns: { label: string; align?: Align }[]; children: ReactNode }) {
+/** A column; with href its header is a sort link (aria-sort shows the active one). */
+export type PreviewColumn = { label: string; align?: Align; href?: string; sort?: 'ascending' | 'descending' }
+
+export function PreviewTable({ label, columns, children }: { label: string; columns: PreviewColumn[]; children: ReactNode }) {
   return (
     <div className="overflow-x-auto bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)]">
       <table className="w-full border-collapse">
@@ -23,9 +26,15 @@ export function PreviewTable({ label, columns, children }: { label: string; colu
               <th
                 key={c.label}
                 scope="col"
+                aria-sort={c.href ? (c.sort ?? 'none') : undefined}
                 className={`px-[0.53rem] py-[0.4rem] text-[0.73rem] font-semibold uppercase tracking-[0.04em] text-[var(--tinta-3)] whitespace-nowrap ${c.align === 'center' ? 'text-center' : 'text-left'}`}
               >
-                {c.label}
+                {c.href ? (
+                  <Link href={c.href} className={`no-underline hover:text-[var(--tinta)] ${c.sort ? 'text-[var(--tinta)]' : 'text-inherit'}`}>
+                    {c.label}
+                    <span aria-hidden="true" className="ml-[0.2rem]">{c.sort === 'ascending' ? '↑' : c.sort === 'descending' ? '↓' : '↕'}</span>
+                  </Link>
+                ) : c.label}
               </th>
             ))}
           </tr>

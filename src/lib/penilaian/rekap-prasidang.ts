@@ -39,7 +39,7 @@ export type RekapPrasidang = {
 
 type DefenseIn = PrasidangIn & { nama_mahasiswa: string; judul_skripsi: string; pembimbing_kode: string | null; penguji_kode: string | null }
 
-/** One row per S1 prasidang of the year, by tanggal then nama. gabungan is this prasidang's own pair; keputusan only if it is for this one. */
+/** One row per S1 prasidang of the year, in the order given (the SQL query sorts them). gabungan is this prasidang's own pair; keputusan only if it is for this one. */
 export function buildRekapPrasidang(
   defenses: DefenseIn[],
   isian: IsianIn[],
@@ -64,5 +64,4 @@ export function buildRekapPrasidang(
         adaSidang: npmSidang.has(d.npm),
       }
     })
-    .sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.nama.localeCompare(b.nama))
 }

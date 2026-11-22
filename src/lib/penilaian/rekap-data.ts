@@ -2,9 +2,21 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import type { Peran, PeranSidang } from './akses'
 import { loadAturan, type Aturan } from './aturan'
+import { cariMahasiswa, type Arah } from './rekap-filter'
 import { bimbinganPerSidang, buildRekapAkhir, buildRekapBimbingan, type RekapAkhir, type RekapBimbingan } from './rekap'
 
 export type TahunAkademik = { id: string; label: string }
+
+/** Search and SQL sort for the defenses query; the rows come out in this order. Default: tanggal, then nama. */
+export type CariRekap = { q?: string; urut?: 'tanggal' | 'npm' | 'nama'; arah?: Arah }
+const KOLOM = { tanggal: 'tanggal', npm: 'npm', nama: 'nama_mahasiswa' } as const
+
+/** Applies CariRekap to a defenses query (q must come from cariAman). */
+export function terapkanCari<Q extends { or: (f: string) => Q; order: (c: string, o: { ascending: boolean }) => Q }>(query: Q, c: CariRekap = {}): Q {
+  let q = c.q ? query.or(cariMahasiswa(c.q)) : query
+  if (c.urut) q = q.order(KOLOM[c.urut], { ascending: c.arah !== 'desc' })
+  return q.order('tanggal', { ascending: true }).order('nama_mahasiswa', { ascending: true })
+}
 
 /** Every tahun akademik (newest first) and the one asked for: `raw` if it exists, else the active one, else the newest. */
 export async function pilihTahun(db: SupabaseClient, raw: string | null | undefined): Promise<{ years: TahunAkademik[]; ay: string }> {
@@ -16,10 +28,10 @@ export async function pilihTahun(db: SupabaseClient, raw: string | null | undefi
 }
 
 /** The bimbingan recap of one tahun akademik: one row per S1 sidang. Session client: RLS (is_staff) decides who may read. Any DB error throws. */
-export async function loadRekapBimbingan(db: SupabaseClient, ay: string): Promise<{ rows: RekapBimbingan[]; aturan: Aturan }> {
+export async function loadRekapBimbingan(db: SupabaseClient, ay: string, cari?: CariRekap): Promise<{ rows: RekapBimbingan[]; aturan: Aturan }> {
   const [d, s, l, aturan] = await Promise.all([
-    db.from('defenses').select('id, tanggal, npm, nama_mahasiswa, judul_skripsi')
-      .eq('prodi', 's1').eq('jenis', 'sidang').eq('academic_year_id', ay),
+    terapkanCari(db.from('defenses').select('id, tanggal, npm, nama_mahasiswa, judul_skripsi')
+      .eq('prodi', 's1').eq('jenis', 'sidang').eq('academic_year_id', ay), cari),
     db.from('students').select('npm, sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', 's1'),
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     loadAturan(db, 's1'),
@@ -57,10 +69,10 @@ export async function loadRekapBimbingan(db: SupabaseClient, ay: string): Promis
 /**
  * The Nilai Akhir recap of one tahun akademik. Session client: RLS (is_staff) decides who may read. Any DB error throws.
  */
-export async function loadRekapAkhir(db: SupabaseClient, ay: string): Promise<RekapAkhir[]> {
+export async function loadRekapAkhir(db: SupabaseClient, ay: string, cari?: CariRekap): Promise<RekapAkhir[]> {
   const [d, s, l, n, h] = await Promise.all([
-    db.from('defenses').select('id, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode, penguji_eksternal_kode')
-      .eq('prodi', 's1').eq('jenis', 'sidang').eq('academic_year_id', ay),
+    terapkanCari(db.from('defenses').select('id, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode, penguji_eksternal_kode')
+      .eq('prodi', 's1').eq('jenis', 'sidang').eq('academic_year_id', ay), cari),
     db.from('students').select('npm, sks_sebelum, bobot_sebelum, tepat_waktu, tanpa_pembimbing_2').eq('prodi', 's1'),
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     db.from('nilai_sidang').select('defense_id, peran, nilai, defenses!inner(academic_year_id)').eq('defenses.academic_year_id', ay),

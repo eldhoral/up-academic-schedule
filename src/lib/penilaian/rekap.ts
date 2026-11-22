@@ -31,7 +31,7 @@ type StudentPembimbingIn = StudentIn & { pembimbing_1_kode: string | null; pembi
 type NilaiIn = { defense_id: string; peran: Peran; nilai: number; sumber: 'dosen' | 'manual' }
 
 /**
- * One row per S1 sidang, by tanggal then nama. The dosen are the student's Pembimbing I/II (Data Mahasiswa).
+ * One row per S1 sidang, in the order given (the SQL query sorts them). The dosen are the student's Pembimbing I/II (Data Mahasiswa).
  * Pure: the page and the Excel file are both built from it.
  */
 export function buildRekapBimbingan(
@@ -70,7 +70,6 @@ export function buildRekapBimbingan(
         batas: lockedAt ? batasBimbingan(lockedAt, batasHari) : null,
       }
     })
-    .sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.nama.localeCompare(b.nama))
 }
 
 // ---- Nilai Akhir (S1 sidang)
@@ -148,7 +147,7 @@ export function bimbinganPerSidang(
   return new Map([...per].map(([id, p]) => [id, nilaiBimbingan(p.pembimbing_1 ?? null, p.pembimbing_2 ?? null, tanpaP2.has(id))]))
 }
 
-/** One row per S1 sidang, by tanggal then nama. Pure: the page and the Excel file are both built from it. */
+/** One row per S1 sidang, in the order given (the SQL query sorts them). Pure: the page and the Excel file are both built from it. */
 export function buildRekapAkhir(
   sidang: SidangIn[],
   students: StudentAkhirIn[],
@@ -196,7 +195,6 @@ export function buildRekapAkhir(
         lockedAt: h?.locked_at ?? null,
       }
     })
-    .sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.nama.localeCompare(b.nama))
 }
 
 /**

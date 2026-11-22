@@ -196,14 +196,14 @@ async function main() {
     ({ npm: `n-${id}`, sks_sebelum: sks, bobot_sebelum: bobot, pembimbing_1_kode: p1, pembimbing_2_kode: p2, tanpa_pembimbing_2: tanpa })
   const n = (defense_id: string, peran: Peran, nilai: number, sumber: 'dosen' | 'manual' = 'dosen') => ({ defense_id, peran, nilai, sumber })
   const rekap = buildRekapBimbingan(
-    [d('3', '2026-11-12', 'Zed'), d('1', '2026-11-10', 'Budi'), d('2', '2026-11-10', 'Ani'), d('4', '2026-11-13', 'Cici')],
+    [d('2', '2026-11-10', 'Ani'), d('1', '2026-11-10', 'Budi'), d('3', '2026-11-12', 'Zed'), d('4', '2026-11-13', 'Cici')],
     [mhs('1', 'A', 'B', 139, 404.57), mhs('2', 'A', 'B'), mhs('4', null, 'B')],
     [n('1', 'pembimbing_1', 80), n('1', 'pembimbing_2', 77, 'manual'), n('2', 'pembimbing_1', 70), n('4', 'pembimbing_2', 90)],
     [{ defense_id: '1', locked_at: '2026-11-10T03:00:00Z' }],
     7,
     (k) => `Dr. ${k}`,
   )
-  assert.deepEqual(rekap.map((r) => r.nama), ['Ani', 'Budi', 'Zed', 'Cici'])
+  assert.deepEqual(rekap.map((r) => r.nama), ['Ani', 'Budi', 'Zed', 'Cici']) // as given: the SQL query sorts
   const budi = rekap[1]
   assert.equal(budi.bimbingan, 78.5)
   assert.equal(budi.ipk, 2.91)
