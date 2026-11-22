@@ -12,6 +12,7 @@ import type { BarisNilai } from '@/lib/penilaian/aturan'
 import { identitasPenguji, loadSidang, type HasilRow, type NilaiSidangRow } from '@/lib/penilaian/data'
 import { baris, formatNilai, nilaiSidang } from '@/lib/penilaian/nilai'
 import { ALASAN_ATURAN_RUSAK, bolehKirimUlang, EMAIL_LABEL } from '@/lib/penilaian/rekap'
+import { hasilBeritaAcara } from '@/lib/penilaian/berita-acara-sidang'
 import { KirimUlang } from '@/app/[prodi]/sidang/nilai-akhir/KirimUlang'
 import {
   editNilaiSidangAction, editYudisiumAction, inputNilaiSidangAdminAction, kunciSidangAction, kunciSidangAdminAction,
@@ -65,6 +66,15 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   const peranSaya = saya ? peranPenguji(defense, saya.kode) : null
   const nSidang = nilaiSidang(PERAN_SIDANG.map((p) => data.nilai[p]?.nilai ?? null))
   const st = data.student
+  // IPK after the sidang as the berita acara computes it (from Nilai Sidang, frozen rules); known once locked.
+  const ba = hasil?.aturan
+    ? hasilBeritaAcara({ nilai: PERAN_SIDANG.map((p) => data.nilai[p]?.nilai ?? null), aturan: hasil.aturan, lulus: hasil.yudisium_lulus, sks: st.sks, bobot: st.bobot, tepatWaktu: st.tepatWaktu }).ipk
+    : null
+  const ipk = {
+    sebelum: st.ipk,
+    setelah: ba && 'ipkSetelah' in ba ? ba.ipkSetelah : null,
+    alasan: !hasil ? 'menunggu sidang dikunci' : ba && 'alasan' in ba ? ba.alasan : undefined,
+  }
   const angka = (n: number | null, key: string) => <span key={key} className="mono">{n === null ? '—' : formatNilai(n)}</span>
   const fakta: [string, React.ReactNode][] = [
     ['NPM', <span key="npm" className="mono">{defense.npm}</span>],
@@ -159,6 +169,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
           nilai={Object.fromEntries(PERAN_SIDANG.flatMap((p) => (data.nilai[p] ? [[p, data.nilai[p]!.nilai]] : [])))}
           snapshot={Object.fromEntries(PERAN_SIDANG.flatMap((p) => (data.nilai[p] ? [[p, data.nilai[p]!.aspek]] : [])))}
           aspek={aturan.aspekSidang}
+          ipk={ipk}
         />
 
         <details open className="mb-[1.6rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] p-[1rem]">

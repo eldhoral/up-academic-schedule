@@ -1,77 +1,166 @@
 import type { PeranSidang } from '@/lib/penilaian/akses'
-import { PERAN_SIDANG_LABEL } from '@/lib/penilaian/akses'
+import { PERAN_SIDANG, PERAN_SIDANG_LABEL } from '@/lib/penilaian/akses'
 import { formatNilai } from '@/lib/penilaian/nilai'
 import { barAspek, barPenguji, rataRata } from '@/lib/penilaian/grafik'
 import type { SkorAspek } from '@/lib/penilaian/nilai'
 
-/** One colour per examiner, the same in both charts and the cards' legend. */
-export const WARNA_PERAN: Record<PeranSidang, string> = { ketua: 'var(--biru)', anggota_1: 'var(--hijau)', anggota_2: 'var(--kuning)' }
+/**
+ * One colour per examiner, the same in the charts and the cards above them. Validated with the dataviz palette
+ * checker (colour-blind safe, all pairs); the teal is under 3:1 on white, so every value is also in the table view.
+ */
+export const WARNA_PERAN: Record<PeranSidang, string> = { ketua: '#2a78d6', anggota_1: '#eb6834', anggota_2: '#1baf7a' }
+/** IPK before and after: one hue, light to dark (ordinal). */
+const WARNA_IPK = { sebelum: '#86b6ef', setelah: '#1c5cab' }
 
-const LEBAR = 100 // the bars are drawn on a 0–100 scale in percent of the track
+const SINGKAT: Record<PeranSidang, string> = { ketua: 'Ketua', anggota_1: 'Anggota I', anggota_2: 'Anggota II' }
+const JUDUL = 'm-0 pb-[0.9rem] text-[0.87rem] font-semibold'
+const SUMBU = 'text-[0.73rem] text-[var(--tinta-3)] text-center'
+const NILAI = 'absolute bottom-full left-1/2 -translate-x-1/2 pb-[0.25rem] mono text-[0.8rem] whitespace-nowrap'
+
+/** A column growing from the baseline: 4px rounded top, square bottom, value printed above it. */
+function Kolom({ tinggi, warna, teks, tip, tebal }: { tinggi: number; warna: string; teks: string; tip: string; tebal?: boolean }) {
+  return (
+    <div title={tip} className="h-full w-[4rem] flex justify-center items-end">
+      <div className="relative w-[1.5rem] rounded-t-[4px]" style={{ height: `${tinggi}%`, background: warna }}>
+        <span className={`${NILAI} ${tebal ? 'font-semibold' : ''}`}>{teks}</span>
+      </div>
+    </div>
+  )
+}
 
 /**
- * Two charts like the BERITA ACARA tab: the three examiners' totals with the average, and each aspek side by side.
- * Plain HTML bars (no chart library); every value is also printed, so the chart is never the only source.
+ * Three bar charts with as little text as possible: the examiners' totals against their average, IPK before and
+ * after the sidang, and every aspek grouped by examiner. Hover gives each value; "Tabel" lists them all.
  */
-export function Grafik({ nilai, snapshot, aspek }: {
+export function Grafik({ nilai, snapshot, aspek, ipk }: {
   nilai: Partial<Record<PeranSidang, number>>
   snapshot: Partial<Record<PeranSidang, SkorAspek[]>>
   aspek: { label: string }[]
+  /** IPK before the sidang and after it (as the berita acara computes it); null = not known yet. */
+  ipk: { sebelum: number | null; setelah: number | null; alasan?: string }
 }) {
   const rata = rataRata(nilai)
+  const baris = barAspek(aspek, snapshot)
+  const adaIpk = ipk.sebelum !== null
   return (
-    <section className="mb-[1.6rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] p-[1rem]">
-      <h2 className="m-0 mb-[0.2rem] text-[1.05rem] font-semibold">Grafik nilai</h2>
-      <p className="m-0 mb-[0.9rem] flex flex-wrap gap-x-[1rem] gap-y-[0.2rem] text-[0.8rem] text-[var(--tinta-2)]">
-        {(Object.keys(WARNA_PERAN) as PeranSidang[]).map((p) => (
-          <span key={p} className="inline-flex items-center gap-[0.35rem]">
-            <span aria-hidden="true" className="inline-block w-[0.7rem] h-[0.7rem] rounded-[2px]" style={{ background: WARNA_PERAN[p] }} />
+    <section className="mb-[1.6rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] p-[1rem] sm:p-[1.3rem]">
+      <div className="flex flex-wrap gap-x-[1.1rem] gap-y-[0.3rem] pb-[1.3rem] text-[0.8rem] text-[var(--tinta-2)]">
+        {PERAN_SIDANG.map((p) => (
+          <span key={p} className="inline-flex items-center gap-[0.4rem]">
+            <span aria-hidden="true" className="inline-block w-[0.75rem] h-[0.75rem] rounded-[2px]" style={{ background: WARNA_PERAN[p] }} />
             {PERAN_SIDANG_LABEL[p]}
           </span>
         ))}
-      </p>
+      </div>
 
-      <h3 className="m-0 mb-[0.5rem] text-[0.87rem] font-semibold">Nilai per penguji</h3>
-      <div className="relative space-y-[0.4rem]">
-        {barPenguji(nilai).map(({ peran, nilai: n }) => (
-          <div key={peran} className="grid grid-cols-[8.5rem_1fr_3.5rem] items-center gap-[0.6rem] text-[0.8rem]">
-            <span className="text-[var(--tinta-2)] truncate">{PERAN_SIDANG_LABEL[peran]}</span>
-            <span className="relative h-[0.9rem] bg-[var(--cekung)] rounded-[2px]">
-              {n !== null && <span className="absolute inset-y-0 left-0 rounded-[2px]" style={{ width: `${(n / LEBAR) * 100}%`, background: WARNA_PERAN[peran] }} />}
-            </span>
-            <span className="mono text-right">{n === null ? '—' : formatNilai(n)}</span>
+      <div className={`grid gap-[2rem] ${adaIpk ? 'sm:grid-cols-[1fr_13rem]' : ''}`}>
+        <figure className="m-0">
+          <figcaption className={JUDUL}>Nilai penguji</figcaption>
+          <div className="relative h-[9rem] border-b border-[var(--garis-kuat)] mt-[1rem]">
+            {rata !== null && (
+              <>
+                <div className="absolute inset-x-0 border-t-2 border-dashed border-[var(--tinta-3)]" style={{ top: `${100 - rata}%` }} />
+                <span className="absolute right-0 translate-y-[0.3rem] mono text-[0.73rem] text-[var(--tinta-2)]" style={{ top: `${100 - rata}%` }}>
+                  Rata-rata {formatNilai(rata)}
+                </span>
+              </>
+            )}
+            <div className="absolute inset-y-0 left-0 right-[7rem] flex justify-around items-end">
+              {barPenguji(nilai).map(({ peran, nilai: n }) => (
+                <Kolom key={peran} tinggi={n ?? 0} warna={WARNA_PERAN[peran]} teks={n === null ? '—' : formatNilai(n)} tebal
+                  tip={`${PERAN_SIDANG_LABEL[peran]}: ${n === null ? 'belum dikirim' : formatNilai(n)}`} />
+              ))}
+            </div>
           </div>
-        ))}
-        {rata !== null && (
-          <p className="m-0 text-[0.8rem] text-[var(--tinta-2)]">
-            Rata-rata nilai terkirim: <span className="mono font-semibold text-[var(--tinta)]">{formatNilai(rata)}</span>
-          </p>
+          <div className="flex justify-around pt-[0.4rem] mr-[7rem]">
+            {PERAN_SIDANG.map((p) => <span key={p} className={`${SUMBU} w-[4rem]`}>{SINGKAT[p]}</span>)}
+          </div>
+        </figure>
+
+        {adaIpk && (
+          <figure className="m-0">
+            <figcaption className={JUDUL}>IPK</figcaption>
+            <div className="h-[9rem] border-b border-[var(--garis-kuat)] mt-[1rem] flex justify-around items-end">
+              <Kolom tinggi={(ipk.sebelum! / 4) * 100} warna={WARNA_IPK.sebelum} teks={formatNilai(ipk.sebelum!)} tip={`IPK sebelum sidang: ${formatNilai(ipk.sebelum!)}`} />
+              <Kolom tinggi={ipk.setelah === null ? 0 : (ipk.setelah / 4) * 100} warna={WARNA_IPK.setelah} tebal
+                teks={ipk.setelah === null ? '—' : formatNilai(ipk.setelah)}
+                tip={ipk.setelah === null ? `IPK setelah sidang: ${ipk.alasan ?? 'belum ada'}` : `IPK setelah sidang: ${formatNilai(ipk.setelah)}`} />
+            </div>
+            <div className="flex justify-around pt-[0.4rem]">
+              <span className={`${SUMBU} w-[4rem]`}>Sebelum</span>
+              <span className={`${SUMBU} w-[4rem]`}>Setelah</span>
+            </div>
+          </figure>
         )}
       </div>
 
-      <h3 className="m-0 mt-[1.1rem] mb-[0.5rem] text-[0.87rem] font-semibold">Nilai per aspek</h3>
-      <div className="space-y-[0.6rem]">
-        {barAspek(aspek, snapshot).map(({ label, skor }) => (
-          <div key={label} className="grid grid-cols-1 sm:grid-cols-[11rem_1fr] gap-x-[0.6rem] gap-y-[0.2rem] text-[0.8rem]">
-            <span className="text-[var(--tinta-2)]">{label}</span>
-            <span className="space-y-[2px]">
-              {(Object.keys(WARNA_PERAN) as PeranSidang[]).map((p) => (
-                <span key={p} className="grid grid-cols-[1fr_3rem] items-center gap-[0.5rem]">
-                  <span className="relative h-[0.5rem] bg-[var(--cekung)] rounded-[2px]">
-                    {skor[p] !== undefined && (
-                      <span className="absolute inset-y-0 left-0 rounded-[2px]" style={{ width: `${(skor[p]! / LEBAR) * 100}%`, background: WARNA_PERAN[p] }} />
-                    )}
-                  </span>
-                  <span className="mono text-right text-[0.73rem] text-[var(--tinta-2)]">
-                    <span className="sr-only">{PERAN_SIDANG_LABEL[p]}: </span>
-                    {skor[p] === undefined ? '—' : formatNilai(skor[p]!)}
-                  </span>
-                </span>
+      <figure className="m-0 mt-[2rem]">
+        <figcaption className={JUDUL}>Nilai per aspek</figcaption>
+        <div className="overflow-x-auto">
+          <div className="min-w-[30rem] grid grid-cols-[1.8rem_1fr] gap-x-[0.5rem]">
+            <div className="relative h-[12rem] mono text-[0.7rem] text-[var(--tinta-3)]">
+              <span className="absolute right-0 -top-[0.45rem]">100</span>
+              <span className="absolute right-0 top-1/2 -translate-y-1/2">50</span>
+              <span className="absolute right-0 -bottom-[0.45rem]">0</span>
+            </div>
+            <div
+              className="relative h-[12rem] border-b border-[var(--garis-kuat)] flex justify-around items-end"
+              style={{ backgroundImage: 'linear-gradient(to bottom, var(--garis) 1px, transparent 1px)', backgroundSize: '100% 50%' }}
+            >
+              {baris.map(({ label, skor }) => (
+                <div key={label} className="h-full flex items-end gap-[2px]">
+                  {PERAN_SIDANG.map((p) => (
+                    <div
+                      key={p}
+                      title={`${label} · ${PERAN_SIDANG_LABEL[p]}: ${skor[p] === undefined ? 'belum dikirim' : formatNilai(skor[p]!)}`}
+                      className="w-[0.75rem] sm:w-[1.15rem] rounded-t-[4px]"
+                      style={{ height: `${skor[p] ?? 0}%`, background: WARNA_PERAN[p] }}
+                    />
+                  ))}
+                </div>
               ))}
-            </span>
+            </div>
+            <span />
+            <div className="flex justify-around pt-[0.4rem]">
+              {baris.map(({ label }) => (
+                <span key={label} className={`${SUMBU} flex-1 px-[0.2rem] leading-tight`}>{label}</span>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
+      </figure>
+
+      <details className="mt-[1.2rem]">
+        <summary className="cursor-pointer text-[0.8rem] text-[var(--biru)]">Tabel</summary>
+        <div className="overflow-x-auto mt-[0.6rem]">
+          <table className="w-full border-collapse text-[0.8rem]">
+            <thead className="text-[0.73rem] text-[var(--tinta-3)]">
+              <tr>
+                <th scope="col" className="text-left font-medium py-[0.3rem] pr-[0.6rem]">Aspek</th>
+                {PERAN_SIDANG.map((p) => <th key={p} scope="col" className="text-right font-medium py-[0.3rem] px-[0.4rem]">{SINGKAT[p]}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {baris.map(({ label, skor }) => (
+                <tr key={label} className="border-t border-[var(--garis)]">
+                  <th scope="row" className="text-left font-normal text-[var(--tinta-2)] py-[0.3rem] pr-[0.6rem]">{label}</th>
+                  {PERAN_SIDANG.map((p) => <td key={p} className="text-right mono py-[0.3rem] px-[0.4rem]">{skor[p] === undefined ? '—' : formatNilai(skor[p]!)}</td>)}
+                </tr>
+              ))}
+              <tr className="border-t-2 border-[var(--garis-kuat)] font-semibold">
+                <th scope="row" className="text-left py-[0.3rem] pr-[0.6rem]">Nilai penguji</th>
+                {barPenguji(nilai).map(({ peran, nilai: n }) => <td key={peran} className="text-right mono py-[0.3rem] px-[0.4rem]">{n === null ? '—' : formatNilai(n)}</td>)}
+              </tr>
+            </tbody>
+          </table>
+          {adaIpk && (
+            <p className="m-0 mt-[0.5rem] text-[0.8rem] text-[var(--tinta-2)]">
+              IPK <span className="mono">{formatNilai(ipk.sebelum!)} → {ipk.setelah === null ? '—' : formatNilai(ipk.setelah)}</span>
+              {ipk.setelah === null && ipk.alasan && <span className="text-[var(--tinta-3)]"> ({ipk.alasan})</span>}
+            </p>
+          )}
+        </div>
+      </details>
     </section>
   )
 }
