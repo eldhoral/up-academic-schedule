@@ -271,13 +271,14 @@ export async function deleteDefenseAction(prodi: Prodi, id: string): Promise<Def
 }
 
 /**
- * Super Admin deletes an S1 prasidang whose berita acara is filled, after typing the student's NPM. The DB function
- * checks the role and the NPM again and deletes both in one transaction; the audit log keeps the deleted rows.
+ * Super Admin deletes an S1 prasidang whose berita acara is filled, or an S1 sidang already graded, after typing the
+ * student's NPM. The DB function checks the role and the NPM again and deletes everything in one transaction; the
+ * audit log keeps the deleted rows.
  */
-export async function hapusPrasidangPaksaAction(id: string, npm: string): Promise<DefenseFormState> {
-  if (!canManage(await getCurrentRole())) return { error: 'Hanya Super Admin yang dapat menghapus prasidang yang sudah diisi berita acaranya.' }
+export async function hapusPaksaAction(jenis: 'prasidang' | 'sidang', id: string, npm: string): Promise<DefenseFormState> {
+  if (!canManage(await getCurrentRole())) return { error: 'Hanya Super Admin yang dapat menghapus jadwal yang sudah dinilai.' }
   const supabase = await createClient()
-  const { error } = await supabase.rpc('hapus_prasidang_paksa', { p_id: id, p_npm: npm })
+  const { error } = await supabase.rpc(jenis === 'sidang' ? 'hapus_sidang_paksa' : 'hapus_prasidang_paksa', { p_id: id, p_npm: npm })
   if (error) return { error: humanDbError(error) }
 
   revalidatePath('/[prodi]/sidang', 'page')

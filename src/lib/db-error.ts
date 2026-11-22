@@ -17,6 +17,7 @@ const PESAN_DB = new Set<string>([
   'Dosen eksternal tidak dapat menjadi Dosen Pembimbing.',
   'NPM tidak cocok.',
   'Prasidang tidak ditemukan.',
+  'Sidang tidak ditemukan.',
 ])
 
 /**

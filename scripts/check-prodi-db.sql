@@ -1672,3 +1672,46 @@ do $$ begin
                    and record_id is not null and old_data ->> 'defense_id' = (select id::text from hapus_def)
                    and actor_id = '00000000-0000-0000-0000-000000000004'), 'the deleted berita acara stays in the audit log';
 end $$;
+
+-- Super Admin force-deletes a graded, locked sidang (grades, lock, bimbingan), typing its NPM; nobody else can.
+reset role;
+select set_config('request.jwt.claim.sub', :'s1', false);
+set role authenticated;
+do $$ begin
+    begin
+        perform hapus_sidang_paksa((select id from live_def), '88200');
+        raise exception 'FAIL: a Penjadwal force-deleted a sidang';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'super', false);
+set role authenticated;
+do $$ begin
+    assert exists (select 1 from hasil_sidang where defense_id = (select id from live_def)), 'fixture: the sidang is locked';
+    begin
+        perform hapus_sidang_paksa((select id from live_def), '88201');
+        raise exception 'FAIL: force-deleted a sidang with the wrong NPM';
+    exception when raise_exception then
+        assert sqlerrm = 'NPM tidak cocok.', sqlerrm;
+    end;
+    begin
+        perform hapus_sidang_paksa((select id from defenses where npm = '89000' and jenis = 'prasidang'), '89000');
+        raise exception 'FAIL: force-deleted a prasidang as a sidang';
+    exception when raise_exception then
+        assert sqlerrm = 'Sidang tidak ditemukan.', sqlerrm;
+    end;
+    perform hapus_sidang_paksa((select id from live_def), ' 88200 ');
+    assert not exists (select 1 from defenses where id = (select id from live_def)), 'the sidang is gone';
+end $$;
+reset role;
+
+do $$ begin
+    assert not exists (select 1 from nilai_sidang where defense_id = (select id from live_def)), 'its grades are gone';
+    assert not exists (select 1 from hasil_sidang where defense_id = (select id from live_def)), 'its lock is gone';
+    assert exists (select 1 from audit_log where table_name = 'hasil_sidang' and action = 'DELETE'
+                   and old_data ->> 'defense_id' = (select id::text from live_def)
+                   and actor_id = '00000000-0000-0000-0000-000000000004'), 'the deleted lock stays in the audit log';
+    assert not has_function_privilege('anon', 'hapus_sidang_paksa(uuid, varchar)', 'execute'), 'anon cannot force-delete a sidang';
+end $$;

@@ -22,8 +22,8 @@ import {
 import { jenisLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import { useProdi } from '@/lib/use-prodi'
 import { PRODI_CONFIG } from '@/lib/prodi'
-import type { PeranSidang } from '@/lib/penilaian/akses'
-import { lolosGerbang, PESAN_GERBANG, type PeranPrasidang, type StatusPrasidang } from '@/lib/penilaian/prasidang'
+import { PERAN_SIDANG_LABEL, type PeranSidang } from '@/lib/penilaian/akses'
+import { lolosGerbang, PERAN_PRASIDANG_LABEL, PESAN_GERBANG, type PeranPrasidang, type StatusPrasidang } from '@/lib/penilaian/prasidang'
 
 type Option = { value: string; label: string; eksternal?: boolean }
 export type DefenseDraft = {
@@ -62,7 +62,7 @@ export function DefenseFormModal({
   sesi: { mulai: string; selesai: string }[]
   students: Student[]
   libur: HariLibur[]
-  canForceDelete: boolean // Super Admin: a prasidang with a filled berita acara can still be deleted, after typing the NPM
+  canForceDelete: boolean // Super Admin: a filled prasidang or graded sidang can still be deleted, after typing the NPM
   onClose: () => void
 }) {
   const prodi = useProdi()
@@ -380,10 +380,11 @@ export function DefenseFormModal({
           )}
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem] border-t border-[var(--garis)]">
-            {row && canForceDelete && context.jenis === 'prasidang' && graded.length > 0 ? (
+            {row && canForceDelete && graded.length > 0 ? (
               <HapusPaksa
+                jenis={sidang ? 'sidang' : 'prasidang'}
                 row={row}
-                terisi={graded as PeranPrasidang[]}
+                terisi={graded.map((p) => (sidang ? PERAN_SIDANG_LABEL[p as PeranSidang] : PERAN_PRASIDANG_LABEL[p as PeranPrasidang]))}
                 onDeleted={() => {
                   router.refresh()
                   onClose()
