@@ -105,7 +105,7 @@ async function kunci(data: Sidang, userId: string, yudisium: string): Promise<Ha
     .single()
   if (error) return { error: error.code === '23505' ? 'Nilai sidang ini sudah dikunci. Muat ulang halaman.' : humanDbError(error) }
 
-  // The lock is committed. The send (10 s cap) only updates email_status; whatever happens, the lock stands.
+  // The lock is committed. The send (PDF 10 s + SMTP 20 s caps) only updates email_status; whatever happens, the lock stands.
   const status = row.email_status === 'menunggu' ? await kirimAman(data.defense.id) : (row.email_status as string)
   revalidate(data.defense.id)
   return { ok: true, email: status }

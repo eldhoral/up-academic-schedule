@@ -376,7 +376,8 @@ import { adminSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
 // ---- email revisi
 import { tanggalPanjang } from '../src/lib/hari'
 import { renderRevisi } from '../src/lib/penilaian/email-revisi'
-import { kirimRevisi, smtpTransport, type Transport, type MailData } from '../src/lib/mailer'
+import { kirimRevisi, smtpTransport, type Transport, type MailData, type MailDeps } from '../src/lib/mailer'
+import type { FormRevisi } from '../src/lib/penilaian/form-revisi-xlsx'
 async function cekEmail() {
   const input = {
     nama: 'Budi 87,50 A', npm: '2021110099', judul: 'Judul <b>tebal</b> 88', tanggal: '2026-11-09', yudisium: 'Lulus Dengan Revisi',
@@ -529,6 +530,44 @@ async function cekEmail() {
   }))
   assert.deepEqual(tujuan[1], ['budi@mhs.id', 'ani@up.id'])
   assert.equal(semuaGagal.status, 'terkirim')
+
+  // The form revisi PDF goes along as an attachment, built from the examiners' revisi.
+  type Lampiran = NonNullable<Parameters<Transport>[0]['attachments']>
+  const lampiran: Lampiran[] = []
+  const bentuk: FormRevisi[] = []
+  const pakaiPdf = async (pdf: MailDeps['pdf'], t: Transport, d = lengkap) => {
+    const tulis: string[] = []
+    const status = await kirimRevisi('id', t, { muat: async () => d, simpan: async (_i, s) => { tulis.push(s) }, pdf }, 50)
+    return { status, tulis }
+  }
+  const catat: Transport = async (msg) => { lampiran.push(msg.attachments ?? []); return { accepted: msg.to, rejected: [] } }
+  const p1 = await pakaiPdf(async (f) => { bentuk.push(f); return new Uint8Array([37, 80, 68, 70]) }, catat, data())
+  assert.equal(p1.status, 'sebagian')
+  assert.equal(lampiran[0].length, 1)
+  assert.equal(lampiran[0][0].filename, 'Form Revisi Sidang 2021110099 Budi.pdf')
+  assert.equal(lampiran[0][0].contentType, 'application/pdf')
+  assert.deepEqual([...lampiran[0][0].content], [37, 80, 68, 70])
+  assert.deepEqual(bentuk[0], {
+    jenis: 'sidang', kolom: 'Halaman', hasil: 'Lulus Dengan Revisi', npm: '2021110099', nama: 'Budi', judul: 'J', tanggal: '2026-11-09',
+    bagian: [
+      { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani', rows: [{ rujukan: '1', catatan: 'x' }] },
+      { peranLabel: 'Anggota Penguji I', nama: 'Dr. Eko', rows: [] },
+      { peranLabel: 'Anggota Penguji II', nama: 'Dr. Cici', rows: [] },
+    ],
+  })
+  // A PDF that fails or hangs never blocks the mail: it goes without the attachment (the body has every revisi).
+  const p2 = await pakaiPdf(async () => { throw new Error('Aspose 429') }, catat)
+  assert.deepEqual([p2.status, lampiran[1]], ['terkirim', []])
+  const t1 = Date.now()
+  const p3 = await pakaiPdf(() => new Promise<never>(() => {}), catat)
+  assert.deepEqual([p3.status, lampiran[2]], ['terkirim', []])
+  assert.ok(Date.now() - t1 < 1000)
+  // No transport or no one to mail: no PDF is made (Aspose quota is 150 calls a month).
+  let dibuat = 0
+  const hitung: MailDeps['pdf'] = async () => { dibuat++; return new Uint8Array() }
+  await pakaiPdf(hitung, null as unknown as Transport)
+  await pakaiPdf(hitung, catat, data({ mahasiswaEmail: '', penguji: lengkap.penguji.map((p) => ({ ...p, email: null })) }))
+  assert.equal(dibuat, 0)
   console.log('nilai-sidang email: all checks passed')
 }
 cekEmail().catch((e) => { console.error(e); process.exit(1) })
@@ -679,10 +718,10 @@ import { smtpOpsi } from '../src/lib/mailer'
   assert.deepEqual(parseDetailEmail('x'), [])
   assert.deepEqual(parseDetailEmail([{ alamat: 'a@b.id', status: 'gagal' }, { alamat: 1, status: 'gagal' }, { alamat: 'c', status: 'aneh' }, null]), [{ alamat: 'a@b.id', status: 'gagal' }])
 
-  // SMTP: the phases add up to at most the 10 s race, so a send we recorded as gagal cannot deliver afterwards
+  // SMTP: the phases add up to at most the 20 s race, so a send we recorded as gagal cannot deliver afterwards
   const opsi = smtpOpsi('u@x.id', 'p')
-  assert.deepEqual([opsi.connectionTimeout, opsi.greetingTimeout, opsi.socketTimeout], [3000, 3000, 4000])
-  assert.ok(opsi.connectionTimeout + opsi.greetingTimeout + opsi.socketTimeout <= 10_000)
+  assert.deepEqual([opsi.connectionTimeout, opsi.greetingTimeout, opsi.socketTimeout], [5000, 5000, 10000])
+  assert.ok(opsi.connectionTimeout + opsi.greetingTimeout + opsi.socketTimeout <= 20_000)
   assert.deepEqual([opsi.host, opsi.port, opsi.secure], ['smtp.gmail.com', 465, true])
   console.log('nilai-sidang rekap akhir: all checks passed')
 }

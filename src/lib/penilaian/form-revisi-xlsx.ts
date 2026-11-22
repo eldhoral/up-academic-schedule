@@ -16,6 +16,10 @@ export type FormRevisi = {
   bagian: { peranLabel: string; nama: string; rows: { rujukan: string; catatan: string }[] }[]
 }
 
+/** File name without extension, e.g. "Form Revisi Sidang 2021110099 Budi". */
+export const namaFormRevisi = (d: FormRevisi) =>
+  `Form Revisi ${d.jenis === 'sidang' ? 'Sidang' : 'Prasidang'} ${d.npm} ${d.nama}`.replace(/[^\w .-]/g, '')
+
 /** One A4 portrait sheet. */
 export async function buildFormRevisiXlsx(d: FormRevisi): Promise<Uint8Array<ArrayBuffer>> {
   const wb = new ExcelJS.Workbook()

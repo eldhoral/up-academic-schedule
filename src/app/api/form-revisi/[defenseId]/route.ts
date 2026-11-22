@@ -4,7 +4,7 @@ import { canAccessProdi } from '@/lib/prodi'
 import { convertXlsxToPdf } from '@/lib/aspose'
 import { PERAN_SIDANG, PERAN_SIDANG_LABEL } from '@/lib/penilaian/akses'
 import { loadBeritaAcara, loadSidang } from '@/lib/penilaian/data'
-import { buildFormRevisiXlsx, type FormRevisi } from '@/lib/penilaian/form-revisi-xlsx'
+import { buildFormRevisiXlsx, namaFormRevisi, type FormRevisi } from '@/lib/penilaian/form-revisi-xlsx'
 import { PERAN_PRASIDANG, PERAN_PRASIDANG_LABEL, STATUS_LABEL } from '@/lib/penilaian/prasidang'
 
 /**
@@ -45,7 +45,7 @@ export async function GET(req: Request, ctx: RouteContext<'/api/form-revisi/[def
     }
 
   const xlsx = await buildFormRevisiXlsx(form)
-  const nama = `Form Revisi ${form.jenis === 'sidang' ? 'Sidang' : 'Prasidang'} ${form.npm} ${form.nama}`.replace(/[^\w .-]/g, '')
+  const nama = namaFormRevisi(form)
 
   if (format === 'xlsx') {
     return new Response(xlsx, {

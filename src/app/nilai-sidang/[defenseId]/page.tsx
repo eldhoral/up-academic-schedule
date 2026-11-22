@@ -11,7 +11,8 @@ import {
 import type { BarisNilai } from '@/lib/penilaian/aturan'
 import { identitasPenguji, loadSidang, type HasilRow, type NilaiSidangRow } from '@/lib/penilaian/data'
 import { baris, formatNilai, nilaiSidang } from '@/lib/penilaian/nilai'
-import { ALASAN_ATURAN_RUSAK } from '@/lib/penilaian/rekap'
+import { ALASAN_ATURAN_RUSAK, bolehKirimUlang, EMAIL_LABEL } from '@/lib/penilaian/rekap'
+import { KirimUlang } from '@/app/[prodi]/sidang/nilai-akhir/KirimUlang'
 import {
   editNilaiSidangAction, editYudisiumAction, inputNilaiSidangAdminAction, kunciSidangAction, kunciSidangAdminAction,
   submitNilaiSidangAction,
@@ -285,6 +286,13 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                     <a href={`/api/form-revisi/${defense.id}?format=xlsx`} className={UNDUH}>Unduh Form Revisi (Excel)</a>
                     <a href={`/api/form-revisi/${defense.id}?format=pdf`} className={UNDUH}>Unduh Form Revisi (PDF)</a>
                   </p>
+                  {canManage(user.role) && (
+                    <div className="m-0 mb-[1rem] text-[0.93rem]">
+                      <span className={KECIL}>Email revisi</span>
+                      {EMAIL_LABEL[hasil.email_status] ?? hasil.email_status}
+                      {bolehKirimUlang(hasil.email_status, hasil.locked_at) && <KirimUlang defenseId={defense.id} />}
+                    </div>
+                  )}
                   {canManage(user.role) && (
                     <YudisiumForm
                       pilihan={aturan.pilihanYudisium}

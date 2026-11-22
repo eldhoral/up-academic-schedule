@@ -6,8 +6,11 @@ import { renderRevisi } from '@/lib/penilaian/email-revisi'
 import { loadSettings } from '@/lib/settings'
 import { parseDetailEmail, type DetailEmail } from '@/lib/penilaian/rekap'
 import type { Revisi } from '@/lib/penilaian/nilai'
+import { convertXlsxToPdf } from '@/lib/aspose'
+import { buildFormRevisiXlsx, namaFormRevisi, type FormRevisi } from '@/lib/penilaian/form-revisi-xlsx'
 
-export type Transport = (msg: { to: string[]; subject: string; text: string; html: string }) => Promise<{ accepted: string[]; rejected: string[] }>
+export type Lampiran = { filename: string; content: Uint8Array; contentType: string }
+export type Transport = (msg: { to: string[]; subject: string; text: string; html: string; attachments?: Lampiran[] }) => Promise<{ accepted: string[]; rejected: string[] }>
 export type EmailStatus = 'tidak_perlu' | 'terkirim' | 'gagal' | 'sebagian'
 export type { DetailEmail }
 
@@ -29,15 +32,29 @@ export type MailData = {
 export type MailDeps = {
   muat: (defenseId: string) => Promise<MailData | null>
   simpan: (defenseId: string, status: EmailStatus, detail: DetailEmail[]) => Promise<void>
+  /** The form revisi as PDF, attached to the mail; missing = no attachment. */
+  pdf?: (form: FormRevisi) => Promise<Uint8Array>
 }
 
 const TIDAK_DIKONFIGURASI = 'SMTP belum dikonfigurasi'
-const MAKS_MS = 10_000
+const MAKS_MS = 20_000
+/** Cap on the Aspose conversion, on top of the send: a lock waits at most PDF_MS + MAKS_MS. */
+const PDF_MS = 10_000
 
-/** The phases add up to MAKS_MS (3 + 3 + 4 s), so a send the race gave up on cannot still deliver afterwards. */
+/** p, or a rejection once ms have passed. */
+async function batasWaktu<T>(p: Promise<T>, ms: number, pesan: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([p, new Promise<never>((_, tolak) => { timer = setTimeout(() => tolak(new Error(pesan)), ms) })])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** The phases add up to MAKS_MS (5 + 5 + 10 s), so a send the race gave up on cannot still deliver afterwards. */
 export const smtpOpsi = (user: string, pass: string) => ({
   host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass },
-  connectionTimeout: 3000, greetingTimeout: 3000, socketTimeout: 4000,
+  connectionTimeout: 5000, greetingTimeout: 5000, socketTimeout: 10_000,
 })
 
 /** Gmail SMTP from SMTP_USER / SMTP_PASS / SMTP_FROM; null when any is missing. Credentials are never logged. */
@@ -46,7 +63,7 @@ export function smtpTransport(): Transport | null {
   if (!user || !pass || !from) return null
   const t = nodemailer.createTransport(smtpOpsi(user, pass))
   return async (msg) => {
-    const r = await t.sendMail({ from, ...msg })
+    const r = await t.sendMail({ from, ...msg, attachments: msg.attachments?.map((a) => ({ ...a, content: Buffer.from(a.content) })) })
     const alamat = (a: unknown) => (typeof a === 'string' ? a : (a as { address: string }).address)
     return { accepted: r.accepted.map(alamat), rejected: r.rejected.map(alamat) }
   }
@@ -87,6 +104,7 @@ const dbDeps: MailDeps = {
     const { error } = await createAdminClient().from('hasil_sidang').update({ email_status: status, email_detail: detail }).eq('defense_id', defenseId)
     if (error) throw new Error(`Gagal menyimpan status email: ${error.message}`)
   },
+  pdf: async (form) => convertXlsxToPdf(await buildFormRevisiXlsx(form)),
 }
 
 /**
@@ -122,15 +140,28 @@ export async function kirimRevisi(
     else if (!sudahAda.has(alamat.toLowerCase()) && !to.some((a) => a.toLowerCase() === alamat.toLowerCase())) to.push(alamat)
   }
 
+  // The attachment is a convenience (the body has every revisi): a PDF that fails or is late is left out, not a failed send.
+  const lampiran = async (): Promise<Lampiran[]> => {
+    if (!deps.pdf) return []
+    const form: FormRevisi = {
+      jenis: 'sidang', kolom: 'Halaman', hasil: m.yudisium, npm: m.npm, nama: m.nama, judul: m.judul, tanggal: m.tanggal,
+      bagian: m.penguji.map((p) => ({ peranLabel: p.peranLabel, nama: p.nama, rows: p.revisi.map((r) => ({ rujukan: r.halaman, catatan: r.catatan })) })),
+    }
+    try {
+      const content = await batasWaktu(deps.pdf(form), Math.min(timeoutMs, PDF_MS), 'Melewati batas waktu PDF')
+      return [{ filename: `${namaFormRevisi(form)}.pdf`, content, contentType: 'application/pdf' }]
+    } catch (e) {
+      console.error('Form revisi PDF gagal dibuat, email dikirim tanpa lampiran:', e instanceof Error ? e.message : 'error')
+      return []
+    }
+  }
+
   const kirim = async (): Promise<DetailEmail[]> => {
     if (!transport) return to.map((alamat) => ({ alamat, status: 'gagal', alasan: TIDAK_DIKONFIGURASI }))
     if (to.length === 0) return []
-    let timer: ReturnType<typeof setTimeout> | undefined
+    const attachments = await lampiran()
     try {
-      const hasil = await Promise.race([
-        transport({ to, ...renderRevisi({ ...m, revisi }) }),
-        new Promise<never>((_, tolak) => { timer = setTimeout(() => tolak(new Error('Melewati batas waktu pengiriman')), timeoutMs) }),
-      ])
+      const hasil = await batasWaktu(transport({ to, ...renderRevisi({ ...m, revisi }), attachments }), timeoutMs, 'Melewati batas waktu pengiriman')
       const terima = new Set(hasil.accepted.map((a) => a.toLowerCase()))
       return to.map((alamat) => terima.has(alamat.toLowerCase())
         ? { alamat, status: 'terkirim' as const }
@@ -138,8 +169,6 @@ export async function kirimRevisi(
     } catch (e) {
       const alasan = e instanceof Error ? e.message : String(e)
       return to.map((alamat) => ({ alamat, status: 'gagal' as const, alasan }))
-    } finally {
-      clearTimeout(timer)
     }
   }
 
