@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { cookies, headers } from 'next/headers'
-import { AKTIF_COOKIE, aktifCookieOptions } from '@/lib/sesi-aktif'
+import { AKTIF_COOKIE, aktifCookieOptions, sedangDipakai } from '@/lib/sesi-aktif'
 import { loadMenitIdle } from '@/lib/settings'
 import { humanDbError } from '@/lib/db-error'
 import { emailLogin } from '@/lib/penilaian/akun-eksternal'
@@ -94,8 +94,19 @@ export async function signInAction(
     return { error: 'Akun ini sudah tidak berlaku.' }
   }
 
-  await logAuthEvent('LOGIN', data.user.id, data.user.email ?? email)
   const menit = await loadMenitIdle(supabase)
+  // One active login per account: refused while another browser is signed in and active within the idle limit.
+  const klaim = await supabase.rpc('klaim_sesi')
+  if (klaim.error) {
+    // ponytail: fail open (missing migration, DB hiccup) so nobody is locked out; the rule is a policy, not the security boundary.
+    console.error('klaim_sesi failed:', klaim.error.message)
+  } else if (klaim.data === false) {
+    // 'local': end only this new session; the default ('global') would sign out the browser that holds the account too.
+    await supabase.auth.signOut({ scope: 'local' })
+    return { error: sedangDipakai(menit) }
+  }
+
+  await logAuthEvent('LOGIN', data.user.id, data.user.email ?? email)
   ;(await cookies()).set(AKTIF_COOKIE, String(menit), aktifCookieOptions(menit, process.env.NODE_ENV === 'production'))
 
   redirect(pathSendiri(redirectTo) ? redirectTo : '/')
@@ -171,6 +182,9 @@ export async function signOutAction(formData?: FormData) {
   } = await supabase.auth.getUser()
   if (user) await logAuthEvent('LOGOUT', user.id, user.email ?? '')
 
+  // Free the account for another login; best-effort, the sign-out goes ahead regardless.
+  const lepas = await supabase.rpc('lepas_sesi')
+  if (lepas.error) console.error('lepas_sesi failed:', lepas.error.message)
   await supabase.auth.signOut()
   const back = formData?.get('redirectTo')
   redirect(pathSendiri(back) ? `/masuk?redirectTo=${encodeURIComponent(back)}` : '/masuk')

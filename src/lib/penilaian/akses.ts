@@ -87,6 +87,7 @@ export const PERAN_LABEL: Record<Peran, string> = { pembimbing_1: 'Dosen Pembimb
  */
 export const halamanDosen = (path: string, role: string = 'DOSEN'): boolean =>
   path === '/penilaian' ||
+  path === '/api/sesi' || // the activity heartbeat (SesiAktif), every signed-in account
   /^\/nilai-sidang\/[^/]+$/.test(path) ||
   (role !== 'EKSTERNAL' &&
     (path === '/atur-kata-sandi' || /^\/nilai-bimbingan\/[^/]+$/.test(path) || /^\/berita-acara-prasidang\/[^/]+$/.test(path)))

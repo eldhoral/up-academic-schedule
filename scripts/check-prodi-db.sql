@@ -1715,3 +1715,66 @@ do $$ begin
                    and actor_id = '00000000-0000-0000-0000-000000000004'), 'the deleted lock stays in the audit log';
     assert not has_function_privilege('anon', 'hapus_sidang_paksa(uuid, varchar)', 'execute'), 'anon cannot force-delete a sidang';
 end $$;
+
+-- ---- One active login per account (20261124000001): klaim_sesi / sentuh_sesi / lepas_sesi
+\set sesiA '10000000-0000-0000-0000-00000000000a'
+\set sesiB '10000000-0000-0000-0000-00000000000b'
+select set_config('request.jwt.claim.sub', :'super', false);
+set role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'super', 'session_id', :'sesiA')::text, false);
+do $$ begin
+    assert klaim_sesi(), 'A takes a free account';
+    assert klaim_sesi(), 'A again (its own session)';
+end $$;
+select set_config('request.jwt.claims', json_build_object('sub', :'super', 'session_id', :'sesiB')::text, false);
+do $$ begin
+    assert not klaim_sesi(), 'B is refused while A is active';
+    perform sentuh_sesi();
+    perform lepas_sesi();
+    begin
+        perform 1 from sesi_aktif;
+        raise exception 'FAIL: a user read sesi_aktif';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
+do $$ begin
+    assert (select session_id from sesi_aktif where user_id = '00000000-0000-0000-0000-000000000004') = '10000000-0000-0000-0000-00000000000a',
+        'B''s heartbeat and sign-out leave A holding the account';
+    -- A idle past the limit (30 by default): B may take over.
+    update sesi_aktif set terakhir = now() - interval '31 minutes';
+end $$;
+set role authenticated;
+do $$ begin assert klaim_sesi(), 'B takes over after A has been idle past the limit'; end $$;
+select set_config('request.jwt.claims', json_build_object('sub', :'super', 'session_id', :'sesiA')::text, false);
+do $$ begin
+    perform sentuh_sesi();
+    assert not klaim_sesi(), 'A, now not the holder, is refused and its heartbeat changed nothing';
+end $$;
+select set_config('request.jwt.claims', json_build_object('sub', :'super', 'session_id', :'sesiB')::text, false);
+do $$ begin perform lepas_sesi(); end $$;
+select set_config('request.jwt.claims', json_build_object('sub', :'super', 'session_id', :'sesiA')::text, false);
+do $$ begin
+    assert klaim_sesi(), 'after B signs out, A can sign in';
+end $$;
+-- No session_id in the token: nothing claimed.
+select set_config('request.jwt.claims', json_build_object('sub', :'super')::text, false);
+do $$ begin assert not klaim_sesi(), 'a token without session_id claims nothing'; end $$;
+reset role;
+select set_config('request.jwt.claims', '', false);
+do $$ begin
+    assert (select session_id from sesi_aktif where user_id = '00000000-0000-0000-0000-000000000004') = '10000000-0000-0000-0000-00000000000a';
+    -- The limit follows Pengaturan sesi_idle_menit, read like menitIdle() in TS.
+    assert sesi_idle_menit() = 30, 'default 30';
+    update settings set value = '45' where key = 'sesi_idle_menit' and prodi = 'all';
+    assert sesi_idle_menit() = 45;
+    update settings set value = 'x' where key = 'sesi_idle_menit' and prodi = 'all';
+    assert sesi_idle_menit() = 30, 'unreadable = 30';
+    update settings set value = '3' where key = 'sesi_idle_menit' and prodi = 'all';
+    assert sesi_idle_menit() = 30, 'below 5 = 30';
+    update settings set value = '99999' where key = 'sesi_idle_menit' and prodi = 'all';
+    assert sesi_idle_menit() = 720, 'at most 720';
+    update settings set value = '30' where key = 'sesi_idle_menit' and prodi = 'all';
+    assert not has_function_privilege('anon', 'klaim_sesi()', 'execute'), 'anon cannot claim';
+    assert not has_function_privilege('authenticated', 'sesi_idle_menit()', 'execute');
+end $$;

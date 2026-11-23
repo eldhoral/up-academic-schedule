@@ -19,3 +19,7 @@ export function menitIdle(raw: string | null | undefined): number {
 
 export const aktifCookieOptions = (menit: number, secure: boolean) =>
   ({ maxAge: menit * 60, path: '/', sameSite: 'lax', secure, httpOnly: false }) as const
+
+/** Sign-in refused: another browser holds the account (one login per account, klaim_sesi). */
+export const sedangDipakai = (menit: number) =>
+  `Akun ini sedang dipakai di perangkat lain. Minta pengguna tersebut keluar terlebih dahulu, atau coba lagi setelah ${menit} menit tanpa aktivitas di perangkat itu.`

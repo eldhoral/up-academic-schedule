@@ -56,6 +56,8 @@ export async function updateSession(request: NextRequest) {
 
     // No activity in the browser for the Pengaturan idle limit: the idle cookie expired, so the session ends (see sesi-aktif.ts).
     if (user && !request.cookies.has(AKTIF_COOKIE)) {
+      // Free the account (one login per account), then end the session.
+      await supabase.rpc('lepas_sesi')
       await supabase.auth.signOut()
       if (isMasuk) return supabaseResponse
       if (request.method !== 'GET' && request.method !== 'HEAD') {
