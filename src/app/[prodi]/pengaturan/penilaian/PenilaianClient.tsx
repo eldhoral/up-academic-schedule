@@ -373,7 +373,7 @@ function PertanyaanKartu({ awal }: { awal: Pertanyaan[] }) {
   return (
     <Kartu
       judul="Pertanyaan berita acara prasidang"
-      bantuan="Pertanyaan yang diisi Pembimbing Pendamping dan Pembahas. Ya/Tidak: wajib dijawab, dengan catatan opsional. Uraian: jawaban teks wajib. Mengubah daftar tidak mengubah berita acara yang sudah dikirim."
+      bantuan="Pertanyaan yang diisi Pembimbing Pendamping. Ya/Tidak: wajib dijawab, dengan catatan opsional. Uraian: jawaban teks wajib. Mengubah daftar tidak mengubah berita acara yang sudah dikirim."
       kunci="pertanyaan_prasidang"
       error={error}
       nilai={nilai}

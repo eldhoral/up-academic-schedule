@@ -78,7 +78,7 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
         )}
         {akses?.kind === 'terkirim' && <Terkirim row={data.isian[akses.peran]!} />}
 
-        {/* Staff: both berita acara, the combined result and Super Admin's override. Read-only. */}
+        {/* Staff: the Pendamping's berita acara, the result and Super Admin's override. Read-only. */}
         {!dosen && (
           <>
             <section className="mb-[1.6rem]">

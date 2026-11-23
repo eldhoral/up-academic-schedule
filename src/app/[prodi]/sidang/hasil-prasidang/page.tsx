@@ -5,7 +5,6 @@ import { EmptySheet } from '@/components/EmptySheet'
 import { PreviewTable, cell } from '@/components/preview'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
-import { lecturerDisplayName } from '@/lib/import/tables'
 import { beritaAcaraPath, HASIL_LABEL, lolosGerbang, STATUS_LABEL, type Hasil, type PeranPrasidang, type StatusPrasidang } from '@/lib/penilaian/prasidang'
 import { buildRekapPrasidang } from '@/lib/penilaian/rekap-prasidang'
 import { pilihTahun, terapkanCari } from '@/lib/penilaian/rekap-data'
@@ -37,29 +36,26 @@ export default async function HasilPrasidangPage(props: PageProps<'/[prodi]/sida
   const path = `/${prodi}/sidang/hasil-prasidang`
   const f = bacaFilter(searchParams, { urut: URUT, status: STATUS.map((s) => s.value) })
 
-  const [d, isian, kep, sid, dosen] = await Promise.all([
+  const [d, isian, kep, sid] = await Promise.all([
     // Search and tanggal/NPM/nama order in SQL; the hasil filter and sort after (it is computed).
     terapkanCari(supabase.from('defenses')
-      .select('id, npm, tanggal, created_at, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode')
+      .select('id, npm, tanggal, created_at, nama_mahasiswa, judul_skripsi')
       .eq('prodi', 's1').eq('jenis', 'prasidang').eq('academic_year_id', ay), cariSql(f)),
     supabase.from('berita_acara_prasidang').select('defense_id, peran, hasil, defenses!inner(academic_year_id)').eq('defenses.academic_year_id', ay),
     supabase.from('keputusan_prasidang').select('npm, prasidang_id, hasil, alasan'),
     supabase.from('defenses').select('npm').eq('prodi', 's1').eq('jenis', 'sidang'),
-    supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
   ])
-  const err = d.error ?? isian.error ?? kep.error ?? sid.error ?? dosen.error
+  const err = d.error ?? isian.error ?? kep.error ?? sid.error
   if (err) throw new Error(`Gagal memuat hasil prasidang: ${err.message}`)
 
-  const nama = new Map((dosen.data ?? []).map((x) => [x.kode_dosen as string, lecturerDisplayName(x)]))
   const semua = buildRekapPrasidang(
     d.data ?? [],
     (isian.data ?? []).map((x) => ({ defense_id: x.defense_id as string, peran: x.peran as PeranPrasidang, hasil: x.hasil as Hasil })),
     (kep.data ?? []).map((x) => ({ npm: x.npm as string, prasidang_id: x.prasidang_id as string | null, hasil: x.hasil as Hasil, alasan: x.alasan as string })),
     new Set((sid.data ?? []).map((x) => x.npm as string)),
-    (k) => nama.get(k) ?? k,
   )
-  // A Super Admin decision for this prasidang overrides the berita acara pair.
-  const hasil = (r: (typeof semua)[number]): StatusPrasidang => r.keputusan?.hasil ?? r.gabungan
+  // A Super Admin decision for this prasidang overrides the berita acara.
+  const hasil = (r: (typeof semua)[number]): StatusPrasidang => r.keputusan?.hasil ?? r.status
   const cocok = f.status ? semua.filter((r) => hasil(r) === f.status) : semua
   const rows = f.urut === 'hasil' ? urutkan(cocok, (r) => PERINGKAT[hasil(r)], f.arah) : cocok
   const aktif = !!(f.q || f.status)
@@ -93,7 +89,7 @@ export default async function HasilPrasidangPage(props: PageProps<'/[prodi]/sida
                       <td className={`${cell()} mono whitespace-nowrap`}>{r.npm}</td>
                       <td className={cell()}><Link href={beritaAcaraPath(r.defenseId)}>{r.nama}</Link></td>
                       <td className={`${cell()} font-semibold ${lolosGerbang(hasil(r)) ? 'text-[var(--hijau)]' : ''}`}>
-                        {r.keputusan ? HASIL_LABEL[r.keputusan.hasil] : STATUS_LABEL[r.gabungan]}
+                        {r.keputusan ? HASIL_LABEL[r.keputusan.hasil] : STATUS_LABEL[r.status]}
                         {r.keputusan && <span className="block text-[0.8rem] font-normal text-[var(--tinta-3)]">Keputusan Super Admin</span>}
                       </td>
                       <td className={cell(C)}>{r.adaSidang ? 'Ada' : '—'}</td>

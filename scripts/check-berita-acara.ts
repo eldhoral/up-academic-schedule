@@ -1,17 +1,11 @@
 import assert from 'node:assert/strict'
 import { DEFAULT_ATURAN, validateBatasHari, validatePertanyaan } from '../src/lib/penilaian/aturan'
 import { aksesBeritaAcara, halamanDosen } from '../src/lib/penilaian/akses'
-import { batasBeritaAcara, beritaAcaraPath, cekJawaban, gabungHasil, HASIL_LABEL, lolosGerbang, type StatusPrasidang } from '../src/lib/penilaian/prasidang'
+import { batasBeritaAcara, beritaAcaraPath, cekJawaban, HASIL_LABEL, lolosGerbang, type StatusPrasidang } from '../src/lib/penilaian/prasidang'
+import { buildRekapPrasidang } from '../src/lib/penilaian/rekap-prasidang'
 import { statusPrasidang } from '../src/lib/penilaian/rekap-prasidang'
 import { humanDbError } from '../src/lib/db-error'
 
-// ---- combined verdict: tidak_layak > layak_revisi > layak; a missing one = belum_lengkap
-assert.equal(gabungHasil('layak', 'layak'), 'layak')
-assert.equal(gabungHasil('layak', 'layak_revisi'), 'layak_revisi')
-assert.equal(gabungHasil('layak_revisi', 'tidak_layak'), 'tidak_layak')
-assert.equal(gabungHasil('tidak_layak', 'layak'), 'tidak_layak')
-assert.equal(gabungHasil('layak', null), 'belum_lengkap')
-assert.equal(gabungHasil(null, null), 'belum_lengkap')
 assert.deepEqual(
   (['layak', 'layak_revisi', 'tidak_layak', 'belum_lengkap', 'tidak_ada'] as StatusPrasidang[]).map(lolosGerbang),
   [true, true, false, false, false],
@@ -61,13 +55,13 @@ assert.notEqual(validateBatasHari(61), null)
 assert.notEqual(validateBatasHari(2.5), null)
 assert.equal(DEFAULT_ATURAN.batasHariBimbingan, 7)
 
-// ---- prasidang access: pendamping = pembimbing_kode, pembahas = penguji_kode
+// ---- prasidang access: only the Pembimbing Pendamping (pembimbing_kode) fills; the Pembahas (penguji_kode) does not
 const p = { id: 'p', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-20', pembimbing_kode: 'A', penguji_kode: 'B' }
 assert.deepEqual(aksesBeritaAcara(p, 'A', new Set(), '2026-11-19'), { kind: 'belum-dibuka', tanggal: '2026-11-20' })
-assert.deepEqual(aksesBeritaAcara(p, 'B', new Set(), '2026-11-20'), { kind: 'isi', peran: 'pembahas' })
+assert.deepEqual(aksesBeritaAcara(p, 'B', new Set(), '2026-11-20'), { kind: 'tidak-ada' }, 'pembahas does not fill')
 assert.deepEqual(aksesBeritaAcara(p, 'A', new Set(), '2026-11-21'), { kind: 'isi', peran: 'pendamping' })
 assert.deepEqual(aksesBeritaAcara(p, 'A', new Set(['pendamping']), '2026-11-19'), { kind: 'terkirim', peran: 'pendamping' })
-assert.deepEqual(aksesBeritaAcara(p, 'B', new Set(['pendamping']), '2026-11-20'), { kind: 'isi', peran: 'pembahas' })
+assert.deepEqual(aksesBeritaAcara(p, 'B', new Set(['pendamping']), '2026-11-20'), { kind: 'tidak-ada' })
 assert.deepEqual(aksesBeritaAcara(p, 'C', new Set(), '2026-11-20'), { kind: 'tidak-ada' })
 assert.deepEqual(aksesBeritaAcara(null, 'A', new Set(), '2026-11-20'), { kind: 'tidak-ada' })
 assert.deepEqual(aksesBeritaAcara({ ...p, jenis: 'sidang' }, 'A', new Set(), '2026-11-20'), { kind: 'tidak-ada' })
@@ -83,6 +77,7 @@ const pras = [
   { id: 'p2', npm: '1', tanggal: '2026-11-01', created_at: '2026-09-02T00:00:00Z' },
   { id: 'p3', npm: '3', tanggal: '2026-11-01', created_at: '2026-09-01T00:00:00Z' },
   { id: 'p4', npm: '3', tanggal: '2026-11-01', created_at: '2026-09-05T00:00:00Z' },
+  { id: 'p5', npm: '5', tanggal: '2026-11-01', created_at: '2026-09-01T00:00:00Z' },
 ]
 const isi = [
   { defense_id: 'p1', peran: 'pendamping' as const, hasil: 'tidak_layak' as const },
@@ -90,13 +85,17 @@ const isi = [
   { defense_id: 'p2', peran: 'pembahas' as const, hasil: 'layak_revisi' as const },
   { defense_id: 'p3', peran: 'pendamping' as const, hasil: 'layak' as const },
   { defense_id: 'p3', peran: 'pembahas' as const, hasil: 'layak' as const },
+  { defense_id: 'p5', peran: 'pembahas' as const, hasil: 'layak' as const }, // filled before the pendamping-only rule
 ]
-assert.equal(statusPrasidang('1', pras, isi, []), 'layak_revisi', 'the latest prasidang decides')
+assert.equal(statusPrasidang('1', pras, isi, []), 'layak', 'the latest prasidang decides; its pendamping alone, an old pembahas row is ignored')
+assert.equal(statusPrasidang('5', pras, isi, []), 'belum_lengkap', 'a pembahas row alone is not a verdict')
 assert.equal(statusPrasidang('2', pras, isi, []), 'tidak_ada')
 assert.equal(statusPrasidang('2', pras, isi, [{ npm: '2', prasidang_id: null, hasil: 'layak' }]), 'layak', 'override with no prasidang')
 assert.equal(statusPrasidang('3', pras, isi, []), 'belum_lengkap', 'same date: the later created one (p4) decides')
-assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p1', hasil: 'layak' }]), 'layak_revisi', 'an override for an older prasidang is ignored')
-assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p2', hasil: 'layak' }]), 'layak', 'an override for the latest wins')
+assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p1', hasil: 'layak_revisi' }]), 'layak', 'an override for an older prasidang is ignored')
+assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p2', hasil: 'layak_revisi' }]), 'layak_revisi', 'an override for the latest wins')
+const rekap = buildRekapPrasidang(pras.map((x) => ({ ...x, nama_mahasiswa: '', judul_skripsi: '' })), isi, [], new Set())
+assert.deepEqual(rekap.map((r) => r.status), ['tidak_layak', 'layak', 'layak', 'belum_lengkap', 'belum_lengkap'], 'rekap: each prasidang by its pendamping')
 
 // ---- DB messages written for people pass through humanDbError unchanged
 for (const m of [

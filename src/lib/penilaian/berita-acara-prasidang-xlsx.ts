@@ -3,7 +3,7 @@ import { tanggalPanjang } from '@/lib/hari'
 import type { BeritaAcara } from './data'
 import { HASIL_LABEL, PERAN_PRASIDANG, PERAN_PRASIDANG_LABEL, STATUS_LABEL } from './prasidang'
 
-/** Both berita acara of one S1 prasidang, as the staff page shows them: A4 portrait, one sheet. */
+/** The Pembimbing Pendamping's berita acara of one S1 prasidang, as the staff page shows them: A4 portrait, one sheet. */
 export async function buildBeritaAcaraPrasidangXlsx(d: BeritaAcara): Promise<Uint8Array<ArrayBuffer>> {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Berita Acara Prasidang', { pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } })

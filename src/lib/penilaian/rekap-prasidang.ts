@@ -1,4 +1,4 @@
-import { gabungHasil, type Hasil, type PeranPrasidang, type StatusPrasidang } from './prasidang'
+import { type Hasil, type PeranPrasidang, type StatusPrasidang } from './prasidang'
 
 type PrasidangIn = { id: string; npm: string; tanggal: string; created_at: string }
 type IsianIn = { defense_id: string; peran: PeranPrasidang; hasil: Hasil }
@@ -20,9 +20,12 @@ export function statusPrasidang(npm: string, prasidang: PrasidangIn[], isian: Is
   const k = keputusan.find((x) => x.npm === npm && x.prasidang_id === (p?.id ?? null))
   if (k) return k.hasil
   if (!p) return 'tidak_ada'
-  const h = (peran: PeranPrasidang) => isian.find((x) => x.defense_id === p.id && x.peran === peran)?.hasil ?? null
-  return gabungHasil(h('pendamping'), h('pembahas'))
+  return hasilPendamping(p.id, isian)
 }
+
+/** A prasidang's verdict: its Pembimbing Pendamping's berita acara (an old pembahas row is ignored). */
+const hasilPendamping = (defenseId: string, isian: IsianIn[]): StatusPrasidang =>
+  isian.find((x) => x.defense_id === defenseId && x.peran === 'pendamping')?.hasil ?? 'belum_lengkap'
 
 export type RekapPrasidang = {
   defenseId: string
@@ -30,26 +33,22 @@ export type RekapPrasidang = {
   npm: string
   nama: string
   judul: string
-  pendamping: { nama: string; hasil: Hasil | null }
-  pembahas: { nama: string; hasil: Hasil | null }
-  gabungan: StatusPrasidang
+  status: StatusPrasidang
   keputusan: { hasil: Hasil; alasan: string } | null
   adaSidang: boolean
 }
 
-type DefenseIn = PrasidangIn & { nama_mahasiswa: string; judul_skripsi: string; pembimbing_kode: string | null; penguji_kode: string | null }
+type DefenseIn = PrasidangIn & { nama_mahasiswa: string; judul_skripsi: string }
 
-/** One row per S1 prasidang of the year, in the order given (the SQL query sorts them). gabungan is this prasidang's own pair; keputusan only if it is for this one. */
+/** One row per S1 prasidang of the year, in the order given (the SQL query sorts them). status is this prasidang's own berita acara; keputusan only if it is for this one. */
 export function buildRekapPrasidang(
   defenses: DefenseIn[],
   isian: IsianIn[],
   keputusan: (KeputusanIn & { alasan: string })[],
   npmSidang: Set<string>,
-  namaDosen: (kode: string) => string,
 ): RekapPrasidang[] {
   return defenses
     .map((d): RekapPrasidang => {
-      const h = (peran: PeranPrasidang) => isian.find((x) => x.defense_id === d.id && x.peran === peran)?.hasil ?? null
       const k = keputusan.find((x) => x.npm === d.npm && x.prasidang_id === d.id)
       return {
         defenseId: d.id,
@@ -57,9 +56,7 @@ export function buildRekapPrasidang(
         npm: d.npm,
         nama: d.nama_mahasiswa,
         judul: d.judul_skripsi,
-        pendamping: { nama: d.pembimbing_kode ? namaDosen(d.pembimbing_kode) : '—', hasil: h('pendamping') },
-        pembahas: { nama: d.penguji_kode ? namaDosen(d.penguji_kode) : '—', hasil: h('pembahas') },
-        gabungan: gabungHasil(h('pendamping'), h('pembahas')),
+        status: hasilPendamping(d.id, isian),
         keputusan: k ? { hasil: k.hasil, alasan: k.alasan } : null,
         adaSidang: npmSidang.has(d.npm),
       }

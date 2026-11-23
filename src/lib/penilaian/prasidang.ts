@@ -1,7 +1,8 @@
 import type { JenisPertanyaan, Pertanyaan } from './aturan'
-/** Berita Acara Prasidang (S1): two prasidang dosen, three fixed verdicts. Values match the DB checks. */
+/** Berita Acara Prasidang (S1): filled by the Pembimbing Pendamping alone, three fixed verdicts. Values match the DB checks. */
 export type Hasil = 'layak' | 'layak_revisi' | 'tidak_layak'
 export type StatusPrasidang = Hasil | 'belum_lengkap' | 'tidak_ada'
+// 'pembahas' stays only for rows filled before 2026-11-23; it no longer counts or can be filled.
 export type PeranPrasidang = 'pendamping' | 'pembahas'
 
 export const HASIL: Hasil[] = ['layak', 'layak_revisi', 'tidak_layak']
@@ -16,17 +17,11 @@ export const STATUS_LABEL: Record<StatusPrasidang, string> = {
   tidak_ada: 'Belum prasidang',
 }
 
-/** Pendamping = defenses.pembimbing_kode, Pembahas = defenses.penguji_kode. */
-export const PERAN_PRASIDANG: PeranPrasidang[] = ['pendamping', 'pembahas']
+/** Who fills the berita acara: Pendamping = defenses.pembimbing_kode. (Pembahas = penguji_kode only attends.) */
+export const PERAN_PRASIDANG: PeranPrasidang[] = ['pendamping']
 export const PERAN_PRASIDANG_LABEL: Record<PeranPrasidang, string> = {
   pendamping: 'Dosen Pembimbing Pendamping',
   pembahas: 'Dosen Pembahas',
-}
-
-/** Both dosen's verdicts combined; the worst one wins. Same rule as status_prasidang() in the DB. */
-export function gabungHasil(a: Hasil | null, b: Hasil | null): StatusPrasidang {
-  if (!a || !b) return 'belum_lengkap'
-  return HASIL[Math.max(HASIL.indexOf(a), HASIL.indexOf(b))]
 }
 
 /** Whether a sidang may be scheduled for this verdict. */

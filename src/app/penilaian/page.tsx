@@ -101,7 +101,7 @@ export default async function PenilaianSayaPage() {
         <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.02em]">Penilaian Saya</h1>
         <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">
           {dosen
-            ? 'Berita acara prasidang S1 tempat Anda menjadi Pembimbing Pendamping atau Pembahas, Sidang S1 tempat Anda menjadi penguji, dan Nilai Bimbingan mahasiswa yang Anda bimbing (dibuka setelah Ketua mengunci sidang).'
+            ? 'Berita acara prasidang S1 tempat Anda menjadi Pembimbing Pendamping, Sidang S1 tempat Anda menjadi penguji, dan Nilai Bimbingan mahasiswa yang Anda bimbing (dibuka setelah Ketua mengunci sidang).'
             : `Sidang S1 yang Anda uji pada ${tanggalPanjang(akunTanggal ?? '', false)}.`}
         </p>
 

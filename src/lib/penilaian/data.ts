@@ -224,7 +224,7 @@ export type BeritaAcara = {
 }
 
 /**
- * One S1 prasidang with both berita acara, the student's gate status and the override that applies.
+ * One S1 prasidang with its berita acara (isian.pendamping counts; an old pembahas row is ignored), the student's gate status and the override that applies.
  * Admin client, as loadPenilaian: callers authorize first and check the record (aksesBeritaAcara)
  * before showing or writing, and show a dosen only its own berita acara. Null = no such S1 prasidang.
  */

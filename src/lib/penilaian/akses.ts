@@ -13,7 +13,7 @@ export type DefenseRef = {
 export const todayJakarta = (now: Date = new Date()): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(now)
 
-// ---- Berita Acara Prasidang (S1): Pendamping = pembimbing_kode, Pembahas = penguji_kode.
+// ---- Berita Acara Prasidang (S1): filled by the Pendamping (pembimbing_kode) only.
 export type AksesBeritaAcara =
   | { kind: 'tidak-ada' }
   | { kind: 'belum-dibuka'; tanggal: string }
@@ -24,8 +24,8 @@ export const isPrasidangS1 = (s: { prodi: string; jenis: string }): boolean => s
 
 export function peranPrasidang(d: DefenseRef, kode: string): PeranPrasidang | null {
   if (!isPrasidangS1(d) || !kode) return null
+  // Only the Pembimbing Pendamping fills the berita acara; the Pembahas attends but does not (faculty, 2026-11-23).
   if (d.pembimbing_kode === kode) return 'pendamping'
-  if (d.penguji_kode === kode) return 'pembahas'
   return null
 }
 

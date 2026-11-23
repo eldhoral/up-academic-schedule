@@ -110,7 +110,7 @@ const O = 'https://x.test'
 const pr = (o: Partial<SidangItem> = {}) => sd({ jenis: 'prasidang', peran: 'pembimbing', ...o })
 const desc = (s: SidangItem, origin?: string) => buildEvents(base({ sidang: [s] }), origin)[0].description
 assert.equal(desc(pr(), O), `Berita acara: ${O}/berita-acara-prasidang/d1`, 'pembimbing on S1 prasidang: link')
-assert.equal(desc(pr({ peran: 'penguji' }), O), `Berita acara: ${O}/berita-acara-prasidang/d1`, 'penguji (Pembahas) on S1 prasidang: link')
+assert.equal(desc(pr({ peran: 'penguji' }), O), undefined, 'penguji (Pembahas) on S1 prasidang: no link, only the Pendamping fills')
 assert.equal(desc(pr({ link: 'https://drive.google.com/file/9' }), O), `https://drive.google.com/file/9\nBerita acara: ${O}/berita-acara-prasidang/d1`, 'materi first, then Berita acara')
 assert.equal(desc(pr()), undefined, 'no origin: no penilaian line')
 assert.equal(desc(pr({ prodi: 's2' }), O), undefined, 'S2 prasidang (seminar proposal) is not graded online')

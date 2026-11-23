@@ -66,11 +66,11 @@ export function publicOrigin(h: Headers): string {
 
 /**
  * Where this lecturer fills the item online, or null. One source for the page and the calendar.
- * S1 prasidang: the berita acara, for Pembimbing Pendamping (pembimbing) and Pembahas (penguji); eksternal does not.
+ * S1 prasidang: the berita acara, for the Pembimbing Pendamping (pembimbing) only; Pembahas and eksternal do not.
  * S1 sidang: grading, for all three examiners (Ketua, Anggota I = eksternal, Anggota II = pembimbing).
  */
 export const linkNilai = (s: Pick<SidangItem, 'id' | 'prodi' | 'jenis' | 'peran'>): string | null =>
-  bisaDinilaiSidang(s) ? penilaianSidangPath(s.id) : isPrasidangS1(s) && s.peran !== 'eksternal' ? beritaAcaraPath(s.id) : null
+  bisaDinilaiSidang(s) ? penilaianSidangPath(s.id) : isPrasidangS1(s) && s.peran === 'pembimbing' ? beritaAcaraPath(s.id) : null
 
 /**
  * The public page lists only today's prasidang and sidang (the calendar feed keeps every date), in two lists by jam.
