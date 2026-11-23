@@ -119,4 +119,19 @@ assert.equal(
   'Prasidang ini sudah diisi berita acaranya, sehingga tidak bisa dihapus.',
 )
 
+// ---- deleting a dosen still in use: say what holds it (each table that references lecturers)
+const hapusDosen = (c: string, t: string) =>
+  humanDbError({ code: '23503', message: `update or delete on table "lecturers" violates foreign key constraint "${c}" on table "${t}"` })
+assert.match(hapusDosen('students_pembimbing_1_kode_fkey', 'students'), /Dosen Pembimbing mahasiswa di Data Mahasiswa/)
+assert.match(hapusDosen('students_pembimbing_2_kode_fkey', 'students'), /Dosen Pembimbing mahasiswa di Data Mahasiswa/)
+assert.match(hapusDosen('defenses_penguji_kode_fkey', 'defenses'), /jadwal prasidang\/sidang/)
+assert.match(hapusDosen('profiles_kode_dosen_fkey', 'profiles'), /akun pengguna/)
+assert.match(hapusDosen('akun_eksternal_kode_dosen_fkey', 'akun_eksternal'), /akun penguji eksternal/)
+for (const t of ['nilai_bimbingan', 'nilai_sidang', 'berita_acara_prasidang']) assert.match(hapusDosen(`${t}_kode_dosen_fkey`, t), /sudah mengisi nilai atau berita acara/, t)
+// The same constraint on an insert (an unknown kode on a student) is not a dosen delete.
+assert.equal(
+  humanDbError({ code: '23503', message: 'insert or update on table "students" violates foreign key constraint "students_pembimbing_1_kode_fkey"' }),
+  'Data ini masih dipakai oleh data lain, sehingga tidak bisa dihapus atau diubah.',
+)
+
 console.log('berita acara: all checks passed')

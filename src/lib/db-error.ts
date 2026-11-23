@@ -20,6 +20,18 @@ const PESAN_DB = new Set<string>([
   'Sidang tidak ditemukan.',
 ])
 
+/** A dosen that can't be deleted, by the table that still references it (on delete restrict). */
+const NILAI_DOSEN = 'Dosen ini sudah mengisi nilai atau berita acara, sehingga tidak bisa dihapus.'
+const DOSEN_DIPAKAI: Record<string, string> = {
+  students: 'Dosen ini masih menjadi Dosen Pembimbing mahasiswa di Data Mahasiswa. Ganti Dosen Pembimbing mahasiswa tersebut terlebih dahulu.',
+  defenses: 'Dosen ini masih tercantum di jadwal prasidang/sidang. Ganti dosen atau hapus jadwal tersebut terlebih dahulu.',
+  profiles: 'Dosen ini masih memiliki akun pengguna. Hapus akunnya di halaman Pengguna terlebih dahulu.',
+  akun_eksternal: 'Dosen ini masih memiliki akun penguji eksternal. Hapus akunnya di halaman Pengguna terlebih dahulu.',
+  nilai_bimbingan: NILAI_DOSEN,
+  nilai_sidang: NILAI_DOSEN,
+  berita_acara_prasidang: NILAI_DOSEN,
+}
+
 /**
  * Turns a raw Postgres/Supabase error into wording a non-developer can act
  * on. `entity` names the thing that collided/is missing, e.g. "Kode mata
@@ -45,6 +57,9 @@ export function humanDbError(error: DbErrorLike, entity?: string): string {
     return 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.'
   }
   if (code === '23503' || lower.includes('violates foreign key constraint')) {
+    // Deleting a dosen: name what still holds it, by the referencing table.
+    const pemakai = /^update or delete on table "lecturers" .* on table "(\w+)"/.exec(lower)?.[1]
+    if (pemakai && pemakai in DOSEN_DIPAKAI) return DOSEN_DIPAKAI[pemakai]
     return 'Data ini masih dipakai oleh data lain, sehingga tidak bisa dihapus atau diubah.'
   }
   if (code === '23502' || lower.includes('violates not-null constraint')) {

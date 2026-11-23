@@ -182,9 +182,9 @@ async function main() {
   // humanDbError: the dosen lock trigger and the nilai_bimbingan FK get their own wording
   const fk = { code: '23503', message: 'update or delete on table "defenses" violates foreign key constraint "nilai_bimbingan_defense_id_fkey" on table "nilai_bimbingan"', details: 'Key (id)=(x) is still referenced from table "nilai_bimbingan".' }
   assert.equal(humanDbError(fk), 'Sidang ini sudah dinilai, sehingga tidak bisa dihapus.')
-  // deleting a graded lecturer hits nilai_bimbingan.kode_dosen: generic wording, not the prasidang one
+  // deleting a graded lecturer hits nilai_bimbingan.kode_dosen: the dosen wording, not the sidang one
   const fkDosen = { code: '23503', message: 'update or delete on table "lecturers" violates foreign key constraint "nilai_bimbingan_kode_dosen_fkey" on table "nilai_bimbingan"', details: 'Key (kode_dosen)=(X) is still referenced from table "nilai_bimbingan".' }
-  assert.match(humanDbError(fkDosen), /masih dipakai/)
+  assert.match(humanDbError(fkDosen), /Dosen ini sudah mengisi nilai/)
   assert.doesNotMatch(humanDbError(fkDosen), /Sidang/)
   assert.match(humanDbError({ code: '23503', message: 'violates foreign key constraint "schedules_x"' }), /masih dipakai/) // other FKs unchanged
   assert.doesNotMatch(humanDbError({ code: 'P0001', message: 'boom' }), /boom/) // other P0001 stays hidden
