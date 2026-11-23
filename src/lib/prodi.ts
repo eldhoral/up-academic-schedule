@@ -26,7 +26,7 @@ export const PRODI_CONFIG: Record<
     defense: { section: 'Prasidang & Sidang', prasidang: 'Prasidang', sidang: 'Sidang', judul: 'Judul skripsi' },
   },
   s2: {
-    label: 'S2 Psikologi Profesi',
+    label: 'S2 Psikologi',
     short: 'S2',
     semesters: 4,
     jenisKelas: ['reguler'],
