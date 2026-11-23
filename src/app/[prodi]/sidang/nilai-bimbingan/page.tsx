@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { EmptySheet } from '@/components/EmptySheet'
 import { PreviewTable, cell } from '@/components/preview'
 import { prodiParam } from '@/lib/prodi-server'
@@ -46,8 +46,7 @@ export default async function RekapBimbinganPage(props: PageProps<'/[prodi]/sida
   ]
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/sidang/nilai-bimbingan" prodi={prodi} />
+    <AppShell active="/sidang/nilai-bimbingan" prodi={prodi}>
       <div className="flex flex-col flex-1">
         <RekapBar years={years} ay={ay} bisaUnduh={rows.length > 0 || aktif} />
         {rows.length === 0 && !aktif ? (
@@ -79,6 +78,6 @@ export default async function RekapBimbinganPage(props: PageProps<'/[prodi]/sida
           </>
         )}
       </div>
-    </div>
+    </AppShell>
   )
 }

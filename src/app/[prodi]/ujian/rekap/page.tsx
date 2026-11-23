@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { prodiParam } from '@/lib/prodi-server'
 import { buildRekapPengawasData } from './rekap-pengawas-data'
 import { RekapPengawasClient } from './RekapPengawasClient'
@@ -9,8 +9,7 @@ export default async function RekapPengawasPage(props: PageProps<'/[prodi]/ujian
   const data = await buildRekapPengawasData(prodi, { ay: searchParams.ay as string | undefined, ujian: searchParams.ujian as string | undefined, pengawas: searchParams.pengawas as string | undefined })
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/ujian/rekap" prodi={prodi} />
+    <AppShell active="/ujian/rekap" prodi={prodi}>
       <RekapPengawasClient
         academicYears={data.academicYears}
         context={{ ...data.context, pengawas: data.pengawas }}
@@ -20,6 +19,6 @@ export default async function RekapPengawasPage(props: PageProps<'/[prodi]/ujian
         headerLines={data.headerLines}
         doc={{ namaPenandatangan: data.namaPenandatangan, jabatanPenandatangan: data.jabatanPenandatangan }}
       />
-    </div>
+    </AppShell>
   )
 }

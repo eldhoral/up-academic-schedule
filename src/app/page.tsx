@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { ResetJadwalButton } from '@/components/ResetJadwalButton'
 import { getCurrentUser } from '@/lib/roles'
 import { accessibleProdi, PRODI_CONFIG } from '@/lib/prodi'
@@ -28,8 +28,7 @@ export default async function MenuPage() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/" />
+    <AppShell active="/">
       <main className="flex-1 w-full max-w-[62rem] mx-auto px-[1.3rem] py-[1.6rem]">
         {/* The campus, as on the login page: a quiet band, not a hero. It sets the place;
             the register below stays the focus. */}
@@ -97,7 +96,7 @@ export default async function MenuPage() {
           <AdminLink href="/log-aktivitas">Log Aktivitas</AdminLink>
         </nav>
       </main>
-    </div>
+    </AppShell>
   )
 }
 

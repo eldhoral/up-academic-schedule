@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { ACTION_LABEL, TABLE_LABEL, tableLabel, type AuditAction, type AuditRow } from '@/lib/audit-log'
@@ -72,8 +72,7 @@ export default async function RiwayatPage(props: PageProps<'/log-aktivitas/riway
   const actors = new Set(rows.map((r) => r.actor_email ?? 'Sistem')).size
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/log-aktivitas" />
+    <AppShell active="/log-aktivitas">
       <main className="flex-1 p-[1.3rem] max-w-[900px] w-full mx-auto">
         <div className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem]">
           <div className="pb-[1rem] border-b border-[var(--garis)] mb-[1.2rem]">
@@ -182,7 +181,7 @@ export default async function RiwayatPage(props: PageProps<'/log-aktivitas/riway
           )}
         </div>
       </main>
-    </div>
+    </AppShell>
   )
 }
 

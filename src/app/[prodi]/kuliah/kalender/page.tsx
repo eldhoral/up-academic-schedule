@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { clampSemester, parseJenisKelas } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
@@ -25,9 +25,8 @@ export default async function KalenderPage(props: PageProps<'/[prodi]/kuliah/kal
   const schedules = await fetchSchedulesForContext(context)
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/kuliah/kalender" prodi={prodi} />
+    <AppShell active="/kuliah/kalender" prodi={prodi}>
       <KalenderClient academicYears={years} schedules={schedules} context={context} />
-    </div>
+    </AppShell>
   )
 }

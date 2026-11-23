@@ -33,7 +33,7 @@ export function sidebarModel({ active, prodi, role, prodiAccess }: { active: str
     // /sidang/ (Kalender, Cetak) belongs to the Jadwal item.
     let anak: ItemSidebar['anak']
     if (p === 's1') {
-      // Same rule AppHeader uses for the Penilaian dropdown's Akun Penguji Eksternal.
+      // Same rule the old header used for the Penilaian dropdown's Akun Penguji Eksternal.
       const children = sectionOf('/sidang', 's1', canManage(role), canWrite(role) && canAccessProdi(prodiAccess, 's1'))!.group!.items
       anak = children.map((child) => ({ ...child, aktif: current === child.href }))
     }

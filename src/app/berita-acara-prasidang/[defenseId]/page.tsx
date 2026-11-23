@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AkunLain } from '@/components/AkunLain'
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { tanggalPanjang } from '@/lib/hari'
 import { aksesBeritaAcara, peranPrasidang, todayJakarta } from '@/lib/penilaian/akses'
@@ -46,8 +46,7 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
   if (peranSaya) fakta.push(['Peran Anda', `${data.dosen[peranSaya]} (${PERAN_PRASIDANG_LABEL[peranSaya]})`])
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active={path} />
+    <AppShell active={path}>
       <main className="flex-1 w-full max-w-[52rem] mx-auto px-[1.3rem] py-[1.6rem]">
         {dosen && <Link href="/penilaian" className="text-[0.87rem] text-[var(--tinta-2)] hover:underline">‹ Penilaian Saya</Link>}
         <h1 className="m-0 mt-[0.4rem] text-[1.6rem] font-semibold tracking-[-0.02em]">Berita Acara Prasidang</h1>
@@ -121,7 +120,7 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
           </>
         )}
       </main>
-    </div>
+    </AppShell>
   )
 }
 

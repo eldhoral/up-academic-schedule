@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { lecturerDisplayName } from '@/lib/import/tables'
@@ -144,8 +144,7 @@ export default async function KalenderPage(props: PageProps<'/kalender'>) {
   const mingguParam = typeof rawParams.minggu === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawParams.minggu) ? rawParams.minggu : null
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/kalender" />
+    <AppShell active="/kalender">
       <KalenderClient
         years={years.map((y) => ({ id: y.id, label: y.label }))}
         ay={chosen?.id ?? ''}
@@ -158,6 +157,6 @@ export default async function KalenderPage(props: PageProps<'/kalender'>) {
         initialWeek={mingguParam}
         loadError={firstError ? `Kalender gagal dimuat: ${humanDbError(firstError)}` : null}
       />
-    </div>
+    </AppShell>
   )
 }

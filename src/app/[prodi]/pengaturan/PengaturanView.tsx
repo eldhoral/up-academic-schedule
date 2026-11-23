@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser, canManage } from '@/lib/roles'
 import { PRODI_CONFIG, type Prodi } from '@/lib/prodi'
@@ -16,8 +16,7 @@ export async function PengaturanView({ prodi, bagian }: { prodi: Prodi; bagian: 
   ])
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active={pengaturanHref(bagian.slug)} prodi={prodi} />
+    <AppShell active={pengaturanHref(bagian.slug)} prodi={prodi}>
       <main className="flex-1 p-[1.3rem] max-w-[900px] w-full mx-auto">
         <div className="mb-[1.2rem]">
           <h1 className="text-[1.3rem] font-semibold">
@@ -34,6 +33,6 @@ export async function PengaturanView({ prodi, bagian }: { prodi: Prodi; bagian: 
           fotoLogin={bagian.fotoLogin}
         />
       </main>
-    </div>
+    </AppShell>
   )
 }
