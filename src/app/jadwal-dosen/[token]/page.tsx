@@ -6,7 +6,7 @@ import { hariLabel, tanggalPanjang } from '@/lib/hari'
 import { todayJakarta } from '@/lib/penilaian/akses'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { defenseLinkLabel } from '@/app/[prodi]/sidang/defense-types'
-import { PROGRAM_LABEL, SIDANG_PERAN_LABEL, linkNilai, publicOrigin, sidangHariIni, sidangJudul, ujianPeranText } from '../events'
+import { PROGRAM_LABEL, SIDANG_HARI_MAJU, SIDANG_PERAN_LABEL, linkNilai, publicOrigin, sidangHariIni, sidangJudul, ujianPeranText } from '../events'
 import { loadJadwalDosen } from '../jadwal-data'
 
 export const metadata: Metadata = { title: 'Jadwal Dosen', robots: { index: false, follow: false } }
@@ -23,7 +23,7 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
   const upcomingFirst = <T extends { tanggal: string }>(items: T[]) => [...items.filter((i) => i.tanggal >= today), ...items.filter((i) => i.tanggal < today)]
   const term = jadwal.term
   const hasTermDates = !!(term?.mulai && term?.selesai)
-  // Only today's prasidang and sidang; other dates live in the calendar feed.
+  // Today's prasidang, sidang up to SIDANG_HARI_MAJU days ahead (to review the materi); other dates live in the calendar feed.
   const hariIni = sidangHariIni(jadwal.sidang, today)
 
   return (
@@ -88,8 +88,8 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
         {(['prasidang', 'sidang'] as const).map((jenis) => (
           <Section
             key={jenis}
-            title={jenis === 'prasidang' ? 'Prasidang hari ini' : 'Sidang hari ini'}
-            empty={hariIni[jenis].length === 0 ? `Tidak ada jadwal ${jenis} hari ini.` : null}
+            title={jenis === 'prasidang' ? 'Prasidang hari ini' : `Sidang hari ini dan ${SIDANG_HARI_MAJU} hari ke depan`}
+            empty={hariIni[jenis].length === 0 ? (jenis === 'prasidang' ? 'Tidak ada jadwal prasidang hari ini.' : `Tidak ada jadwal sidang dalam ${SIDANG_HARI_MAJU} hari ke depan.`) : null}
           >
             <ul className="list-none m-0 p-0 divide-y divide-[var(--garis)]">
               {hariIni[jenis].map((s) => (
@@ -99,7 +99,8 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
                   what={`${sidangJudul(s)} · ${s.nama_mahasiswa}`}
                   detail={`${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${PRODI_CONFIG[s.prodi].short}${s.tempat ? ` · ${s.tempat}` : ''}`}
                   link={s.link || undefined}
-                  nilaiHref={linkNilai(s) ?? undefined}
+                  // Grading opens on the sidang day; earlier rows carry only the materi.
+                  nilaiHref={s.tanggal === today ? (linkNilai(s) ?? undefined) : undefined}
                   nilaiLabel={s.jenis === 'prasidang' ? 'Isi Berita Acara' : 'Beri Nilai'}
                 />
               ))}

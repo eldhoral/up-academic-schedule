@@ -219,8 +219,17 @@ assert.equal(publicOrigin(new Headers({ host: 'krs.up.ac.id' })), 'https://krs.u
   ]
   const h = sidangHariIni(items, T)
   assert.deepEqual(h.prasidang.map((x) => x.id), ['p-hari-ini', 'sempro-s2'], 'today only; S2 seminar proposal with prasidang')
-  assert.deepEqual(h.sidang.map((x) => x.id), ['s-pagi', 's-siang'], 'today only, by jam')
+  assert.deepEqual(h.sidang.map((x) => x.id), ['s-pagi', 's-siang'], 'today, by jam')
   assert.deepEqual(sidangHariIni(items, '2026-11-22'), { prasidang: [], sidang: [] })
+  // Sidang: today through 7 days ahead (to review the materi), by date then jam; prasidang stays today only.
+  const maju = sidangHariIni([
+    ...items,
+    sd({ id: 's-h7', jenis: 'sidang', tanggal: '2026-11-27' }),
+    sd({ id: 's-h8', jenis: 'sidang', tanggal: '2026-11-28' }),
+    sd({ id: 's-besok', jenis: 'sidang', tanggal: '2026-11-21', jam_mulai: '07:00' }),
+  ], T)
+  assert.deepEqual(maju.sidang.map((x) => x.id), ['s-pagi', 's-siang', 's-besok', 's-h7'], 'not yesterday, not day 8')
+  assert.deepEqual(maju.prasidang.map((x) => x.id), ['p-hari-ini', 'sempro-s2'], 'prasidang tomorrow not listed')
 }
 
 console.log('jadwal dosen: all checks passed')

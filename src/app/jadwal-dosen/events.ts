@@ -72,13 +72,20 @@ export function publicOrigin(h: Headers): string {
 export const linkNilai = (s: Pick<SidangItem, 'id' | 'prodi' | 'jenis' | 'peran'>): string | null =>
   bisaDinilaiSidang(s) ? penilaianSidangPath(s.id) : isPrasidangS1(s) && s.peran === 'pembimbing' ? beritaAcaraPath(s.id) : null
 
+/** Sidang shows this many days ahead on the public page, so examiners can review the materi first (faculty request, 2026-11-23). */
+export const SIDANG_HARI_MAJU = 7
+
 /**
- * The public page lists only today's prasidang and sidang (the calendar feed keeps every date), in two lists by jam.
- * Prasidang holds S2's seminar proposal too; sidang holds sidang tesis.
+ * The public page lists today's prasidang, and sidang from today to SIDANG_HARI_MAJU days ahead (the calendar feed
+ * keeps every date), in two lists by date and jam. Prasidang holds S2's seminar proposal too; sidang holds sidang tesis.
  */
 export function sidangHariIni(items: SidangItem[], today: string): { prasidang: SidangItem[]; sidang: SidangItem[] } {
-  const hariIni = items.filter((s) => s.tanggal === today).sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai))
-  return { prasidang: hariIni.filter((s) => s.jenis === 'prasidang'), sidang: hariIni.filter((s) => s.jenis === 'sidang') }
+  const akhir = addDays(today, SIDANG_HARI_MAJU)
+  const urut = [...items].sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.jam_mulai.localeCompare(b.jam_mulai))
+  return {
+    prasidang: urut.filter((s) => s.jenis === 'prasidang' && s.tanggal === today),
+    sidang: urut.filter((s) => s.jenis === 'sidang' && s.tanggal >= today && s.tanggal <= akhir),
+  }
 }
 
 /** The calendar line label for linkNilai. */
