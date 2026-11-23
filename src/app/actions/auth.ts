@@ -37,6 +37,9 @@ async function logAuthEvent(
   }
 }
 
+/** A path on this site. '//host' and '/\\host' are rejected: browsers read both as another site. */
+const pathSendiri = (p: unknown): p is string => typeof p === 'string' && /^\/(?![/\\])/.test(p)
+
 export async function signInAction(
   prevState: AuthState | null,
   formData: FormData
@@ -91,8 +94,7 @@ export async function signInAction(
 
   await logAuthEvent('LOGIN', data.user.id, data.user.email ?? email)
 
-  const destination = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`
-  redirect(destination)
+  redirect(pathSendiri(redirectTo) ? redirectTo : '/')
 }
 
 export async function resetPasswordAction(email: string): Promise<AuthState> {
@@ -157,7 +159,8 @@ export async function updatePasswordAction(
   return { success: true, message: 'Kata sandi berhasil disimpan.' }
 }
 
-export async function signOutAction() {
+/** formData.redirectTo (optional): the page to return to after signing in again. */
+export async function signOutAction(formData?: FormData) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -165,5 +168,6 @@ export async function signOutAction() {
   if (user) await logAuthEvent('LOGOUT', user.id, user.email ?? '')
 
   await supabase.auth.signOut()
-  redirect('/masuk')
+  const back = formData?.get('redirectTo')
+  redirect(pathSendiri(back) ? `/masuk?redirectTo=${encodeURIComponent(back)}` : '/masuk')
 }

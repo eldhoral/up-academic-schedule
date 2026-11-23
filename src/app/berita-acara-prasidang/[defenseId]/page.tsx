@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { redirect } from 'next/navigation'
+import { AkunLain } from '@/components/AkunLain'
 import { AppHeader } from '@/components/AppHeader'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { tanggalPanjang } from '@/lib/hari'
@@ -23,14 +24,14 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
   if (!user) redirect(`/masuk?redirectTo=${encodeURIComponent(path)}`)
   // An examiner is never staff here; an EKSTERNAL never fills a berita acara (the proxy keeps it away too).
   const dosen = isPenguji(user.role)
-  if (dosen && (user.role !== 'DOSEN' || !user.kodeDosen)) notFound()
+  if (dosen && (user.role !== 'DOSEN' || !user.kodeDosen)) return <AkunLain email={user.email} path={path} />
 
   const data = await loadBeritaAcara(defenseId)
   const akses = dosen
     ? aksesBeritaAcara(data?.defense ?? null, user.kodeDosen!, new Set(Object.keys(data?.isian ?? {}) as PeranPrasidang[]), todayJakarta())
     : null
-  // Not this dosen's S1 prasidang (or none at all): 404 with no hint the record exists.
-  if (!data || akses?.kind === 'tidak-ada') notFound()
+  // Not this dosen's S1 prasidang (or none at all): the signed-in-as card, with no hint the record exists.
+  if (!data || akses?.kind === 'tidak-ada') return <AkunLain email={user.email} path={path} />
 
   const { defense, aturan } = data
   const fakta: [string, React.ReactNode][] = [

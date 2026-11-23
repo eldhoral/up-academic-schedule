@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { redirect } from 'next/navigation'
+import { AkunLain } from '@/components/AkunLain'
 import { AppHeader } from '@/components/AppHeader'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { canAccessProdi } from '@/lib/prodi'
@@ -41,7 +42,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   // A DOSEN or EKSTERNAL is an examiner, never staff, even when it can't grade (no kode, no day account).
   const penguji = isPenguji(user.role)
   const saya = penguji ? await identitasPenguji(user) : null
-  if (penguji ? !saya : !canAccessProdi(user.prodiAccess, 's1')) notFound()
+  if (penguji ? !saya : !canAccessProdi(user.prodiAccess, 's1')) return <AkunLain email={user.email} path={path} />
 
   const data = await loadSidang(defenseId)
   const akses = saya
@@ -52,8 +53,8 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
       akunTanggal: saya.akunTanggal,
     })
     : null
-  // Not this examiner's S1 sidang (or another day's, or none at all): 404 with no hint the record exists.
-  if (!data || akses?.kind === 'tidak-ada') notFound()
+  // Not this examiner's S1 sidang (or another day's, or none at all): the signed-in-as card, with no hint the record exists.
+  if (!data || akses?.kind === 'tidak-ada') return <AkunLain email={user.email} path={path} />
 
   const { defense, aturan, hasil } = data
   // A locked sidang's letters come from its frozen table. If that copy is unreadable we say so (as the recap does)
