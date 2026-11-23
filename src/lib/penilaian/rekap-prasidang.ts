@@ -1,7 +1,8 @@
 import { type Hasil, type PeranPrasidang, type StatusPrasidang } from './prasidang'
+import { parseDetailEmail, type DetailEmail } from './rekap'
 
 type PrasidangIn = { id: string; npm: string; tanggal: string; created_at: string }
-type IsianIn = { defense_id: string; peran: PeranPrasidang; hasil: Hasil }
+type IsianIn = { defense_id: string; peran: PeranPrasidang; hasil: Hasil; email_status?: string; email_detail?: unknown; submitted_at?: string }
 type KeputusanIn = { npm: string; prasidang_id: string | null; hasil: Hasil }
 
 /** The student's latest S1 prasidang: by tanggal, then created_at (as the DB orders it). */
@@ -36,6 +37,8 @@ export type RekapPrasidang = {
   status: StatusPrasidang
   keputusan: { hasil: Hasil; alasan: string } | null
   adaSidang: boolean
+  /** The catatan email of the Pendamping's berita acara; null while it is not filled. */
+  email: { status: string; detail: DetailEmail[]; submittedAt: string } | null
 }
 
 type DefenseIn = PrasidangIn & { nama_mahasiswa: string; judul_skripsi: string }
@@ -50,6 +53,7 @@ export function buildRekapPrasidang(
   return defenses
     .map((d): RekapPrasidang => {
       const k = keputusan.find((x) => x.npm === d.npm && x.prasidang_id === d.id)
+      const ba = isian.find((x) => x.defense_id === d.id && x.peran === 'pendamping')
       return {
         defenseId: d.id,
         tanggal: d.tanggal,
@@ -59,6 +63,7 @@ export function buildRekapPrasidang(
         status: hasilPendamping(d.id, isian),
         keputusan: k ? { hasil: k.hasil, alasan: k.alasan } : null,
         adaSidang: npmSidang.has(d.npm),
+        email: ba?.email_status ? { status: ba.email_status, detail: parseDetailEmail(ba.email_detail), submittedAt: ba.submitted_at ?? '' } : null,
       }
     })
 }

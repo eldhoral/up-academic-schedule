@@ -96,6 +96,13 @@ assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p1', ha
 assert.equal(statusPrasidang('1', pras, isi, [{ npm: '1', prasidang_id: 'p2', hasil: 'layak_revisi' }]), 'layak_revisi', 'an override for the latest wins')
 const rekap = buildRekapPrasidang(pras.map((x) => ({ ...x, nama_mahasiswa: '', judul_skripsi: '' })), isi, [], new Set())
 assert.deepEqual(rekap.map((r) => r.status), ['tidak_layak', 'layak', 'layak', 'belum_lengkap', 'belum_lengkap'], 'rekap: each prasidang by its pendamping')
+// Email status comes from the Pendamping's row only; no row (or no status selected) = null.
+const rekapEmail = buildRekapPrasidang([{ ...pras[0], nama_mahasiswa: '', judul_skripsi: '' }], [
+  { defense_id: pras[0].id, peran: 'pembahas', hasil: 'layak', email_status: 'terkirim' },
+  { defense_id: pras[0].id, peran: 'pendamping', hasil: 'layak', email_status: 'sebagian', email_detail: [{ alamat: 'x@up.id', status: 'gagal', alasan: 'y' }, 'rusak'], submitted_at: '2026-11-23T01:00:00Z' },
+], [], new Set())
+assert.deepEqual(rekapEmail[0].email, { status: 'sebagian', detail: [{ alamat: 'x@up.id', status: 'gagal', alasan: 'y' }], submittedAt: '2026-11-23T01:00:00Z' })
+assert.equal(rekap[3].email, null)
 
 // ---- DB messages written for people pass through humanDbError unchanged
 for (const m of [
