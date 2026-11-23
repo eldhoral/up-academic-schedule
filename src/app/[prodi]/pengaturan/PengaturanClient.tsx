@@ -34,6 +34,7 @@ const GROUP_LABEL: Record<string, string> = {
   surat: 'Surat Penugasan',
   ujian: 'Jadwal Ujian',
   email: 'Email Revisi Sidang',
+  sesi: 'Sesi Login',
 }
 
 const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {

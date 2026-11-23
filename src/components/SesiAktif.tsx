@@ -1,21 +1,22 @@
 'use client'
 
 import { useEffect } from 'react'
-import { AKTIF_COOKIE, AKTIF_DETIK } from '@/lib/sesi-aktif'
+import { AKTIF_COOKIE, menitIdle } from '@/lib/sesi-aktif'
 
-const ada = () => document.cookie.split('; ').some((c) => c.startsWith(`${AKTIF_COOKIE}=`))
+/** The cookie's value (the idle limit in minutes), or null once it has expired. */
+const nilai = () => document.cookie.split('; ').find((c) => c.startsWith(`${AKTIF_COOKIE}=`))?.slice(AKTIF_COOKIE.length + 1) ?? null
 
 /**
- * Renews the idle cookie on activity, at most once a minute (so the real limit is 29–30 minutes). Once it has expired,
+ * Renews the idle cookie on activity, at most once a minute (so the real limit is up to a minute short). Once it has expired,
  * the page reloads and the proxy signs the session out (a public page just reloads). Inert when the cookie was absent
  * on load: nobody signed in.
  */
 export function SesiAktif() {
   useEffect(() => {
-    if (!ada()) return
+    if (nilai() === null) return
     let terakhir = 0
     const habis = () => {
-      if (ada()) return false
+      if (nilai() !== null) return false
       window.location.reload()
       return true
     }
@@ -23,7 +24,8 @@ export function SesiAktif() {
       // Activity after expiry must not bring the cookie back.
       if (habis() || Date.now() - terakhir < 60_000) return
       terakhir = Date.now()
-      document.cookie = `${AKTIF_COOKIE}=1; Max-Age=${AKTIF_DETIK}; Path=/; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`
+      const menit = menitIdle(nilai())
+      document.cookie = `${AKTIF_COOKIE}=${menit}; Max-Age=${menit * 60}; Path=/; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`
     }
     const cek = () => void habis()
     const events = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll', 'mousemove'] as const

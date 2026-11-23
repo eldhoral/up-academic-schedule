@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { AKTIF_COOKIE, aktifCookieOptions } from '@/lib/sesi-aktif'
+import { loadMenitIdle } from '@/lib/settings'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -15,7 +16,8 @@ export async function GET(request: Request) {
       const isLocalEnv = process.env.NODE_ENV === 'development'
       const res = NextResponse.redirect(!isLocalEnv && forwardedHost ? `https://${forwardedHost}${next}` : `${origin}${next}`)
       // A fresh session starts its idle clock here, or the proxy would sign it straight out.
-      res.cookies.set(AKTIF_COOKIE, '1', aktifCookieOptions(!isLocalEnv))
+      const menit = await loadMenitIdle(supabase)
+      res.cookies.set(AKTIF_COOKIE, String(menit), aktifCookieOptions(menit, !isLocalEnv))
       return res
     }
   }

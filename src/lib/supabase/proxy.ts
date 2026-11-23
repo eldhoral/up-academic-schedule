@@ -54,7 +54,7 @@ export async function updateSession(request: NextRequest) {
 
     const isMasuk = pathname === '/masuk'
 
-    // 30 minutes with no activity in the browser: the idle cookie expired, so the session ends (see sesi-aktif.ts).
+    // No activity in the browser for the Pengaturan idle limit: the idle cookie expired, so the session ends (see sesi-aktif.ts).
     if (user && !request.cookies.has(AKTIF_COOKIE)) {
       await supabase.auth.signOut()
       if (isMasuk) return supabaseResponse

@@ -11,6 +11,7 @@ export const BAGIAN_PENGATURAN: BagianPengaturan[] = [
   { slug: 'ujian', label: 'Jadwal Ujian', groups: ['ujian'] },
   { slug: 'sidang', label: 'Jadwal Sidang', groups: ['sidang', 'email'] },
   { slug: 'foto-login', label: 'Foto Login', groups: [], fotoLogin: true },
+  { slug: 'sesi', label: 'Sesi Login', groups: ['sesi'] },
 ]
 
 /** '/pengaturan' or '/pengaturan/<slug>', prodi-less like the nav tabs. */

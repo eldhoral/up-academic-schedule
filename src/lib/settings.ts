@@ -2,6 +2,7 @@ import { cache } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import type { Prodi } from '@/lib/prodi'
+import { menitIdle } from '@/lib/sesi-aktif'
 
 export type SettingsMap = Record<string, string>
 
@@ -20,6 +21,12 @@ export async function loadSettings(supabase: SupabaseClient, prodi: Prodi, withI
 
 /** Read once per request: a page and the helpers it calls share one query. */
 export const getSettings = cache(async (prodi: Prodi, withImages = false) => loadSettings(await createClient(), prodi, withImages))
+
+/** Pengaturan > Sesi Login, read with a signed-in client at sign-in; a missing row or failed read is the default. */
+export async function loadMenitIdle(supabase: SupabaseClient): Promise<number> {
+  const { data } = await supabase.from('settings').select('value').eq('key', 'sesi_idle_menit').eq('prodi', 'all').maybeSingle()
+  return menitIdle(data?.value as string | undefined)
+}
 
 export function settingInt(settings: SettingsMap, key: string, fallback: number): number {
   const parsed = parseInt(settings[key], 10)
