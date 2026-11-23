@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { AKTIF_COOKIE, aktifCookieOptions } from '@/lib/sesi-aktif'
 import { humanDbError } from '@/lib/db-error'
 import { emailLogin } from '@/lib/penilaian/akun-eksternal'
 import { eksternalAktif } from '@/lib/penilaian/akses'
@@ -93,6 +94,7 @@ export async function signInAction(
   }
 
   await logAuthEvent('LOGIN', data.user.id, data.user.email ?? email)
+  ;(await cookies()).set(AKTIF_COOKIE, '1', aktifCookieOptions(process.env.NODE_ENV === 'production'))
 
   redirect(pathSendiri(redirectTo) ? redirectTo : '/')
 }

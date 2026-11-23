@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { AKTIF_COOKIE, aktifCookieOptions } from '@/lib/sesi-aktif'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -12,13 +13,10 @@ export async function GET(request: Request) {
     if (!error) {
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isLocalEnv = process.env.NODE_ENV === 'development'
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
-      }
+      const res = NextResponse.redirect(!isLocalEnv && forwardedHost ? `https://${forwardedHost}${next}` : `${origin}${next}`)
+      // A fresh session starts its idle clock here, or the proxy would sign it straight out.
+      res.cookies.set(AKTIF_COOKIE, '1', aktifCookieOptions(!isLocalEnv))
+      return res
     }
   }
 

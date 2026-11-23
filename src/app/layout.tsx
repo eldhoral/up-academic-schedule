@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
+import { SesiAktif } from '@/components/SesiAktif'
 
 const ibmPlexSans = IBM_Plex_Sans({
   variable: '--font-sans',
@@ -28,7 +29,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable}`}>
-      <body className="min-h-screen flex flex-col">{children}</body>
+      <body className="min-h-screen flex flex-col">
+        <SesiAktif />
+        {children}
+      </body>
     </html>
   )
 }

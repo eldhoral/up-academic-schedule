@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { eksternalAktif, halamanDosen } from '@/lib/penilaian/akses'
+import { AKTIF_COOKIE } from '@/lib/sesi-aktif'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -52,6 +53,16 @@ export async function updateSession(request: NextRequest) {
     const user = data?.claims ?? null
 
     const isMasuk = pathname === '/masuk'
+
+    // 30 minutes with no activity in the browser: the idle cookie expired, so the session ends (see sesi-aktif.ts).
+    if (user && !request.cookies.has(AKTIF_COOKIE)) {
+      await supabase.auth.signOut()
+      if (isMasuk) return supabaseResponse
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return withCookies(new NextResponse('Sesi berakhir karena tidak ada aktivitas. Masuk kembali.', { status: 401 }), supabaseResponse)
+      }
+      return withCookies(redirectToMasuk(request, pathname), supabaseResponse)
+    }
 
     // If unauthenticated and trying to access protected route, redirect to /masuk
     if (!user && !isMasuk) return redirectToMasuk(request, pathname)
