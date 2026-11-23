@@ -2,6 +2,7 @@ import { getCurrentUser } from '@/lib/roles'
 import { isPenguji } from '@/lib/role-types'
 import { canAccessProdi } from '@/lib/prodi'
 import { convertXlsxToPdf } from '@/lib/aspose'
+import { getSettings } from '@/lib/settings'
 import { PERAN_SIDANG, PERAN_SIDANG_LABEL } from '@/lib/penilaian/akses'
 import { loadBeritaAcara, loadSidang } from '@/lib/penilaian/data'
 import { buildFormRevisiXlsx, namaFormRevisi, type FormRevisi } from '@/lib/penilaian/form-revisi-xlsx'
@@ -44,7 +45,8 @@ export async function GET(req: Request, ctx: RouteContext<'/api/form-revisi/[def
       })),
     }
 
-  const xlsx = await buildFormRevisiXlsx(form)
+  const kop = ((await getSettings('s1')).kop_baris ?? '').split('\n').filter((l) => l.trim())
+  const xlsx = await buildFormRevisiXlsx({ ...form, kop })
   const nama = namaFormRevisi(form)
 
   if (format === 'xlsx') {

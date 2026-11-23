@@ -432,7 +432,7 @@ async function cekEmail() {
 
   const data = (over: Partial<MailData> = {}): MailData => ({
     status: 'menunggu', nama: 'Budi', npm: '2021110099', judul: 'J', tanggal: '2026-11-09', yudisium: 'Lulus Dengan Revisi', academicYearId: '20252',
-    mahasiswaEmail: 'budi@mhs.id', detailLama: [],
+    mahasiswaEmail: 'budi@mhs.id', detailLama: [], kop: ['FAKULTAS PSIKOLOGI', 'Jl. X'],
     penguji: [
       { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani', email: 'ani@up.id', revisi: [{ halaman: '1', catatan: 'x' }] },
       { peranLabel: 'Anggota Penguji I', nama: 'Dr. Eko', email: '', revisi: [] },
@@ -571,6 +571,7 @@ async function cekEmail() {
   assert.deepEqual([...lampiran[0][0].content], [37, 80, 68, 70])
   assert.deepEqual(bentuk[0], {
     jenis: 'sidang', kolom: 'Halaman', hasil: 'Lulus Dengan Revisi', npm: '2021110099', nama: 'Budi', judul: 'J', tanggal: '2026-11-09',
+    kop: ['FAKULTAS PSIKOLOGI', 'Jl. X'],
     bagian: [
       { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani', rows: [{ rujukan: '1', catatan: 'x' }] },
       { peranLabel: 'Anggota Penguji I', nama: 'Dr. Eko', rows: [] },
@@ -616,6 +617,23 @@ async function cekEmail() {
   const praKosong = renderRevisi({ ...pra, kolom: 'Pertanyaan', lampiran: true, revisi: [], template: { subjek: ' ', isi: '' } })
   assert.equal(praKosong.subject, 'Catatan Prasidang Skripsi — Budi (2021110099)')
   assert.ok(praKosong.text.includes('Prasidang Skripsi') && praKosong.text.includes('Hasil prasidang: Skripsi layak'), praKosong.text)
+  // Form revisi with kop: logo + kop lines on top (column C), the form title under the rule; no kop = title first.
+  {
+    const ExcelJS = (await import('exceljs')).default
+    const { buildFormRevisiXlsx } = await import('../src/lib/penilaian/form-revisi-xlsx')
+    const form: FormRevisi = { ...bentuk[0], kop: ['FAKULTAS PSIKOLOGI', 'Gedung F', 'Telp. 021'] }
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load((await buildFormRevisiXlsx(form)).buffer as ArrayBuffer)
+    const ws = wb.worksheets[0]
+    assert.deepEqual([ws.getCell('C1').value, ws.getCell('C2').value, ws.getCell('C3').value], ['FAKULTAS PSIKOLOGI', 'Gedung F', 'Telp. 021'])
+    assert.equal(ws.getImages().length, 1, 'the UP logo')
+    const judulRow = ws.getColumn(1).values.findIndex((v) => typeof v === 'string' && v.startsWith('FORM REVISI SIDANG'))
+    assert.ok(judulRow > 4, String(judulRow))
+    const tanpa = new ExcelJS.Workbook()
+    await tanpa.xlsx.load((await buildFormRevisiXlsx({ ...form, kop: [] })).buffer as ArrayBuffer)
+    assert.match(String(tanpa.worksheets[0].getCell('A1').value), /^FORM REVISI SIDANG/)
+    assert.equal(tanpa.worksheets[0].getImages().length, 0)
+  }
   console.log('nilai-sidang email: all checks passed')
 }
 cekEmail().catch((e) => { console.error(e); process.exit(1) })

@@ -34,6 +34,8 @@ export type MailData = {
   cc?: { siapa: string; email: string | null }[]
   /** Pengaturan S1 'email_revisi_subjek' / 'email_revisi_isi'; missing = the built-in defaults. */
   template?: { subjek: string; isi: string }
+  /** Pengaturan S1 'kop_baris', the kop on the attached form PDF. */
+  kop?: string[]
 }
 export type MailDeps = {
   muat: (defenseId: string) => Promise<MailData | null>
@@ -76,6 +78,7 @@ export function smtpTransport(): Transport | null {
 }
 
 /** Admin client: the grades, names and addresses are read for any sidang, whoever triggered the send. */
+const kopSettings = (settings: SettingsMap) => (settings.kop_baris ?? '').split('\n').filter((l) => l.trim())
 const ccSettings = (settings: SettingsMap) =>
   [{ siapa: 'Kaprodi', email: settings.email_revisi_cc_kaprodi ?? null }, { siapa: 'Wakil Dekan I', email: settings.email_revisi_cc_wadek1 ?? null }]
 
@@ -108,6 +111,7 @@ const dbDeps: MailDeps = {
       yudisium: hasil.data.yudisium_label, mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null, penguji,
       template: { subjek: settings.email_revisi_subjek ?? '', isi: settings.email_revisi_isi ?? '' },
       cc: ccSettings(settings),
+      kop: kopSettings(settings),
     }
   },
   async simpan(defenseId, status, detail) {
@@ -143,6 +147,7 @@ const prasidangDeps: MailDeps = {
       penguji: [{ peranLabel: PERAN_PRASIDANG_LABEL.pendamping, nama: l.data ? lecturerDisplayName(l.data) : ba.data.kode_dosen, email: (l.data?.email as string | null | undefined) ?? null, revisi }],
       template: { subjek: settings.email_prasidang_subjek ?? '', isi: settings.email_prasidang_isi ?? '' },
       cc: ccSettings(settings),
+      kop: kopSettings(settings),
     }
   },
   async simpan(defenseId, status, detail) {
@@ -203,7 +208,7 @@ export async function kirimRevisi(
   const lampiran = async (): Promise<Lampiran[]> => {
     if (!deps.pdf) return []
     const form: FormRevisi = {
-      jenis, kolom, hasil: m.yudisium, npm: m.npm, nama: m.nama, judul: m.judul, tanggal: m.tanggal,
+      jenis, kolom, hasil: m.yudisium, kop: m.kop, npm: m.npm, nama: m.nama, judul: m.judul, tanggal: m.tanggal,
       bagian: m.penguji.map((p) => ({ peranLabel: p.peranLabel, nama: p.nama, rows: p.revisi.map((r) => ({ rujukan: r.halaman, catatan: r.catatan })) })),
     }
     try {

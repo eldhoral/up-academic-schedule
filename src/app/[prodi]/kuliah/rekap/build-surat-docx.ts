@@ -26,7 +26,7 @@ import {
 } from 'docx'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { parseImageDataUri } from '@/lib/print'
-import { LOGO_UP_PNG_BASE64 } from './logo-up'
+import { LOGO_UP_PNG_BASE64 } from '@/lib/logo-up'
 import { FOOTER_BANNER_PNG_BASE64 } from './footer-banner'
 import { TABLE_HEADER, rowTexts, sortByHariJam, sumSks, titleCase } from './letter-rows'
 import type { ScheduleRow, Lecturer } from '../penjadwalan-types'

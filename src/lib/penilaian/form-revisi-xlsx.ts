@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs'
 import { tanggalPanjang } from '@/lib/hari'
+import { LOGO_UP_PNG_BASE64 } from '@/lib/logo-up'
 
 /** The revisi form handed to a student: who they are and each examiner's revisi. Grades are never part of it. */
 export type FormRevisi = {
@@ -14,6 +15,29 @@ export type FormRevisi = {
   kolom: string
   /** One per examiner, in role order; empty rows = no revisi from that examiner. */
   bagian: { peranLabel: string; nama: string; rows: { rujukan: string; catatan: string }[] }[]
+  /** Pengaturan S1 'kop_baris' lines (first = bold title), drawn with the UP logo like the Surat Penugasan; empty = no kop. */
+  kop?: string[]
+}
+
+// The logo's aspect ratio as the Surat Penugasan draws it (1951812 x 1238013 EMU).
+const LOGO_PX = { width: 150, height: Math.round(150 * 1238013 / 1951812) }
+
+/** Logo in columns A-B, the kop lines in column C, a thick rule under them. */
+function addKop(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet, kop: string[]) {
+  const [judul, ...baris] = kop
+  const first = ws.rowCount + 1
+  const r0 = ws.addRow(['', '', judul])
+  r0.getCell(3).font = { bold: true, size: 14 }
+  r0.height = 22
+  for (const b of baris) ws.addRow(['', '', b]).getCell(3).font = { size: 9 }
+  // At least as tall as the logo (row 15pt = 20px).
+  while ((ws.rowCount - first + 1) * 20 < LOGO_PX.height) ws.addRow([])
+  ws.mergeCells(first, 1, ws.rowCount, 2)
+  const garis = ws.addRow([])
+  garis.height = 6
+  for (let c = 1; c <= 3; c++) garis.getCell(c).border = { bottom: { style: 'thick' } }
+  const id = wb.addImage({ base64: LOGO_UP_PNG_BASE64, extension: 'png' })
+  ws.addImage(id, { tl: { col: 0.2, row: first - 1 + 0.2 }, ext: LOGO_PX, editAs: 'oneCell' })
 }
 
 /** File name without extension, e.g. "Form Revisi Sidang 2021110099 Budi". */
@@ -28,6 +52,10 @@ export async function buildFormRevisiXlsx(d: FormRevisi): Promise<Uint8Array<Arr
   const top = { vertical: 'top' as const, wrapText: true }
   const border = { top: { style: 'thin' as const }, left: { style: 'thin' as const }, bottom: { style: 'thin' as const }, right: { style: 'thin' as const } }
 
+  if (d.kop?.length) {
+    addKop(wb, ws, d.kop)
+    ws.addRow([])
+  }
   const judul = ws.addRow([`FORM REVISI ${d.jenis === 'sidang' ? 'SIDANG' : 'PRASIDANG'} SKRIPSI SARJANA (S1) PSIKOLOGI`])
   ws.mergeCells(judul.number, 1, judul.number, 3)
   judul.font = { bold: true, size: 13 }
