@@ -3,7 +3,9 @@ import { isPenguji } from '@/lib/role-types'
 import { canAccessProdi } from '@/lib/prodi'
 import { convertXlsxToPdf } from '@/lib/aspose'
 import { loadBeritaAcara } from '@/lib/penilaian/data'
-import { buildBeritaAcaraPrasidangXlsx } from '@/lib/penilaian/berita-acara-prasidang-xlsx'
+import { buildBeritaAcaraPrasidangXlsx, namaBeritaAcaraPrasidang } from '@/lib/penilaian/berita-acara-prasidang-xlsx'
+import { getSettings } from '@/lib/settings'
+import { kopBaris } from '@/lib/xlsx'
 
 /**
  * An S1 prasidang's berita acara (?format=xlsx|pdf), as filled so far. Staff with S1 access only; 404 for
@@ -22,8 +24,12 @@ export async function GET(req: Request, ctx: RouteContext<'/api/berita-acara-pra
   const data = await loadBeritaAcara(defenseId)
   if (!data) return new Response('Prasidang tidak ditemukan.', { status: 404 })
 
-  const xlsx = await buildBeritaAcaraPrasidangXlsx(data)
-  const nama = `Berita Acara Prasidang ${data.defense.npm} ${data.defense.nama_mahasiswa}`.replace(/[^\w .-]/g, '')
+  // The kop and the cetak penandatangan (Ketua Program Studi), with the signature image.
+  const s = await getSettings('s1', true)
+  const xlsx = await buildBeritaAcaraPrasidangXlsx(data, {
+    kop: kopBaris(s.kop_baris), jabatan: s.jabatan_penandatangan ?? '', nama: s.nama_penandatangan ?? '', gambarTandaTangan: s.gambar_tanda_tangan ?? '',
+  })
+  const nama = namaBeritaAcaraPrasidang(data)
 
   if (format === 'xlsx') {
     return new Response(xlsx, {

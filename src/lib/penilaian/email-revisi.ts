@@ -12,10 +12,16 @@ export const SUBJEK_PRASIDANG = 'Catatan Prasidang Skripsi — {nama} ({npm})'
 export const ISI_PRASIDANG =
   'Kepada Yth,\n{nama}\n\n\nBerikut dikirimkan Form Revisi (catatan) Prasidang Skripsi\nSemester {semester}.\n\nHasil prasidang: {hasil}\n\nDemikian dan terima kasih.\n\nSalam,\nAkademik F.Psi UP'
 
-/** academic_years.id "20252" → "Genap TA. 2025/2026" (last digit 1 = Gasal, 2 = Genap); anything else as is. */
-export function semesterTA(academicYearId: string): string {
+/** academic_years.id "20252" → { semester: 'Genap', mulai: 2025 } (last digit 1 = Gasal, 2 = Genap); null if not that shape. */
+export function semesterParts(academicYearId: string): { semester: 'Gasal' | 'Genap'; mulai: number } | null {
   const m = /^(\d{4})([12])$/.exec(academicYearId.trim())
-  return m ? `${m[2] === '1' ? 'Gasal' : 'Genap'} TA. ${m[1]}/${Number(m[1]) + 1}` : academicYearId
+  return m ? { semester: m[2] === '1' ? 'Gasal' : 'Genap', mulai: Number(m[1]) } : null
+}
+
+/** academic_years.id "20252" → "Genap TA. 2025/2026"; anything else as is. */
+export function semesterTA(academicYearId: string): string {
+  const p = semesterParts(academicYearId)
+  return p ? `${p.semester} TA. ${p.mulai}/${p.mulai + 1}` : academicYearId
 }
 
 export type RevisiInput = {

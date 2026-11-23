@@ -1,5 +1,6 @@
 import type ExcelJS from 'exceljs'
 import { parseImageDataUri } from './print'
+import { LOGO_UP_PNG_BASE64 } from './logo-up'
 
 // Helpers shared by every exceljs document builder (kuliah, ujian, sidang).
 
@@ -63,6 +64,39 @@ export function addSignatureImage(
     editAs: 'oneCell',
   })
 }
+
+// The logo's aspect ratio as the Surat Penugasan draws it (1951812 x 1238013 EMU).
+const LOGO_PX = { width: 150, height: Math.round(150 * 1238013 / 1951812) }
+
+/**
+ * The kop surat on a 3-column sheet: the UP logo in columns A-B (against column C), the 'kop_baris' lines in column C
+ * (first bold), a thick rule under them across A-C. Pengaturan 'kop_baris' split into lines; call only when non-empty.
+ */
+export function addKop(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet, kop: string[]) {
+  const [judul, ...baris] = kop
+  const first = ws.rowCount + 1
+  const r0 = ws.addRow(['', '', judul])
+  r0.getCell(3).font = { bold: true, size: 14 }
+  r0.height = 22
+  for (const b of baris) ws.addRow(['', '', b]).getCell(3).font = { size: 9 }
+  // At least as tall as the logo (row 15pt = 20px).
+  while ((ws.rowCount - first + 1) * 20 < LOGO_PX.height) ws.addRow([])
+  ws.mergeCells(first, 1, ws.rowCount, 2)
+  const garis = ws.addRow([])
+  garis.height = 6
+  for (let c = 1; c <= 3; c++) garis.getCell(c).border = { bottom: { style: 'thick' } }
+  // Native anchor in EMU (9525 per px), right-aligned in A-B so the logo sits beside the text.
+  const px = (col: number) => Math.round((ws.getColumn(col).width ?? 9) * 7 + 5)
+  let left = Math.max(0, px(1) + px(2) - LOGO_PX.width - 10)
+  let col = 1
+  if (left >= px(1)) { left -= px(1); col = 2 }
+  const id = wb.addImage({ base64: LOGO_UP_PNG_BASE64, extension: 'png' })
+  const tl = { nativeCol: col - 1, nativeColOff: Math.round(left * 9525), nativeRow: first - 1, nativeRowOff: 3 * 9525 }
+  ws.addImage(id, { tl: tl as unknown as { col: number; row: number }, ext: LOGO_PX, editAs: 'oneCell' })
+}
+
+/** The kop lines from Pengaturan 'kop_baris'. */
+export const kopBaris = (value: string | undefined): string[] => (value ?? '').split('\n').filter((l) => l.trim())
 
 /** One full-width merged line (titles, notes). */
 export function mergedText(

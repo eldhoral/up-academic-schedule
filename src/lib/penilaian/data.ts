@@ -217,6 +217,8 @@ export type BeritaAcaraRow = {
 
 export type BeritaAcara = {
   defense: DefensePenilaian
+  /** defenses.academic_year_id, for the semester on the printed berita acara. */
+  academicYearId: string
   isian: Partial<Record<PeranPrasidang, BeritaAcaraRow>>
   dosen: Record<PeranPrasidang, string>
   status: StatusPrasidang
@@ -234,7 +236,7 @@ export async function loadBeritaAcara(defenseId: string): Promise<BeritaAcara | 
   const db = createAdminClient()
   const { data: d, error } = await db
     .from('defenses')
-    .select('id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode')
+    .select('id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode, academic_year_id')
     .eq('id', defenseId)
     .maybeSingle()
   if (error) throw new Error(`Gagal memuat prasidang: ${error.message}`)
@@ -262,6 +264,7 @@ export async function loadBeritaAcara(defenseId: string): Promise<BeritaAcara | 
   const k = keputusan.data
   return {
     defense,
+    academicYearId: d.academic_year_id as string,
     isian,
     dosen: { pendamping: nama(defense.pembimbing_kode), pembahas: nama(defense.penguji_kode) },
     status: status.data as StatusPrasidang,

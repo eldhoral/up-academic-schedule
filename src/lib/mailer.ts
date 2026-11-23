@@ -8,6 +8,7 @@ import { loadSettings, type SettingsMap } from '@/lib/settings'
 import { parseDetailEmail, type DetailEmail } from '@/lib/penilaian/rekap'
 import type { Revisi } from '@/lib/penilaian/nilai'
 import { convertXlsxToPdf } from '@/lib/aspose'
+import { kopBaris } from '@/lib/xlsx'
 import { buildFormRevisiXlsx, namaFormRevisi, type FormRevisi } from '@/lib/penilaian/form-revisi-xlsx'
 
 export type Lampiran = { filename: string; content: Uint8Array; contentType: string }
@@ -78,7 +79,6 @@ export function smtpTransport(): Transport | null {
 }
 
 /** Admin client: the grades, names and addresses are read for any sidang, whoever triggered the send. */
-const kopSettings = (settings: SettingsMap) => (settings.kop_baris ?? '').split('\n').filter((l) => l.trim())
 const ccSettings = (settings: SettingsMap) =>
   [{ siapa: 'Kaprodi', email: settings.email_revisi_cc_kaprodi ?? null }, { siapa: 'Wakil Dekan I', email: settings.email_revisi_cc_wadek1 ?? null }]
 
@@ -111,7 +111,7 @@ const dbDeps: MailDeps = {
       yudisium: hasil.data.yudisium_label, mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null, penguji,
       template: { subjek: settings.email_revisi_subjek ?? '', isi: settings.email_revisi_isi ?? '' },
       cc: ccSettings(settings),
-      kop: kopSettings(settings),
+      kop: kopBaris(settings.kop_baris),
     }
   },
   async simpan(defenseId, status, detail) {
@@ -147,7 +147,7 @@ const prasidangDeps: MailDeps = {
       penguji: [{ peranLabel: PERAN_PRASIDANG_LABEL.pendamping, nama: l.data ? lecturerDisplayName(l.data) : ba.data.kode_dosen, email: (l.data?.email as string | null | undefined) ?? null, revisi }],
       template: { subjek: settings.email_prasidang_subjek ?? '', isi: settings.email_prasidang_isi ?? '' },
       cc: ccSettings(settings),
-      kop: kopSettings(settings),
+      kop: kopBaris(settings.kop_baris),
     }
   },
   async simpan(defenseId, status, detail) {

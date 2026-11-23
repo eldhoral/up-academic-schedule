@@ -1,46 +1,96 @@
 import ExcelJS from 'exceljs'
 import { tanggalPanjang } from '@/lib/hari'
+import { addKop, addSignatureImage } from '@/lib/xlsx'
 import type { BeritaAcara } from './data'
-import { HASIL_LABEL, PERAN_PRASIDANG, PERAN_PRASIDANG_LABEL, STATUS_LABEL } from './prasidang'
+import { semesterParts } from './email-revisi'
+import { HASIL_LABEL } from './prasidang'
 
-/** The Pembimbing Pendamping's berita acara of one S1 prasidang, as the staff page shows them: A4 portrait, one sheet. */
-export async function buildBeritaAcaraPrasidangXlsx(d: BeritaAcara): Promise<Uint8Array<ArrayBuffer>> {
+/** Who signs and the kop: Pengaturan S1 'kop_baris' (lines) and the cetak penandatangan (Ketua Program Studi). */
+export type BeritaAcaraCetak = { kop: string[]; jabatan: string; nama: string; gambarTandaTangan: string }
+
+/** "GASAL 2026/2027" from academic_years.id "20261"; the id itself if it is not that shape. */
+const semesterJudul = (id: string) => {
+  const p = semesterParts(id)
+  return p ? `${p.semester.toUpperCase()} ${p.mulai}/${p.mulai + 1}` : id
+}
+
+/** File name without extension, as the faculty names them: "BA Prasidang Gasal 2026-2027- Fadel Ayafa Diraja". */
+export function namaBeritaAcaraPrasidang(d: Pick<BeritaAcara, 'academicYearId' | 'defense'>): string {
+  const p = semesterParts(d.academicYearId)
+  const ta = p ? `${p.semester} ${p.mulai}-${p.mulai + 1}` : d.academicYearId
+  return `BA Prasidang ${ta}- ${d.defense.nama_mahasiswa}`.replace(/[^\w .-]/g, '')
+}
+
+/**
+ * The Pembimbing Pendamping's berita acara of one S1 prasidang, in the faculty's layout (BA Prasidang sample,
+ * 2026-11-23): kop, title with the semester, the student, Sekretaris Sidang (= Pendamping) and Dosen Pembahas,
+ * the uraian answers as "Saran dan Perbaikan", the verdict, the Ya/Tidak answers, signed by the Ketua Program Studi.
+ * A4 landscape, one page (long answers shrink it, as the sample is one page).
+ */
+export async function buildBeritaAcaraPrasidangXlsx(d: BeritaAcara, c: BeritaAcaraCetak): Promise<Uint8Array<ArrayBuffer>> {
   const wb = new ExcelJS.Workbook()
-  const ws = wb.addWorksheet('Berita Acara Prasidang', { pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } })
-  ws.columns = [{ width: 24 }, { width: 3 }, { width: 70 }]
-  const wrap = (r: ExcelJS.Row, c = 3) => { r.getCell(c).alignment = { wrapText: true, vertical: 'top' } }
-  const bold = (r: ExcelJS.Row) => { r.font = { bold: true } }
-  const isian = (label: string, value: string) => wrap(ws.addRow([label, ':', value]))
+  const ws = wb.addWorksheet('Berita Acara Prasidang', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true },
+  })
+  ws.columns = [{ width: 40 }, { width: 3 }, { width: 100 }]
+  ws.properties.defaultRowHeight = 15
+  const KECIL = { size: 10 }
 
-  const judul = ws.addRow(['BERITA ACARA PRASIDANG SKRIPSI SARJANA (S1) PSIKOLOGI'])
-  ws.mergeCells(judul.number, 1, judul.number, 3)
-  judul.font = { bold: true, size: 13 }
-  judul.alignment = { horizontal: 'center' }
+  if (c.kop.length) addKop(wb, ws, c.kop)
   ws.addRow([])
-  isian('NPM', d.defense.npm)
-  isian('Nama Mahasiswa', d.defense.nama_mahasiswa)
-  isian('Judul Skripsi', d.defense.judul_skripsi || '—')
-  isian('Hari/Tanggal Prasidang', tanggalPanjang(d.defense.tanggal, false))
-  isian('Status Prasidang', STATUS_LABEL[d.status])
+  for (const t of ['BERITA ACARA', `PRASIDANG SKRIPSI SEMESTER ${semesterJudul(d.academicYearId)}`]) {
+    const r = ws.addRow([t])
+    ws.mergeCells(r.number, 1, r.number, 3)
+    r.font = { bold: true, size: 13 }
+    r.alignment = { horizontal: 'center' }
+  }
+  ws.addRow([])
+
+  /** LABEL : value, wrapped; the row grows with the longer of the two. */
+  const isian = (label: string, value: string, bold = false) => {
+    const r = ws.addRow([label.toUpperCase(), ':', value])
+    r.font = { ...KECIL, bold }
+    r.eachCell((cell) => { cell.alignment = { wrapText: true, vertical: 'top' } })
+    // ponytail: 10pt text fits ~1.2 chars per width unit; Aspose clips a row stored too short, so round lines up.
+    const baris = Math.max(...[[label, 40], [value, 100]].map(([t, w]) =>
+      String(t).split('\n').reduce((n, s) => n + Math.max(1, Math.ceil(s.length / ((w as number) * 1.2))), 0)))
+    r.height = Math.max(15, baris * 13)
+  }
+
+  const { defense: def } = d
+  isian('Hari, Tanggal', tanggalPanjang(def.tanggal, false))
+  isian('NPM', def.npm)
+  isian('Nama Mahasiswa', def.nama_mahasiswa)
+  isian('Judul Proposal', def.judul_skripsi || '—')
+  ws.addRow([])
+  isian('Sekretaris Sidang', d.dosen.pendamping)
+  isian('Dosen Pembahas', d.dosen.pembahas)
+  const sub = ws.addRow(['', '', 'SARAN DAN PERBAIKAN PROPOSAL SKRIPSI'])
+  sub.font = { ...KECIL, bold: true }
+
+  const ba = d.isian.pendamping
+  if (!ba) {
+    isian('Berita acara', 'Belum diisi.')
+  } else {
+    for (const j of ba.jawaban) if (j.jenis === 'uraian') isian(j.teks, j.catatan)
+    isian('Berdasarkan hasil prasidang, maka proposal skripsi ini', HASIL_LABEL[ba.hasil])
+    for (const j of ba.jawaban) if (j.jenis === 'ya_tidak') isian(j.teks, `${j.ya ? 'Ya' : 'Tidak'}${j.catatan ? `/${j.catatan}` : ''}`)
+  }
   if (d.keputusan) isian('Keputusan Super Admin', `${HASIL_LABEL[d.keputusan.hasil]} — ${d.keputusan.alasan}`)
 
-  for (const peran of PERAN_PRASIDANG) {
-    ws.addRow([])
-    bold(ws.addRow([`${PERAN_PRASIDANG_LABEL[peran]}: ${d.dosen[peran]}`]))
-    const row = d.isian[peran]
-    if (!row) {
-      ws.addRow(['Belum diisi.'])
-      continue
-    }
-    const kirim = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date(row.submitted_at))
-    ws.addRow([`Dikirim ${kirim}`])
-    row.jawaban.forEach((j, i) => {
-      bold(ws.addRow([`${i + 1}. ${j.teks}`]))
-      const jawab = j.jenis === 'uraian' ? j.catatan : [j.ya ? 'Ya' : 'Tidak', j.catatan].filter(Boolean).join('\n')
-      wrap(ws.addRow(['', '', jawab || '—']))
-    })
-    bold(ws.addRow(['Hasil prasidang', ':', HASIL_LABEL[row.hasil]]))
+  // Signature block in column C, centred, as in the sample.
+  ws.addRow([])
+  const tengah = (t: string, bold = false) => {
+    const r = ws.addRow(['', '', t])
+    r.getCell(3).font = { ...KECIL, bold }
+    r.getCell(3).alignment = { horizontal: 'center' }
+    return r
   }
+  tengah('Mengetahui,')
+  const jabatan = tengah(c.jabatan)
+  addSignatureImage(wb, ws, c.gambarTandaTangan, { from: 3, to: 3, jabatanRow: jabatan.number })
+  for (let i = 0; i < 4; i++) ws.addRow([])
+  tengah(c.nama, true)
 
   return new Uint8Array((await wb.xlsx.writeBuffer()) as ArrayBuffer)
 }

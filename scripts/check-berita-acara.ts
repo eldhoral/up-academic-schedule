@@ -141,4 +141,41 @@ assert.equal(
   'Data ini masih dipakai oleh data lain, sehingga tidak bisa dihapus atau diubah.',
 )
 
-console.log('berita acara: all checks passed')
+// ---- printed berita acara: the faculty's layout and file name (BA Prasidang sample, 2026-11-23)
+void (async () => {
+  const ExcelJS = (await import('exceljs')).default
+  const { buildBeritaAcaraPrasidangXlsx, namaBeritaAcaraPrasidang } = await import('../src/lib/penilaian/berita-acara-prasidang-xlsx')
+  const defense = { id: 'x', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-23', npm: '6022210049', nama_mahasiswa: 'Fadel Ayafa Diraja', judul_skripsi: 'Judul', pembimbing_kode: 'A', penguji_kode: 'B' }
+  const ya = [true, false, true, null, null]
+  const cat = ['', '', 'Perhatikan dimensi', 'Ikuti perbaikan', '1. Satu\n2. Dua']
+  const ba = {
+    defense, academicYearId: '20261', status: 'layak_revisi', keputusan: null, aturan: DEFAULT_ATURAN,
+    dosen: { pendamping: 'Endro, M.Psi.', pembahas: 'Aully, M.Si.' },
+    isian: { pendamping: { id: 'r', peran: 'pendamping', kode_dosen: 'A', hasil: 'layak_revisi', submitted_at: '2026-11-23T05:00:00Z', email_status: 'terkirim',
+      jawaban: q.map((x, i) => ({ teks: x.teks, jenis: x.jenis, ya: ya[i], catatan: cat[i] })) } },
+  } as unknown as Parameters<typeof buildBeritaAcaraPrasidangXlsx>[0]
+  assert.equal(namaBeritaAcaraPrasidang(ba), 'BA Prasidang Gasal 2026-2027- Fadel Ayafa Diraja')
+  assert.equal(namaBeritaAcaraPrasidang({ ...ba, academicYearId: '20252' }), 'BA Prasidang Genap 2025-2026- Fadel Ayafa Diraja')
+
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load((await buildBeritaAcaraPrasidangXlsx(ba, { kop: ['FAKULTAS PSIKOLOGI', 'Gedung F'], jabatan: 'KETUA PROGRAM STUDI', nama: 'FARIDA AINI', gambarTandaTangan: '' })).buffer as ArrayBuffer)
+  const ws = wb.worksheets[0]
+  assert.equal(ws.pageSetup.orientation, 'landscape')
+  const baris = Array.from(ws.getSheetValues().slice(1), (r) => (Array.isArray(r) ? Array.from(r.slice(1), (v) => v ?? '') : []))
+  const cari = (label: string) => baris.find((r) => r[0] === label)?.[2]
+  assert.ok(baris.some((r) => r[0] === 'PRASIDANG SKRIPSI SEMESTER GASAL 2026/2027'))
+  assert.equal(cari('HARI, TANGGAL'), 'Senin, 23 November 2026')
+  assert.equal(cari('SEKRETARIS SIDANG'), 'Endro, M.Psi.')
+  assert.equal(cari('DOSEN PEMBAHAS'), 'Aully, M.Si.')
+  assert.equal(cari('SUBSTANSI (ISI) PROPOSAL'), '1. Satu\n2. Dua')
+  assert.equal(cari('BERDASARKAN HASIL PRASIDANG, MAKA PROPOSAL SKRIPSI INI'), HASIL_LABEL.layak_revisi)
+  assert.equal(cari(q[0].teks.toUpperCase()), 'Ya')
+  assert.equal(cari(q[2].teks.toUpperCase()), 'Ya/Perhatikan dimensi')
+  // Order: Saran (uraian) before the verdict, Ya/Tidak after it; signed by the Kaprodi at the end.
+  const idx = (t: string) => baris.findIndex((r) => r[0] === t || r[2] === t)
+  assert.ok(idx('SARAN DAN PERBAIKAN PROPOSAL SKRIPSI') < idx('SISTEMATIKA PENULISAN PROPOSAL'))
+  assert.ok(idx('SUBSTANSI (ISI) PROPOSAL') < idx('BERDASARKAN HASIL PRASIDANG, MAKA PROPOSAL SKRIPSI INI'))
+  assert.ok(idx('BERDASARKAN HASIL PRASIDANG, MAKA PROPOSAL SKRIPSI INI') < idx(q[0].teks.toUpperCase()))
+  assert.ok(idx('KETUA PROGRAM STUDI') < idx('FARIDA AINI') && idx('FARIDA AINI') === baris.length - 1)
+  console.log('berita acara: all checks passed')
+})()
