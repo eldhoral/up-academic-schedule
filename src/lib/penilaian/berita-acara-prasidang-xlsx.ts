@@ -14,11 +14,11 @@ const semesterJudul = (id: string) => {
   return p ? `${p.semester.toUpperCase()} ${p.mulai}/${p.mulai + 1}` : id
 }
 
-/** File name without extension, as the faculty names them: "BA Prasidang Gasal 2026-2027- Fadel Ayafa Diraja". */
-export function namaBeritaAcaraPrasidang(d: Pick<BeritaAcara, 'academicYearId' | 'defense'>): string {
-  const p = semesterParts(d.academicYearId)
-  const ta = p ? `${p.semester} ${p.mulai}-${p.mulai + 1}` : d.academicYearId
-  return `BA Prasidang ${ta}- ${d.defense.nama_mahasiswa}`.replace(/[^\w .-]/g, '')
+/** Berita acara file name without extension, as the faculty names them: "BA Prasidang Gasal 2026-2027- Fadel Ayafa Diraja". */
+export function namaBeritaAcara(jenis: 'Prasidang' | 'Sidang', academicYearId: string, namaMahasiswa: string): string {
+  const p = semesterParts(academicYearId)
+  const ta = p ? `${p.semester} ${p.mulai}-${p.mulai + 1}` : academicYearId
+  return `BA ${jenis} ${ta}- ${namaMahasiswa}`.replace(/[^\w .-]/g, '')
 }
 
 /**

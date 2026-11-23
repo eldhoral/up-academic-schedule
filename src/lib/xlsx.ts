@@ -69,10 +69,10 @@ export function addSignatureImage(
 const LOGO_PX = { width: 150, height: Math.round(150 * 1238013 / 1951812) }
 
 /**
- * The kop surat on a 3-column sheet: the UP logo in columns A-B (against column C), the 'kop_baris' lines in column C
- * (first bold), a thick rule under them across A-C. Pengaturan 'kop_baris' split into lines; call only when non-empty.
+ * The kop surat: the UP logo in columns A-B (against column C), the 'kop_baris' lines in column C (first bold; they
+ * overflow into empty columns to the right), a thick rule under them across A..lastCol. Call only when kop is non-empty.
  */
-export function addKop(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet, kop: string[]) {
+export function addKop(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet, kop: string[], lastCol = 3) {
   const [judul, ...baris] = kop
   const first = ws.rowCount + 1
   const r0 = ws.addRow(['', '', judul])
@@ -84,7 +84,7 @@ export function addKop(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet, kop: string[
   ws.mergeCells(first, 1, ws.rowCount, 2)
   const garis = ws.addRow([])
   garis.height = 6
-  for (let c = 1; c <= 3; c++) garis.getCell(c).border = { bottom: { style: 'thick' } }
+  for (let c = 1; c <= lastCol; c++) garis.getCell(c).border = { bottom: { style: 'thick' } }
   // Native anchor in EMU (9525 per px), right-aligned in A-B so the logo sits beside the text.
   const px = (col: number) => Math.round((ws.getColumn(col).width ?? 9) * 7 + 5)
   let left = Math.max(0, px(1) + px(2) - LOGO_PX.width - 10)

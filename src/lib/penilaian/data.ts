@@ -114,7 +114,7 @@ export type HasilRow = {
   email_status: string
 }
 
-export type DefenseSidang = SidangRef & { npm: string; nama_mahasiswa: string; judul_skripsi: string }
+export type DefenseSidang = SidangRef & { npm: string; nama_mahasiswa: string; judul_skripsi: string; academic_year_id: string }
 
 export type Sidang = {
   defense: DefenseSidang
@@ -134,7 +134,7 @@ export type Sidang = {
   aturan: Aturan
 }
 
-export const SIDANG_COLS = 'id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode, penguji_eksternal_kode'
+export const SIDANG_COLS = 'id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode, penguji_eksternal_kode, academic_year_id'
 
 /**
  * One S1 sidang with all three grades and the lock, for the grading page and its actions. Admin client,

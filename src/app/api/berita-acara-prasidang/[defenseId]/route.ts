@@ -3,7 +3,7 @@ import { isPenguji } from '@/lib/role-types'
 import { canAccessProdi } from '@/lib/prodi'
 import { convertXlsxToPdf } from '@/lib/aspose'
 import { loadBeritaAcara } from '@/lib/penilaian/data'
-import { buildBeritaAcaraPrasidangXlsx, namaBeritaAcaraPrasidang } from '@/lib/penilaian/berita-acara-prasidang-xlsx'
+import { buildBeritaAcaraPrasidangXlsx, namaBeritaAcara } from '@/lib/penilaian/berita-acara-prasidang-xlsx'
 import { getSettings } from '@/lib/settings'
 import { kopBaris } from '@/lib/xlsx'
 
@@ -29,7 +29,7 @@ export async function GET(req: Request, ctx: RouteContext<'/api/berita-acara-pra
   const xlsx = await buildBeritaAcaraPrasidangXlsx(data, {
     kop: kopBaris(s.kop_baris), jabatan: s.jabatan_penandatangan ?? '', nama: s.nama_penandatangan ?? '', gambarTandaTangan: s.gambar_tanda_tangan ?? '',
   })
-  const nama = namaBeritaAcaraPrasidang(data)
+  const nama = namaBeritaAcara('Prasidang', data.academicYearId, data.defense.nama_mahasiswa)
 
   if (format === 'xlsx') {
     return new Response(xlsx, {

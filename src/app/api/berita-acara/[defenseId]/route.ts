@@ -5,6 +5,9 @@ import { convertXlsxToPdf } from '@/lib/aspose'
 import { PERAN_SIDANG } from '@/lib/penilaian/akses'
 import { loadSidang } from '@/lib/penilaian/data'
 import { buildBeritaAcaraXlsx } from '@/lib/penilaian/berita-acara-xlsx'
+import { namaBeritaAcara } from '@/lib/penilaian/berita-acara-prasidang-xlsx'
+import { getSettings } from '@/lib/settings'
+import { kopBaris } from '@/lib/xlsx'
 
 /**
  * A locked S1 sidang's berita acara (?format=xlsx|pdf). Staff with S1 access only; 404 for anything else,
@@ -31,8 +34,9 @@ export async function GET(req: Request, ctx: RouteContext<'/api/berita-acara/[de
     aturan: hasil.aturan!, pilihan: data.aturan.pilihanYudisium,
     yudisium: { label: hasil.yudisium_label, lulus: hasil.yudisium_lulus },
     sks: student.sks, bobot: student.bobot, tepatWaktu: student.tepatWaktu,
+    kop: kopBaris((await getSettings('s1')).kop_baris),
   })
-  const nama = `Berita Acara Sidang ${defense.npm} ${defense.nama_mahasiswa}`.replace(/[^\w .-]/g, '')
+  const nama = namaBeritaAcara('Sidang', defense.academic_year_id, defense.nama_mahasiswa)
 
   if (format === 'xlsx') {
     return new Response(xlsx, {

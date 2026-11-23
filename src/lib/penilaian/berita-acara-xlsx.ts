@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs'
-import { BORDER_ALL } from '@/lib/xlsx'
+import { addKop, BORDER_ALL } from '@/lib/xlsx'
 import { tanggalPanjang } from '@/lib/hari'
 import { PERAN_SIDANG_LABEL, type PeranSidang } from './akses'
 import type { AturanBeku, Yudisium } from './aturan'
@@ -21,6 +21,8 @@ export type BeritaAcaraSidang = {
   sks: number | null
   bobot: number | null
   tepatWaktu: boolean
+  /** Pengaturan S1 'kop_baris' lines; empty = no kop. */
+  kop?: string[]
 }
 
 const TEMPAT = 'FAKULTAS PSIKOLOGI UNIVERSITAS PANCASILA'
@@ -44,6 +46,10 @@ export async function buildBeritaAcaraXlsx(d: BeritaAcaraSidang): Promise<Uint8A
   const kosong = () => ws.addRow([])
   const isian = (label: string, value: string | number) => ws.addRow([label, ':', value])
 
+  if (d.kop?.length) {
+    addKop(wb, ws, d.kop, 6)
+    kosong()
+  }
   const judul = ws.addRow(['BERITA ACARA UJIAN SKRIPSI SARJANA (S1) PSIKOLOGI'])
   ws.mergeCells(judul.number, 1, judul.number, 6)
   judul.font = { bold: true, size: 13 }

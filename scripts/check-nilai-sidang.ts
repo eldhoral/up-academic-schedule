@@ -902,7 +902,7 @@ void (async () => {
     aturan: beku, pilihan: DEFAULT_ATURAN.pilihanYudisium, yudisium: { label: 'Lulus Dengan Revisi', lulus: true },
     sks: 139, bobot: 404.57, tepatWaktu: false,
   }
-  const baca = async (d: typeof dasar) => {
+  const baca = async (d: typeof dasar & { kop?: string[] }) => {
     const wb = new ExcelJS.Workbook()
     await wb.xlsx.load((await buildBeritaAcaraXlsx(d)).buffer as ArrayBuffer)
     const ws = wb.worksheets[0]
@@ -924,6 +924,12 @@ void (async () => {
     assert.ok(cari('Lulus Tanpa Revisi').includes('☐') && cari('Tidak Lulus').includes('☐'))
     assert.ok(cari('Dosen Pembimbing 2').includes('Dr. Dua'))
     assert.ok(!rows.some((r) => r.some((v) => /tanda tangan|ttd/i.test(String(v)))), 'no signature blocks')
+
+    // Kop surat above the title when set; none (title first) without it.
+    const kop = await baca({ ...dasar, kop: ['FAKULTAS PSIKOLOGI', 'Gedung F'] })
+    assert.equal(kop.rows[0][2], 'FAKULTAS PSIKOLOGI')
+    assert.ok(kop.rows.findIndex((r) => r[0] === 'BERITA ACARA UJIAN SKRIPSI SARJANA (S1) PSIKOLOGI') > 2)
+    assert.equal(rows[0][0], 'BERITA ACARA UJIAN SKRIPSI SARJANA (S1) PSIKOLOGI')
 
     const gagal = await baca({ ...dasar, yudisium: { label: 'Tidak Lulus', lulus: false } })
     assert.ok(gagal.cari('IPK setelah Sidang Skripsi').includes('Sidang tidak lulus.'))

@@ -144,7 +144,7 @@ assert.equal(
 // ---- printed berita acara: the faculty's layout and file name (BA Prasidang sample, 2026-11-23)
 void (async () => {
   const ExcelJS = (await import('exceljs')).default
-  const { buildBeritaAcaraPrasidangXlsx, namaBeritaAcaraPrasidang } = await import('../src/lib/penilaian/berita-acara-prasidang-xlsx')
+  const { buildBeritaAcaraPrasidangXlsx, namaBeritaAcara } = await import('../src/lib/penilaian/berita-acara-prasidang-xlsx')
   const defense = { id: 'x', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-23', npm: '6022210049', nama_mahasiswa: 'Fadel Ayafa Diraja', judul_skripsi: 'Judul', pembimbing_kode: 'A', penguji_kode: 'B' }
   const ya = [true, false, true, null, null]
   const cat = ['', '', 'Perhatikan dimensi', 'Ikuti perbaikan', '1. Satu\n2. Dua']
@@ -154,8 +154,8 @@ void (async () => {
     isian: { pendamping: { id: 'r', peran: 'pendamping', kode_dosen: 'A', hasil: 'layak_revisi', submitted_at: '2026-11-23T05:00:00Z', email_status: 'terkirim',
       jawaban: q.map((x, i) => ({ teks: x.teks, jenis: x.jenis, ya: ya[i], catatan: cat[i] })) } },
   } as unknown as Parameters<typeof buildBeritaAcaraPrasidangXlsx>[0]
-  assert.equal(namaBeritaAcaraPrasidang(ba), 'BA Prasidang Gasal 2026-2027- Fadel Ayafa Diraja')
-  assert.equal(namaBeritaAcaraPrasidang({ ...ba, academicYearId: '20252' }), 'BA Prasidang Genap 2025-2026- Fadel Ayafa Diraja')
+  assert.equal(namaBeritaAcara('Prasidang', '20261', 'Fadel Ayafa Diraja'), 'BA Prasidang Gasal 2026-2027- Fadel Ayafa Diraja')
+  assert.equal(namaBeritaAcara('Sidang', '20252', "Fadel A'yafa"), 'BA Sidang Genap 2025-2026- Fadel Ayafa')
 
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load((await buildBeritaAcaraPrasidangXlsx(ba, { kop: ['FAKULTAS PSIKOLOGI', 'Gedung F'], jabatan: 'KETUA PROGRAM STUDI', nama: 'FARIDA AINI', gambarTandaTangan: '' })).buffer as ArrayBuffer)
