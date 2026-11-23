@@ -159,6 +159,8 @@ const CONTOH_REVISI = {
   judul: 'Pengaruh Dukungan Sosial terhadap Resiliensi Mahasiswa',
   tanggal: '2026-11-19',
   yudisium: 'Lulus Dengan Revisi',
+  academicYearId: '20252',
+  lampiran: true,
   revisi: [
     { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani Wulandari, M.Psi.', rows: [{ halaman: '12', catatan: 'Perbaiki tabel 4.2.' }, { halaman: '', catatan: 'Tambahkan saran penelitian lanjutan.' }] },
     { peranLabel: 'Anggota Penguji II', nama: 'Dr. Cici Lestari, M.Si.', rows: [{ halaman: '35', catatan: 'Lengkapi daftar pustaka.' }] },

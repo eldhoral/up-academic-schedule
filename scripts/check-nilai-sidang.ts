@@ -375,12 +375,12 @@ import { adminSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
 
 // ---- email revisi
 import { tanggalPanjang } from '../src/lib/hari'
-import { renderRevisi } from '../src/lib/penilaian/email-revisi'
+import { renderRevisi, semesterTA } from '../src/lib/penilaian/email-revisi'
 import { kirimRevisi, smtpTransport, type Transport, type MailData, type MailDeps } from '../src/lib/mailer'
 import type { FormRevisi } from '../src/lib/penilaian/form-revisi-xlsx'
 async function cekEmail() {
   const input = {
-    nama: 'Budi 87,50 A', npm: '2021110099', judul: 'Judul <b>tebal</b> 88', tanggal: '2026-11-09', yudisium: 'Lulus Dengan Revisi',
+    nama: 'Budi 87,50 A', npm: '2021110099', judul: 'Judul <b>tebal</b> 88', tanggal: '2026-11-09', yudisium: 'Lulus Dengan Revisi', academicYearId: '20252',
     revisi: [
       { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani', rows: [{ halaman: '12', catatan: 'Perbaiki tabel <script>alert(x)</script>' }] },
       { peranLabel: 'Anggota Penguji II', nama: 'Dr. Cici', rows: [{ halaman: '', catatan: 'Tambah saran' }] },
@@ -389,14 +389,23 @@ async function cekEmail() {
   const m = renderRevisi(input)
   assert.equal(m.subject, 'Revisi Sidang Skripsi — Budi 87,50 A (2021110099)')
   for (const s of [m.text, m.html]) {
-    assert.ok(s.includes('Tambah saran') && s.includes('Anggota Penguji II') && s.includes('Dr. Cici') && s.includes('Lulus Dengan Revisi'))
+    assert.ok(s.includes('Tambah saran') && s.includes('Anggota Penguji II') && s.includes('Dr. Cici'))
+    assert.ok(s.includes('Kepada Yth,') && s.includes('Semester Genap TA. 2025/2026.') && s.includes('Akademik F.Psi UP'))
   }
+  assert.ok(m.text.startsWith('Kepada Yth,\nBudi 87,50 A\n\n\nBerikut dikirimkan Form Revisi Sidang Skripsi\n'), m.text)
+  assert.equal(semesterTA('20251'), 'Gasal TA. 2025/2026')
+  assert.equal(semesterTA('x'), 'x')
+  // PDF attached: no tables appended to a body without {revisi}; with {revisi}, they stay where it says.
+  const pdf = renderRevisi({ ...input, lampiran: true })
+  assert.ok(pdf.text.endsWith('Salam,\nAkademik F.Psi UP') && !pdf.html.includes('Tambah saran'), pdf.text)
+  assert.ok(renderRevisi({ ...input, lampiran: true, template: { subjek: '', isi: '{revisi}' } }).text.includes('Tambah saran'))
   assert.ok(!m.html.includes('<script>') && m.html.includes('&lt;script&gt;'))
-  assert.ok(!m.html.includes('<b>tebal') && m.html.includes('&lt;b&gt;tebal'))
+  const j = renderRevisi({ ...input, template: { subjek: '', isi: 'Judul: {judul}' } }).html
+  assert.ok(!j.includes('<b>tebal') && j.includes('&lt;b&gt;tebal'))
   // Only examiners with revisi are listed; the body has no grade field (digits come only from the fields passed in).
   const satu = renderRevisi({ ...input, nama: 'Budi', judul: 'Judul', revisi: [input.revisi[0]] })
   assert.ok(!satu.text.includes('Penguji II') && !satu.html.includes('Cici'))
-  const digit = (s: string) => s.replace(/<[^>]*>/g, '').replace('2021110099', '').replace(tanggalPanjang('2026-11-09', false), '').replace('12', '').match(/\d/g)
+  const digit = (s: string) => s.replace(/<[^>]*>/g, '').replace('2021110099', '').replace(tanggalPanjang('2026-11-09', false), '').replace('12', '').replace('2025/2026', '').match(/\d/g)
   assert.equal(digit(satu.text), null, satu.text)
   assert.equal(digit(satu.html), null)
 
@@ -422,7 +431,7 @@ async function cekEmail() {
   }
 
   const data = (over: Partial<MailData> = {}): MailData => ({
-    status: 'menunggu', nama: 'Budi', npm: '2021110099', judul: 'J', tanggal: '2026-11-09', yudisium: 'Lulus Dengan Revisi',
+    status: 'menunggu', nama: 'Budi', npm: '2021110099', judul: 'J', tanggal: '2026-11-09', yudisium: 'Lulus Dengan Revisi', academicYearId: '20252',
     mahasiswaEmail: 'budi@mhs.id', detailLama: [],
     penguji: [
       { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani', email: 'ani@up.id', revisi: [{ halaman: '1', catatan: 'x' }] },
@@ -453,6 +462,19 @@ async function cekEmail() {
   assert.equal(b.status, 'terkirim')
   assert.deepEqual(kirim.map((k) => k.to), [['budi@mhs.id', 'ani@up.id']])
   assert.equal(kirim[0].subject, 'Revisi Sidang Skripsi — Budi (2021110099)')
+  // Kaprodi / Wakil Dekan I in CC, tracked like any recipient; a blank CC setting is not a skipped recipient.
+  const kirimCc: { to: string[]; cc?: string[] }[] = []
+  const denganCc = data({ ...lengkap, cc: [{ siapa: 'Kaprodi', email: 'kaprodi@up.id' }, { siapa: 'Wakil Dekan I', email: ' ' }] })
+  const gCc = await jalankan(async (msg) => { kirimCc.push(msg); return { accepted: [...msg.to, ...(msg.cc ?? [])], rejected: [] } }, denganCc)
+  assert.equal(gCc.status, 'terkirim')
+  assert.deepEqual(kirimCc.map((k) => [k.to, k.cc]), [[['budi@mhs.id', 'ani@up.id'], ['kaprodi@up.id']]])
+  const ccSalah = await jalankan(baik, data({ ...lengkap, cc: [{ siapa: 'Wakil Dekan I', email: 'salah' }] }))
+  assert.equal(ccSalah.status, 'sebagian')
+  assert.ok((ccSalah.tulis[0].detail as { alasan?: string }[]).some((x) => x.alasan === 'Email Wakil Dekan I tidak valid'))
+  // Retry after only the CC failed: just the CC is mailed again.
+  const ulangCc = await jalankan(async (msg) => { assert.deepEqual([msg.to, msg.cc], [[], ['kaprodi@up.id']]); return { accepted: msg.cc ?? [], rejected: [] } },
+    data({ ...denganCc, status: 'sebagian', detailLama: [{ alamat: 'budi@mhs.id', status: 'terkirim' }, { alamat: 'ani@up.id', status: 'terkirim' }, { alamat: 'kaprodi@up.id', status: 'gagal' }] }))
+  assert.equal(ulangCc.status, 'terkirim')
   // Same address twice goes once.
   const dobel = data({ mahasiswaEmail: 'ANI@up.id', penguji: lengkap.penguji })
   const d2 = await jalankan(async (msg) => { assert.equal(msg.to.length, 1); return { accepted: msg.to, rejected: [] } }, dobel)
@@ -787,7 +809,7 @@ void (async () => {
   // Pengaturan: one dropdown of pages on every Data Master page; Penilaian only for Super Admin on S1.
   const master = sectionOf('/pengaturan/cetak', 's1', true, false)!
   assert.deepEqual(master.tabs.map((t) => t.label), ['Mata Kuliah', 'Mahasiswa', 'Sesi'])
-  assert.deepEqual(master.group?.items.map((t) => t.href), ['/s1/pengaturan', '/s1/pengaturan/cetak', '/s1/pengaturan/surat', '/s1/pengaturan/ujian', '/s1/pengaturan/sidang', '/s1/pengaturan/foto-login', '/s1/pengaturan/penilaian'])
+  assert.deepEqual(master.group?.items.map((t) => t.href), ['/s1/pengaturan', '/s1/pengaturan/cetak', '/s1/pengaturan/surat', '/s1/pengaturan/ujian', '/s1/pengaturan/sidang', '/s1/pengaturan/foto-login', '/s1/pengaturan/sesi', '/s1/pengaturan/penilaian'])
   assert.equal(sectionOf('/mahasiswa', 's2', true, false)!.group?.items.some((t) => t.label === 'Penilaian'), false)
   assert.equal(sectionOf('/pengaturan/penilaian', 's1', false, false), null, 'Penilaian is not in an admin-less menu')
   assert.equal(sectionOf('/sidang', 's2', true, true)!.group, undefined, 'S2 has no grading menu')

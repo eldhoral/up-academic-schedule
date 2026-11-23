@@ -10,7 +10,7 @@ import { convertXlsxToPdf } from '@/lib/aspose'
 import { buildFormRevisiXlsx, namaFormRevisi, type FormRevisi } from '@/lib/penilaian/form-revisi-xlsx'
 
 export type Lampiran = { filename: string; content: Uint8Array; contentType: string }
-export type Transport = (msg: { to: string[]; subject: string; text: string; html: string; attachments?: Lampiran[] }) => Promise<{ accepted: string[]; rejected: string[] }>
+export type Transport = (msg: { to: string[]; cc?: string[]; subject: string; text: string; html: string; attachments?: Lampiran[] }) => Promise<{ accepted: string[]; rejected: string[] }>
 export type EmailStatus = 'tidak_perlu' | 'terkirim' | 'gagal' | 'sebagian'
 export type { DetailEmail }
 
@@ -24,8 +24,11 @@ export type MailData = {
   judul: string
   tanggal: string
   yudisium: string
+  academicYearId: string
   mahasiswaEmail: string | null
   penguji: { peranLabel: string; nama: string; email: string | null; revisi: Revisi }[]
+  /** Pengaturan S1 'email_revisi_cc_kaprodi' / 'email_revisi_cc_wadek1', CC'd on the mail; blank = not CC'd. */
+  cc?: { siapa: string; email: string | null }[]
   /** Pengaturan S1 'email_revisi_subjek' / 'email_revisi_isi'; missing = the built-in defaults. */
   template?: { subjek: string; isi: string }
 }
@@ -74,7 +77,7 @@ const dbDeps: MailDeps = {
   async muat(defenseId) {
     const db = createAdminClient()
     const { data: d, error } = await db
-      .from('defenses').select('id, npm, nama_mahasiswa, judul_skripsi, tanggal').eq('id', defenseId).maybeSingle()
+      .from('defenses').select('id, npm, nama_mahasiswa, judul_skripsi, tanggal, academic_year_id').eq('id', defenseId).maybeSingle()
     if (error) throw new Error(`Gagal memuat sidang: ${error.message}`)
     if (!d) return null
     const [hasil, nilai, mhs, settings] = await Promise.all([
@@ -95,9 +98,10 @@ const dbDeps: MailDeps = {
       return n && l ? [{ peranLabel: PERAN_SIDANG_LABEL[p], nama: lecturerDisplayName(l), email: l.email as string | null, revisi: n.ada_revisi ? (n.revisi as Revisi) : [] }] : []
     })
     return {
-      status: hasil.data.email_status, detailLama: parseDetailEmail(hasil.data.email_detail), nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal,
+      status: hasil.data.email_status, detailLama: parseDetailEmail(hasil.data.email_detail), nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal, academicYearId: d.academic_year_id,
       yudisium: hasil.data.yudisium_label, mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null, penguji,
       template: { subjek: settings.email_revisi_subjek ?? '', isi: settings.email_revisi_isi ?? '' },
+      cc: [{ siapa: 'Kaprodi', email: settings.email_revisi_cc_kaprodi ?? null }, { siapa: 'Wakil Dekan I', email: settings.email_revisi_cc_wadek1 ?? null }],
     }
   },
   async simpan(defenseId, status, detail) {
@@ -108,7 +112,7 @@ const dbDeps: MailDeps = {
 }
 
 /**
- * Sends the revisi mail (student + the three examiners, one message) and records the outcome on hasil_sidang.
+ * Sends the revisi mail (student + the three examiners, Kaprodi and Wakil Dekan I in CC; one message) and records the outcome on hasil_sidang.
  * Only from 'menunggu' (first send) or 'gagal'/'sebagian' (retry); any other status is returned untouched, so a
  * double click can't re-send a finished mail. A retry mails only the addresses not already 'terkirim' in the stored
  * detail and merges the outcome into it. Never throws on a send problem: it becomes 'gagal'.
@@ -133,14 +137,21 @@ export async function kirimRevisi(
   // Skipped addresses stay in the detail, so the recap shows who did not get the mail.
   const detail: DetailEmail[] = []
   const to: string[] = []
-  for (const [siapa, raw] of [['Mahasiswa', m.mahasiswaEmail], ...m.penguji.map((p) => [p.peranLabel, p.email] as const)] as const) {
+  const cc: string[] = []
+  const penerima = [
+    ...[['Mahasiswa', m.mahasiswaEmail] as const, ...m.penguji.map((p) => [p.peranLabel, p.email] as const)].map(([siapa, raw]) => ({ siapa, raw, ke: to })),
+    // A blank CC setting means "don't CC", not a skipped recipient.
+    ...(m.cc ?? []).filter((c) => c.email?.trim()).map((c) => ({ siapa: c.siapa, raw: c.email, ke: cc })),
+  ]
+  for (const { siapa, raw, ke } of penerima) {
     const alamat = (raw ?? '').trim()
     if (!alamat) detail.push({ alamat, status: 'dilewati', alasan: `Email ${siapa} kosong` })
     else if (emailError(alamat)) detail.push({ alamat, status: 'dilewati', alasan: `Email ${siapa} tidak valid` })
-    else if (!sudahAda.has(alamat.toLowerCase()) && !to.some((a) => a.toLowerCase() === alamat.toLowerCase())) to.push(alamat)
+    else if (!sudahAda.has(alamat.toLowerCase()) && ![...to, ...cc].some((a) => a.toLowerCase() === alamat.toLowerCase())) ke.push(alamat)
   }
+  const semuaKe = [...to, ...cc]
 
-  // The attachment is a convenience (the body has every revisi): a PDF that fails or is late is left out, not a failed send.
+  // A PDF that fails or is late is left out, not a failed send: the body then carries the revisi tables instead.
   const lampiran = async (): Promise<Lampiran[]> => {
     if (!deps.pdf) return []
     const form: FormRevisi = {
@@ -157,18 +168,18 @@ export async function kirimRevisi(
   }
 
   const kirim = async (): Promise<DetailEmail[]> => {
-    if (!transport) return to.map((alamat) => ({ alamat, status: 'gagal', alasan: TIDAK_DIKONFIGURASI }))
-    if (to.length === 0) return []
+    if (!transport) return semuaKe.map((alamat) => ({ alamat, status: 'gagal', alasan: TIDAK_DIKONFIGURASI }))
+    if (semuaKe.length === 0) return []
     const attachments = await lampiran()
     try {
-      const hasil = await batasWaktu(transport({ to, ...renderRevisi({ ...m, revisi }), attachments }), timeoutMs, 'Melewati batas waktu pengiriman')
+      const hasil = await batasWaktu(transport({ to, ...(cc.length ? { cc } : {}), ...renderRevisi({ ...m, revisi, lampiran: attachments.length > 0 }), attachments }), timeoutMs, 'Melewati batas waktu pengiriman')
       const terima = new Set(hasil.accepted.map((a) => a.toLowerCase()))
-      return to.map((alamat) => terima.has(alamat.toLowerCase())
+      return semuaKe.map((alamat) => terima.has(alamat.toLowerCase())
         ? { alamat, status: 'terkirim' as const }
         : { alamat, status: 'gagal' as const, alasan: 'Ditolak server email' })
     } catch (e) {
       const alasan = e instanceof Error ? e.message : String(e)
-      return to.map((alamat) => ({ alamat, status: 'gagal' as const, alasan }))
+      return semuaKe.map((alamat) => ({ alamat, status: 'gagal' as const, alasan }))
     }
   }
 
