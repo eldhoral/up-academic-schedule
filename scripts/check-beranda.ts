@@ -1,5 +1,37 @@
 import assert from 'node:assert/strict'
-import { kelasPerHari, nilaiPerSemester, hitungHasilPrasidang, sidangMendatang } from '../src/app/beranda-data'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { kelasPerHari, nilaiPerSemester, hitungHasilPrasidang, sidangMendatang, loadBeranda } from '../src/app/beranda-data'
+
+// A minimal awaitable query builder: it honors eq/in/not filters so the loader's scoping is exercised.
+type Filter = [string, string, unknown]
+class FakeQuery {
+  private filters: Filter[] = []
+  constructor(private table: string, private db: Record<string, unknown[]>) {}
+  select() { return this }
+  eq(k: string, v: unknown) { this.filters.push(['eq', k, v]); return this }
+  in(k: string, v: unknown[]) { this.filters.push(['in', k, v]); return this }
+  not(k: string, _op: string, v: unknown) { this.filters.push(['not', k, v]); return this }
+  gte() { return this }
+  lte() { return this }
+  order() { return this }
+  limit() { return this }
+  private static ambil(row: unknown, path: string): unknown {
+    let v: unknown = row
+    for (const k of path.split('.')) v = (v as Record<string, unknown> | null)?.[k]
+    return v
+  }
+  private cocok(row: unknown) {
+    return this.filters.every(([op, k, v]) => {
+      const n = FakeQuery.ambil(row, k)
+      if (op === 'eq') return n === v
+      if (op === 'in') return Array.isArray(v) && v.includes(n)
+      return n !== v
+    })
+  }
+  then(resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) {
+    return Promise.resolve({ data: (this.db[this.table] ?? []).filter((r) => this.cocok(r)), error: null }).then(resolve, reject)
+  }
+}
 
 // kelasPerHari: Senin–Sabtu always, Minggu only with rows; one count per listed prodi.
 const k = kelasPerHari([{ prodi: 's1', hari: 'SENIN' }, { prodi: 's1', hari: 'SENIN' }, { prodi: 's2', hari: 'RABU' }, { prodi: 's2', hari: 'SENIN' }], ['s1', 's2'])
@@ -39,5 +71,36 @@ const m = sidangMendatang([d('kemarin', '2026-11-23'), d('siang', '2026-11-24', 
 assert.deepEqual(m.map((x) => x.id), ['pagi', 'siang', 'h7'])
 assert.deepEqual([m[0].jam, m[0].tempat], ['09:00–10:30', 'Ruang 301'])
 assert.equal(sidangMendatang([{ ...d('k', '2026-11-24'), room_nama: null, kelompok: 2 }], '2026-11-24')[0].tempat, 'Kelompok 2')
+
+void (async () => {
+  const db: Record<string, unknown[]> = {
+    schedules: [],
+    hasil_sidang: [
+      { defense_id: 'd1', locked_at: '2026-01-01T00:00:00Z', defenses: { academic_year_id: '20241', prodi: 's1' } },
+      { defense_id: 'd2', locked_at: '2026-01-01T00:00:00Z', defenses: { academic_year_id: '20251', prodi: 's1' } },
+    ],
+    nilai_sidang: [
+      { defense_id: 'd1', peran: 'ketua', nilai: 70, defenses: { academic_year_id: '20241', prodi: 's1' } },
+      { defense_id: 'd1', peran: 'anggota_1', nilai: 70, defenses: { academic_year_id: '20241', prodi: 's1' } },
+      { defense_id: 'd1', peran: 'anggota_2', nilai: 70, defenses: { academic_year_id: '20241', prodi: 's1' } },
+      { defense_id: 'd2', peran: 'ketua', nilai: 90, defenses: { academic_year_id: '20251', prodi: 's1' } },
+      { defense_id: 'd2', peran: 'anggota_1', nilai: 90, defenses: { academic_year_id: '20251', prodi: 's1' } },
+      { defense_id: 'd2', peran: 'anggota_2', nilai: 90, defenses: { academic_year_id: '20251', prodi: 's1' } },
+    ],
+    academic_years: [
+      { id: '20241', label: '2024/2025 Gasal' },
+      { id: '20251', label: '2025/2026 Gasal' },
+    ],
+    defenses: [],
+    berita_acara_prasidang: [],
+    keputusan_prasidang: [],
+    audit_log: [],
+  }
+  const supabase = { from: (t: string) => new FakeQuery(t, db) } as unknown as SupabaseClient
+  const hasil = await loadBeranda(supabase, '20251', ['s1'])
+  assert.deepEqual(hasil.nilai?.map((t) => t.id), ['20241', '20251'], 'the trend spans semesters, not just the active year')
+  assert.equal(hasil.nilai?.at(-1)?.rata, 90)
+  console.log('beranda loader: all checks passed')
+})()
 
 console.log('beranda: all checks passed')
