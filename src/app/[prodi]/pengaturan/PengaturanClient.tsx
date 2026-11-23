@@ -86,7 +86,7 @@ const SELECT_OPTIONS: Record<string, { value: string; label: string }[]> = {
 // The rows stay in the database (no migration); show them again once an output uses them.
 const HIDDEN_KEYS = new Set(['nama_universitas', 'nama_prodi'])
 
-const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'catatan_ujian', 'tembusan', 'email_revisi_isi'])
+const TEXTAREA_KEYS = new Set(['header_baris', 'ujian_header_baris', 'prasidang_header_baris', 'sidang_header_baris', 'keterangan_cetak', 'kop_baris', 'catatan_perkuliahan', 'catatan_ujian', 'tembusan', 'email_revisi_isi', 'email_prasidang_isi'])
 
 /** One Pengaturan page: the setting groups it owns (in order) and, on its page, the login photos. */
 export function PengaturanClient({ settings, canEdit, groups: groupOrder, fotoLogin = false }: { settings: SettingRow[]; canEdit: boolean; groups: string[]; fotoLogin?: boolean }) {
@@ -153,7 +153,7 @@ export function PengaturanClient({ settings, canEdit, groups: groupOrder, fotoLo
 }
 
 // Sample sidang for the live preview: two examiners with revisi, as a real mail would carry.
-const CONTOH_REVISI = {
+const CONTOH_REVISI_DATA = {
   nama: 'Budi Santoso',
   npm: '2021110099',
   judul: 'Pengaruh Dukungan Sosial terhadap Resiliensi Mahasiswa',
@@ -161,17 +161,47 @@ const CONTOH_REVISI = {
   yudisium: 'Lulus Dengan Revisi',
   academicYearId: '20252',
   lampiran: true,
+}
+const CONTOH_REVISI = {
+  ...CONTOH_REVISI_DATA,
   revisi: [
     { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani Wulandari, M.Psi.', rows: [{ halaman: '12', catatan: 'Perbaiki tabel 4.2.' }, { halaman: '', catatan: 'Tambahkan saran penelitian lanjutan.' }] },
     { peranLabel: 'Anggota Penguji II', nama: 'Dr. Cici Lestari, M.Si.', rows: [{ halaman: '35', catatan: 'Lengkapi daftar pustaka.' }] },
   ],
 }
 
-/** The revisi email's subject and body, with a live preview filled from sample data as the admin types. */
+// Sample prasidang for its preview: the Pendamping's catatan per question.
+const CONTOH_PRASIDANG = {
+  ...CONTOH_REVISI_DATA,
+  yudisium: 'Skripsi layak untuk dilanjutkan dengan revisi',
+  kolom: 'Pertanyaan',
+  revisi: [{ peranLabel: 'Dosen Pembimbing Pendamping', nama: 'Dr. Ani Wulandari, M.Psi.', rows: [{ halaman: 'Substansi (isi) Proposal', catatan: 'Pertajam rumusan masalah.' }] }],
+}
+
+/** The 'email' group: the sidang revisi template, the prasidang catatan template (each with its preview), then the rest (CC). */
 function EmailRevisiFields({ rows, canEdit }: { rows: SettingRow[]; canEdit: boolean }) {
+  const tpl = (p: string) => rows.filter((r) => r.key === `${p}_subjek` || r.key === `${p}_isi`)
+  const lain = rows.filter((r) => !/^email_(revisi|prasidang)_(subjek|isi)$/.test(r.key))
+  return (
+    <div className="space-y-[1.6rem]">
+      {tpl('email_revisi').length > 0 && <EmailTemplate rows={tpl('email_revisi')} prefix="email_revisi" contoh={CONTOH_REVISI} canEdit={canEdit} />}
+      {tpl('email_prasidang').length > 0 && <EmailTemplate rows={tpl('email_prasidang')} prefix="email_prasidang" contoh={CONTOH_PRASIDANG} canEdit={canEdit} />}
+      {lain.length > 0 && (
+        <div className="space-y-[1rem]">
+          {lain.map((row) => <SettingField key={`${row.prodi}:${row.key}`} row={row} canEdit={canEdit} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** One email's subject and body, with a live preview filled from sample data as the admin types. */
+function EmailTemplate({ rows, prefix, contoh, canEdit }: {
+  rows: SettingRow[]; prefix: string; contoh: Omit<Parameters<typeof renderRevisi>[0], 'template'>; canEdit: boolean
+}) {
   const value = (key: string) => rows.find((r) => r.key === key)?.value ?? ''
-  const [template, setTemplate] = useState({ subjek: value('email_revisi_subjek'), isi: value('email_revisi_isi') })
-  const mail = renderRevisi({ ...CONTOH_REVISI, template })
+  const [template, setTemplate] = useState({ subjek: value(`${prefix}_subjek`), isi: value(`${prefix}_isi`) })
+  const mail = renderRevisi({ ...contoh, template })
 
   return (
     <div className="space-y-[1rem]">
@@ -180,8 +210,8 @@ function EmailRevisiFields({ rows, canEdit }: { rows: SettingRow[]; canEdit: boo
         className="space-y-[1rem]"
         onInput={(e) => {
           const t = e.target as HTMLInputElement | HTMLTextAreaElement
-          if (t.name === 'setting:email_revisi_subjek') setTemplate((p) => ({ ...p, subjek: t.value }))
-          if (t.name === 'setting:email_revisi_isi') setTemplate((p) => ({ ...p, isi: t.value }))
+          if (t.name === `setting:${prefix}_subjek`) setTemplate((p) => ({ ...p, subjek: t.value }))
+          if (t.name === `setting:${prefix}_isi`) setTemplate((p) => ({ ...p, isi: t.value }))
         }}
       >
         {rows.map((row) => (

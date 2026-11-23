@@ -3,7 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { emailError, lecturerDisplayName } from '@/lib/import/tables'
 import { PERAN_SIDANG, PERAN_SIDANG_LABEL, type PeranSidang } from '@/lib/penilaian/akses'
 import { renderRevisi } from '@/lib/penilaian/email-revisi'
-import { loadSettings } from '@/lib/settings'
+import { HASIL_LABEL, PERAN_PRASIDANG_LABEL, type Hasil, type Jawaban } from '@/lib/penilaian/prasidang'
+import { loadSettings, type SettingsMap } from '@/lib/settings'
 import { parseDetailEmail, type DetailEmail } from '@/lib/penilaian/rekap'
 import type { Revisi } from '@/lib/penilaian/nilai'
 import { convertXlsxToPdf } from '@/lib/aspose'
@@ -14,8 +15,10 @@ export type Transport = (msg: { to: string[]; cc?: string[]; subject: string; te
 export type EmailStatus = 'tidak_perlu' | 'terkirim' | 'gagal' | 'sebagian'
 export type { DetailEmail }
 
-/** What a send needs, loaded once. `status` is hasil_sidang.email_status as it stands. */
+/** What a send needs, loaded once. `status` is hasil_sidang (or berita_acara_prasidang).email_status as it stands. */
 export type MailData = {
+  /** Missing = sidang. Prasidang: penguji is the Pendamping, revisi[].halaman holds the question text. */
+  jenis?: 'sidang' | 'prasidang'
   status: string
   /** hasil_sidang.email_detail as stored: who already got the mail. */
   detailLama: DetailEmail[]
@@ -73,6 +76,9 @@ export function smtpTransport(): Transport | null {
 }
 
 /** Admin client: the grades, names and addresses are read for any sidang, whoever triggered the send. */
+const ccSettings = (settings: SettingsMap) =>
+  [{ siapa: 'Kaprodi', email: settings.email_revisi_cc_kaprodi ?? null }, { siapa: 'Wakil Dekan I', email: settings.email_revisi_cc_wadek1 ?? null }]
+
 const dbDeps: MailDeps = {
   async muat(defenseId) {
     const db = createAdminClient()
@@ -101,7 +107,7 @@ const dbDeps: MailDeps = {
       status: hasil.data.email_status, detailLama: parseDetailEmail(hasil.data.email_detail), nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal, academicYearId: d.academic_year_id,
       yudisium: hasil.data.yudisium_label, mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null, penguji,
       template: { subjek: settings.email_revisi_subjek ?? '', isi: settings.email_revisi_isi ?? '' },
-      cc: [{ siapa: 'Kaprodi', email: settings.email_revisi_cc_kaprodi ?? null }, { siapa: 'Wakil Dekan I', email: settings.email_revisi_cc_wadek1 ?? null }],
+      cc: ccSettings(settings),
     }
   },
   async simpan(defenseId, status, detail) {
@@ -110,6 +116,46 @@ const dbDeps: MailDeps = {
   },
   pdf: async (form) => convertXlsxToPdf(await buildFormRevisiXlsx(form)),
 }
+
+/** Prasidang: the Pendamping's berita acara (catatan per question) to the student and the Pendamping. Admin client, like dbDeps. */
+const prasidangDeps: MailDeps = {
+  async muat(defenseId) {
+    const db = createAdminClient()
+    const { data: d, error } = await db
+      .from('defenses').select('id, npm, nama_mahasiswa, judul_skripsi, tanggal, academic_year_id').eq('id', defenseId).maybeSingle()
+    if (error) throw new Error(`Gagal memuat prasidang: ${error.message}`)
+    if (!d) return null
+    const [ba, mhs, settings] = await Promise.all([
+      db.from('berita_acara_prasidang').select('kode_dosen, jawaban, hasil, email_status, email_detail').eq('defense_id', defenseId).eq('peran', 'pendamping').maybeSingle(),
+      db.from('students').select('email').eq('prodi', 's1').eq('npm', d.npm).maybeSingle(),
+      loadSettings(db, 's1', false),
+    ])
+    const err = ba.error ?? mhs.error
+    if (err) throw new Error(`Gagal memuat berita acara: ${err.message}`)
+    if (!ba.data) return null
+    const l = await db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang, email').eq('kode_dosen', ba.data.kode_dosen).maybeSingle()
+    if (l.error) throw new Error(`Gagal memuat dosen: ${l.error.message}`)
+    const revisi: Revisi = (ba.data.jawaban as Jawaban[]).filter((j) => j.catatan.trim()).map((j) => ({ halaman: j.teks, catatan: j.catatan }))
+    return {
+      jenis: 'prasidang', status: ba.data.email_status, detailLama: parseDetailEmail(ba.data.email_detail),
+      nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal, academicYearId: d.academic_year_id,
+      yudisium: HASIL_LABEL[ba.data.hasil as Hasil], mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null,
+      penguji: [{ peranLabel: PERAN_PRASIDANG_LABEL.pendamping, nama: l.data ? lecturerDisplayName(l.data) : ba.data.kode_dosen, email: (l.data?.email as string | null | undefined) ?? null, revisi }],
+      template: { subjek: settings.email_prasidang_subjek ?? '', isi: settings.email_prasidang_isi ?? '' },
+      cc: ccSettings(settings),
+    }
+  },
+  async simpan(defenseId, status, detail) {
+    const { error } = await createAdminClient().from('berita_acara_prasidang').update({ email_status: status, email_detail: detail })
+      .eq('defense_id', defenseId).eq('peran', 'pendamping')
+    if (error) throw new Error(`Gagal menyimpan status email: ${error.message}`)
+  },
+  pdf: dbDeps.pdf,
+}
+
+/** The catatan prasidang mail: kirimRevisi's rules (status, retry, CC, PDF) on the Pendamping's berita acara. */
+export const kirimCatatanPrasidang = (defenseId: string, transport: Transport | null = smtpTransport()) =>
+  kirimRevisi(defenseId, transport, prasidangDeps)
 
 /**
  * Sends the revisi mail (student + the three examiners, Kaprodi and Wakil Dekan I in CC; one message) and records the outcome on hasil_sidang.
@@ -124,6 +170,8 @@ export async function kirimRevisi(
   const m = await deps.muat(defenseId)
   if (!m) return 'tidak_perlu'
   if (!['menunggu', 'gagal', 'sebagian'].includes(m.status)) return m.status as EmailStatus
+  const jenis = m.jenis ?? 'sidang'
+  const kolom = jenis === 'sidang' ? 'Halaman' : 'Pertanyaan'
   const revisi = m.penguji.filter((p) => p.revisi.length > 0).map((p) => ({ peranLabel: p.peranLabel, nama: p.nama, rows: p.revisi }))
   if (revisi.length === 0) {
     // Record it, or a stuck 'gagal'/'sebagian' keeps its retry button forever.
@@ -155,7 +203,7 @@ export async function kirimRevisi(
   const lampiran = async (): Promise<Lampiran[]> => {
     if (!deps.pdf) return []
     const form: FormRevisi = {
-      jenis: 'sidang', kolom: 'Halaman', hasil: m.yudisium, npm: m.npm, nama: m.nama, judul: m.judul, tanggal: m.tanggal,
+      jenis, kolom, hasil: m.yudisium, npm: m.npm, nama: m.nama, judul: m.judul, tanggal: m.tanggal,
       bagian: m.penguji.map((p) => ({ peranLabel: p.peranLabel, nama: p.nama, rows: p.revisi.map((r) => ({ rujukan: r.halaman, catatan: r.catatan })) })),
     }
     try {
@@ -172,7 +220,7 @@ export async function kirimRevisi(
     if (semuaKe.length === 0) return []
     const attachments = await lampiran()
     try {
-      const hasil = await batasWaktu(transport({ to, ...(cc.length ? { cc } : {}), ...renderRevisi({ ...m, revisi, lampiran: attachments.length > 0 }), attachments }), timeoutMs, 'Melewati batas waktu pengiriman')
+      const hasil = await batasWaktu(transport({ to, ...(cc.length ? { cc } : {}), ...renderRevisi({ ...m, revisi, kolom, lampiran: attachments.length > 0 }), attachments }), timeoutMs, 'Melewati batas waktu pengiriman')
       const terima = new Set(hasil.accepted.map((a) => a.toLowerCase()))
       return semuaKe.map((alamat) => terima.has(alamat.toLowerCase())
         ? { alamat, status: 'terkirim' as const }

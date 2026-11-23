@@ -11,6 +11,8 @@ import {
 } from '@/lib/penilaian/prasidang'
 import { submitBeritaAcaraAction } from '../actions'
 import { BeritaAcaraForm } from './BeritaAcaraForm'
+import { bolehKirimUlang, EMAIL_LABEL } from '@/lib/penilaian/rekap'
+import { KirimUlang } from '@/app/[prodi]/sidang/nilai-akhir/KirimUlang'
 
 const waktu = (iso: string) =>
   new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date(iso))
@@ -107,6 +109,13 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
                   {PERAN_PRASIDANG_LABEL[peran]} <span className="text-[0.87rem] font-normal text-[var(--tinta-3)]">· {data.dosen[peran]}</span>
                 </h2>
                 {data.isian[peran] ? <Terkirim row={data.isian[peran]!} /> : <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">Belum diisi.</p>}
+                {peran === 'pendamping' && data.isian.pendamping && canManage(user.role) && (
+                  <div className="m-0 mt-[1rem] text-[0.93rem]">
+                    <span className="block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">Email catatan prasidang</span>
+                    {EMAIL_LABEL[data.isian.pendamping.email_status] ?? data.isian.pendamping.email_status}
+                    {bolehKirimUlang(data.isian.pendamping.email_status, data.isian.pendamping.submitted_at) && <KirimUlang defenseId={defense.id} prasidang />}
+                  </div>
+                )}
               </section>
             ))}
           </>

@@ -1,8 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentUser, isDosen } from '@/lib/roles'
+import { canManage, getCurrentUser, isDosen } from '@/lib/roles'
+import { kirimCatatanPrasidang } from '@/lib/mailer'
+import { bolehKirimUlang } from '@/lib/penilaian/rekap'
 import { humanDbError } from '@/lib/db-error'
 import { tanggalPanjang } from '@/lib/hari'
 import { aksesBeritaAcara, todayJakarta } from '@/lib/penilaian/akses'
@@ -41,7 +44,33 @@ export async function submitBeritaAcaraAction(
   // The unique (defense_id, peran) is the last word on a double submit (two tabs).
   if (error) return { error: error.code === '23505' ? SUDAH_DIKIRIM_BA : humanDbError(error) }
 
+  // The insert is committed with email_status 'menunggu'; the mail (PDF + SMTP caps) goes after the response.
+  after(() => kirimAman(data.defense.id))
   revalidatePath(beritaAcaraPath(data.defense.id))
   revalidatePath('/penilaian')
+  return { ok: true }
+}
+
+/** kirimCatatanPrasidang that never throws: a DB problem leaves email_status as it was. */
+async function kirimAman(defenseId: string): Promise<string> {
+  try {
+    return await kirimCatatanPrasidang(defenseId)
+  } catch (e) {
+    console.error('kirimCatatanPrasidang gagal:', e instanceof Error ? e.message : 'error')
+    return 'menunggu'
+  }
+}
+
+/** Super Admin retries a failed, partial or stuck ('menunggu' over 2 minutes) catatan prasidang email. */
+export async function kirimUlangCatatanAction(defenseId: string): Promise<HasilAksi> {
+  const user = await getCurrentUser()
+  if (!user || !canManage(user.role)) return { error: 'Hanya Super Admin yang dapat mengirim ulang email.' }
+  const ba = (await loadBeritaAcara(defenseId))?.isian.pendamping
+  if (!ba) return { error: TIDAK_ADA }
+  if (!bolehKirimUlang(ba.email_status, ba.submitted_at)) {
+    return { error: 'Email hanya dapat dikirim ulang jika gagal, sebagian, atau masih menunggu lebih dari 2 menit.' }
+  }
+  await kirimAman(defenseId)
+  revalidatePath(beritaAcaraPath(defenseId))
   return { ok: true }
 }

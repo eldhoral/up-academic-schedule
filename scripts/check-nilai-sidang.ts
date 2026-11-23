@@ -375,7 +375,7 @@ import { adminSidang, STATUS_SIDANG } from '../src/lib/penilaian/akses'
 
 // ---- email revisi
 import { tanggalPanjang } from '../src/lib/hari'
-import { renderRevisi, semesterTA } from '../src/lib/penilaian/email-revisi'
+import { ISI_PRASIDANG, renderRevisi, semesterTA, SUBJEK_PRASIDANG } from '../src/lib/penilaian/email-revisi'
 import { kirimRevisi, smtpTransport, type Transport, type MailData, type MailDeps } from '../src/lib/mailer'
 import type { FormRevisi } from '../src/lib/penilaian/form-revisi-xlsx'
 async function cekEmail() {
@@ -590,6 +590,32 @@ async function cekEmail() {
   await pakaiPdf(hitung, null as unknown as Transport)
   await pakaiPdf(hitung, catat, data({ mahasiswaEmail: '', penguji: lengkap.penguji.map((p) => ({ ...p, email: null })) }))
   assert.equal(dibuat, 0)
+
+  // Catatan prasidang: same send, to the student + Pendamping with CC; the form is jenis prasidang, column Pertanyaan.
+  const pra = data({
+    jenis: 'prasidang', yudisium: 'Skripsi layak untuk dilanjutkan dengan revisi',
+    penguji: [{ peranLabel: 'Dosen Pembimbing Pendamping', nama: 'Dr. Ani', email: 'ani@up.id', revisi: [{ halaman: 'Substansi (isi) Proposal', catatan: 'Pertajam' }] }],
+    cc: [{ siapa: 'Kaprodi', email: 'kaprodi@up.id' }, { siapa: 'Wakil Dekan I', email: 'wadek@up.id' }],
+    template: { subjek: SUBJEK_PRASIDANG, isi: ISI_PRASIDANG },
+  })
+  const praMsg: Parameters<Transport>[0][] = []
+  const praForm: FormRevisi[] = []
+  const pr = await kirimRevisi('id', async (msg) => { praMsg.push(msg); return { accepted: [...msg.to, ...(msg.cc ?? [])], rejected: [] } },
+    { muat: async () => pra, simpan: async () => {}, pdf: async (f) => { praForm.push(f); return new Uint8Array([1]) } }, 50)
+  assert.equal(pr, 'terkirim')
+  assert.deepEqual([praMsg[0].to, praMsg[0].cc], [['budi@mhs.id', 'ani@up.id'], ['kaprodi@up.id', 'wadek@up.id']])
+  assert.equal(praMsg[0].subject, 'Catatan Prasidang Skripsi — Budi (2021110099)')
+  assert.ok(praMsg[0].text.includes('Hasil prasidang: Skripsi layak untuk dilanjutkan dengan revisi') && !praMsg[0].text.includes('Pertajam'), praMsg[0].text)
+  assert.equal(praMsg[0].attachments?.[0].filename, 'Form Revisi Prasidang 2021110099 Budi.pdf')
+  assert.deepEqual([praForm[0].jenis, praForm[0].kolom, praForm[0].bagian[0].rows], ['prasidang', 'Pertanyaan', [{ rujukan: 'Substansi (isi) Proposal', catatan: 'Pertajam' }]])
+  // PDF failed: the catatan go in the body, keyed by the question, not "Halaman".
+  const praTanpaPdf = renderRevisi({ ...pra, kolom: 'Pertanyaan', revisi: [{ peranLabel: 'Dosen Pembimbing Pendamping', nama: 'Dr. Ani', rows: pra.penguji[0].revisi }] })
+  assert.ok(praTanpaPdf.text.includes('- Substansi (isi) Proposal: Pertajam') && !praTanpaPdf.text.includes('Halaman'), praTanpaPdf.text)
+  assert.ok(praTanpaPdf.html.includes('>Pertanyaan</th>'))
+  // Blank Pengaturan template: the prasidang defaults, never the sidang ones.
+  const praKosong = renderRevisi({ ...pra, kolom: 'Pertanyaan', lampiran: true, revisi: [], template: { subjek: ' ', isi: '' } })
+  assert.equal(praKosong.subject, 'Catatan Prasidang Skripsi — Budi (2021110099)')
+  assert.ok(praKosong.text.includes('Prasidang Skripsi') && praKosong.text.includes('Hasil prasidang: Skripsi layak'), praKosong.text)
   console.log('nilai-sidang email: all checks passed')
 }
 cekEmail().catch((e) => { console.error(e); process.exit(1) })

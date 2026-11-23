@@ -7,6 +7,11 @@ export const SUBJEK_REVISI_BAWAAN = 'Revisi Sidang Skripsi — {nama} ({npm})'
 export const ISI_REVISI_BAWAAN =
   'Kepada Yth,\n{nama}\n\n\nBerikut dikirimkan Form Revisi Sidang Skripsi\nSemester {semester}.\n\nDemikian dan terima kasih.\n\nSalam,\nAkademik F.Psi UP'
 
+/** Defaults of the 'email_prasidang_subjek' / 'email_prasidang_isi' settings (S1). {hasil} = hasil prasidang. */
+export const SUBJEK_PRASIDANG = 'Catatan Prasidang Skripsi — {nama} ({npm})'
+export const ISI_PRASIDANG =
+  'Kepada Yth,\n{nama}\n\n\nBerikut dikirimkan Form Revisi (catatan) Prasidang Skripsi\nSemester {semester}.\n\nHasil prasidang: {hasil}\n\nDemikian dan terima kasih.\n\nSalam,\nAkademik F.Psi UP'
+
 /** academic_years.id "20252" → "Genap TA. 2025/2026" (last digit 1 = Gasal, 2 = Genap); anything else as is. */
 export function semesterTA(academicYearId: string): string {
   const m = /^(\d{4})([12])$/.exec(academicYearId.trim())
@@ -27,6 +32,8 @@ export type RevisiInput = {
   template?: { subjek: string; isi: string }
   /** The form revisi PDF is attached: a body without {revisi} then gets no tables appended. */
   lampiran?: boolean
+  /** What rows[].halaman holds: 'Halaman' (sidang, default) or 'Pertanyaan' (prasidang: the question text). */
+  kolom?: string
 }
 
 const esc = (s: string) =>
@@ -38,20 +45,23 @@ const esc = (s: string) =>
  */
 export function renderRevisi(i: RevisiInput): { subject: string; text: string; html: string } {
   const ada = i.revisi.filter((r) => r.rows.length > 0)
-  const vars = { nama: i.nama, npm: i.npm, judul: i.judul, tanggal: tanggalPanjang(i.tanggal, false), yudisium: i.yudisium, semester: semesterTA(i.academicYearId) }
-  const subjekT = i.template?.subjek.trim() || SUBJEK_REVISI_BAWAAN
-  const isiT0 = i.template?.isi.trim() ? i.template.isi.replace(/\r\n?/g, '\n') : ISI_REVISI_BAWAAN
+  const vars = { nama: i.nama, npm: i.npm, judul: i.judul, tanggal: tanggalPanjang(i.tanggal, false), yudisium: i.yudisium, semester: semesterTA(i.academicYearId), hasil: i.yudisium }
+  const prasidang = i.kolom === 'Pertanyaan'
+  const subjekT = i.template?.subjek.trim() || (prasidang ? SUBJEK_PRASIDANG : SUBJEK_REVISI_BAWAAN)
+  const isiT0 = i.template?.isi.trim() ? i.template.isi.replace(/\r\n?/g, '\n') : prasidang ? ISI_PRASIDANG : ISI_REVISI_BAWAAN
   const isiT = isiT0.includes('{revisi}') || i.lampiran ? isiT0 : `${isiT0}\n\n{revisi}`
 
   const subject = substituteTemplate(subjekT, vars).replace(/\s*[\r\n]+\s*/g, ' ')
 
-  const revisiText = ada.flatMap((r, n) => [...(n ? [''] : []), `${r.peranLabel}: ${r.nama}`, ...r.rows.map((x) => `- Halaman ${x.halaman || '-'}: ${x.catatan}`)]).join('\n')
+  const kolom = i.kolom ?? 'Halaman'
+  const rujukan = (h: string) => (kolom === 'Halaman' ? `Halaman ${h || '-'}` : h || '-')
+  const revisiText = ada.flatMap((r, n) => [...(n ? [''] : []), `${r.peranLabel}: ${r.nama}`, ...r.rows.map((x) => `- ${rujukan(x.halaman)}: ${x.catatan}`)]).join('\n')
   const text = substituteTemplate(isiT, { ...vars, revisi: revisiText })
 
   const cell = 'border:1px solid #ccc;padding:4px 8px;vertical-align:top'
   const revisiHtml = ada.map((r) => [
     `<p><b>${esc(r.peranLabel)}: ${esc(r.nama)}</b></p>`,
-    `<table style="border-collapse:collapse"><tr><th style="${cell}">Halaman</th><th style="${cell}">Catatan revisi</th></tr>`,
+    `<table style="border-collapse:collapse"><tr><th style="${cell}">${esc(kolom)}</th><th style="${cell}">Catatan revisi</th></tr>`,
     ...r.rows.map((x) => `<tr><td style="${cell}">${esc(x.halaman) || '-'}</td><td style="${cell};white-space:pre-wrap">${esc(x.catatan)}</td></tr>`),
     '</table>',
   ].join('')).join('')

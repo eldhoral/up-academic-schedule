@@ -212,6 +212,7 @@ export type BeritaAcaraRow = {
   jawaban: Jawaban[]
   hasil: Hasil
   submitted_at: string
+  email_status: string
 }
 
 export type BeritaAcara = {
@@ -242,7 +243,7 @@ export async function loadBeritaAcara(defenseId: string): Promise<BeritaAcara | 
 
   const kode = [defense.pembimbing_kode, defense.penguji_kode].filter((k): k is string => !!k)
   const [rows, dosen, status, keputusan, aturan] = await Promise.all([
-    db.from('berita_acara_prasidang').select('id, peran, kode_dosen, jawaban, hasil, submitted_at').eq('defense_id', defense.id),
+    db.from('berita_acara_prasidang').select('id, peran, kode_dosen, jawaban, hasil, submitted_at, email_status').eq('defense_id', defense.id),
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang').in('kode_dosen', kode),
     db.rpc('status_prasidang', { p_npm: defense.npm }),
     db.from('keputusan_prasidang').select('prasidang_id, hasil, alasan').eq('npm', defense.npm).maybeSingle(),

@@ -3,9 +3,10 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { kirimUlangEmailAction } from '@/app/nilai-sidang/actions'
+import { kirimUlangCatatanAction } from '@/app/berita-acara-prasidang/actions'
 
-/** Super Admin: retry the revisi email of one sidang. The recap refreshes with the new status. */
-export function KirimUlang({ defenseId }: { defenseId: string }) {
+/** Super Admin: retry the revisi email of one sidang (or the catatan email of one prasidang). The page refreshes with the new status. */
+export function KirimUlang({ defenseId, prasidang = false }: { defenseId: string; prasidang?: boolean }) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
@@ -13,9 +14,9 @@ export function KirimUlang({ defenseId }: { defenseId: string }) {
   function kirim() {
     setError('')
     startTransition(async () => {
-      let hasil: Awaited<ReturnType<typeof kirimUlangEmailAction>>
+      let hasil: { error: string } | { ok: true }
       try {
-        hasil = await kirimUlangEmailAction(defenseId)
+        hasil = await (prasidang ? kirimUlangCatatanAction : kirimUlangEmailAction)(defenseId)
       } catch {
         hasil = { error: 'Tidak dapat mengirim. Periksa koneksi lalu coba lagi.' }
       }
