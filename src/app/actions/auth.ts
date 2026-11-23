@@ -83,7 +83,7 @@ export async function signInAction(
 
     // Standard credential error per PLAN.md §3.1c
     return {
-      error: 'Email dan kata sandi tidak cocok. Periksa kembali keduanya lalu coba lagi. Setelah lima kali gagal, proses masuk akan ditunda selama 15 menit.',
+      error: 'Username/email dan kata sandi tidak cocok. Periksa kembali keduanya lalu coba lagi. Setelah lima kali gagal, proses masuk akan ditunda selama 15 menit.',
     }
   }
 

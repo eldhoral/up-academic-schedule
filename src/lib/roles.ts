@@ -4,10 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { isPenguji, type Role } from '@/lib/role-types'
 import type { ProdiAccess } from '@/lib/prodi'
 import { eksternalAktif } from '@/lib/penilaian/akses'
+import { namaLogin } from '@/lib/login'
 
 export { ROLES, ROLE_LABEL, canWrite, canManage, isDosen, isPenguji, type Role } from '@/lib/role-types'
 
-/** Null means signed out, or the account somehow has no profiles row yet. A SUPERADMIN always has access 'all'; a DOSEN or EKSTERNAL grades S1 only. kodeDosen is set for those two, berlakuSampai for an EKSTERNAL only. An expired EKSTERNAL is signed out (null). */
+/** email is the login name (a username login without its @penguji.local). Null means signed out, or the account somehow has no profiles row yet. A SUPERADMIN always has access 'all'; a DOSEN or EKSTERNAL grades S1 only. kodeDosen is set for those two, berlakuSampai for an EKSTERNAL only. An expired EKSTERNAL is signed out (null). */
 export async function loadCurrentUser(supabase: SupabaseClient): Promise<{ id: string; email: string; role: Role; prodiAccess: ProdiAccess; kodeDosen: string | null; berlakuSampai: string | null } | null> {
   // getClaims verifies the session JWT; with asymmetric signing keys it does so locally, no Auth server round trip.
   const { data } = await supabase.auth.getClaims()
@@ -24,7 +25,7 @@ export async function loadCurrentUser(supabase: SupabaseClient): Promise<{ id: s
   const penguji = isPenguji(role)
   const prodiAccess: ProdiAccess = role === 'SUPERADMIN' ? 'all' : penguji ? 's1' : ((profile.prodi_access as ProdiAccess) ?? 's1')
   const kodeDosen = penguji ? ((profile.kode_dosen as string | null) ?? null) : null
-  return { id: claims.sub, email: (claims.email as string | undefined) ?? '', role, prodiAccess, kodeDosen, berlakuSampai }
+  return { id: claims.sub, email: namaLogin((claims.email as string | undefined) ?? ''), role, prodiAccess, kodeDosen, berlakuSampai }
 }
 
 /** Once per request: the layout, the header and the page share one lookup. */

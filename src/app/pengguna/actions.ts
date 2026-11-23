@@ -1,5 +1,6 @@
 'use server'
 
+import { cekUsername, emailLogin } from '@/lib/login'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser, ROLES, type Role } from '@/lib/roles'
@@ -78,11 +79,12 @@ export async function createUserAction(_prev: FormState, formData: FormData): Pr
     return { error: (e as Error).message }
   }
 
-  const email = (formData.get('email') as string)?.trim()
+  // New accounts sign in with a username (faculty request, 2026-11-23); older email logins keep working.
+  const login = cekUsername((formData.get('username') as string) ?? '')
   const password = formData.get('password') as string
   const role = readRole(formData)
 
-  if (!email) return { error: 'Email wajib diisi.' }
+  if ('error' in login) return login
   if (!password || password.length < 8) return { error: 'Kata sandi minimal 8 karakter.' }
   if (!role) return { error: 'Peran tidak valid.' }
   if (role !== 'DOSEN' && !readProdiAccess(formData)) return { error: 'Akses prodi tidak valid.' }
@@ -92,11 +94,11 @@ export async function createUserAction(_prev: FormState, formData: FormData): Pr
   if ('error' in access) return access
 
   const { data, error } = await admin.auth.admin.createUser({
-    email,
+    email: emailLogin(login.username),
     password,
     email_confirm: true,
   })
-  if (error) return { error: humanDbError(error) }
+  if (error) return { error: error.code === 'email_exists' ? `Username ${login.username} sudah dipakai.` : humanDbError(error) }
 
   const { error: roleError } = await admin.from('profiles').update({ role, ...access.fields }).eq('id', data.user.id)
   if (roleError) {

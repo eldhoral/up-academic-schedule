@@ -2,6 +2,20 @@ import assert from 'node:assert/strict'
 import { loadCurrentUser, canWrite, canManage, isDosen, isPenguji, ROLES, ROLE_LABEL } from '../src/lib/roles'
 import { generatePassword } from '../src/lib/password'
 import { usernameDosen } from '../src/lib/akun-dosen'
+import { cekUsername, emailLogin, namaLogin } from '../src/lib/login'
+
+// ---- username logins: a bare username maps to <username>@penguji.local; shown without the domain
+{
+  assert.deepEqual(cekUsername('  Budi.S_01 '), { username: 'budi.s_01' }, 'trimmed, lowercased')
+  assert.deepEqual(cekUsername('0311106301'), { username: '0311106301' }, 'an NIDN is a username')
+  for (const bad of ['', 'ab', 'a'.repeat(31), 'budi s', 'budi@up.ac.id', '-budi', 'budi!']) assert.ok('error' in cekUsername(bad), bad)
+  assert.ok('error' in cekUsername('eks-d01-011226'), 'eks- is kept for the external day accounts')
+  assert.equal(emailLogin('budi'), 'budi@penguji.local')
+  assert.equal(emailLogin('a@b.id'), 'a@b.id')
+  assert.equal(namaLogin('budi@penguji.local'), 'budi')
+  assert.equal(namaLogin('a@b.id'), 'a@b.id', 'a real email stays as is')
+  assert.equal(namaLogin(''), '')
+}
 
 // ---- dev account script: username = NIDN, else a placeholder from the kode; unique, lowercase
 {
@@ -77,8 +91,9 @@ async function main() {
   {
     const besok = new Date(Date.now() + 36 * 3600e3).toISOString().slice(0, 10)
     const lalu = new Date(Date.now() - 48 * 3600e3).toISOString().slice(0, 10)
-    const aktif = await loadCurrentUser(fakeClient({ sub: 'u6', email: 'x@y.id' }, { role: 'EKSTERNAL', prodi_access: 'all', kode_dosen: 'EXT01', berlaku_sampai: besok }).client)
-    assert.deepEqual(aktif, { id: 'u6', email: 'x@y.id', role: 'EKSTERNAL', prodiAccess: 's1', kodeDosen: 'EXT01', berlakuSampai: besok })
+    const aktif = await loadCurrentUser(fakeClient({ sub: 'u6', email: 'eks-x@penguji.local' }, { role: 'EKSTERNAL', prodi_access: 'all', kode_dosen: 'EXT01', berlaku_sampai: besok }).client)
+    assert.deepEqual(aktif, { id: 'u6', email: 'eks-x', // a username login shows without the domain
+ role: 'EKSTERNAL', prodiAccess: 's1', kodeDosen: 'EXT01', berlakuSampai: besok })
     assert.equal(await loadCurrentUser(fakeClient({ sub: 'u7' }, { role: 'EKSTERNAL', prodi_access: 'all', kode_dosen: 'EXT01', berlaku_sampai: lalu }).client), null)
     assert.equal(canWrite('EKSTERNAL'), false)
     assert.equal(canManage('EKSTERNAL'), false)

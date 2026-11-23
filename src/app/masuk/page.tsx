@@ -110,7 +110,7 @@ function MasukForm() {
                   ? 'Akun tidak berlaku'
                   : errorMessage.includes('Supabase is not configured')
                   ? 'Catatan Konfigurasi'
-                  : 'Email dan kata sandi tidak cocok'}
+                  : 'Username/email dan kata sandi tidak cocok'}
               </b>
               <span>{errorMessage}</span>
             </div>
@@ -141,7 +141,7 @@ function MasukForm() {
               aria-describedby="bantu-email"
             />
             <p className="mt-[0.33rem] text-[0.87rem] text-[var(--tinta-3)]" id="bantu-email">
-              Alamat yang telah didaftarkan oleh administrator Anda. Penguji eksternal: username dari bagian akademik.
+              Username atau email yang didaftarkan oleh administrator Anda. Penguji eksternal: username dari bagian akademik.
             </p>
           </div>
 
@@ -215,6 +215,7 @@ function MasukForm() {
             </h3>
             <p className="text-[0.87rem] text-[var(--tinta-3)] mb-[1rem] leading-[1.4]">
               Masukkan alamat email yang telah terdaftar. Kami akan mengirimkan tautan untuk mengatur ulang kata sandi Anda.
+              Masuk dengan username? Minta Super Admin mengatur ulang kata sandi Anda.
             </p>
 
             {forgotState?.message && (

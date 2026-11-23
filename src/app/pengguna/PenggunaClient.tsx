@@ -88,7 +88,7 @@ export function PenggunaClient({ users, currentUserId, dosen }: { users: Profile
           <table className="w-full text-[0.87rem] border-collapse">
             <thead className="bg-[var(--cekung)]">
               <tr>
-                <Th>Email</Th>
+                <Th>Username / Email</Th>
                 <Th>Peran</Th>
                 <Th>Akses Prodi</Th>
                 <Th>Dibuat</Th>
@@ -297,14 +297,20 @@ function CreateUserModal({ dosenOptions, onClose }: { dosenOptions: SelectOption
         )}
 
         <form action={formAction} className="space-y-[0.8rem]">
-          <Field label="Email">
+          <Field label="Username">
             <input
-              name="email"
-              type="email"
+              name="username"
+              type="text"
               required
+              minLength={3}
+              maxLength={30}
+              pattern="[A-Za-z0-9][A-Za-z0-9._\-]{2,29}"
+              autoCapitalize="none"
+              spellCheck={false}
               autoComplete="off"
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
             />
+            <p className="mt-[0.25rem] text-[0.8rem] text-[var(--tinta-3)]">Dipakai untuk masuk. 3–30 karakter: huruf, angka, titik, garis bawah, atau tanda hubung.</p>
           </Field>
           <Field label="Kata sandi awal">
             <input

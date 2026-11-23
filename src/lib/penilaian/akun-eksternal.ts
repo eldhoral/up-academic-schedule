@@ -1,11 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { humanDbError } from '../db-error'
+import { emailLogin } from '../login'
 import { generatePassword } from '../password'
 import { addDays } from '../week'
 import { todayJakarta } from './akses'
-
-/** Day logins sign in with a synthetic email; the login form takes the bare username. */
-const DOMAIN = 'penguji.local'
 
 /** eks-<kode, lowercase alphanumeric>-<ddmmyy>: readable, and one per (dosen, sidang date). */
 export function usernameEksternal(kode: string, tanggal: string): string {
@@ -15,7 +13,8 @@ export function usernameEksternal(kode: string, tanggal: string): string {
 
 export const passwordAcak = (len = 10, rand?: (n: number) => number): string => generatePassword(len, rand)
 
-export const emailLogin = (input: string): string => (input.includes('@') ? input : `${input}@${DOMAIN}`)
+// Day logins sign in with a synthetic email; the login form takes the bare username.
+export { emailLogin } from '../login'
 
 export type AkunEksternal = { created: false } | { created: true; username: string; password: string }
 
