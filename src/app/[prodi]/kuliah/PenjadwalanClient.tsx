@@ -339,10 +339,10 @@ export function PenjadwalanClient({
                       <Th style={{ width: '7rem' }}>Kode</Th>
                       <Th>Mata Kuliah</Th>
                       <Th style={{ width: '3.6rem', textAlign: 'center' }}>SKS</Th>
-                      <Th style={{ width: '7rem' }}>Hari</Th>
+                      <Th style={{ width: '5rem' }}>Hari</Th>
                       <Th style={{ width: '8rem' }}>Waktu</Th>
-                      <Th style={{ width: '17rem' }}>Dosen</Th>
-                      <Th style={{ width: '7rem' }}>Ruangan Luring</Th>
+                      <Th style={{ width: '15rem' }}>Dosen</Th>
+                      <Th style={{ width: '13rem' }}>Ruangan Luring</Th>
                       <Th style={{ width: '7rem' }}>Ruangan Daring</Th>
                       <Th style={{ width: '3rem' }}>&nbsp;</Th>
                     </tr>
@@ -390,7 +390,8 @@ export function PenjadwalanClient({
                                 .join(', ')
                             )}
                           </Td>
-                          <Td className="mono" style={{ color: 'var(--tinta-3)', fontSize: '.93rem' }}>
+                          {/* Room names can be long free text (a Zoom id and passcode): sans and smaller, so it stays ~2 lines. */}
+                          <Td className="leading-snug" style={{ color: 'var(--tinta-3)', fontSize: '.87rem' }}>
                             {r.rooms?.nama ?? '—'}
                           </Td>
                           <Td className="mono" style={{ color: 'var(--tinta-3)', fontSize: '.93rem' }}>
