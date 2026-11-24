@@ -1357,7 +1357,8 @@ reset role;
 do $$
 declare p1 uuid := (select id from ba_def where k = '89001'); bad jsonb;
 begin
-    assert status_prasidang('89000') = 'belum_lengkap', 'one of two is belum lengkap';
+    assert status_prasidang('89000') = 'layak', 'the Pendamping alone decides';
+    assert status_prasidang('89001') = 'belum_lengkap', 'no Pendamping berita acara is belum lengkap';
     foreach bad in array array[
         '[]', '{"teks": "Q"}', '[{"teks": " ", "jenis": "ya_tidak", "ya": true, "catatan": ""}]', '[{"teks": "Q", "jenis": "ya_tidak", "ya": "ya", "catatan": ""}]',
         '[{"teks": "Q", "jenis": "ya_tidak", "ya": true}]', format('[{"teks": "Q", "jenis": "ya_tidak", "ya": true, "catatan": "%s"}]', repeat('x', 1001)),
@@ -1385,7 +1386,7 @@ set role authenticated;
 do $$ begin
     begin
         insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
-        values ('R0002', 'sidang', '2027-03-01', '08:00', '10:00', '89000', 'Ba Lengkap', 's1');
+        values ('R0002', 'sidang', '2027-03-01', '08:00', '10:00', '89001', 'Ba Tolak', 's1');
         raise exception 'FAIL: a sidang with an incomplete berita acara';
     exception when check_violation then
         assert sqlerrm = 'Berita acara prasidang belum lengkap.', sqlerrm;
@@ -1419,7 +1420,7 @@ insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, 
 values ('R0002', 'sidang', '2027-03-01', '08:00', '10:00', '89999', 'S2', 's2');
 reset role;
 
--- DSN03 (Pembahas) completes 89000 with layak_revisi and rejects 89001.
+-- DSN03 (Pembahas) no longer fills the berita acara (20261123000003).
 select set_config('request.jwt.claim.sub', :'dosen4', false);
 set role authenticated;
 do $$
@@ -1427,19 +1428,23 @@ declare j jsonb := '[{"teks": "Q", "jenis": "ya_tidak", "ya": false, "catatan": 
 begin
     insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
     values ((select id from ba_def where k = '89000'), 'DSN03', 'pembahas', j, 'layak_revisi', auth.uid());
-    insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
-    values ((select id from ba_def where k = '89001'), 'DSN03', 'pembahas', j, 'tidak_layak', auth.uid());
+    raise exception 'FAIL: a Pembahas filled a berita acara';
+exception when insufficient_privilege then null;
 end $$;
 reset role;
+-- A Pembahas row saved before the change stays on record (owner, RLS bypassed) but does not count.
+insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil)
+values ((select id from ba_def where k = '89000'), 'DSN03', 'pembahas', '[{"teks": "Q", "jenis": "ya_tidak", "ya": false, "catatan": "Lama"}]', 'tidak_layak');
+-- DSN01 (Pendamping) rejects 89001.
 select set_config('request.jwt.claim.sub', :'dosen', false);
 set role authenticated;
 insert into berita_acara_prasidang (defense_id, kode_dosen, peran, jawaban, hasil, submitted_by)
-values ((select id from ba_def where k = '89001'), 'DSN01', 'pendamping', '[{"teks": "Q", "jenis": "ya_tidak", "ya": true, "catatan": ""}]', 'layak', auth.uid());
+values ((select id from ba_def where k = '89001'), 'DSN01', 'pendamping', '[{"teks": "Q", "jenis": "ya_tidak", "ya": false, "catatan": "Ganti topik"}]', 'tidak_layak', auth.uid());
 reset role;
 
 do $$ begin
-    assert status_prasidang('89000') = 'layak_revisi', 'layak + layak_revisi = layak_revisi';
-    assert status_prasidang('89001') = 'tidak_layak', 'one tidak_layak = tidak_layak';
+    assert status_prasidang('89000') = 'layak', 'an old Pembahas row does not count';
+    assert status_prasidang('89001') = 'tidak_layak', 'the Pendamping''s tidak_layak decides';
     assert status_prasidang('89002') = 'tidak_ada', 'no prasidang';
 end $$;
 
@@ -1537,7 +1542,7 @@ set role authenticated;
 do $$ begin
     assert (select count(*) from keputusan_prasidang) = 0, 'a DOSEN reads no override';
     assert status_prasidang('89001') is null, 'a DOSEN reads no verdict through status_prasidang';
-    assert (select count(*) from berita_acara_prasidang) = 2, 'DSN03 reads its own two';
+    assert (select count(*) from berita_acara_prasidang) = 1, 'DSN03 reads only its own old row';
 end $$;
 reset role;
 
