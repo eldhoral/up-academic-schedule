@@ -11,9 +11,6 @@ export function HeaderNav({ active, prodi, canManage = false, akunEksternal = fa
 
   return (
     <nav className="flex items-center gap-[0.13rem] flex-wrap" aria-label="Navigasi bagian">
-      <Link href="/" className={`${linkClass(false)} text-[var(--tinta-2)]`}>
-        ‹ Menu
-      </Link>
       <span className="px-[0.6rem] text-[0.93rem] font-semibold text-[var(--tinta)]">{section.title}</span>
       {section.tabs.map((tab) => (
         <Link

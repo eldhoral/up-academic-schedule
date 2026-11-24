@@ -12,12 +12,16 @@
     --kertas: #F2F3F5;
     --lembar: #FFFFFF;
     --header: #5EBCEB;
+    --sidebar: #FFFFFF;
     --cekung: #F7F8FA;
     --garis: rgba(16, 24, 40, 0.11);
     --garis-kuat: rgba(16, 24, 40, 0.22);
     --tinta: #0E1626;
     --tinta-2: #3C4657;
     --tinta-3: #5C6474;
+    --aksen: #1D5BD8;
+    --aksen-lembut: #EDF3FF;
+    --aksen-2: #23885A;
     --biru: #1A3FA0;
     --biru-lembut: #EAEEF9;
     --biru-hover: #16358A;
@@ -33,6 +37,8 @@
     --kuning-garis: #F0D08A;
     --r-kecil: 3px;
     --r-sedang: 5px;
+    --r-item: 10px;
+    --r-kartu: 14px;
   }
 
   /* One root lever: every rem dimension scales dynamically */

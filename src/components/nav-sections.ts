@@ -85,8 +85,8 @@ export function sectionOf(active: string, prodi: Prodi | undefined, canManage: b
 }
 
 export const linkClass = (isActive: boolean) =>
-  `block px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] text-[0.93rem] transition-colors ${
+  `block px-[0.6rem] py-[0.4rem] rounded-lg text-[0.93rem] transition-colors ${
     isActive
-      ? 'bg-[var(--biru-lembut)] text-[var(--biru)] font-medium'
+      ? 'bg-[var(--aksen-lembut)] text-[var(--aksen)] font-medium'
       : 'text-[var(--tinta)] hover:bg-[var(--cekung)]'
   }`
