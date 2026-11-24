@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
+import { CariSelect } from '@/components/CariSelect'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { createScheduleAction, deleteScheduleAction, updateScheduleAction, type FormState } from './penjadwalan-actions'
@@ -196,15 +197,16 @@ export function ScheduleFormModal({
           </Field>
 
           <Field label="Mata Kuliah">
-            <Select
+            <CariSelect
               name="kode_mk"
-              required
               value={kodeMk}
               onValueChange={pickCourse}
               placeholder="— pilih mata kuliah —"
               ariaLabel="Mata Kuliah"
               options={visibleCourses.map((c) => ({
                 value: c.kode_mk,
+                kode: c.kode_mk,
+                nama: c.nama_mk,
                 label: `${c.kode_mk} — ${c.nama_mk} — ${c.sks} SKS`,
               }))}
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
