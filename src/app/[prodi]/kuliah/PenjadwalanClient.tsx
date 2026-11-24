@@ -72,6 +72,7 @@ export function PenjadwalanClient({
   kelasOptions,
   maksMahasiswaPerKelas,
   minMahasiswaPilihan,
+  menitPerSks,
   hariAktif,
   context: initialContext,
   canEdit,
@@ -86,6 +87,7 @@ export function PenjadwalanClient({
   kelasOptions: string[]
   maksMahasiswaPerKelas: number
   minMahasiswaPilihan: number
+  menitPerSks: number
   hariAktif: string[]
   context: KuliahContext
   canEdit: boolean // VIEWER (Pemantau) can read but not change; RLS enforces it, this just hides the controls
@@ -446,6 +448,7 @@ export function PenjadwalanClient({
           kelasOptions={kelasOptions}
           maksMahasiswaPerKelas={maksMahasiswaPerKelas}
           minMahasiswaPilihan={minMahasiswaPilihan}
+          menitPerSks={menitPerSks}
           hariAktif={hariAktif}
           editing={modalOpen === 'new' ? null : modalOpen}
           onClose={() => setModalOpen(null)}

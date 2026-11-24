@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { crossesMidnight, generateDaySessions } from '../src/lib/sesi-generator'
+import { addMinutes, crossesMidnight, generateDaySessions } from '../src/lib/sesi-generator'
 
 // Plain back-to-back slots, no break-window interference.
 const basic = generateDaySessions({
@@ -51,5 +51,8 @@ assert.equal(crossesMidnight(lateDay([2, 2, 2, 3, 2])), true) // 23:30–02:00
 assert.equal(crossesMidnight(lateDay([2, 2, 2, 2])), true) // last slot starts 23:30, ends 01:10
 assert.equal(crossesMidnight(lateDay([2, 3])), false)
 assert.equal(crossesMidnight(basic), false)
+
+// Waktu bebas on Penjadwalan: jam selesai = jam mulai + SKS × menit per SKS.
+assert.equal(addMinutes('07:30', 3 * 50), '10:00')
 
 console.log('sesi-generator: all checks passed')

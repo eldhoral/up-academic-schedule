@@ -16,6 +16,11 @@ function toHHMM(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
+/** HH:MM plus minutes, wrapping past 24:00. */
+export function addMinutes(hhmm: string, minutes: number): string {
+  return toHHMM(toMinutes(hhmm) + minutes)
+}
+
 function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
   return aStart < bEnd && bStart < aEnd
 }

@@ -8,6 +8,7 @@ import { lecturerDisplayName } from '@/lib/import/tables'
 import { createScheduleAction, deleteScheduleAction, updateScheduleAction, type FormState } from './penjadwalan-actions'
 import { checkScheduleClashes, type BebanSummary, type ClashCheckResult } from './clash-actions'
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
+import { addMinutes } from '@/lib/sesi-generator'
 import type { Course, KuliahContext, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
 
 const CLASH_LABEL: Record<string, string> = { dosen: 'Dosen', kelas: 'Kelas', ruangan: 'Ruangan' }
@@ -21,6 +22,7 @@ export function ScheduleFormModal({
   kelasOptions,
   maksMahasiswaPerKelas,
   minMahasiswaPilihan,
+  menitPerSks,
   hariAktif,
   editing,
   onClose,
@@ -34,6 +36,7 @@ export function ScheduleFormModal({
   kelasOptions: string[]
   maksMahasiswaPerKelas: number
   minMahasiswaPilihan: number
+  menitPerSks: number // Pengaturan "Menit per SKS": waktu bebas fills jam selesai from jam mulai + SKS
   hariAktif: string[] // Pengaturan "Hari aktif kuliah": the only days offered for a class
   editing: ScheduleRow | null
   onClose: () => void
@@ -85,6 +88,16 @@ export function ScheduleFormModal({
   const activeSessions = sessions.filter((s) => s.active && s.jenis_kelas === context.jenis_kelas && hariAktif.includes(s.hari))
   const visibleSessions =
     showAllSessions || !selectedCourse ? activeSessions : activeSessions.filter((s) => s.sks === selectedCourse.sks)
+
+  // Waktu bebas: jam selesai follows jam mulai + SKS × menit per SKS; still editable for odd cases.
+  function autoSelesai(mulai: string, course: Course | null) {
+    if (mulai && course?.sks) setJamSelesai(addMinutes(mulai, course.sks * menitPerSks))
+  }
+
+  function pickCourse(kode: string) {
+    setKodeMk(kode)
+    if (sesiMode === 'bebas') autoSelesai(jamMulai, courses.find((c) => c.kode_mk === kode) ?? null)
+  }
 
   function pickSesi(id: string) {
     setSesiId(id)
@@ -187,7 +200,7 @@ export function ScheduleFormModal({
               name="kode_mk"
               required
               value={kodeMk}
-              onValueChange={setKodeMk}
+              onValueChange={pickCourse}
               placeholder="— pilih mata kuliah —"
               ariaLabel="Mata Kuliah"
               options={visibleCourses.map((c) => ({
@@ -256,7 +269,10 @@ export function ScheduleFormModal({
                   <input
                     type="time"
                     value={jamMulai}
-                    onChange={(e) => setJamMulai(e.target.value)}
+                    onChange={(e) => {
+                      setJamMulai(e.target.value)
+                      autoSelesai(e.target.value, selectedCourse)
+                    }}
                     required
                     className="bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mono min-h-[2.4rem]"
                   />
