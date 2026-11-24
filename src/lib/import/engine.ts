@@ -105,6 +105,8 @@ export function classifyRows<T extends Record<string, unknown>>(params: {
   equal: (a: T, b: T) => boolean
   /** Keys owned by another prodi: never overwritten from this prodi's import. */
   otherProdiKeys?: Set<string>
+  /** Row-level guard, e.g. a kode_mk owned by a different kurikulum. Returns a rejection reason. */
+  reject?: (data: T) => string | null
 }): ImportPreview<T> {
   const { parsed, parseRow, existingByKey, equal } = params
   const outcomes: RowOutcome<T>[] = []
@@ -127,6 +129,12 @@ export function classifyRows<T extends Record<string, unknown>>(params: {
       return
     }
     seenKeys.add(key)
+
+    const rejectReason = params.reject?.(data)
+    if (rejectReason) {
+      outcomes.push({ status: 'rejected', key, reason: rejectReason, rowNumber })
+      return
+    }
 
     const before = existingByKey.get(key)
     if (!before) {

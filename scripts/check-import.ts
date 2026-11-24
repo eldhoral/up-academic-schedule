@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import ExcelJS from 'exceljs'
-import { kodeDosen, lecturersTable, studentSheet, studentsTable } from '../src/lib/import/tables'
-import { buildExportBuffer, buildTemplateBuffer, parseWorkbookRows } from '../src/lib/import/engine'
+import { coursesTable, kodeDosen, lecturersTable, studentSheet, studentsTable } from '../src/lib/import/tables'
+import { buildExportBuffer, buildTemplateBuffer, classifyRows, parseWorkbookRows } from '../src/lib/import/engine'
+import { alasanKurikulumBentrok, pemilikKurikulum } from '../src/lib/import/kurikulum'
 
 const toArrayBuffer = (b: Uint8Array) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
 
@@ -216,6 +217,41 @@ async function main() {
     const plainWb = new ExcelJS.Workbook()
     await plainWb.xlsx.load(toArrayBuffer(await buildTemplateBuffer(['a'], { a: 1 })))
     assert.equal(plainWb.worksheets.length, 1)
+  }
+
+  // --- a kode owned by another kurikulum is never overwritten ------------------------------------
+  {
+    const ada = [
+      { kode_mk: '15152002', kurikulum: '2021', prodi: 's1' },
+      { kode_mk: '15152003', kurikulum: '2021', prodi: 's1' },
+      { kode_mk: '15152002', kurikulum: '2026', prodi: 's2' },
+    ]
+    const pemilik = pemilikKurikulum(ada, 's1')
+    assert.deepEqual([...pemilik], [['15152002', '2021'], ['15152003', '2021']], 'only this prodi owns the kode')
+    assert.equal(alasanKurikulumBentrok(pemilik, '15152002', '2026'), '"15152002" sudah terdaftar di kurikulum 2021.')
+    assert.equal(alasanKurikulumBentrok(pemilik, '15152002', '2021'), null, 'same kurikulum may be updated')
+    assert.equal(alasanKurikulumBentrok(pemilik, '15159999', '2026'), null, 'a new kode is fine')
+
+    const baris = (kode_mk: string, kurikulum: string) => ({ kode_mk, nama_mk: 'MK', sks: 2, jenis_mk: 'A', smt: 5, semester: 'Gasal', kurikulum })
+    const preview = classifyRows({
+      parsed: [baris('15152002', '2026'), baris('15152003', '2021'), baris('15159999', '2026')],
+      parseRow: coursesTable.parseRow,
+      existingByKey: new Map([
+        ['15152002', { kode_mk: '15152002', nama_mk: 'MK lama', sks: 2, jenis_mk: 'A', smt: 5, kurikulum: '2021', prodi: 's1' }],
+        ['15152003', { kode_mk: '15152003', nama_mk: 'MK lama', sks: 2, jenis_mk: 'A', smt: 5, kurikulum: '2021', prodi: 's1' }],
+      ]) as never,
+      equal: coursesTable.equal as never,
+      reject: (data) => {
+        const r = data as { kode_mk: string; kurikulum: string }
+        return alasanKurikulumBentrok(pemilik, r.kode_mk, r.kurikulum)
+      },
+    })
+    assert.deepEqual(preview.rows.map((r) => [r.key, r.status]), [
+      ['15152002', 'rejected'],
+      ['15152003', 'changed'],
+      ['15159999', 'new'],
+    ])
+    assert.equal(preview.counts.rejected, 1)
   }
 
   // --- an empty workbook has no rows ---------------------------------------------------------------

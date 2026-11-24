@@ -7,6 +7,7 @@ import type { ImportPreview } from './engine'
 import { humanDbError } from '@/lib/db-error'
 import { parseProdi, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 import { manageableProdi, managerOnly } from '@/lib/prodi-server'
+import { alasanKurikulumBentrok, pemilikKurikulum } from './kurikulum'
 
 export type PreviewState =
   | { ok: true; preview: ImportPreview<Record<string, unknown>> }
@@ -38,18 +39,27 @@ export async function previewImportAction(
 
   const existingByKey = new Map<string, Record<string, unknown>>()
   const otherProdiKeys = new Set<string>()
-  for (const row of (existingRows ?? []) as Record<string, unknown>[]) {
+  const semuaBaris = (existingRows ?? []) as Record<string, unknown>[]
+  for (const row of semuaBaris) {
     const key = String(row[def.keyField])
     if (prodi && row.prodi !== prodi) otherProdiKeys.add(key)
     else existingByKey.set(key, row)
   }
 
+  // A kode_mk is one row in the DB: importing it under a different kurikulum would overwrite the old one.
+  const pemilik = tableSlug === 'courses' ? pemilikKurikulum(semuaBaris as never, prodi!) : new Map<string, string>()
   const preview = classifyRows({
     parsed,
     parseRow: def.parseRow as never,
     existingByKey: existingByKey as never,
     equal: def.equal as never,
     otherProdiKeys,
+    reject: tableSlug === 'courses'
+      ? (data) => {
+          const r = data as { kode_mk: string; kurikulum: string }
+          return alasanKurikulumBentrok(pemilik, r.kode_mk, r.kurikulum)
+        }
+      : undefined,
   })
   if (prodi && tableSlug === 'courses') {
     // S2 runs semesters 1-4; say so per row rather than failing the whole commit.
