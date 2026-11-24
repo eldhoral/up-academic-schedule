@@ -4,8 +4,7 @@ import { PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 import { checkAllClashes } from './[prodi]/kuliah/clash-actions'
 import { checkAllExamClashes } from './[prodi]/ujian/actions'
 import { checkAllDefenseClashes } from './[prodi]/sidang/actions'
-import { tanggalSingkat } from './[prodi]/sidang/defense-types'
-import { FOTO_LOGIN_BUCKET, FOTO_LOGIN_FALLBACK, FOTO_LOGIN_PREFIX } from '@/lib/foto-login'
+import { todayJakarta } from '@/lib/penilaian/akses'
 
 /** One menu row's status: a lead figure with its label, quieter detail, and the tally inputs. */
 export type ScheduleStatus = {
@@ -85,16 +84,16 @@ export async function getSidangStatus(academicYearId: string, prodi: Prodi): Pro
     ])
     if (error || !data) return null
 
-    const today = new Date().toISOString().slice(0, 10)
-    const next = data.map((r) => r.tanggal as string).filter((t) => t >= today).sort()[0]
+    const today = todayJakarta()
+    const upcoming = data.filter((r) => (r.tanggal as string) >= today).length
     const counts = [
       `${data.filter((r) => r.jenis === 'prasidang').length} ${PRODI_CONFIG[prodi].defense.prasidang.toLowerCase()}`,
       `${data.filter((r) => r.jenis === 'sidang').length} ${PRODI_CONFIG[prodi].defense.sidang.toLowerCase()}`,
     ]
     const incomplete = data.filter((r) => !r.pembimbing_kode || !r.penguji_kode).length
     return {
-      figure: next ? tanggalSingkat(next) : String(data.length),
-      label: next ? 'berikutnya' : 'mahasiswa',
+      figure: String(upcoming),
+      label: 'jadwal mendatang',
       detail: counts,
       empty: data.length === 0,
       bentrok: blocking(clashes),
@@ -103,20 +102,5 @@ export async function getSidangStatus(academicYearId: string, prodi: Prodi): Pro
     }
   } catch {
     return null
-  }
-}
-
-/** The first campus photo from Pengaturan (the same one the login page opens on), or the bundled one. */
-export async function getCampusPhoto(): Promise<string> {
-  try {
-    const supabase = await createClient()
-    const { data, error } = await supabase.storage
-      .from(FOTO_LOGIN_BUCKET)
-      .list(FOTO_LOGIN_PREFIX, { sortBy: { column: 'created_at', order: 'asc' } })
-    const first = (data ?? []).find((f) => f.name && !f.name.endsWith('/'))
-    if (error || !first) return FOTO_LOGIN_FALLBACK
-    return supabase.storage.from(FOTO_LOGIN_BUCKET).getPublicUrl(`${FOTO_LOGIN_PREFIX}/${first.name}`).data.publicUrl
-  } catch {
-    return FOTO_LOGIN_FALLBACK
   }
 }

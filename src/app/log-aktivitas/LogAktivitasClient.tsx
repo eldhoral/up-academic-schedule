@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { namaLogin } from '@/lib/login'
 import {
   ACTION_LABEL,
   LOG_PAGE_SIZE,
@@ -144,7 +145,7 @@ export function LogAktivitasClient({ rows, total, filters, loadError }: { rows: 
                   </Td>
                   <Td>{tableLabel(r.table_name)}</Td>
                   <Td className="mono text-[0.8rem] text-[var(--tinta-3)]">{r.record_id ?? '—'}</Td>
-                  <Td>{r.actor_email ?? <span className="text-[var(--tinta-3)]">Sistem</span>}</Td>
+                  <Td>{r.actor_email ? namaLogin(r.actor_email) : <span className="text-[var(--tinta-3)]">Sistem</span>}</Td>
                   <Td className="text-[var(--tinta-2)] max-w-[20rem] truncate">{summarize(r)}</Td>
                   <Td className="text-right">
                     <button
@@ -225,7 +226,7 @@ function DetailModal({ row, onClose }: { row: AuditRow; onClose: () => void }) {
         </div>
         <p className="mt-0 mb-[1.1rem] text-[0.8rem] mono text-[var(--tinta-3)]">
           {row.record_id ?? '—'} &middot; {new Date(row.at).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })} &middot;{' '}
-          {row.actor_email ?? 'Sistem'}
+          {row.actor_email ? namaLogin(row.actor_email) : 'Sistem'}
         </p>
 
         {fields.length === 0 && (
