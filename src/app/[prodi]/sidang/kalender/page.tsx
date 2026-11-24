@@ -1,4 +1,4 @@
-import { AppShell } from '@/components/AppShell'
+import { AppHeader } from '@/components/AppHeader'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
 import { lecturerDisplayName } from '@/lib/import/tables'
@@ -30,7 +30,8 @@ export default async function SidangKalenderPage(props: PageProps<'/[prodi]/sida
   ).flat()
 
   return (
-    <AppShell active="/sidang/kalender" prodi={prodi}>
+    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+      <AppHeader active="/sidang/kalender" prodi={prodi} />
       <SidangKalenderClient
         key={`${context.academic_year_id}-${context.jenis}`}
         academicYears={years}
@@ -39,6 +40,6 @@ export default async function SidangKalenderPage(props: PageProps<'/[prodi]/sida
         names={Object.fromEntries(((lecturers as Lecturer[]) ?? []).map((l) => [l.kode_dosen, lecturerDisplayName(l)]))}
         initialWeek={minggu}
       />
-    </AppShell>
+    </div>
   )
 }

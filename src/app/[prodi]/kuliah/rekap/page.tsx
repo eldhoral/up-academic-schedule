@@ -1,4 +1,4 @@
-import { AppShell } from '@/components/AppShell'
+import { AppHeader } from '@/components/AppHeader'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
 import { lecturerDisplayName } from '@/lib/import/tables'
@@ -44,7 +44,8 @@ export default async function RekapPage(props: PageProps<'/[prodi]/kuliah/rekap'
     : null
 
   return (
-    <AppShell active="/kuliah/rekap" prodi={prodi}>
+    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+      <AppHeader active="/kuliah/rekap" prodi={prodi} />
       <RekapClient
         academicYears={years}
         lecturers={(lecturers as Lecturer[]) ?? []}
@@ -67,6 +68,6 @@ export default async function RekapPage(props: PageProps<'/[prodi]/kuliah/rekap'
           tembusanLines: data.tembusanLines,
         }}
       />
-    </AppShell>
+    </div>
   )
 }

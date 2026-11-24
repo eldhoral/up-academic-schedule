@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { AppShell } from '@/components/AppShell'
+import { AppHeader } from '@/components/AppHeader'
 import { EmptySheet } from '@/components/EmptySheet'
 import { prodiParam } from '@/lib/prodi-server'
 import { canAccessProdi } from '@/lib/prodi'
@@ -26,14 +26,15 @@ export default async function AkunEksternalPage(props: PageProps<'/[prodi]/sidan
   const rows = akunRows ?? []
   if (rows.length === 0) {
     return (
-      <AppShell active="/sidang/akun-eksternal" prodi={prodi}>
+      <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+        <AppHeader active="/sidang/akun-eksternal" prodi={prodi} />
         <EmptySheet
           title="Belum ada akun penguji eksternal"
           detail="Akun dibuat otomatis saat sidang skripsi disimpan dengan dosen eksternal sebagai Anggota Penguji I."
           actionHref={`/${prodi}/sidang`}
           actionLabel="Buka Jadwal Sidang"
         />
-      </AppShell>
+      </div>
     )
   }
 
@@ -70,8 +71,9 @@ export default async function AkunEksternalPage(props: PageProps<'/[prodi]/sidan
   })
 
   return (
-    <AppShell active="/sidang/akun-eksternal" prodi={prodi}>
+    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+      <AppHeader active="/sidang/akun-eksternal" prodi={prodi} />
       <AkunClient akun={akun} bisaPerpanjang={canManage(user.role)} />
-    </AppShell>
+    </div>
   )
 }

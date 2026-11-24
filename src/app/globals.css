@@ -33,13 +33,6 @@
     --kuning-garis: #F0D08A;
     --r-kecil: 3px;
     --r-sedang: 5px;
-    /* Opsi A: sidebar, aksen biru/hijau, dan sudut kartu. --aksen lolos 4.5:1 di atas putih dan --aksen-lembut. */
-    --sidebar: #FFFFFF;
-    --aksen: #1D5BD8;
-    --aksen-lembut: #EDF3FF;
-    --aksen-2: #23885A;
-    --r-kartu: 14px;
-    --r-item: 10px;
   }
 
   /* One root lever: every rem dimension scales dynamically */

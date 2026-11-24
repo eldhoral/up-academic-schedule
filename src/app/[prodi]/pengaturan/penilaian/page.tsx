@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { AppShell } from '@/components/AppShell'
+import { AppHeader } from '@/components/AppHeader'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser, canManage } from '@/lib/roles'
 import { prodiParam } from '@/lib/prodi-server'
@@ -15,7 +15,8 @@ export default async function PenilaianPage(props: PageProps<'/[prodi]/pengatura
   const aturan = await loadAturan(await createClient(), 's1')
 
   return (
-    <AppShell active="/pengaturan/penilaian" prodi={prodi}>
+    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+      <AppHeader active="/pengaturan/penilaian" prodi={prodi} />
       <main className="flex-1 p-[1.3rem] max-w-[900px] w-full mx-auto">
         <div className="mb-[1.2rem]">
           <h1 className="text-[1.3rem] font-semibold">Pengaturan Penilaian S1</h1>
@@ -25,6 +26,6 @@ export default async function PenilaianPage(props: PageProps<'/[prodi]/pengatura
         </div>
         <PenilaianClient aturan={aturan} />
       </main>
-    </AppShell>
+    </div>
   )
 }

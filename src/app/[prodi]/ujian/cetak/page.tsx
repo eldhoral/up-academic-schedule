@@ -1,4 +1,4 @@
-import { AppShell } from '@/components/AppShell'
+import { AppHeader } from '@/components/AppHeader'
 import { prodiParam } from '@/lib/prodi-server'
 import { buildUjianCetakData } from './ujian-cetak-data'
 import { UjianCetakClient } from './UjianCetakClient'
@@ -15,7 +15,8 @@ export default async function UjianCetakPage(props: PageProps<'/[prodi]/ujian/ce
   })
 
   return (
-    <AppShell active="/ujian/cetak" prodi={prodi}>
+    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+      <AppHeader active="/ujian/cetak" prodi={prodi} />
       <UjianCetakClient
         academicYears={data.academicYears}
         context={{ ...data.context, dosen: data.dosen?.value ?? '' }}
@@ -31,6 +32,6 @@ export default async function UjianCetakPage(props: PageProps<'/[prodi]/ujian/ce
           orientasi: data.orientasi,
         }}
       />
-    </AppShell>
+    </div>
   )
 }

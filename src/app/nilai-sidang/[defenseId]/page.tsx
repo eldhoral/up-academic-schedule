@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AkunLain } from '@/components/AkunLain'
-import { AppShell } from '@/components/AppShell'
+import { AppHeader } from '@/components/AppHeader'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { canAccessProdi } from '@/lib/prodi'
 import { tanggalPanjang } from '@/lib/hari'
@@ -115,17 +115,19 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   )
   if (rusak) {
     return (
-      <AppShell active={path}>
+      <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+        <AppHeader active={path} />
         <main className="flex-1 w-full max-w-[52rem] mx-auto px-[1.3rem] py-[1.6rem]">
           {kepala}
           <p className={KOTAK}>{ALASAN_ATURAN_RUSAK}.</p>
         </main>
-      </AppShell>
+      </div>
     )
   }
 
   return (
-    <AppShell active={path}>
+    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+      <AppHeader active={path} />
       <main className="flex-1 w-full max-w-[52rem] mx-auto px-[1.3rem] py-[1.6rem]">
         {kepala}
 
@@ -329,7 +331,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
           </>
         )}
       </main>
-    </AppShell>
+    </div>
   )
 }
 

@@ -1,4 +1,4 @@
-import { AppShell } from '@/components/AppShell'
+import { AppHeader } from '@/components/AppHeader'
 import { prodiParam } from '@/lib/prodi-server'
 import { buildSidangCetakData } from './sidang-cetak-data'
 import { SidangCetakClient } from './SidangCetakClient'
@@ -13,7 +13,8 @@ export default async function SidangCetakPage(props: PageProps<'/[prodi]/sidang/
   })
 
   return (
-    <AppShell active="/sidang/cetak" prodi={prodi}>
+    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+      <AppHeader active="/sidang/cetak" prodi={prodi} />
       <SidangCetakClient
         academicYears={data.academicYears}
         context={data.context}
@@ -28,6 +29,6 @@ export default async function SidangCetakPage(props: PageProps<'/[prodi]/sidang/
           jabatanPenandatangan: data.jabatanPenandatangan,
         }}
       />
-    </AppShell>
+    </div>
   )
 }

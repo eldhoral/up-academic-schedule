@@ -1,4 +1,4 @@
-import { AppShell } from '@/components/AppShell'
+import { AppHeader } from '@/components/AppHeader'
 import { prodiParam } from '@/lib/prodi-server'
 import { canManage, canWrite, getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
@@ -49,7 +49,8 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
   }
 
   return (
-    <AppShell active="/sidang" prodi={prodi}>
+    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
+      <AppHeader active="/sidang" prodi={prodi} />
       <SidangClient
         // A new context (year, jenis) starts the board's local state fresh.
         key={`${prodi}-${context.academic_year_id}-${context.jenis}`}
@@ -67,6 +68,6 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
         canEdit={canWrite(role)}
         canForceDelete={canManage(role)}
       />
-    </AppShell>
+    </div>
   )
 }
