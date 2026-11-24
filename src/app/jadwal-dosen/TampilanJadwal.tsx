@@ -61,8 +61,8 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
           <span aria-hidden="true" className="h-[26px] w-px bg-[var(--tinta)]/25 sm:h-[32px]" />
           <Image src="/images/logo-fakultas-psikologi.png" alt="Fakultas Psikologi" width={64} height={64} className="h-[36px] w-auto sm:h-[44px]" />
           <div className="leading-[1.25]">
-            <div className="text-[0.933rem] font-semibold sm:text-[1rem]">Fakultas Psikologi</div>
             <div className="text-[0.733rem] sm:text-[0.8rem]">Universitas Pancasila</div>
+            <div className="text-[0.933rem] font-semibold sm:text-[1rem]">Fakultas Psikologi</div>
           </div>
           <a href={SITUS_FAKULTAS} target="_blank" rel="noopener noreferrer" className="ml-auto hidden text-[0.867rem] font-medium text-[var(--tinta)] no-underline hover:underline sm:inline">
             psikologi.univpancasila.ac.id ↗
