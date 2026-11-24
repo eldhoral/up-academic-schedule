@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { clampSemester, parseJenisKelas } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
@@ -50,8 +50,7 @@ export default async function DashboardPage(props: PageProps<'/[prodi]/kuliah'>)
   const schedules = await fetchSchedulesForContext(context)
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/kuliah" prodi={prodi} />
+    <AppShell active="/kuliah" prodi={prodi}>
       <PenjadwalanClient
         academicYears={years}
         courses={(courses as Course[]) ?? []}
@@ -67,6 +66,6 @@ export default async function DashboardPage(props: PageProps<'/[prodi]/kuliah'>)
         context={context}
         canEdit={canWrite(role)}
       />
-    </div>
+    </AppShell>
   )
 }

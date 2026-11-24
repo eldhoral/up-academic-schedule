@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { prodiParam } from '@/lib/prodi-server'
 import { canWrite, getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
@@ -41,8 +41,7 @@ export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
   const lecturerList = (lecturers as Lecturer[]) ?? []
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/ujian" prodi={prodi} />
+    <AppShell active="/ujian" prodi={prodi}>
       <UjianClient
         academicYears={years}
         context={context}
@@ -57,6 +56,6 @@ export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
         libur={libur}
         canEdit={canWrite(role)}
       />
-    </div>
+    </AppShell>
   )
 }

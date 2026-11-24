@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { getCurrentUser, isDosen, isPenguji } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -95,8 +95,7 @@ export default async function PenilaianSayaPage() {
   rows.sort((a, b) => b.tanggal.localeCompare(a.tanggal) || a.nama.localeCompare(b.nama))
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/penilaian" />
+    <AppShell active="/penilaian">
       <main className="flex-1 w-full max-w-[62rem] mx-auto px-[1.3rem] py-[1.6rem]">
         <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.02em]">Penilaian Saya</h1>
         <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">
@@ -131,7 +130,7 @@ export default async function PenilaianSayaPage() {
           </ul>
         )}
       </main>
-    </div>
+    </AppShell>
   )
 }
 

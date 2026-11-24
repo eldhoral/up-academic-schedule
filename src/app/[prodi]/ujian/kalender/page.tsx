@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { clampSemester, parseJenisKelas } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
@@ -30,8 +30,7 @@ export default async function UjianKalenderPage(props: PageProps<'/[prodi]/ujian
   const exams = await fetchExamsForPrint(context)
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/ujian/kalender" prodi={prodi} />
+    <AppShell active="/ujian/kalender" prodi={prodi}>
       <UjianKalenderClient
         key={`${context.academic_year_id}-${context.jenis_ujian}-${context.jenis_kelas}-${context.semester_ke}`}
         academicYears={years}
@@ -40,6 +39,6 @@ export default async function UjianKalenderPage(props: PageProps<'/[prodi]/ujian
         names={Object.fromEntries(((lecturers as Lecturer[]) ?? []).map((l) => [l.kode_dosen, lecturerDisplayName(l)]))}
         initialWeek={minggu}
       />
-    </div>
+    </AppShell>
   )
 }

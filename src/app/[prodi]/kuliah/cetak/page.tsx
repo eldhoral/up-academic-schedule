@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { prodiParam } from '@/lib/prodi-server'
 import { buildCetakData } from './cetak-data'
 import { CetakClient } from './CetakClient'
@@ -14,10 +14,7 @@ export default async function CetakPage(props: PageProps<'/[prodi]/kuliah/cetak'
   })
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <div className="no-print">
-        <AppHeader active="/kuliah/cetak" prodi={prodi} />
-      </div>
+    <AppShell active="/kuliah/cetak" prodi={prodi}>
       <CetakClient
         academicYears={data.academicYears}
         context={data.context}
@@ -42,6 +39,6 @@ export default async function CetakPage(props: PageProps<'/[prodi]/kuliah/cetak'
           orientasi: data.orientasi,
         }}
       />
-    </div>
+    </AppShell>
   )
 }

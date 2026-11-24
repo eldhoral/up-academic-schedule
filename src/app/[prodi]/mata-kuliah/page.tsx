@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
 import { canManage, getCurrentRole } from '@/lib/roles'
@@ -10,11 +10,10 @@ export default async function MataKuliahPage(props: PageProps<'/[prodi]/mata-kul
   const { data } = await supabase.from('courses').select('*').eq('prodi', prodi).order('smt').order('kode_mk')
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/mata-kuliah" prodi={prodi} />
+    <AppShell active="/mata-kuliah" prodi={prodi}>
       <main className="flex-1 p-[1.3rem] max-w-[1400px] w-full mx-auto">
         <MataKuliahClient courses={(data as Course[]) ?? []} canEdit={canManage(await getCurrentRole())} />
       </main>
-    </div>
+    </AppShell>
   )
 }

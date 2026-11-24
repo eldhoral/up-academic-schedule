@@ -1,4 +1,4 @@
-import { AppHeader } from '@/components/AppHeader'
+import { AppShell } from '@/components/AppShell'
 import { prodiParam } from '@/lib/prodi-server'
 import { createClient } from '@/lib/supabase/server'
 import { canManage, getCurrentRole } from '@/lib/roles'
@@ -15,8 +15,7 @@ export default async function SesiPage(props: PageProps<'/[prodi]/sesi'>) {
   ])
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)]">
-      <AppHeader active="/sesi" prodi={prodi} />
+    <AppShell active="/sesi" prodi={prodi}>
       <main className="flex-1 p-[1.3rem] max-w-[1400px] w-full mx-auto">
         <SesiClient
           sessions={(sessions as SessionRow[]) ?? []}
@@ -29,6 +28,6 @@ export default async function SesiPage(props: PageProps<'/[prodi]/sesi'>) {
           canEdit={canManage(await getCurrentRole())}
         />
       </main>
-    </div>
+    </AppShell>
   )
 }
