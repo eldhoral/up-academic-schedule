@@ -5,6 +5,7 @@ import { signOutAction } from '@/app/actions/auth'
 import { namaLogin } from '@/lib/login'
 import { getCurrentUser, ROLE_LABEL, type Role } from '@/lib/roles'
 import type { Prodi, ProdiAccess } from '@/lib/prodi'
+import { PilGeser } from './PilGeser'
 import { sidebarModel, type IkonSidebar } from './sidebar-model'
 import { TextSizeController } from './TextSizeController'
 
@@ -80,8 +81,8 @@ const IKON: Record<IkonSidebar, React.ReactNode> = {
   log: <path d="M3 12h4l3-8 4 16 3-8h4" />,
 }
 
-const ITEM = 'flex items-center gap-[0.667rem] min-h-[2.667rem] px-[0.667rem] rounded-[var(--r-item)] text-[0.933rem] no-underline'
-const ITEM_AKTIF = 'bg-[var(--aksen-lembut)] text-[var(--aksen)] font-semibold'
+const ITEM = 'relative isolate flex items-center gap-[0.667rem] min-h-[2.667rem] px-[0.667rem] rounded-[var(--r-item)] text-[0.933rem] no-underline'
+const ITEM_AKTIF = 'text-[var(--aksen)] font-semibold'
 const ITEM_BIASA = 'text-[var(--tinta-2)] hover:bg-[var(--cekung)]'
 
 export type SidebarProps = {
@@ -141,6 +142,10 @@ export async function Sidebar({ active, prodi, user: initialUser, phone = false,
               return (
                 <Fragment key={item.href}>
                   <Link href={item.href} aria-current={item.aktif ? 'page' : undefined} className={`${ITEM} ${item.aktif ? ITEM_AKTIF : ITEM_BIASA}`}>
+                    {/* The highlight is its own layer so it can slide between items on navigation. */}
+                    {item.aktif && (
+                      <PilGeser nama={phone ? undefined : 'sidebar'} className="absolute inset-0 -z-10 rounded-[var(--r-item)] bg-[var(--aksen-lembut)]" />
+                    )}
                     <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
                       {IKON[item.ikon]}
                     </svg>

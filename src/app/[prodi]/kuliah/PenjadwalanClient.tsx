@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, use, useState, useTransition } from 'react'
+import { useSorotSimpan } from '@/components/useSorotSimpan'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { lecturerDisplayName } from '@/lib/import/tables'
@@ -89,6 +90,7 @@ export function PenjadwalanClient({
   const prodi = useProdi()
   const [modalOpen, setModalOpen] = useState<'new' | ScheduleRow | null>(null)
   const [schedules, setSchedules] = useState(initialSchedules)
+  const { sorot, tandaiSimpan } = useSorotSimpan(schedules)
   // Findings fetched after a client-side year change; null means the page's streamed ones.
   const [fetchedFindings, setFetchedFindings] = useState<KuliahFindings | null>(null)
   const [context, setContext] = useState(initialContext)
@@ -355,7 +357,7 @@ export function PenjadwalanClient({
                           key={r.id}
                           className={`border-b border-[var(--garis)] hover:bg-[var(--cekung)] transition-colors ${
                             r.is_override ? 'bg-[var(--merah-lembut)] hover:bg-[#FBE6E2]' : ''
-                          }`}
+                          } ${sorot.has(r.id) ? 'baris-sorot' : ''}`}
                         >
                           <Td className="mono" style={{ color: 'var(--tinta-2)', fontSize: '.93rem' }}>
                             {r.kode_mk}
@@ -431,7 +433,10 @@ export function PenjadwalanClient({
           hariAktif={hariAktif}
           editing={modalOpen === 'new' ? null : modalOpen}
           onClose={() => setModalOpen(null)}
-          onSaved={() => setModalOpen(null)}
+          onSaved={() => {
+            tandaiSimpan()
+            setModalOpen(null)
+          }}
         />
       )}
     </div>

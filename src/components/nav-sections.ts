@@ -84,9 +84,13 @@ export function sectionOf(active: string, prodi: Prodi | undefined, canManage: b
   return null
 }
 
-export const linkClass = (isActive: boolean) =>
+/** `geser`: the active highlight is a separate PilGeser layer (class PIL_TAB) that slides between tabs on navigation. */
+export const linkClass = (isActive: boolean, geser = false) =>
   `block px-[0.667rem] py-[0.4rem] rounded-[8px] text-[0.933rem] transition-colors ${
     isActive
-      ? 'bg-[var(--aksen-lembut)] text-[var(--aksen)] font-medium'
+      ? `text-[var(--aksen)] font-medium ${geser ? 'relative isolate' : 'bg-[var(--aksen-lembut)]'}`
       : 'text-[var(--tinta)] hover:bg-[var(--cekung)]'
   }`
+
+export const PIL_TAB = 'absolute inset-0 -z-10 rounded-[8px] bg-[var(--aksen-lembut)]'
+

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
+import { useSorotSimpan } from '@/components/useSorotSimpan'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
@@ -60,6 +61,8 @@ export function UjianClient({
   const { prodi } = context
   const router = useRouter()
   const [editing, setEditing] = useState<Block | null>(null)
+  // The dialog closes on save and on cancel; a cancel changes no row, so nothing lights up.
+  const { sorot, tandaiSimpan } = useSorotSimpan(exams)
   const [query, setQuery] = useState('')
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -315,7 +318,7 @@ export function UjianClient({
           <PreviewTable label={`Jadwal ${UJIAN_LABEL[context.jenis_ujian]} semester ${context.semester_ke}`} columns={columns}>
             {unscheduled.length > 0 && <BandRow span={columns.length}>Belum dijadwalkan ({unscheduled.length})</BandRow>}
             {unscheduled.map((b) => (
-              <BlockRows key={b.kode_mk} block={b} edgeClass="border-[var(--garis)]" pengawasName={pengawasName} canEdit={canEdit} onEdit={() => setEditing(b)} />
+              <BlockRows key={b.kode_mk} block={b} edgeClass="border-[var(--garis)]" pengawasName={pengawasName} canEdit={canEdit} onEdit={() => setEditing(b)} sorot={sorot} />
             ))}
             {scheduled.map((b, i) => (
               <BlockRows
@@ -326,6 +329,7 @@ export function UjianClient({
                 pengawasName={pengawasName}
                 canEdit={canEdit}
                 onEdit={() => setEditing(b)}
+                sorot={sorot}
               />
             ))}
           </PreviewTable>
@@ -346,7 +350,10 @@ export function UjianClient({
           sesi={sesi}
           fixedNames={fixedNames}
           libur={libur}
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            tandaiSimpan()
+            setEditing(null)
+          }}
         />
       )}
     </div>
@@ -359,12 +366,14 @@ function BlockRows({
   pengawasName,
   canEdit,
   onEdit,
+  sorot,
 }: {
   block: Block
   edgeClass: string
   pengawasName: (p: PengawasItem) => string
   canEdit: boolean
   onEdit: () => void
+  sorot: Set<string>
 }) {
   const span = block.rows.length
   const head = block.rows[0]
@@ -373,7 +382,7 @@ function BlockRows({
   return (
     <>
       {block.rows.map((r, i) => (
-        <tr key={r.id} className={`h-[2.6rem] border-t align-top ${i === 0 ? edgeClass : 'border-[var(--garis)]'} ${r.is_override ? 'bg-[var(--merah-lembut)]' : ''}`}>
+        <tr key={r.id} className={`h-[2.6rem] border-t align-top ${i === 0 ? edgeClass : 'border-[var(--garis)]'} ${r.is_override ? 'bg-[var(--merah-lembut)]' : ''} ${sorot.has(r.id) ? 'baris-sorot' : ''}`}>
           {i === 0 && (
             <>
               <td rowSpan={span} className={`${cell('center')} whitespace-nowrap`}>

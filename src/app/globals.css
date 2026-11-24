@@ -27,6 +27,10 @@
     --grafik-jalur: #E4E8EF;
     --grafik-oranye: #C8811A;
     --grafik-abu: #C9D0DB;
+    /* Motion: strong ease-out for things arriving, ease-in-out for things moving, iOS-like drawer */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
     --biru: #1A3FA0;
     --biru-lembut: #EAEEF9;
     --biru-hover: #16358A;
@@ -105,4 +109,75 @@
       page-break-before: always;
     }
   }
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────────────
+ * A work tool used all day: short (≤300ms), mostly fades, transform/opacity only.
+ * Entry animations use fill-mode `backwards`, never `both`: a held opacity/transform would keep a
+ * stacking context / containing block and trap fixed dialogs under the sticky bars.
+ * "Reduce motion" keeps fades and drops movement (see the media query at the end).
+ */
+
+@keyframes pudar-masuk {
+  from { opacity: 0; }
+}
+@keyframes naik-masuk {
+  from { opacity: 0; transform: translateY(8px); }
+}
+@keyframes dialog-masuk {
+  from { opacity: 0; transform: scale(0.96); }
+}
+@keyframes laci-masuk {
+  from { transform: translateX(-100%); }
+}
+@keyframes laci-keluar {
+  to { transform: translateX(-100%); }
+}
+@keyframes pudar-keluar {
+  to { opacity: 0; }
+}
+@keyframes sorot {
+  from { background-color: var(--aksen-lembut); }
+}
+
+/* Page change: only the content fades in; sidebar and tab bar stay put (their highlight slides: PilGeser). */
+.halaman-masuk { animation: pudar-masuk 150ms var(--ease-out) backwards; }
+
+/* Beranda: sections rise in one after another. */
+.beranda-masuk > * { animation: naik-masuk 250ms var(--ease-out) backwards; }
+.beranda-masuk > :nth-child(2) { animation-delay: 40ms; }
+.beranda-masuk > :nth-child(3) { animation-delay: 80ms; }
+.beranda-masuk > :nth-child(4) { animation-delay: 120ms; }
+.beranda-masuk > :nth-child(5) { animation-delay: 160ms; }
+.beranda-masuk > :nth-child(n + 6) { animation-delay: 200ms; }
+
+/* Dialogs: backdrop fades, panel grows from 96% (centred: not anchored to a trigger). */
+[role="dialog"][aria-modal="true"].fixed.inset-0 { animation: pudar-masuk 200ms ease-out backwards; }
+[role="dialog"][aria-modal="true"].fixed.inset-0 > :first-child,
+[role="dialog"][aria-modal="true"]:not(.inset-0),
+dialog[open] { animation: dialog-masuk 200ms var(--ease-out) backwards; }
+dialog[open]::backdrop { animation: pudar-masuk 200ms ease-out backwards; }
+
+/* Phone menu: slides in on the drawer curve, leaves faster than it came. */
+.laci-buka { animation: laci-masuk 280ms var(--ease-drawer) backwards; }
+.laci-tutup { animation: laci-keluar 200ms var(--ease-out) both; }
+.latar-buka { animation: pudar-masuk 280ms ease-out backwards; }
+.latar-tutup { animation: pudar-keluar 200ms ease-out both; }
+
+/* Press feedback: anything pressable gives a little. */
+button:not(:disabled):active,
+.tekan:active { transform: scale(0.97); }
+
+/* A row that was just saved glows, then settles. */
+.baris-sorot > * { animation: sorot 1200ms ease-out backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .beranda-masuk > *,
+  [role="dialog"][aria-modal="true"].fixed.inset-0 > :first-child,
+  [role="dialog"][aria-modal="true"]:not(.inset-0),
+  dialog[open] { animation-name: pudar-masuk; }
+  .laci-buka { animation-name: pudar-masuk; }
+  .laci-tutup { animation-name: pudar-keluar; }
+  button:not(:disabled):active,
+  .tekan:active { transform: none; }
 }

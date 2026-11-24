@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
-import { linkClass, type Tab } from './nav-sections'
+import { PilGeser } from './PilGeser'
+import { linkClass, PIL_TAB, type Tab } from './nav-sections'
 
 /**
  * A header tab that opens a short list of links (the S1 grading pages). The button shows the current page's
@@ -41,8 +42,9 @@ export function NavDropdown({ label, items, current }: { label: string; items: T
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((o) => !o)}
-        className={`${linkClass(!!aktif)} inline-flex items-center gap-[0.3rem] cursor-pointer`}
+        className={`${linkClass(!!aktif, true)} inline-flex items-center gap-[0.3rem] cursor-pointer`}
       >
+        {aktif && <PilGeser nama="tab" className={PIL_TAB} />}
         {aktif?.label ?? label}
         <span aria-hidden="true" className={`text-[0.7rem] transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>

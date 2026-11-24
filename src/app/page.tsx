@@ -37,7 +37,7 @@ export default async function MenuPage() {
 
   return (
     <AppShell active="/">
-      <main className="flex flex-1 flex-col gap-[1.467rem] leading-[normal] px-[1.067rem] pt-[1.867rem] pb-[2.4rem] sm:px-[2.133rem]">
+      <main className="beranda-masuk flex flex-1 flex-col gap-[1.467rem] leading-[normal] px-[1.067rem] pt-[1.867rem] pb-[2.4rem] sm:px-[2.133rem]">
         <header className="flex flex-wrap items-end gap-[0.933rem]">
           <div className="grow">
             <h1 className="m-0 text-[1.867rem] font-semibold tracking-[-0.02em]">Beranda</h1>

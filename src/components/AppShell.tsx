@@ -60,7 +60,8 @@ export async function AppShell({
             </span>
           </div>
         )}
-        <div className="flex-1 min-w-0 flex flex-col">
+        {/* Keyed per page: each navigation mounts it afresh, so the new content fades in (globals.css). */}
+        <div key={`${prodi ?? ''}${active}`} className="halaman-masuk flex-1 min-w-0 flex flex-col">
           {children}
         </div>
       </div>

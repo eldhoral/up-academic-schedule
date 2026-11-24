@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Prodi } from '@/lib/prodi'
-import { linkClass, sectionOf } from './nav-sections'
+import { PilGeser } from './PilGeser'
+import { linkClass, PIL_TAB, sectionOf } from './nav-sections'
 import { NavDropdown } from './NavDropdown'
 
 /** Back to the menu, the section's name, and its tabs. Nothing on the menu itself. */
@@ -17,8 +18,9 @@ export function HeaderNav({ active, prodi, canManage = false, akunEksternal = fa
           key={tab.href}
           href={tab.href}
           aria-current={tab.href === current ? 'page' : undefined}
-          className={linkClass(tab.href === current)}
+          className={linkClass(tab.href === current, true)}
         >
+          {tab.href === current && <PilGeser nama="tab" className={PIL_TAB} />}
           {tab.label}
         </Link>
       ))}
