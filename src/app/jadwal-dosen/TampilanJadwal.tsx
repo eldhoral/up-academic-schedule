@@ -127,9 +127,9 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
         </section>
 
         <div className="grid grid-cols-3 gap-[0.533rem] sm:gap-[0.933rem]">
-          <Angka ikon="kuliah" angka={jadwal.kuliah.length} label="kelas kuliah" judul="Kuliah" />
-          <Angka ikon="ujian" angka={ujianMendatang} label="ujian mendatang" judul="Ujian" />
-          <Angka ikon="sidang" angka={sidang.length} label={`sidang dalam ${SIDANG_HARI_MAJU} hari`} judul="Sidang & prasidang" />
+          <Angka ikon="kuliah" angka={jadwal.kuliah.length} judul="Kuliah" />
+          <Angka ikon="ujian" angka={ujianMendatang} judul="Ujian" />
+          <Angka ikon="sidang" angka={sidang.length} judul="Sidang & prasidang" />
         </div>
 
         {/* Today, marked with the faculty's yellow. */}
@@ -144,7 +144,7 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
         </section>
 
         <div className="grid items-start gap-[0.933rem] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <Kartu judul="Jadwal Kuliah" catatan="Setiap minggu, kecuali minggu ujian dan hari libur" className="lg:order-none order-last">
+          <Kartu judul="Jadwal Kuliah" className="lg:order-none order-last">
             {kuliahPerHari.length === 0 ? (
               <Kosong>Tidak ada jadwal kuliah semester ini.</Kosong>
             ) : (
@@ -160,7 +160,7 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
           </Kartu>
 
           <div className="flex flex-col gap-[0.933rem]">
-            <Kartu judul="Sidang & Prasidang" catatan={`Prasidang hari ini · sidang hari ini dan ${SIDANG_HARI_MAJU} hari ke depan`} kolom>
+            <Kartu judul="Sidang & Prasidang" kolom>
               {sidang.length === 0 ? (
                 <Kosong>{`Tidak ada jadwal sidang dalam ${SIDANG_HARI_MAJU} hari ke depan.`}</Kosong>
               ) : (
@@ -175,7 +175,7 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
               )}
             </Kartu>
 
-            <Kartu judul="Ujian" catatan="UTS & UAS semester ini" kolom>
+            <Kartu judul="Ujian" kolom>
               {ujian.length === 0 ? (
                 <Kosong>Tidak ada tugas ujian semester ini.</Kosong>
               ) : (
