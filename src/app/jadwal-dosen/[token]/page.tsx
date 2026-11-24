@@ -1,13 +1,10 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
-import { KETERANGAN_LABEL, type KeteranganUjian } from '@/app/[prodi]/ujian/exam-types'
-import { hariLabel, tanggalPanjang } from '@/lib/hari'
 import { todayJakarta } from '@/lib/penilaian/akses'
-import { PRODI_CONFIG } from '@/lib/prodi'
-import { defenseLinkLabel } from '@/app/[prodi]/sidang/defense-types'
-import { PROGRAM_LABEL, SIDANG_HARI_MAJU, SIDANG_PERAN_LABEL, linkNilai, publicOrigin, sidangHariIni, sidangJudul, ujianPeranText } from '../events'
+import { publicOrigin } from '../events'
 import { loadJadwalDosen } from '../jadwal-data'
+import { TampilanJadwal } from '../TampilanJadwal'
 
 export const metadata: Metadata = { title: 'Jadwal Dosen', robots: { index: false, follow: false } }
 
@@ -15,144 +12,6 @@ export default async function JadwalDosenPage(props: PageProps<'/jadwal-dosen/[t
   const { token } = await props.params
   const jadwal = await loadJadwalDosen(token)
   if (!jadwal) notFound()
-
   const host = publicOrigin(await headers()).replace(/^[a-z]+:\/\//, '')
-  const feedPath = `/jadwal-dosen/${token}/kalender.ics`
-  const today = todayJakarta()
-  // Upcoming first (soonest on top), then what has passed.
-  const upcomingFirst = <T extends { tanggal: string }>(items: T[]) => [...items.filter((i) => i.tanggal >= today), ...items.filter((i) => i.tanggal < today)]
-  const term = jadwal.term
-  const hasTermDates = !!(term?.mulai && term?.selesai)
-  // Today's prasidang, sidang up to SIDANG_HARI_MAJU days ahead (to review the materi); other dates live in the calendar feed.
-  const hariIni = sidangHariIni(jadwal.sidang, today)
-
-  return (
-    <div className="min-h-screen bg-[var(--kertas)] text-[var(--tinta)]">
-      <main className="max-w-[56rem] mx-auto p-[1rem] sm:p-[1.6rem] space-y-[1.2rem]">
-        <header className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.2rem] sm:p-[1.6rem]">
-          <p className="m-0 text-[0.8rem] font-semibold uppercase tracking-[0.04em] text-[var(--tinta-3)]">Jadwal Dosen</p>
-          <h1 className="m-0 mt-[0.2rem] text-[1.3rem] font-semibold">{jadwal.nama}</h1>
-          <p className="m-0 mt-[0.3rem] text-[0.93rem] text-[var(--tinta-2)]">
-            {term ? `Tahun akademik ${term.label}` : 'Belum ada tahun akademik aktif.'}
-          </p>
-          <div className="flex flex-wrap gap-[0.6rem] mt-[1rem]">
-            <a
-              href={`${feedPath}?unduh=1`}
-              className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.87rem] font-medium no-underline hover:bg-[var(--cekung)]"
-            >
-              Unduh .ics
-            </a>
-            <a
-              href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(`webcal://${host}${feedPath}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.87rem] font-medium no-underline hover:bg-[var(--cekung)]"
-            >
-              Google Calendar
-            </a>
-          </div>
-        </header>
-
-        <Section title="Kuliah" empty={jadwal.kuliah.length === 0 ? 'Tidak ada jadwal kuliah semester ini.' : null}>
-          {term && !hasTermDates && jadwal.kuliah.length > 0 && (
-            <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">
-              Tanggal mulai dan selesai perkuliahan belum diatur, jadi kuliah belum masuk ke kalender.
-            </p>
-          )}
-          <ul className="list-none m-0 p-0 divide-y divide-[var(--garis)]">
-            {jadwal.kuliah.map((k) => (
-              <Row
-                key={k.id}
-                when={`${hariLabel(k.hari)} · ${k.jam_mulai}–${k.jam_selesai}${k.minggu === 'setiap' ? '' : ` · minggu ${k.minggu}`}`}
-                what={`${k.nama_mk} (${k.kelas})`}
-                detail={`${PRODI_CONFIG[k.prodi].short} ${PROGRAM_LABEL[k.jenis_kelas]}${k.tempat ? ` · ${k.tempat}` : ''}`}
-              />
-            ))}
-          </ul>
-        </Section>
-
-        <Section title="Ujian" empty={jadwal.ujian.length === 0 ? 'Tidak ada tugas ujian semester ini.' : null}>
-          <ul className="list-none m-0 p-0 divide-y divide-[var(--garis)]">
-            {upcomingFirst(jadwal.ujian).map((u) => (
-              <Row
-                key={u.id}
-                past={u.tanggal < today}
-                when={`${tanggalPanjang(u.tanggal, false)} · ${u.keterangan === 'take_home' ? 'Take Home' : `${u.jam_mulai}–${u.jam_selesai}`}`}
-                what={`${u.jenis_ujian.toUpperCase()} ${ujianPeranText(u.peran)} · ${u.nama_mk} (${u.kelas})`}
-                detail={`${PRODI_CONFIG[u.prodi].short} ${PROGRAM_LABEL[u.jenis_kelas]} · ${u.tempat || KETERANGAN_LABEL[u.keterangan as KeteranganUjian]}`}
-              />
-            ))}
-          </ul>
-        </Section>
-
-        {(['prasidang', 'sidang'] as const).map((jenis) => (
-          <Section
-            key={jenis}
-            title={jenis === 'prasidang' ? 'Prasidang hari ini' : `Sidang hari ini dan ${SIDANG_HARI_MAJU} hari ke depan`}
-            empty={hariIni[jenis].length === 0 ? (jenis === 'prasidang' ? 'Tidak ada jadwal prasidang hari ini.' : `Tidak ada jadwal sidang dalam ${SIDANG_HARI_MAJU} hari ke depan.`) : null}
-          >
-            <ul className="list-none m-0 p-0 divide-y divide-[var(--garis)]">
-              {hariIni[jenis].map((s) => (
-                <Row
-                  key={s.id}
-                  when={`${tanggalPanjang(s.tanggal, false)} · ${s.jam_mulai}–${s.jam_selesai}`}
-                  what={`${sidangJudul(s)} · ${s.nama_mahasiswa}`}
-                  detail={`${SIDANG_PERAN_LABEL[s.jenis][s.peran]} · ${PRODI_CONFIG[s.prodi].short}${s.tempat ? ` · ${s.tempat}` : ''}`}
-                  link={s.link || undefined}
-                  // Grading opens on the sidang day; earlier rows carry only the materi.
-                  nilaiHref={s.tanggal === today ? (linkNilai(s) ?? undefined) : undefined}
-                  nilaiLabel={s.jenis === 'prasidang' ? 'Isi Berita Acara' : 'Beri Nilai'}
-                />
-              ))}
-            </ul>
-          </Section>
-        ))}
-      </main>
-    </div>
-  )
-}
-
-function Section({ title, empty, children }: { title: string; empty: string | null; children: React.ReactNode }) {
-  return (
-    <section className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.2rem] sm:p-[1.6rem]">
-      <h2 className="m-0 mb-[0.6rem] text-[1.05rem] font-semibold">{title}</h2>
-      {empty ? <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">{empty}</p> : children}
-    </section>
-  )
-}
-
-function Row({ when, what, detail, past = false, link, nilaiHref, nilaiLabel = 'Beri Nilai' }: { when: string; what: string; detail: string; past?: boolean; link?: string; nilaiHref?: string; nilaiLabel?: string }) {
-  return (
-    <li className={`py-[0.6rem] ${past ? 'opacity-50' : ''}`}>
-      <p className="m-0 text-[0.8rem] text-[var(--tinta-3)] mono">{when}</p>
-      <p className="m-0 mt-[0.1rem] text-[0.93rem] font-medium">{what}</p>
-      <p className="m-0 mt-[0.1rem] text-[0.87rem] text-[var(--tinta-2)]">{detail}</p>
-      {(link || nilaiHref) && (
-        <p className="m-0 mt-[0.45rem] flex flex-wrap gap-[0.5rem]">
-          {/* Opens the material in a new tab, always through http(s) — the column's DB check keeps javascript: out. */}
-          {link && (
-            <a
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.8rem] font-medium no-underline cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors"
-            >
-              {defenseLinkLabel(link)} <span aria-hidden="true">↗</span>
-            </a>
-          )}
-          {/* Grants nothing by itself: the page behind it needs a DOSEN login. */}
-          {nilaiHref && (
-            <a
-              href={nilaiHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.8rem] font-medium no-underline cursor-pointer hover:bg-[var(--cekung)] active:scale-[0.97] transition-colors"
-            >
-              {nilaiLabel} <span aria-hidden="true">↗</span>
-            </a>
-          )}
-        </p>
-      )}
-    </li>
-  )
+  return <TampilanJadwal jadwal={jadwal} today={todayJakarta()} host={host} feedPath={`/jadwal-dosen/${token}/kalender.ics`} />
 }

@@ -23,6 +23,11 @@
     --aksen-lembut: #EDF3FF;
     --aksen-2: #23885A;
     /* Beranda charts (Final-Beranda): grid lines, donut track, "tidak layak" and "belum lengkap" slices */
+    /* Fakultas Psikologi UP (psikologi.univpancasila.ac.id): sky blue and yellow, decoration only (dark text on them) */
+    --brand-langit: #5EBCEA;
+    --brand-kuning: #FFE600;
+    --brand-kuning-lembut: #FFF6B3;
+    --brand-kuning-teks: #5A4A00;
     --grafik-kisi: #EDF0F5;
     --grafik-jalur: #E4E8EF;
     --grafik-oranye: #C8811A;

@@ -91,6 +91,34 @@ export function sidangHariIni(items: SidangItem[], today: string): { prasidang: 
 /** The calendar line label for linkNilai. */
 const labelLink = (s: Pick<SidangItem, 'jenis'>): string => (s.jenis === 'prasidang' ? 'Berita acara' : 'Penilaian')
 
+/** Exam weeks pause one program's classes; holidays pause everyone, faculty-wide. */
+function tanggalLibur(j: JadwalDosen): (k: KuliahItem, date: string) => boolean {
+  const examWeeks = new Set(j.examDays.map((e) => `${e.prodi}|${e.jenis_kelas}|${mondayOf(e.tanggal)}`))
+  const liburSet = new Set(j.libur)
+  return (k, d) => liburSet.has(d) || examWeeks.has(`${k.prodi}|${k.jenis_kelas}|${mondayOf(d)}`)
+}
+
+export type AgendaItem =
+  | { jenis: 'kuliah'; jam_mulai: string; item: KuliahItem }
+  | { jenis: 'ujian'; jam_mulai: string; item: UjianItem }
+  | { jenis: 'sidang'; jam_mulai: string; item: SidangItem }
+
+/** Everything on `today` for the page's "Hari ini" card, by start time. Classes follow the calendar feed's rules. */
+export function agendaHariIni(j: JadwalDosen, today: string): AgendaItem[] {
+  const mulai = j.term?.mulai
+  const selesai = j.term?.selesai
+  const libur = tanggalLibur(j)
+  const kuliah: AgendaItem[] =
+    mulai && selesai && today >= mulai && today <= selesai
+      ? j.kuliah
+          .filter((k) => k.hari === hariFromTanggal(today) && kuliahDates(k, mulai, selesai).includes(today) && !libur(k, today))
+          .map((k) => ({ jenis: 'kuliah', jam_mulai: k.jam_mulai, item: k }))
+      : []
+  const ujian: AgendaItem[] = j.ujian.filter((u) => u.tanggal === today).map((u) => ({ jenis: 'ujian', jam_mulai: u.jam_mulai, item: u }))
+  const sidang: AgendaItem[] = j.sidang.filter((s) => s.tanggal === today).map((s) => ({ jenis: 'sidang', jam_mulai: s.jam_mulai, item: s }))
+  return [...kuliah, ...ujian, ...sidang].sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai))
+}
+
 /** origin (e.g. https://host) makes the grading link absolute for the calendar; the page passes none. */
 export function buildEvents(j: JadwalDosen, origin?: string): IcsEvent[] {
   const events: IcsEvent[] = []
@@ -98,14 +126,10 @@ export function buildEvents(j: JadwalDosen, origin?: string): IcsEvent[] {
   const mulai = j.term?.mulai
   const selesai = j.term?.selesai
   if (mulai && selesai) {
-    const examWeeks = new Set(j.examDays.map((e) => `${e.prodi}|${e.jenis_kelas}|${mondayOf(e.tanggal)}`))
-    const liburSet = new Set(j.libur)
+    const libur = tanggalLibur(j)
     for (const k of j.kuliah) {
       const dates = kuliahDates(k, mulai, selesai)
-      // Exam weeks pause one program's classes; holidays pause everyone, faculty-wide.
-      const skipped = dates.filter(
-        (d) => liburSet.has(d) || examWeeks.has(`${k.prodi}|${k.jenis_kelas}|${mondayOf(d)}`),
-      )
+      const skipped = dates.filter((d) => libur(k, d))
       if (skipped.length === dates.length) continue // never meets (or only in exam weeks)
       events.push({
         uid: `kuliah-${k.id}@krs`,

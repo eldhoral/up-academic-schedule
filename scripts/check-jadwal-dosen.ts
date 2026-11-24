@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildEvents, kuliahDates, linkNilai, publicOrigin, sidangHariIni, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
+import { agendaHariIni, buildEvents, kuliahDates, linkNilai, publicOrigin, sidangHariIni, termWeek, type JadwalDosen, type KuliahItem, type SidangItem, type UjianItem } from '../src/app/jadwal-dosen/events'
 import { prasidangTempat, toJadwal, type RawExam } from '../src/app/jadwal-dosen/jadwal-data'
 import { isJadwalToken, newJadwalToken } from '../src/app/jadwal-dosen/token'
 
@@ -230,6 +230,30 @@ assert.equal(publicOrigin(new Headers({ host: 'krs.up.ac.id' })), 'https://krs.u
   ], T)
   assert.deepEqual(maju.sidang.map((x) => x.id), ['s-pagi', 's-siang', 's-besok', 's-h7'], 'not yesterday, not day 8')
   assert.deepEqual(maju.prasidang.map((x) => x.id), ['p-hari-ini', 'sempro-s2'], 'prasidang tomorrow not listed')
+}
+
+// --- agendaHariIni: today's classes (same rules as the calendar), exams and sidang, by time -------
+{
+  const T = '2026-11-23' // a Senin, week 13 (ganjil)
+  const j = base({
+    kuliah: [
+      k({ id: 'pagi', jam_mulai: '07:30', jam_selesai: '09:10' }),
+      k({ id: 'genap', minggu: 'genap' }), // week 13 is ganjil: not today
+      k({ id: 'rabu', hari: 'RABU' }),
+      k({ id: 'rk', prodi: 's1', jenis_kelas: 'regsus', jam_mulai: '18:30', jam_selesai: '20:10' }),
+    ],
+    ujian: [u({ id: 'uts', tanggal: T, jam_mulai: '10:00' }), u({ id: 'besok', tanggal: '2026-11-24' })],
+    sidang: [sd({ id: 'sid', tanggal: T, jam_mulai: '13:00' }), sd({ id: 'lusa', tanggal: '2026-11-25' })],
+  })
+  assert.deepEqual(agendaHariIni(j, T).map((a) => `${a.jenis}:${a.item.id}`), ['kuliah:pagi', 'ujian:uts', 'sidang:sid', 'kuliah:rk'])
+  // An exam week of that program pauses its class; a holiday pauses every class.
+  const ujianRk = base({ ...j, examDays: [{ prodi: 's1', jenis_kelas: 'regsus', tanggal: '2026-11-25' }] })
+  assert.ok(!agendaHariIni(ujianRk, T).some((a) => a.item.id === 'rk'), 'exam week pauses the class')
+  assert.ok(!agendaHariIni(base({ ...j, libur: [T] }), T).some((a) => a.jenis === 'kuliah'), 'holiday pauses classes')
+  // Outside the term, or with no term dates, no class meets.
+  assert.ok(!agendaHariIni(j, '2027-01-04').some((a) => a.jenis === 'kuliah'), 'after selesai')
+  assert.ok(!agendaHariIni(base({ ...j, term: { ...term, mulai: null } }), T).some((a) => a.jenis === 'kuliah'), 'no term dates')
+  assert.deepEqual(agendaHariIni(base(), T), [])
 }
 
 console.log('jadwal dosen: all checks passed')
