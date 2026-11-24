@@ -303,13 +303,10 @@ function TombolSidang({ s, today }: { s: SidangItem; today: string }) {
   )
 }
 
-function Kartu({ judul, catatan, kolom = false, className = '', children }: { judul: string; catatan: string; kolom?: boolean; className?: string; children: React.ReactNode }) {
+function Kartu({ judul, kolom = false, className = '', children }: { judul: string; kolom?: boolean; className?: string; children: React.ReactNode }) {
   return (
     <section className={`rounded-[var(--r-kartu)] border border-[var(--garis)] bg-[var(--lembar)] p-[1.067rem] sm:p-[1.333rem] ${kolom ? 'flex flex-col gap-[0.8rem]' : ''} ${className}`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-[0.8rem] gap-y-[0.133rem]">
-        <h2 className="m-0 text-[1.067rem] font-semibold sm:text-[1.133rem]">{judul}</h2>
-        <span className="text-[0.8rem] text-[var(--tinta-3)]">{catatan}</span>
-      </div>
+      <h2 className="m-0 text-[1.067rem] font-semibold sm:text-[1.133rem]">{judul}</h2>
       {children}
     </section>
   )
@@ -323,8 +320,8 @@ const IKON_ANGKA = {
   sidang: { warna: 'bg-[var(--hijau-lembut)] text-[var(--hijau)]', d: 'M22 10 12 5 2 10l10 5 10-5ZM6 12v5c3 2 9 2 12 0v-5', kotak: false },
 } as const
 
-/** A count tile, like Beranda's; on a phone just the number and its label. */
-function Angka({ ikon, angka, label, judul }: { ikon: keyof typeof IKON_ANGKA; angka: number; label: string; judul: string }) {
+/** A count tile, like Beranda's; on a phone just the number and its title. */
+function Angka({ ikon, angka, judul }: { ikon: keyof typeof IKON_ANGKA; angka: number; judul: string }) {
   const i = IKON_ANGKA[ikon]
   return (
     <div className="flex items-center gap-[0.933rem] rounded-[12px] border border-[var(--garis)] bg-[var(--lembar)] px-[0.8rem] py-[0.667rem] sm:rounded-[var(--r-kartu)] sm:p-[1.067rem]">
@@ -332,10 +329,9 @@ function Angka({ ikon, angka, label, judul }: { ikon: keyof typeof IKON_ANGKA; a
         <Ikon d={i.d} kotak={i.kotak} ukuran={19} />
       </span>
       <div className="min-w-0">
-        <div className="hidden text-[0.933rem] text-[var(--tinta-3)] sm:block">{judul}</div>
-        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-[0.333rem]">
+        <div className="flex flex-col-reverse sm:flex-col">
+          <div className="text-[0.8rem] text-[var(--tinta-3)] sm:text-[0.933rem]">{judul}</div>
           <span className="text-[1.467rem] font-semibold sm:text-[1.733rem]">{angka}</span>
-          <span className="text-[0.8rem] text-[var(--tinta-3)] sm:text-[0.933rem] sm:text-[var(--tinta-2)]">{label}</span>
         </div>
       </div>
     </div>

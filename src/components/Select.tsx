@@ -55,7 +55,9 @@ export function Select({
         aria-label={ariaLabel}
         className={`inline-flex items-center justify-between gap-[0.4rem] cursor-pointer disabled:cursor-default disabled:opacity-60 data-[placeholder]:text-[var(--tinta-3)] ${className}`}
       >
-        <SelectPrimitive.Value placeholder={placeholder} />
+        <span className="min-w-0 truncate text-left">
+          <SelectPrimitive.Value placeholder={placeholder} />
+        </span>
         <SelectPrimitive.Icon className="shrink-0 text-[var(--tinta-3)]">
           <ChevronIcon />
         </SelectPrimitive.Icon>

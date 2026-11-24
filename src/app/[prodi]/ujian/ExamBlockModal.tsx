@@ -213,7 +213,7 @@ export function ExamBlockModal({
           {rowState.map((r, i) => {
             const dosen = rows.find((x) => x.kelas === r.kelas)?.dosen
             return (
-              <fieldset key={r.kelas} className="m-0 border border-[var(--garis)] rounded-[var(--r-kecil)] px-[0.8rem] pt-[0.2rem] pb-[0.8rem] grid gap-[0.8rem] sm:grid-cols-[9rem_9rem_1fr] items-start">
+              <fieldset key={r.kelas} className="m-0 border border-[var(--garis)] rounded-[var(--r-kecil)] px-[0.8rem] pt-[0.2rem] pb-[0.8rem] grid gap-[0.8rem] sm:grid-cols-[9rem_12rem_1fr] items-start">
                 <legend className="px-[0.4rem] text-[0.87rem] font-semibold">
                   {r.kelas === GABUNGAN ? 'Kelas GABUNGAN' : `Kelas ${r.kelas}`}
                   {dosen && (
