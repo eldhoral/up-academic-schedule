@@ -21,6 +21,9 @@ const CLASH_REASON: Record<ClashFinding['type'], (detail: string) => string> = {
   ruangan: (detail) => `Ruangan ${detail} terjadwal ganda`,
 }
 
+/** Identifies a schedule row in the table, so a clash finding can scroll to and light up its rows. */
+const jadwalKey = (s: { kode_mk: string; kelas: string; hari: string; jam_mulai: string }) => `${s.kode_mk}|${s.kelas}|${s.hari}|${s.jam_mulai}`
+
 function KuliahFindingsBar({
   findings,
   scopeLabel,
@@ -30,7 +33,7 @@ function KuliahFindingsBar({
   findings: KuliahFindings | Promise<KuliahFindings>
   scopeLabel: string
   lecturers: Lecturer[]
-  onView: (side: ClashFindingSide) => void
+  onView: (sides: ClashFindingSide[]) => void
 }) {
   const { clashes, beban } = findings instanceof Promise ? use(findings) : findings
   const nama = new Map(lecturers.map((l) => [l.kode_dosen, lecturerDisplayName(l)]))
@@ -47,7 +50,7 @@ function KuliahFindingsBar({
           </>
         ),
         minutes: c.overlapMinutes,
-        target: c.a,
+        target: [c.a, c.b],
       }))}
       notes={beban.map(
         (b) =>
@@ -156,14 +159,23 @@ export function PenjadwalanClient({
     if (clashesPromise) setFetchedFindings(await clashesPromise)
   }
 
-  async function viewClashSide(side: ClashFindingSide) {
+  async function viewClashSide([side, other]: ClashFindingSide[]) {
     const needsNav = side.jenis_kelas !== context.jenis_kelas || side.semester_ke !== context.semester_ke
     if (needsNav) {
       await navigate({ jenis_kelas: side.jenis_kelas as JenisKelas, semester_ke: side.semester_ke })
     }
-    // rAF: wait a paint past the state update above so the target kelas group exists in the DOM.
+    // rAF: wait a paint past the state update above so the target rows exist in the DOM.
     requestAnimationFrame(() => {
-      document.getElementById(`kelas-${side.kelas}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const find = (s: ClashFindingSide) => document.querySelector<HTMLElement>(`tr[data-jadwal="${CSS.escape(jadwalKey(s))}"]`)
+      const target = find(side)
+      ;(target ?? document.getElementById(`kelas-${side.kelas}`))?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Both rows of the clash glow (the other only if it is on this page), held long enough to outlast the scroll.
+      const sorot = getComputedStyle(document.documentElement).getPropertyValue('--aksen-lembut')
+      for (const tr of [target, find(other)]) {
+        for (const td of tr?.children ?? []) {
+          td.animate({ backgroundColor: [sorot, sorot, 'transparent'], offset: [0, 0.5, 1] }, { duration: 2400, easing: 'ease-out' })
+        }
+      }
     })
   }
 
@@ -357,6 +369,7 @@ export function PenjadwalanClient({
                       .map((r) => (
                         <tr
                           key={r.id}
+                          data-jadwal={jadwalKey(r)}
                           className={`border-b border-[var(--garis)] hover:bg-[var(--cekung)] transition-colors ${
                             r.is_override ? 'bg-[var(--merah-lembut)] hover:bg-[#FBE6E2]' : ''
                           } ${sorot.has(r.id) ? 'baris-sorot' : ''}`}
