@@ -153,7 +153,7 @@ export function ScheduleFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto" role="dialog" aria-modal="true">
-      <div className="w-full max-w-[34rem] my-[2rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
+      <div className="w-full max-w-[34rem] my-auto bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
         <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">{editing ? 'Edit jadwal' : 'Tambah mata kuliah'}</h3>
 
         {state && 'error' in state && (
