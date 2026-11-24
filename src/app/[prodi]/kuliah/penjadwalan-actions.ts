@@ -236,9 +236,8 @@ export async function deleteScheduleAction(prodi: Prodi, id: string): Promise<Fo
 export type CopyYearState = { error: string } | { success: true; message: string }
 
 /**
- * Copies one program's kuliah (all semesters) from the same term a year earlier into this year, with their
- * dosen. A class that already exists here is left as it is. Clashes are not checked one by one: the
- * findings bar shows any the copy brings in, to fix there.
+ * Brings over one program's courses and dosen (all semesters) from the same term a year earlier. Session
+ * and room stay blank for the admin to fill in. A class that already exists here is left as it is.
  */
 export async function copyFromPreviousYearAction(c: { prodi: Prodi; academic_year_id: string; jenis_kelas: string }): Promise<CopyYearState> {
   const gate = await writableProdi(c.prodi)
@@ -247,22 +246,19 @@ export async function copyFromPreviousYearAction(c: { prodi: Prodi; academic_yea
   if (!sourceYear) return { error: 'Tahun akademik sebelumnya tidak dikenali.' }
 
   const supabase = await createClient()
-  const [{ data: source, error }, { data: rooms, error: roomError }] = await Promise.all([
-    supabase
-      .from('schedules')
-      .select('prodi, jenis_kelas, semester_ke, kode_mk, kelas, hari, jam_mulai, jam_selesai, room_id, zoom_id, minggu, keterangan, schedule_lecturers(kode_dosen, urutan)')
-      .eq('academic_year_id', sourceYear)
-      .eq('prodi', gate.prodi)
-      .eq('jenis_kelas', c.jenis_kelas),
-    supabase.from('rooms').select('id').eq('active', true),
-  ])
-  if (error || roomError) return { error: humanDbError((error ?? roomError)!) }
+  const { data: source, error } = await supabase
+    .from('schedules')
+    .select('prodi, jenis_kelas, semester_ke, kode_mk, kelas, schedule_lecturers(kode_dosen, urutan)')
+    .eq('academic_year_id', sourceYear)
+    .eq('prodi', gate.prodi)
+    .eq('jenis_kelas', c.jenis_kelas)
+  if (error) return { error: humanDbError(error) }
   if (!source?.length) return { success: true, message: 'Tidak ada jadwal kuliah tahun lalu untuk disalin.' }
 
   const rows = source as SourceSchedule[]
   const { data: inserted, error: insertError } = await supabase
     .from('schedules')
-    .upsert(copiedSchedules(rows, c.academic_year_id, new Set((rooms ?? []).map((r) => r.id as string))), { onConflict: COPY_CONFLICT, ignoreDuplicates: true })
+    .upsert(copiedSchedules(rows, c.academic_year_id), { onConflict: COPY_CONFLICT, ignoreDuplicates: true })
     .select('id, jenis_kelas, semester_ke, kode_mk, kelas')
   if (insertError) return { error: humanDbError(insertError) }
 

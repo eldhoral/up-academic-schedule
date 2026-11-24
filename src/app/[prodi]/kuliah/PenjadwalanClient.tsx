@@ -305,10 +305,10 @@ export function PenjadwalanClient({
                 onClick={confirmingCopy ? copyFromPreviousYear : () => setConfirmingCopy(true)}
                 onBlur={() => setConfirmingCopy(false)}
                 disabled={isCopying}
-                title={`Menyalin semua semester${programLabel} dari ${copySource.label}; kelas yang sudah ada tidak diubah.`}
+                title={`Mengisi mata kuliah dan dosen semua semester${programLabel} dari ${copySource.label}. Sesi dan ruangan dikosongkan untuk diisi manual; kelas yang sudah ada tidak diubah.`}
                 className="px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] bg-[var(--lembar)] font-medium cursor-pointer hover:bg-[var(--cekung)] transition-colors text-[0.93rem] disabled:opacity-60"
               >
-                {isCopying ? 'Menyalin…' : confirmingCopy ? `Salin semua semester${programLabel}?` : `Salin dari ${copySource.label}`}
+                {isCopying ? 'Mengisi…' : confirmingCopy ? `Isi MK & dosen semua semester${programLabel}?` : `Isi MK & dosen dari ${copySource.label}`}
               </button>
             )}
             {canEdit && (

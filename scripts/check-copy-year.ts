@@ -8,7 +8,7 @@ assert.equal(previousYearId('20300'), '20290')
 assert.equal(previousYearId('2026/2027'), null, 'an id off the YYYYT convention has no known previous term')
 assert.equal(previousYearId(''), null)
 
-// --- copiedSchedules: the slot carries over, this year's numbers do not ----------
+// --- copiedSchedules: only the course/class and dosen carry over ----------------
 const source: SourceSchedule[] = [
   {
     prodi: 's1', jenis_kelas: 'reguler', semester_ke: 3, kode_mk: 'MK1', kelas: 'A',
@@ -21,14 +21,14 @@ const source: SourceSchedule[] = [
     schedule_lecturers: [],
   },
 ]
-// A room retired since last year is dropped: the form only offers active rooms, so editing would clear it silently.
-assert.equal(copiedSchedules(source, '20261', new Set())[0].room_id, null, 'an inactive room is not copied')
-assert.deepEqual(copiedSchedules(source, '20261', new Set(['R1']))[0], {
+// Session and room are left blank for the user to fill in; the rest carry over.
+assert.deepEqual(copiedSchedules(source, '20261')[0], {
   academic_year_id: '20261',
   prodi: 's1', jenis_kelas: 'reguler', semester_ke: 3, kode_mk: 'MK1', kelas: 'A',
-  hari: 'SENIN', jam_mulai: '07:30:00', jam_selesai: '09:10:00', room_id: 'R1', zoom_id: 'Z1', minggu: 'setiap', keterangan: 'Lab',
+  hari: '', jam_mulai: '', jam_selesai: '', room_id: null, zoom_id: '', minggu: 'setiap', keterangan: '',
   jumlah_mhs: 0, is_override: false, override_reason: '', override_by: null,
 })
+assert.equal(copiedSchedules(source, '20261')[0].room_id, null, 'room is left blank for manual entry')
 
 // --- copiedLecturers: only rows actually inserted get their dosen ----------------
 // MK2 already existed in the target year (upsert skipped it), so it is not in `inserted`.
