@@ -6,7 +6,7 @@ import { todayJakarta } from '@/lib/penilaian/akses'
 import { accessibleProdi, PRODI_CONFIG } from '@/lib/prodi'
 import { getCurrentUser } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
-import { BatangHari, DonatPrasidang, GarisNilai } from './beranda/Grafik'
+import { BatangHari, DonatPrasidang, GarisNilai, LegendaProdi } from './beranda/Grafik'
 import { DaftarAktivitas, DaftarSidang, KartuModul } from './beranda/Kartu'
 import { loadBeranda } from './beranda-data'
 import { getKuliahStatus, getSidangStatus, getUjianStatus } from './hub-status'
@@ -37,11 +37,11 @@ export default async function MenuPage() {
 
   return (
     <AppShell active="/">
-      <main className="flex-1 w-full max-w-[74rem] mx-auto px-[1.3rem] py-[1.6rem]">
-        <header className="mb-[1.4rem] flex flex-wrap items-end justify-between gap-x-[1rem] gap-y-[0.5rem]">
-          <div>
-            <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.02em]">Beranda</h1>
-            <p className="m-0 mt-[0.13rem] text-[0.87rem] text-[var(--tinta-3)]">
+      <main className="flex flex-1 flex-col gap-[1.467rem] leading-[normal] px-[1.067rem] pt-[1.867rem] pb-[2.4rem] sm:px-[2.133rem]">
+        <header className="flex flex-wrap items-end gap-[0.933rem]">
+          <div className="grow">
+            <h1 className="m-0 text-[1.867rem] font-semibold tracking-[-0.02em]">Beranda</h1>
+            <p className="m-0 mt-[0.267rem] text-[0.933rem] text-[var(--tinta-3)]">
               {tanggalPanjang(todayJakarta(), false)} · {year?.label ?? 'Belum ada tahun akademik'}
               {year && (
                 <>
@@ -65,14 +65,14 @@ export default async function MenuPage() {
         {blocks.map(({ prodi, kuliah, ujian, sidang }) => {
           const c = PRODI_CONFIG[prodi]
           return (
-            <section key={prodi} aria-label={c.label} className="mb-[1.4rem]">
-              <div className="mb-[0.6rem] flex items-baseline justify-between gap-[1rem]">
-                <h2 className="m-0 text-[1.07rem] font-semibold tracking-[-0.01em]">{c.label}</h2>
-                <Link href={`/${prodi}/mata-kuliah`} className="text-[0.82rem] text-[var(--tinta-2)] hover:text-[var(--aksen)] hover:underline">
+            <section key={prodi} aria-labelledby={`h-${prodi}`} className="flex flex-col gap-[0.667rem]">
+              <div className="flex items-baseline justify-between gap-[1rem]">
+                <h2 id={`h-${prodi}`} className="m-0 text-[1.133rem] font-semibold">{c.label}</h2>
+                <Link href={`/${prodi}/mata-kuliah`} className="text-[0.867rem] text-[var(--tinta-2)] no-underline hover:text-[var(--aksen)] hover:underline">
                   Data Master {c.short}
                 </Link>
               </div>
-              <div className="grid grid-cols-1 gap-[0.88rem] sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-[0.933rem] sm:grid-cols-3">
                 <KartuModul judul="Jadwal Mata Kuliah & Dosen" href={`/${prodi}/kuliah`} cetakHref={`/${prodi}/kuliah/cetak`} status={kuliah} adaTahun={!!year} />
                 <KartuModul judul="Jadwal UTS & UAS" href={`/${prodi}/ujian`} cetakHref={`/${prodi}/ujian/cetak`} status={ujian} adaTahun={!!year} />
                 <KartuModul judul={`Jadwal ${c.defense.section}`} href={`/${prodi}/sidang`} cetakHref={`/${prodi}/sidang/cetak`} status={sidang} adaTahun={!!year} />
@@ -82,32 +82,32 @@ export default async function MenuPage() {
         })}
 
         {!beranda ? (
-          <p role="status" className="m-0 rounded-[var(--r-kartu)] border border-[var(--garis-kuat)] bg-[var(--lembar)] p-[1rem] text-[0.88rem] text-[var(--tinta-2)]">
+          <p role="status" className="m-0 rounded-[var(--r-kartu)] border border-[var(--garis)] bg-[var(--lembar)] p-[1.067rem] text-[0.933rem] text-[var(--tinta-2)]">
             Grafik dan daftar belum bisa dimuat. Muat ulang halaman sebentar lagi.
           </p>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-[1rem] lg:grid-cols-2">
-              <Panel judul="Kelas per Hari">
+            <div className="grid grid-cols-1 gap-[0.933rem] lg:grid-cols-2">
+              <Panel judul="Kelas per Hari" kanan={<LegendaProdi prodiList={prodiList} />}>
                 <BatangHari data={beranda.kelas} prodiList={prodiList} />
               </Panel>
               {adaS1 && (
-                <Panel judul="Rata-rata Nilai Sidang">
+                <Panel judul="Rata-rata Nilai Sidang" kanan={beranda.nilai?.length ? <Catatan>S1 · {beranda.nilai.length} semester terakhir</Catatan> : null}>
                   <GarisNilai data={beranda.nilai ?? []} />
                 </Panel>
               )}
             </div>
 
-            <div className="mt-[1rem] grid grid-cols-1 gap-[1rem] lg:grid-cols-3">
-              <Panel judul="Sidang Mendatang">
+            <div className="grid grid-cols-1 gap-[0.933rem] lg:grid-cols-3">
+              <Panel judul="Sidang Mendatang" kanan={<Catatan>7 hari ke depan</Catatan>} kolom>
                 <DaftarSidang data={beranda.mendatang} prodiList={prodiList} />
               </Panel>
               {adaS1 && (
-                <Panel judul="Hasil Prasidang" aksi={<Link href="/s1/sidang/hasil-prasidang" className="text-[0.8rem] text-[var(--aksen)] no-underline hover:underline">Rekap ›</Link>}>
+                <Panel judul="Hasil Prasidang" kanan={<Tautan href="/s1/sidang/hasil-prasidang">S1 · lihat rekap</Tautan>} kolom tengah>
                   <DonatPrasidang data={beranda.prasidang ?? { layak: 0, layak_revisi: 0, tidak_layak: 0, belum_lengkap: 0 }} />
                 </Panel>
               )}
-              <Panel judul="Aktivitas Terbaru" aksi={<Link href="/log-aktivitas" className="text-[0.8rem] text-[var(--aksen)] no-underline hover:underline">Log ›</Link>}>
+              <Panel judul="Aktivitas Terbaru" kanan={<Tautan href="/log-aktivitas">Log Aktivitas</Tautan>} kolom>
                 <DaftarAktivitas rows={beranda.aktivitas} />
               </Panel>
             </div>
@@ -118,17 +118,28 @@ export default async function MenuPage() {
   )
 }
 
-function Panel({ judul, aksi, children }: { judul: string; aksi?: React.ReactNode; children: React.ReactNode }) {
+/** A white card (Final-Beranda): 16px title with an optional note or link on its right. `kolom` stacks rows 12px apart. */
+function Panel({ judul, kanan, kolom, tengah, children }: { judul: string; kanan?: React.ReactNode; kolom?: boolean; tengah?: boolean; children: React.ReactNode }) {
   return (
-    <section className="min-w-0 rounded-[var(--r-kartu)] border border-[var(--garis)] bg-[var(--lembar)] p-[1rem]">
-      <div className="mb-[0.4rem] flex items-center justify-between gap-[0.5rem]">
-        <h2 className="m-0 text-[1rem] font-semibold tracking-[-0.01em]">{judul}</h2>
-        {aksi}
+    <section
+      className={`min-w-0 rounded-[var(--r-kartu)] border border-[var(--garis)] bg-[var(--lembar)] p-[1.067rem] ${kolom ? 'flex flex-col gap-[0.8rem]' : ''} ${tengah ? 'items-center' : ''}`}
+    >
+      <div className={`flex items-center justify-between gap-[0.8rem] ${tengah ? 'self-stretch' : ''}`}>
+        <h2 className="m-0 text-[1.067rem] font-semibold">{judul}</h2>
+        {kanan}
       </div>
       {children}
     </section>
   )
 }
+
+const Catatan = ({ children }: { children: React.ReactNode }) => <span className="text-[0.8rem] text-[var(--tinta-3)]">{children}</span>
+
+const Tautan = ({ href, children }: { href: string; children: React.ReactNode }) => (
+  <Link href={href} className="text-[0.8rem] text-[var(--aksen)] no-underline hover:underline">
+    {children}
+  </Link>
+)
 
 /** "1 Sep 2026"; a date not set yet reads "—". */
 function tanggalPendek(iso: string | null): string {

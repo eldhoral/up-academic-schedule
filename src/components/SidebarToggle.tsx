@@ -58,7 +58,7 @@ export function SidebarToggle({ children }: { children: React.ReactNode }) {
               buttonRef.current?.focus()
             }}
           />
-          <div className="fixed inset-y-0 left-0 w-[15rem] max-w-[85vw] bg-[var(--sidebar)] shadow-xl z-10 flex flex-col h-full">
+          <div className="fixed inset-y-0 left-0 w-[16rem] max-w-[85vw] bg-[var(--sidebar)] shadow-xl z-10 flex flex-col h-full">
             {children}
           </div>
         </div>

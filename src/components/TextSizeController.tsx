@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 
 type TextSize = 'kecil' | 'sedang' | 'besar'
 
-export function TextSizeController() {
+/** `ringkas`: the sidebar footer look (Final-Beranda): label "Teks" and three separate 32px buttons. */
+export function TextSizeController({ ringkas = false }: { ringkas?: boolean } = {}) {
   const [size, setSize] = useState<TextSize>('kecil')
 
   useEffect(() => {
@@ -31,6 +32,34 @@ export function TextSizeController() {
     } catch {
       // ignore
     }
+  }
+
+  if (ringkas) {
+    const ukuran: { size: TextSize; font: string; title: string }[] = [
+      { size: 'kecil', font: '0.8rem', title: 'Teks kecil (15px)' },
+      { size: 'sedang', font: '0.933rem', title: 'Teks sedang (17px)' },
+      { size: 'besar', font: '1.067rem', title: 'Teks besar (19px)' },
+    ]
+    return (
+      <div role="group" aria-label="Ukuran teks" className="flex items-center gap-[0.4rem] text-[0.8rem] text-[var(--tinta-3)]">
+        Teks
+        {ukuran.map((u) => (
+          <button
+            key={u.size}
+            type="button"
+            onClick={() => applySize(u.size)}
+            aria-pressed={size === u.size}
+            title={u.title}
+            style={{ fontSize: u.font }}
+            className={`min-w-[2.133rem] h-[2.133rem] cursor-pointer rounded-[8px] border border-[var(--garis-kuat)] ${
+              size === u.size ? 'bg-[var(--aksen-lembut)] text-[var(--aksen)]' : 'bg-[var(--lembar)] hover:bg-[var(--cekung)]'
+            }`}
+          >
+            A
+          </button>
+        ))}
+      </div>
+    )
   }
 
   return (

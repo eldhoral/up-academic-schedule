@@ -39,19 +39,19 @@ export async function AppShell({
         active={active}
         prodi={prodi}
         user={user}
-        className="hidden md:flex w-[15rem] shrink-0 sticky top-0 h-screen"
+        className="hidden md:flex w-[16rem] shrink-0 sticky top-0 h-screen"
       />
 
       <div className="flex-1 min-w-0 flex flex-col">
         {section ? (
-          <div className="no-print sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[0.8rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
+          <div className="no-print sticky top-0 z-20 min-h-[3.6rem] flex items-center gap-[0.8rem] px-[1.333rem] py-[0.4rem] leading-[normal] bg-[var(--lembar)] border-b border-[var(--garis)] flex-wrap">
             <SidebarToggle>
               <Sidebar active={active} prodi={prodi} user={user} phone className="w-full h-full" />
             </SidebarToggle>
             <HeaderNav active={active} prodi={prodi} canManage={manage} akunEksternal={akunEksternal} />
           </div>
         ) : (
-          <div className="no-print sticky top-0 z-20 min-h-[3.4rem] flex md:hidden items-center gap-[0.8rem] px-[1.3rem] py-[0.4rem] bg-[var(--lembar)] border-b border-[var(--garis)]">
+          <div className="no-print sticky top-0 z-20 min-h-[3.6rem] flex md:hidden items-center gap-[0.8rem] px-[1.333rem] py-[0.4rem] leading-[normal] bg-[var(--lembar)] border-b border-[var(--garis)]">
             <SidebarToggle>
               <Sidebar active={active} prodi={prodi} user={user} phone className="w-full h-full" />
             </SidebarToggle>

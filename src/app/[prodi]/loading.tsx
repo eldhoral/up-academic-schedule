@@ -5,7 +5,7 @@
 export default function Loading() {
   return (
     <div className="min-h-screen flex bg-[var(--kertas)]" aria-busy="true" aria-live="polite">
-      <div className="hidden md:block w-[15rem] shrink-0 bg-[var(--sidebar)] border-r border-[var(--garis)]" />
+      <div className="hidden md:block w-[16rem] shrink-0 bg-[var(--sidebar)] border-r border-[var(--garis)]" />
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="h-[3.4rem] bg-[var(--lembar)] border-b border-[var(--garis)]" />
         <div className="p-[1.3rem] space-y-[0.8rem] animate-pulse">

@@ -22,6 +22,11 @@
     --aksen: #1D5BD8;
     --aksen-lembut: #EDF3FF;
     --aksen-2: #23885A;
+    /* Beranda charts (Final-Beranda): grid lines, donut track, "tidak layak" and "belum lengkap" slices */
+    --grafik-kisi: #EDF0F5;
+    --grafik-jalur: #E4E8EF;
+    --grafik-oranye: #C8811A;
+    --grafik-abu: #C9D0DB;
     --biru: #1A3FA0;
     --biru-lembut: #EAEEF9;
     --biru-hover: #16358A;

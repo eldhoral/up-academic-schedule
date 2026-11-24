@@ -27,9 +27,9 @@ export function ResetJadwalButton({ years }: { years: Year[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-block py-[0.4rem] px-0 bg-transparent border-0 text-[0.93rem] text-[var(--tinta-2)] cursor-pointer hover:text-[var(--merah)] hover:underline"
+        className="min-h-[2.667rem] cursor-pointer rounded-[var(--r-item)] border border-[var(--garis-kuat)] bg-[var(--lembar)] px-[0.933rem] text-[0.867rem] text-[var(--tinta-2)] hover:bg-[var(--cekung)]"
       >
-        Reset Jadwal
+        Reset jadwal…
       </button>
       {open && <ResetJadwalModal years={years} onClose={() => setOpen(false)} />}
     </>
