@@ -87,22 +87,27 @@ export type Beranda = {
 const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
 
 /**
- * One session client, staff RLS. The page's error boundary shows a failed query.
+ * One session client, staff RLS. A failed read returns null: Beranda keeps its tiles and says the rest
+ * could not be loaded, instead of the whole page failing.
  * `yearId === null` uses an impossible id, so every year-bound read comes back empty.
  */
-export async function loadBeranda(supabase: SupabaseClient, yearId: string | null, prodiList: Prodi[]): Promise<Beranda> {
+export async function loadBeranda(supabase: SupabaseClient, yearId: string | null, prodiList: Prodi[]): Promise<Beranda | null> {
   const ay = yearId ?? ''
   const s1 = prodiList.includes('s1')
-  // The trend needs an active year to have a frame of reference, but spans every semester.
+  // The trend ends at the active year and looks back 3 years (6 semesters), so it stays one small read.
   const s1Trend = s1 && !!yearId
   const today = todayJakarta()
   const kosong = Promise.resolve({ data: [] as Record<string, unknown>[], error: null })
 
+  let trend = supabase.from('hasil_sidang')
+    .select('defense_id, defenses!inner(academic_year_id, prodi, nilai_sidang(peran, nilai))')
+    .eq('defenses.prodi', 's1').not('locked_at', 'is', null).lte('defenses.academic_year_id', ay)
+  // ponytail: ids look like '20251' (year + term); any other shape just skips the lower bound.
+  if (/^\d{5}$/.test(ay)) trend = trend.gte('defenses.academic_year_id', `${Number(ay.slice(0, 4)) - 3}${ay.slice(4)}`)
+
   const [sch, hasil, years, prasidang, isian, keputusan, sidNpm, defenses, log] = await Promise.all([
     supabase.from('schedules').select('prodi, hari').eq('academic_year_id', ay).in('prodi', prodiList),
-    s1Trend
-      ? supabase.from('hasil_sidang').select('defense_id, defenses!inner(academic_year_id, prodi)').eq('defenses.prodi', 's1').not('locked_at', 'is', null)
-      : kosong,
+    s1Trend ? trend : kosong,
     s1Trend ? supabase.from('academic_years').select('id, label') : kosong,
     s1
       ? supabase.from('defenses').select('id, npm, tanggal, created_at, nama_mahasiswa, judul_skripsi').eq('prodi', 's1').eq('jenis', 'prasidang').eq('academic_year_id', ay)
@@ -117,34 +122,28 @@ export async function loadBeranda(supabase: SupabaseClient, yearId: string | nul
       .gte('tanggal', today).lte('tanggal', addDays(today, 7)).in('prodi', prodiList),
     supabase.from('audit_log').select('*').not('action', 'in', '(LOGIN,LOGOUT)').order('at', { ascending: false }).limit(5),
   ])
-  // The grades are only needed for the locked sidang the first query found, across all semesters.
-  const ids = (hasil.data ?? []).map((h) => String(h.defense_id))
-  const nilaiMentah = s1Trend && ids.length
-    ? await supabase.from('nilai_sidang').select('defense_id, peran, nilai').in('defense_id', ids)
-    : { data: [] as Record<string, unknown>[], error: null }
-  const err = sch.error ?? hasil.error ?? nilaiMentah.error ?? years.error ?? prasidang.error ?? isian.error ?? keputusan.error ?? sidNpm.error ?? defenses.error ?? log.error
-  if (err) throw new Error(`Gagal memuat data beranda: ${err.message}`)
+  const err = sch.error ?? hasil.error ?? years.error ?? prasidang.error ?? isian.error ?? keputusan.error ?? sidNpm.error ?? defenses.error ?? log.error
+  if (err) {
+    console.error('Gagal memuat data beranda:', err.message)
+    return null
+  }
 
   const kelas = kelasPerHari((sch.data ?? []).map((r) => ({ prodi: r.prodi as Prodi, hari: String(r.hari) })), prodiList)
 
-  // Locked S1 sidang of every semester, one three-grade array per defense.
+  // Locked S1 sidang of recent semesters, one three-grade array per defense.
   const labelByYear = new Map((years.data ?? []).map((y) => [String(y.id), String(y.label)]))
-  const yearByDefense = new Map((hasil.data ?? []).map((h) => {
-    const join = one<{ academic_year_id: string }>(h.defenses as { academic_year_id: string } | { academic_year_id: string }[] | null)
-    return [String(h.defense_id), join?.academic_year_id ?? ''] as const
-  }))
-  const nilaiByDefense = new Map<string, (number | null)[]>()
-  for (const n of nilaiMentah.data ?? []) {
-    const id = String(n.defense_id)
-    const tiga = nilaiByDefense.get(id) ?? [null, null, null]
-    const idx = PERAN_SIDANG.indexOf(n.peran as PeranSidang)
-    if (idx >= 0) tiga[idx] = Number(n.nilai)
-    nilaiByDefense.set(id, tiga)
-  }
+  type Gabung = { academic_year_id: string; nilai_sidang: { peran: string; nilai: number }[] | null }
+  const sidang = (hasil.data ?? []).map((h) => {
+    const join = one<Gabung>(h.defenses as Gabung | Gabung[] | null)
+    const tiga: (number | null)[] = [null, null, null]
+    for (const n of join?.nilai_sidang ?? []) {
+      const idx = PERAN_SIDANG.indexOf(n.peran as PeranSidang)
+      if (idx >= 0) tiga[idx] = Number(n.nilai)
+    }
+    return { academicYearId: join?.academic_year_id ?? '', nilai: tiga }
+  })
   const nilai = s1Trend
-    ? nilaiPerSemester([...yearByDefense].map(([id, academicYearId]) => ({
-        academicYearId, label: labelByYear.get(academicYearId) ?? '', nilai: nilaiByDefense.get(id) ?? [null, null, null],
-      })))
+    ? nilaiPerSemester(sidang.map((x) => ({ ...x, label: labelByYear.get(x.academicYearId) ?? '' })))
     : null
 
   // Same verdict rule as the Hasil Prasidang page: Super Admin's decision wins.

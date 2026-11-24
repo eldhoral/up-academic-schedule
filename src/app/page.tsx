@@ -81,30 +81,38 @@ export default async function MenuPage() {
           )
         })}
 
-        <div className="grid grid-cols-1 gap-[1rem] lg:grid-cols-2">
-          <Panel judul="Kelas per Hari">
-            <BatangHari data={beranda.kelas} prodiList={prodiList} />
-          </Panel>
-          {adaS1 && (
-            <Panel judul="Rata-rata Nilai Sidang">
-              <GarisNilai data={beranda.nilai ?? []} />
-            </Panel>
-          )}
-        </div>
+        {!beranda ? (
+          <p role="status" className="m-0 rounded-[var(--r-kartu)] border border-[var(--garis-kuat)] bg-[var(--lembar)] p-[1rem] text-[0.88rem] text-[var(--tinta-2)]">
+            Grafik dan daftar belum bisa dimuat. Muat ulang halaman sebentar lagi.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-[1rem] lg:grid-cols-2">
+              <Panel judul="Kelas per Hari">
+                <BatangHari data={beranda.kelas} prodiList={prodiList} />
+              </Panel>
+              {adaS1 && (
+                <Panel judul="Rata-rata Nilai Sidang">
+                  <GarisNilai data={beranda.nilai ?? []} />
+                </Panel>
+              )}
+            </div>
 
-        <div className="mt-[1rem] grid grid-cols-1 gap-[1rem] lg:grid-cols-3">
-          <Panel judul="Sidang Mendatang">
-            <DaftarSidang data={beranda.mendatang} prodiList={prodiList} />
-          </Panel>
-          {adaS1 && (
-            <Panel judul="Hasil Prasidang" aksi={<Link href="/s1/sidang/hasil-prasidang" className="text-[0.8rem] text-[var(--aksen)] no-underline hover:underline">Rekap ›</Link>}>
-              <DonatPrasidang data={beranda.prasidang ?? { layak: 0, layak_revisi: 0, tidak_layak: 0, belum_lengkap: 0 }} />
-            </Panel>
-          )}
-          <Panel judul="Aktivitas Terbaru" aksi={<Link href="/log-aktivitas" className="text-[0.8rem] text-[var(--aksen)] no-underline hover:underline">Log ›</Link>}>
-            <DaftarAktivitas rows={beranda.aktivitas} />
-          </Panel>
-        </div>
+            <div className="mt-[1rem] grid grid-cols-1 gap-[1rem] lg:grid-cols-3">
+              <Panel judul="Sidang Mendatang">
+                <DaftarSidang data={beranda.mendatang} prodiList={prodiList} />
+              </Panel>
+              {adaS1 && (
+                <Panel judul="Hasil Prasidang" aksi={<Link href="/s1/sidang/hasil-prasidang" className="text-[0.8rem] text-[var(--aksen)] no-underline hover:underline">Rekap ›</Link>}>
+                  <DonatPrasidang data={beranda.prasidang ?? { layak: 0, layak_revisi: 0, tidak_layak: 0, belum_lengkap: 0 }} />
+                </Panel>
+              )}
+              <Panel judul="Aktivitas Terbaru" aksi={<Link href="/log-aktivitas" className="text-[0.8rem] text-[var(--aksen)] no-underline hover:underline">Log ›</Link>}>
+                <DaftarAktivitas rows={beranda.aktivitas} />
+              </Panel>
+            </div>
+          </>
+        )}
       </main>
     </AppShell>
   )

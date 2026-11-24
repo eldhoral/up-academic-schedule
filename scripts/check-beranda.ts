@@ -11,8 +11,8 @@ class FakeQuery {
   eq(k: string, v: unknown) { this.filters.push(['eq', k, v]); return this }
   in(k: string, v: unknown[]) { this.filters.push(['in', k, v]); return this }
   not(k: string, _op: string, v: unknown) { this.filters.push(['not', k, v]); return this }
-  gte() { return this }
-  lte() { return this }
+  gte(k: string, v: unknown) { this.filters.push(['gte', k, v]); return this }
+  lte(k: string, v: unknown) { this.filters.push(['lte', k, v]); return this }
   order() { return this }
   limit() { return this }
   private static ambil(row: unknown, path: string): unknown {
@@ -25,11 +25,15 @@ class FakeQuery {
       const n = FakeQuery.ambil(row, k)
       if (op === 'eq') return n === v
       if (op === 'in') return Array.isArray(v) && v.includes(n)
+      if (op === 'gte') return String(n) >= String(v)
+      if (op === 'lte') return String(n) <= String(v)
       return n !== v
     })
   }
   then(resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) {
-    return Promise.resolve({ data: (this.db[this.table] ?? []).filter((r) => this.cocok(r)), error: null }).then(resolve, reject)
+    const rows = this.db[this.table]
+    const hasil = rows === undefined ? { data: null, error: { message: `${this.table} gagal` } } : { data: rows.filter((r) => this.cocok(r)), error: null }
+    return Promise.resolve(hasil).then(resolve, reject)
   }
 }
 
@@ -73,23 +77,22 @@ assert.deepEqual([m[0].jam, m[0].tempat], ['09:00–10:30', 'Ruang 301'])
 assert.equal(sidangMendatang([{ ...d('k', '2026-11-24'), room_nama: null, kelompok: 2 }], '2026-11-24')[0].tempat, 'Kelompok 2')
 
 void (async () => {
+  // Locked sidang carry their grades nested (one row per sidang, under the 1000-row cap).
+  const tiga = (x: number) => [{ peran: 'ketua', nilai: x }, { peran: 'anggota_1', nilai: x }, { peran: 'anggota_2', nilai: x }]
+  const terkunci = (id: string, ay: string, x: number) => ({ defense_id: id, locked_at: '2026-01-01T00:00:00Z', defenses: { academic_year_id: ay, prodi: 's1', nilai_sidang: tiga(x) } })
   const db: Record<string, unknown[]> = {
     schedules: [],
     hasil_sidang: [
-      { defense_id: 'd1', locked_at: '2026-01-01T00:00:00Z', defenses: { academic_year_id: '20241', prodi: 's1' } },
-      { defense_id: 'd2', locked_at: '2026-01-01T00:00:00Z', defenses: { academic_year_id: '20251', prodi: 's1' } },
-    ],
-    nilai_sidang: [
-      { defense_id: 'd1', peran: 'ketua', nilai: 70, defenses: { academic_year_id: '20241', prodi: 's1' } },
-      { defense_id: 'd1', peran: 'anggota_1', nilai: 70, defenses: { academic_year_id: '20241', prodi: 's1' } },
-      { defense_id: 'd1', peran: 'anggota_2', nilai: 70, defenses: { academic_year_id: '20241', prodi: 's1' } },
-      { defense_id: 'd2', peran: 'ketua', nilai: 90, defenses: { academic_year_id: '20251', prodi: 's1' } },
-      { defense_id: 'd2', peran: 'anggota_1', nilai: 90, defenses: { academic_year_id: '20251', prodi: 's1' } },
-      { defense_id: 'd2', peran: 'anggota_2', nilai: 90, defenses: { academic_year_id: '20251', prodi: 's1' } },
+      terkunci('d0', '20211', 50), // older than the active year minus 3 years: not read
+      terkunci('d1', '20241', 70),
+      terkunci('d2', '20251', 90),
+      terkunci('d3', '20261', 99), // after the active year: not read
     ],
     academic_years: [
+      { id: '20211', label: '2021/2022 Gasal' },
       { id: '20241', label: '2024/2025 Gasal' },
       { id: '20251', label: '2025/2026 Gasal' },
+      { id: '20261', label: '2026/2027 Gasal' },
     ],
     defenses: [],
     berita_acara_prasidang: [],
@@ -98,8 +101,13 @@ void (async () => {
   }
   const supabase = { from: (t: string) => new FakeQuery(t, db) } as unknown as SupabaseClient
   const hasil = await loadBeranda(supabase, '20251', ['s1'])
-  assert.deepEqual(hasil.nilai?.map((t) => t.id), ['20241', '20251'], 'the trend spans semesters, not just the active year')
-  assert.equal(hasil.nilai?.at(-1)?.rata, 90)
+  assert.deepEqual(hasil?.nilai?.map((t) => t.id), ['20241', '20251'], 'the trend spans recent semesters up to the active one')
+  assert.equal(hasil?.nilai?.at(-1)?.rata, 90)
+
+  // A failed read leaves Beranda without its widgets instead of crashing the page.
+  const rusak = { ...db }
+  delete rusak.audit_log
+  assert.equal(await loadBeranda({ from: (t: string) => new FakeQuery(t, rusak) } as unknown as SupabaseClient, '20251', ['s1']), null)
   console.log('beranda loader: all checks passed')
 })()
 

@@ -74,7 +74,7 @@ export async function getUjianStatus(academicYearId: string, prodi: Prodi): Prom
   }
 }
 
-/** Same for prasidang and sidang: the next date leads; a defense missing an examiner is a gap. */
+/** Same for prasidang and sidang: counts what is still to come (Jakarta today); a defense missing an examiner is a gap. */
 export async function getSidangStatus(academicYearId: string, prodi: Prodi): Promise<ScheduleStatus | null> {
   try {
     const supabase = await createClient()
