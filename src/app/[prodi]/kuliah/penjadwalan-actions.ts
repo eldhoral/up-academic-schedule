@@ -8,6 +8,7 @@ import { COPY_CONFLICT, copiedLecturers, copiedSchedules, previousYearId, type S
 import { humanDbError } from '@/lib/db-error'
 import { parseProdi, PRODI_CONFIG, type JenisKelas, type Prodi } from '@/lib/prodi'
 import { writableProdi } from '@/lib/prodi-server'
+import { sesiBaruDariJadwal, type MasterSesi } from '@/lib/sesi-dari-jadwal'
 
 export type FormState =
   | { error: string }
@@ -25,6 +26,7 @@ function readScheduleForm(formData: FormData) {
   const hari = formData.get('hari') as string
   const jam_mulai = formData.get('jam_mulai') as string
   const jam_selesai = formData.get('jam_selesai') as string
+  const sesi_mode = formData.get('sesi_mode') as string
   const room_id = (formData.get('room_id') as string) || null
   const zoom_id = ((formData.get('zoom_id') as string) || '').trim()
   const jumlah_mhs = parseInt(formData.get('jumlah_mhs') as string, 10)
@@ -47,6 +49,7 @@ function readScheduleForm(formData: FormData) {
     hari,
     jam_mulai,
     jam_selesai,
+    sesi_mode,
     room_id,
     zoom_id,
     jumlah_mhs: Number.isFinite(jumlah_mhs) ? jumlah_mhs : 0,
@@ -113,6 +116,32 @@ async function guardAgainstClashes(
   return { formState: { needsOverride: true, clashes: result.clashes, beban: result.beban } }
 }
 
+type Supabase = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * A row saved with waktu bebas becomes a master session too, so it can be picked for later schedules.
+ * Best-effort: a failure here does not undo the schedule that was just saved.
+ */
+async function simpanSesiBebas(supabase: Supabase, row: ReturnType<typeof readScheduleForm>, prodi: Prodi) {
+  if (row.sesi_mode !== 'bebas') return
+  const [{ data: sesiAda, error: sesiError }, { data: course, error: courseError }] = await Promise.all([
+    supabase.from('sessions').select('jenis_kelas, hari, jam_mulai, jam_selesai, sks, sesi_ke').eq('prodi', prodi),
+    supabase.from('courses').select('sks').eq('prodi', prodi).eq('kode_mk', row.kode_mk).maybeSingle(),
+  ])
+  if (sesiError || courseError || !course?.sks) return
+  const baru = sesiBaruDariJadwal((sesiAda ?? []) as MasterSesi[], {
+    prodi,
+    jenis_kelas: row.jenis_kelas as JenisKelas,
+    hari: row.hari,
+    jam_mulai: row.jam_mulai,
+    jam_selesai: row.jam_selesai,
+    sks: course.sks,
+  })
+  if (!baru) return
+  const { error } = await supabase.from('sessions').insert(baru)
+  if (!error) revalidatePath('/[prodi]/sesi', 'page')
+}
+
 export async function createScheduleAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const row = readScheduleForm(formData)
   const validationError = validateSchedule(row)
@@ -162,6 +191,7 @@ export async function createScheduleAction(_prev: FormState, formData: FormData)
     if (lecturerError) return { error: humanDbError(lecturerError, 'Dosen ini pada jadwal') }
   }
 
+  await simpanSesiBebas(supabase, row, gate.prodi)
   revalidatePath('/[prodi]/kuliah', 'page')
   return { success: true }
 }
@@ -217,6 +247,7 @@ export async function updateScheduleAction(id: string, _prev: FormState, formDat
     if (lecturerError) return { error: humanDbError(lecturerError, 'Dosen ini pada jadwal') }
   }
 
+  await simpanSesiBebas(supabase, row, gate.prodi)
   revalidatePath('/[prodi]/kuliah', 'page')
   return { success: true }
 }

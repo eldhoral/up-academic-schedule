@@ -184,6 +184,7 @@ export function ScheduleFormModal({
           <input type="hidden" name="hari" value={hari} />
           <input type="hidden" name="jam_mulai" value={jamMulai} />
           <input type="hidden" name="jam_selesai" value={jamSelesai} />
+          <input type="hidden" name="sesi_mode" value={sesiMode} />
 
           <Field label="Kurikulum">
             <Select
