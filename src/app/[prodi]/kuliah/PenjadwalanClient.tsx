@@ -335,7 +335,9 @@ export function PenjadwalanClient({
                 <h2 className="text-[0.93rem] font-semibold text-[var(--tinta-2)] mb-[0.4rem]">
                   Kelas {kelas} <span className="font-normal text-[var(--tinta-3)]">&middot; {subtotal} SKS</span>
                 </h2>
-                <table className="w-full border-collapse">
+                {/* On a phone the table scrolls inside its own box instead of widening the page. */}
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[52rem] border-collapse">
                   <thead>
                     <tr>
                       <Th style={{ width: '7rem' }}>Kode</Th>
@@ -414,6 +416,7 @@ export function PenjadwalanClient({
                       ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )
           })}
