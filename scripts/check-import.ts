@@ -270,6 +270,57 @@ async function main() {
     assert.equal(preview.counts.rejected, 1)
   }
 
+  {
+    type Rec = { k: string; n: number }
+    const preview = classifyRows({
+      parsed: [{ k: 'A', n: 1 }, { k: 'B', n: 2 }, { k: 'A', n: 3 }],
+      parseRow: (raw) => ({ key: String(raw.k), data: { k: String(raw.k), n: Number(raw.n) }, notes: [] }),
+      existingByKey: new Map([['B', { k: 'B', n: 2 }]]),
+      equal: (a, b) => a.n === b.n,
+      combine: (rows) => {
+        const groups = new Map<string, typeof rows>()
+        for (const r of rows) groups.set(r.key, [...(groups.get(r.key) ?? []), r])
+        return [...groups].map(([key, group]) =>
+          group.length > 1
+            ? { key, data: { k: key, n: group.reduce((s, r) => s + r.data.n, 0) }, notes: [], rowNumber: group[0].rowNumber }
+            : group[0]
+        )
+      },
+    })
+    assert.deepEqual(
+      preview.rows.map((r) => [r.key, r.status, r.rowNumber]),
+      [['A', 'new', 2], ['B', 'unchanged', 3]]
+    )
+    const first = preview.rows[0]
+    if (first.status !== 'new') throw new Error('expected one new row')
+    assert.equal(first.data.n, 4, 'combine keeps one row per key')
+
+    const rejected = classifyRows({
+      parsed: [{ k: 'A' }],
+      parseRow: (raw) => ({ key: String(raw.k), data: { k: String(raw.k) }, notes: [] }),
+      existingByKey: new Map(),
+      equal: () => true,
+      combine: () => [{ key: 'A', reason: 'digabung gagal', rowNumber: 2 }],
+    })
+    assert.deepEqual(
+      rejected.rows.map((r) => [r.status, r.status === 'rejected' ? r.reason : '']),
+      [['rejected', 'digabung gagal']]
+    )
+
+    const ordered = classifyRows({
+      parsed: [{ k: 'A' }, { bad: true }, { k: 'B' }],
+      parseRow: (raw) =>
+        raw.bad ? { reason: 'rusak' } : { key: String(raw.k), data: { k: String(raw.k) }, notes: [] },
+      existingByKey: new Map(),
+      equal: () => true,
+    })
+    assert.deepEqual(
+      ordered.rows.map((r) => [r.status, r.rowNumber]),
+      [['new', 2], ['rejected', 3], ['new', 4]],
+      'parse failures keep file order'
+    )
+  }
+
   // --- an empty workbook has no rows ---------------------------------------------------------------
   assert.deepEqual(await parseWorkbookRows(await workbookOf(() => {})), [])
 

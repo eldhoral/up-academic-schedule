@@ -82,10 +82,13 @@ export function buildExportBuffer(rows: Record<string, unknown>[], dropdowns?: D
   return writeSheet('Data', [headers, ...rows.map((r) => headers.map((h) => r[h] ?? ''))], dropdowns)
 }
 
+export type ParsedOkay<T> = { key: string; data: T; notes: string[]; rowNumber: number }
+export type CombinedRow<T> = ParsedOkay<T> | { key: string; reason: string; rowNumber: number }
+
 export type RowOutcome<T> =
-  | { status: 'new'; key: string; data: T; notes: string[] }
-  | { status: 'changed'; key: string; data: T; notes: string[]; before: T }
-  | { status: 'unchanged'; key: string; data: T; notes: string[] }
+  | { status: 'new'; key: string; data: T; notes: string[]; rowNumber: number }
+  | { status: 'changed'; key: string; data: T; notes: string[]; before: T; rowNumber: number }
+  | { status: 'unchanged'; key: string; data: T; notes: string[]; rowNumber: number }
   | { status: 'rejected'; key: string; reason: string; rowNumber: number }
 
 export type ImportPreview<T> = {
@@ -97,6 +100,8 @@ export type ImportPreview<T> = {
  * Classifies parsed rows against existing DB rows (by key) into
  * new / changed / unchanged / rejected. `equal` compares two data records
  * field-by-field so unrelated column order never triggers a false "changed".
+ * An optional `combine` step merges parsed rows (e.g. several kurikulum of one
+ * kode_mk) before classification; every outcome keeps its source row number.
  */
 export function classifyRows<T extends Record<string, unknown>>(params: {
   parsed: ParsedRow[]
@@ -105,12 +110,15 @@ export function classifyRows<T extends Record<string, unknown>>(params: {
   equal: (a: T, b: T) => boolean
   /** Keys owned by another prodi: never overwritten from this prodi's import. */
   otherProdiKeys?: Set<string>
-  /** Row-level guard, e.g. a kode_mk owned by a different kurikulum. Returns a rejection reason. */
+  /** Optional row-level guard: returns a rejection reason, or null to accept the row. */
   reject?: (data: T) => string | null
+  /** Optional merge step over all valid rows, before duplicate/other-prodi/reject checks. */
+  combine?: (rows: ParsedOkay<T>[], existingByKey: Map<string, T>) => CombinedRow<T>[]
 }): ImportPreview<T> {
   const { parsed, parseRow, existingByKey, equal } = params
   const outcomes: RowOutcome<T>[] = []
   const seenKeys = new Set<string>()
+  const valid: ParsedOkay<T>[] = []
 
   parsed.forEach((raw, i) => {
     const rowNumber = i + 2 // header is row 1
@@ -119,33 +127,45 @@ export function classifyRows<T extends Record<string, unknown>>(params: {
       outcomes.push({ status: 'rejected', key: `#${rowNumber}`, reason: parsedResult.reason, rowNumber })
       return
     }
-    const { key, data, notes } = parsedResult
+    valid.push({ ...parsedResult, rowNumber })
+  })
+
+  const rows: CombinedRow<T>[] = params.combine ? params.combine(valid, existingByKey) : valid
+
+  for (const item of rows) {
+    const { key, rowNumber } = item
     if (seenKeys.has(key)) {
       outcomes.push({ status: 'rejected', key, reason: `"${key}" muncul lebih dari sekali di file ini.`, rowNumber })
-      return
+      continue
     }
     if (params.otherProdiKeys?.has(key)) {
       outcomes.push({ status: 'rejected', key, reason: `"${key}" sudah terdaftar di prodi lain.`, rowNumber })
-      return
+      continue
     }
     seenKeys.add(key)
 
+    if ('reason' in item) {
+      outcomes.push({ status: 'rejected', key, reason: item.reason, rowNumber })
+      continue
+    }
+    const { data, notes } = item
     const rejectReason = params.reject?.(data)
     if (rejectReason) {
       outcomes.push({ status: 'rejected', key, reason: rejectReason, rowNumber })
-      return
+      continue
     }
 
     const before = existingByKey.get(key)
     if (!before) {
-      outcomes.push({ status: 'new', key, data, notes })
+      outcomes.push({ status: 'new', key, data, notes, rowNumber })
     } else if (!equal(before, data)) {
-      outcomes.push({ status: 'changed', key, data, notes, before })
+      outcomes.push({ status: 'changed', key, data, notes, before, rowNumber })
     } else {
-      outcomes.push({ status: 'unchanged', key, data, notes })
+      outcomes.push({ status: 'unchanged', key, data, notes, rowNumber })
     }
-  })
+  }
 
+  outcomes.sort((a, b) => a.rowNumber - b.rowNumber)
   const counts = { new: 0, changed: 0, unchanged: 0, rejected: 0 }
   for (const o of outcomes) counts[o.status]++
 
