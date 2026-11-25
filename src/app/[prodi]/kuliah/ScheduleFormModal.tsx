@@ -6,6 +6,7 @@ import { Select } from '@/components/Select'
 import { CariSelect } from '@/components/CariSelect'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { lecturerDisplayName } from '@/lib/import/tables'
+import { daftarKurikulum } from '@/lib/kurikulum'
 import { createScheduleAction, deleteScheduleAction, updateScheduleAction, type FormState } from './penjadwalan-actions'
 import { checkScheduleClashes, type BebanSummary, type ClashCheckResult } from './clash-actions'
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
@@ -54,19 +55,18 @@ export function ScheduleFormModal({
     }
   }, [state, router, onSaved])
 
-  const kurikulumList = useMemo(
-    () => Array.from(new Set(courses.map((c) => c.kurikulum))).sort((a, b) => b.localeCompare(a)),
-    [courses]
-  )
+  const kurikulumList = useMemo(() => daftarKurikulum(courses), [courses])
   const editingCourse = editing ? courses.find((c) => c.kode_mk === editing.kode_mk) ?? null : null
-  const [kurikulum, setKurikulum] = useState(editingCourse?.kurikulum ?? kurikulumList[0] ?? '')
+  const [kurikulum, setKurikulum] = useState(
+    editingCourse ? daftarKurikulum([editingCourse])[0] ?? '' : kurikulumList[0] ?? ''
+  )
 
   const [showAllCourses, setShowAllCourses] = useState(!!editing)
   const [kodeMk, setKodeMk] = useState(editing?.kode_mk ?? '')
   const selectedCourse = courses.find((c) => c.kode_mk === kodeMk) ?? null
 
   const coursesInKurikulum = useMemo(
-    () => courses.filter((c) => c.kurikulum === kurikulum),
+    () => courses.filter((c) => c.kurikulum.includes(kurikulum)),
     [courses, kurikulum]
   )
   const visibleCourses = useMemo(() => {

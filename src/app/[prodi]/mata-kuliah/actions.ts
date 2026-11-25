@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { humanDbError } from '@/lib/db-error'
+import { gabungKurikulum } from '@/lib/kurikulum'
 import { parseProdi, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 import { manageableProdi } from '@/lib/prodi-server'
 
@@ -14,7 +15,7 @@ function readCourseForm(formData: FormData) {
   const sks = parseInt(formData.get('sks') as string, 10)
   const jenis_mk = formData.get('jenis_mk') as string
   const smt = parseInt(formData.get('smt') as string, 10)
-  const kurikulum = ((formData.get('kurikulum') as string) || '2026').trim()
+  const kurikulum = gabungKurikulum(formData.getAll('kurikulum'), formData.get('kurikulum_baru'))
   const prodi = parseProdi(formData.get('prodi'))
   return { prodi, kode_mk, nama_mk, sks, jenis_mk, smt, kurikulum }
 }
@@ -28,6 +29,7 @@ export async function createCourseAction(_prev: FormState, formData: FormData): 
   const maxSmt = PRODI_CONFIG[gate.prodi].semesters
   if (row.smt < 1 || row.smt > maxSmt) return { error: `Semester harus antara 1 dan ${maxSmt}.` }
   if (row.jenis_mk !== 'A' && row.jenis_mk !== 'B') return { error: 'Jenis harus Wajib atau Pilihan.' }
+  if (row.kurikulum.length === 0) return { error: 'Pilih minimal satu kurikulum.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('courses').insert({ ...row, prodi: gate.prodi })
@@ -45,6 +47,7 @@ export async function updateCourseAction(_prev: FormState, formData: FormData): 
   if (!Number.isFinite(row.sks) || row.sks <= 0) return { error: 'SKS harus berupa angka positif.' }
   const maxSmt = PRODI_CONFIG[gate.prodi].semesters
   if (row.smt < 1 || row.smt > maxSmt) return { error: `Semester harus antara 1 dan ${maxSmt}.` }
+  if (row.kurikulum.length === 0) return { error: 'Pilih minimal satu kurikulum.' }
 
   const supabase = await createClient()
   const { error } = await supabase

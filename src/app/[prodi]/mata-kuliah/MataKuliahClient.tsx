@@ -6,6 +6,7 @@ import { ImportPanel } from '@/components/import/ImportPanel'
 import { Select } from '@/components/Select'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { PRODI_CONFIG } from '@/lib/prodi'
+import { daftarKurikulum } from '@/lib/kurikulum'
 import { useProdi } from '@/lib/use-prodi'
 import { createCourseAction, deleteCourseAction, updateCourseAction, type FormState } from './actions'
 
@@ -15,7 +16,7 @@ export type Course = {
   sks: number
   jenis_mk: 'A' | 'B'
   smt: number
-  kurikulum: string
+  kurikulum: string[]
 }
 
 export function MataKuliahClient({ courses, canEdit }: { courses: Course[]; canEdit: boolean }) {
@@ -25,10 +26,10 @@ export function MataKuliahClient({ courses, canEdit }: { courses: Course[]; canE
   const [query, setQuery] = useState('')
   const [kurikulumFilter, setKurikulumFilter] = useState('semua')
 
-  const kurikulumList = Array.from(new Set(courses.map((c) => c.kurikulum))).sort((a, b) => b.localeCompare(a))
+  const kurikulumList = daftarKurikulum(courses)
 
   const filtered = courses.filter((c) => {
-    if (kurikulumFilter !== 'semua' && c.kurikulum !== kurikulumFilter) return false
+    if (kurikulumFilter !== 'semua' && !c.kurikulum.includes(kurikulumFilter)) return false
     const q = query.trim().toLowerCase()
     if (!q) return true
     return c.kode_mk.toLowerCase().includes(q) || c.nama_mk.toLowerCase().includes(q)
@@ -98,7 +99,15 @@ export function MataKuliahClient({ courses, canEdit }: { courses: Course[]; canE
                   <Td className="text-right mono">{c.sks}</Td>
                   <Td>{c.jenis_mk === 'B' ? 'Pilihan' : 'Wajib'}</Td>
                   <Td className="text-right mono">{c.smt}</Td>
-                  <Td>{c.kurikulum}</Td>
+                  <Td>
+                    <span className="inline-flex flex-wrap gap-[0.25rem]">
+                      {c.kurikulum.map((k) => (
+                        <span key={k} className="px-[0.4rem] py-[0.05rem] rounded-[var(--r-kecil)] bg-[var(--cekung)] text-[0.8rem] text-[var(--tinta-2)]">
+                          {k}
+                        </span>
+                      ))}
+                    </span>
+                  </Td>
                   <Td className="text-right">
                     {canEdit && (
                       <button
@@ -181,12 +190,7 @@ function CourseFormModal({
   const router = useRouter()
   const prodi = useProdi()
 
-  const NEW_KURIKULUM = '__baru__'
-  const initialKurikulum = course?.kurikulum ?? defaultKurikulum
-  const [kurikulumMode, setKurikulumMode] = useState<'pilih' | 'baru'>(
-    initialKurikulum && !kurikulumList.includes(initialKurikulum) ? 'baru' : 'pilih'
-  )
-  const [kurikulum, setKurikulum] = useState(initialKurikulum)
+  const awal = course ? course.kurikulum : defaultKurikulum ? [defaultKurikulum] : []
 
   useEffect(() => {
     if (state && 'success' in state) {
@@ -271,47 +275,30 @@ function CourseFormModal({
             </Field>
           </div>
 
-          <Field label="Kurikulum">
-            {kurikulumMode === 'pilih' && kurikulumList.length > 0 ? (
-              <Select
-                value={kurikulum}
-                onValueChange={(v) => {
-                  if (v === NEW_KURIKULUM) {
-                    setKurikulumMode('baru')
-                    setKurikulum('')
-                  } else {
-                    setKurikulum(v)
-                  }
-                }}
-                ariaLabel="Kurikulum"
-                options={[...kurikulumList.map((k) => ({ value: k, label: k })), { value: NEW_KURIKULUM, label: '+ Kurikulum baru…' }]}
-                className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
-              />
-            ) : (
-              <div className="flex gap-[0.5rem]">
-                <input
-                  value={kurikulum}
-                  onChange={(e) => setKurikulum(e.target.value)}
-                  placeholder="mis. 2029"
-                  required
-                  className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
-                />
-                {kurikulumList.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setKurikulumMode('pilih')
-                      setKurikulum(kurikulumList[0])
-                    }}
-                    className="shrink-0 text-[0.8rem] text-[var(--tinta-3)] hover:underline cursor-pointer bg-transparent border-0 px-[0.4rem]"
-                  >
-                    Batal
-                  </button>
-                )}
-              </div>
-            )}
-            <input type="hidden" name="kurikulum" value={kurikulum} />
-          </Field>
+          <div>
+            <span className="block text-[0.8rem] font-medium text-[var(--tinta-2)] mb-[0.25rem]">Kurikulum</span>
+            <div className="flex flex-wrap gap-x-[0.8rem] gap-y-[0.3rem]">
+              {kurikulumList.map((k) => (
+                <label key={k} className="flex items-center gap-[0.3rem] text-[0.87rem]">
+                  <input
+                    type="checkbox"
+                    name="kurikulum"
+                    value={k}
+                    defaultChecked={awal.includes(k)}
+                    className="w-[0.9rem] h-[0.9rem]"
+                  />
+                  {k}
+                </label>
+              ))}
+            </div>
+            <input
+              name="kurikulum_baru"
+              aria-label="Kurikulum baru"
+              placeholder="+ Kurikulum baru (mis. 2029)"
+              required={kurikulumList.length === 0}
+              className="w-full mt-[0.5rem] bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
+            />
+          </div>
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {course && (
