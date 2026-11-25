@@ -1,4 +1,4 @@
-import { samaKurikulum } from '@/lib/kurikulum'
+import { samaKurikulum, sebagaiDaftar } from '@/lib/kurikulum'
 import { parseAngka } from '@/lib/penilaian/nilai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ParsedRow } from './engine'
@@ -129,12 +129,13 @@ export const coursesTable: ImportTableDef<CourseRow> = {
     }
 
     // A blank cell says nothing about memberships; combineCourseRows keeps the stored ones (or defaults a new kode).
-    const kurikulum = str(raw, 'kurikulum')
+    // A comma-separated cell is a list of memberships, just like the form's "+ Kurikulum baru".
+    const kurikulum = sebagaiDaftar(str(raw, 'kurikulum'))
 
     return {
       key: kode_mk,
       notes,
-      data: { kode_mk, nama_mk, sks, jenis_mk: jenis_mk as 'A' | 'B', smt, kurikulum: kurikulum ? [kurikulum] : [] },
+      data: { kode_mk, nama_mk, sks, jenis_mk: jenis_mk as 'A' | 'B', smt, kurikulum },
     }
   },
 }

@@ -298,6 +298,20 @@ async function main() {
     )
     assert.deepEqual(dataOf(baru[0]).kurikulum, ['2026', '2021'])
 
+    // A row carrying several memberships is flattened, not stringified into a bogus "2021,2026".
+    const banyak = combineCourseRows(
+      [
+        {
+          key: '15159998',
+          data: { kode_mk: '15159998', nama_mk: 'MK', sks: 2, jenis_mk: 'A' as const, smt: 5, kurikulum: ['2021', '2026'] },
+          notes: [], rowNumber: 2,
+        },
+        ...rows([course('15159998', '2021')]),
+      ],
+      new Map<string, CourseRow>()
+    )
+    assert.deepEqual(dataOf(banyak[0]).kurikulum, ['2026', '2021'], 'multi-element rows are flattened before the union')
+
     // A file that changes a shared course's SKS updates it and names the effect.
     const ubah = combineCourseRows(rows([course('10012003', '2021', { sks: 3 })]), existing('10012003', '2026'))
     const ubahRow = ubah[0]
@@ -326,6 +340,21 @@ async function main() {
       if (row.status === 'changed') assert.deepEqual(row.data.kurikulum, ['2026', '2021'])
     }
 
+    // The cross-prodi guard still rejects a code owned elsewhere, even with the combine hook on.
+    const prodiAsing = classifyRows<CourseRow>({
+      parsed: [course('15152002', '2021')],
+      parseRow: coursesTable.parseRow,
+      existingByKey: new Map<string, CourseRow>(),
+      equal: coursesTable.equal,
+      combine: combineCourseRows,
+      otherProdiKeys: new Set(['15152002']),
+    })
+    assert.deepEqual(
+      prodiAsing.rows.map((r) => [r.key, r.status]),
+      [['15152002', 'rejected']],
+      'combine does not bypass the cross-prodi guard'
+    )
+
     // Parse/equal: a blank cell is "no membership", not 2026; a typed value is accepted.
     const parseKosong = coursesTable.parseRow(
       { kode_mk: '1', nama_mk: 'A', sks: 2, jenis_mk: 'A', smt: 1, kurikulum: '' },
@@ -340,6 +369,13 @@ async function main() {
     )
     if (!('data' in parseSatu)) throw new Error('expected data')
     assert.equal(parseSatu.data.kurikulum[0], '2029', 'a hand-typed kurikulum is accepted')
+
+    const parseKoma = coursesTable.parseRow(
+      { kode_mk: '1', nama_mk: 'A', sks: 2, jenis_mk: 'A', smt: 1, kurikulum: '2021, 2026' },
+      2
+    )
+    if (!('data' in parseKoma)) throw new Error('expected data')
+    assert.deepEqual(parseKoma.data.kurikulum, ['2021', '2026'], 'a comma-separated cell becomes distinct memberships')
 
     const a: CourseRow = {
       kode_mk: '1', nama_mk: 'A', sks: 2, jenis_mk: 'A', smt: 1, kurikulum: ['2021', '2026'],

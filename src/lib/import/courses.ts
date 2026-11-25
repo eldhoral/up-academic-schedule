@@ -44,7 +44,7 @@ export function combineCourseRows(
       continue
     }
 
-    const dariFile = gabungKurikulum(undefined, group.map((r) => r.data.kurikulum))
+    const dariFile = gabungKurikulum(undefined, group.flatMap((r) => r.data.kurikulum))
     const existing = existingByKey.get(key)
     // A blank kurikulum cell leaves existing memberships alone; a new kode starts at 2026.
     const anggota = dariFile.length
