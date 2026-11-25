@@ -305,7 +305,7 @@ The visual system is "Bilah": an Indonesian paper/ink palette (`--kertas`, `--le
 - `mulai_kuliah date`, `selesai_kuliah date` — term boundaries; they place weekly meetings on real dates in calendars and the ICS feed. `chk_academic_years_kuliah` keeps `selesai >= mulai`.
 
 **`courses`** — Mata Kuliah.
-- `kode_mk varchar(20)` PK, `nama_mk`, `sks > 0`, `smt 1..8` (S2: ≤ 4), `jenis_mk in ('A','B')`, `kurikulum` (default `'2026'`), `prodi`.
+- `kode_mk varchar(20)` PK, `nama_mk`, `sks > 0`, `smt 1..8` (S2: ≤ 4), `jenis_mk in ('A','B')`, `kurikulum text[]` (default `{2026}`, non-empty via check, GIN index), `prodi`. One course may belong to several kurikulum; `kode_mk` stays the PK, so schedules/exams and their FKs are unchanged.
 - `unique (kode_mk, prodi)` backs the composite FKs from `schedules`/`exams`, so a schedule can only use a course of its own prodi.
 
 **`lecturers`** — Dosen.
@@ -576,6 +576,7 @@ Applies to four tables (`src/lib/import/tables.ts`): `courses`, `lecturers`, `ro
 - Derived columns (e.g. course `semester` from `smt` parity) are accepted on import but not stored.
 - Grading fields: Mahasiswa `email`, `sks_sebelum`, `bobot_sebelum`, `tepat_waktu` and Dosen `Email`, `Eksternal` (`ya`/`tidak`, any case; blank = tidak; anything else rejects the row). `sksBobot()` mirrors the DB checks (SKS a positive integer, 0 <= bobot <= 4 × SKS); both accept a comma decimal.
 - **Old files keep newer data**: a column absent from the uploaded file neither changes nor flags the stored value (`has()` / `same()` in `tables.ts`), so a pre-feature xlsx cannot wipe emails or SKS. A column that is present but blank does write the blank.
+- **Courses and kurikulum**: import groups rows by `kode_mk` and unions their kurikulum memberships with the stored ones (memberships are never removed by omission). A blank or absent kurikulum cell leaves existing memberships alone, and a new course defaults to `{2026}`. Rows for one `kode_mk` with conflicting nama/SKS/semester/jenis are rejected; when a shared course's metadata changes, the preview adds a note that the change applies to all its kurikulum. The template/export give the `kurikulum` column a dropdown of the known kurikulum and export one row per membership.
 
 ### 6.11 Print and document generation
 

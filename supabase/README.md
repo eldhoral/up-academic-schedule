@@ -45,7 +45,7 @@ npx supabase migration up
 | Table | Description | Primary Key / Uniqueness |
 |---|---|---|
 | `academic_years` | Academic year periods (e.g. `20261` for 2026/2027 Gasal) | `id` |
-| `courses` | Master course catalog (2026 curriculum) with SKS and semester | `kode_mk` |
+| `courses` | Master course catalog; one row per kode, `kurikulum` is a list, with SKS and semester | `kode_mk` |
 | `lecturers` | Master lecturer database with NIDN (as text) and academic titles | `kode_dosen` |
 | `rooms` | Available classrooms (301, 302, 303, Lab. Kom, etc.) | `id` (UUID), unique `nama` |
 | `sessions` | Configurable class timetable slots per day | `id` (UUID) |
