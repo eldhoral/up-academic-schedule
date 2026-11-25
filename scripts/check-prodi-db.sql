@@ -1783,3 +1783,17 @@ do $$ begin
     assert not has_function_privilege('anon', 'klaim_sesi()', 'execute'), 'anon cannot claim';
     assert not has_function_privilege('authenticated', 'sesi_idle_menit()', 'execute');
 end $$;
+
+-- courses.kurikulum is a non-empty list of curriculum names.
+do $$
+begin
+    assert (select data_type from information_schema.columns
+            where table_schema = 'public' and table_name = 'courses' and column_name = 'kurikulum') = 'ARRAY',
+        'courses.kurikulum must be text[]';
+
+    insert into courses (kode_mk, nama_mk, sks, smt, jenis_mk, prodi, kurikulum)
+    values ('MULTIKUR01', 'Multi Kurikulum', 2, 1, 'A', 's1', array['2021', '2026']);
+    assert (select cardinality(kurikulum) from courses where kode_mk = 'MULTIKUR01') = 2,
+        'a course may hold several kurikulum';
+    delete from courses where kode_mk = 'MULTIKUR01';
+end $$;
