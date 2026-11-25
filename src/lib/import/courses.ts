@@ -1,4 +1,4 @@
-import { gabungKurikulum, sebagaiDaftar } from '@/lib/kurikulum'
+import { gabungKurikulum } from '@/lib/kurikulum'
 import type { CombinedRow, ParsedOkay } from './engine'
 import type { CourseRow } from './tables'
 
@@ -49,7 +49,7 @@ export function combineCourseRows(
     const anggota = dariFile.length
       ? gabungKurikulum(existing?.kurikulum, dariFile)
       : existing
-        ? sebagaiDaftar(existing.kurikulum)
+        ? gabungKurikulum(existing?.kurikulum, [])
         : ['2026']
 
     const notes = [...new Set(group.flatMap((r) => r.notes))]

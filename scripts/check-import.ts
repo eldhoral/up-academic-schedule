@@ -272,6 +272,13 @@ async function main() {
     // No kurikulum cell: existing memberships untouched; a new code defaults to 2026.
     const kosongLama = combineCourseRows(rows([course('15152002', '')]), existing('15152002', '2021'))
     assert.deepEqual(dataOf(kosongLama[0]).kurikulum, ['2021'])
+    const kosongUrut = combineCourseRows(
+      rows([course('15152002', '')]),
+      existing('15152002', '2021', { kurikulum: ['2021', '2026'] })
+    )
+    const kosongUrutRow = kosongUrut[0]
+    if (!('data' in kosongUrutRow)) throw new Error('expected data')
+    assert.deepEqual(kosongUrutRow.data.kurikulum, ['2026', '2021'], 'stored memberships are normalized newest-first')
     const kosongBaru = combineCourseRows(rows([course('15159999', '')]), new Map<string, CourseRow>())
     assert.deepEqual(dataOf(kosongBaru[0]).kurikulum, ['2026'])
 
