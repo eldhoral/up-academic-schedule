@@ -7,7 +7,7 @@ import type { ImportPreview } from './engine'
 import { humanDbError } from '@/lib/db-error'
 import { parseProdi, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 import { manageableProdi, managerOnly } from '@/lib/prodi-server'
-import { alasanKurikulumBentrok, pemilikKurikulum } from './kurikulum'
+import { combineCourseRows } from './courses'
 
 export type PreviewState =
   | { ok: true; preview: ImportPreview<Record<string, unknown>> }
@@ -46,28 +46,22 @@ export async function previewImportAction(
     else existingByKey.set(key, row)
   }
 
-  // A kode_mk is one row in the DB: importing it under a different kurikulum would overwrite the old one.
-  const pemilik = tableSlug === 'courses' ? pemilikKurikulum(semuaBaris as never, prodi!) : new Map<string, string>()
   const preview = classifyRows({
     parsed,
     parseRow: def.parseRow as never,
     existingByKey: existingByKey as never,
     equal: def.equal as never,
     otherProdiKeys,
-    reject: tableSlug === 'courses'
-      ? (data) => {
-          const r = data as { kode_mk: string; kurikulum: string }
-          return alasanKurikulumBentrok(pemilik, r.kode_mk, r.kurikulum)
-        }
-      : undefined,
+    // Several rows of one kode_mk (one per kurikulum) become one row; memberships are additive.
+    combine: tableSlug === 'courses' ? (combineCourseRows as never) : undefined,
   })
   if (prodi && tableSlug === 'courses') {
     // S2 runs semesters 1-4; say so per row rather than failing the whole commit.
     const max = PRODI_CONFIG[prodi].semesters
-    // classifyRows keeps one outcome per parsed row, in order, so index i is spreadsheet row i + 2.
-    preview.rows = preview.rows.map((r, i) =>
+    // A combined row no longer lines up with its spreadsheet index; keep its own source row number.
+    preview.rows = preview.rows.map((r) =>
       r.status !== 'rejected' && Number((r.data as { smt?: number }).smt) > max
-        ? { status: 'rejected' as const, key: r.key, reason: `${r.key}: smt harus antara 1 dan ${max}.`, rowNumber: i + 2 }
+        ? { status: 'rejected' as const, key: r.key, reason: `${r.key}: smt harus antara 1 dan ${max}.`, rowNumber: r.rowNumber }
         : r,
     )
     preview.counts = { new: 0, changed: 0, unchanged: 0, rejected: 0 }

@@ -1,3 +1,4 @@
+import { samaKurikulum } from '@/lib/kurikulum'
 import { parseAngka } from '@/lib/penilaian/nilai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ParsedRow } from './engine'
@@ -69,7 +70,7 @@ export type CourseRow = {
   sks: number
   jenis_mk: 'A' | 'B'
   smt: number
-  kurikulum: string
+  kurikulum: string[]
 }
 
 export const coursesTable: ImportTableDef<CourseRow> = {
@@ -88,7 +89,7 @@ export const coursesTable: ImportTableDef<CourseRow> = {
   },
   keyField: 'kode_mk',
   equal: (a, b) =>
-    a.nama_mk === b.nama_mk && a.sks === b.sks && a.jenis_mk === b.jenis_mk && a.smt === b.smt && a.kurikulum === b.kurikulum,
+    a.nama_mk === b.nama_mk && a.sks === b.sks && a.jenis_mk === b.jenis_mk && a.smt === b.smt && samaKurikulum(a.kurikulum, b.kurikulum),
   parseRow(raw) {
     const kode_mk = str(raw, 'kode_mk')
     if (!kode_mk) return { reason: 'kode_mk wajib diisi.' }
@@ -127,12 +128,13 @@ export const coursesTable: ImportTableDef<CourseRow> = {
       notes.push(`nama_mk memiliki akhiran "(P)" tetapi jenis_mk adalah ${jenis_mk}; jenis_mk tetap dipakai sesuai data.`)
     }
 
-    const kurikulum = str(raw, 'kurikulum') || '2026'
+    // A blank cell says nothing about memberships; combineCourseRows keeps the stored ones (or defaults a new kode).
+    const kurikulum = str(raw, 'kurikulum')
 
     return {
       key: kode_mk,
       notes,
-      data: { kode_mk, nama_mk, sks, jenis_mk: jenis_mk as 'A' | 'B', smt, kurikulum },
+      data: { kode_mk, nama_mk, sks, jenis_mk: jenis_mk as 'A' | 'B', smt, kurikulum: kurikulum ? [kurikulum] : [] },
     }
   },
 }

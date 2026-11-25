@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import ExcelJS from 'exceljs'
-import { coursesTable, kodeDosen, lecturersTable, studentSheet, studentsTable } from '../src/lib/import/tables'
-import { buildExportBuffer, buildTemplateBuffer, classifyRows, parseWorkbookRows } from '../src/lib/import/engine'
-import { alasanKurikulumBentrok, pemilikKurikulum } from '../src/lib/import/kurikulum'
+import { coursesTable, kodeDosen, lecturersTable, studentSheet, studentsTable, type CourseRow } from '../src/lib/import/tables'
+import { buildExportBuffer, buildTemplateBuffer, classifyRows, parseWorkbookRows, type CombinedRow } from '../src/lib/import/engine'
+import { combineCourseRows } from '../src/lib/import/courses'
 import { daftarKurikulum, gabungKurikulum, samaKurikulum, sebagaiDaftar } from '../src/lib/kurikulum'
 
 const toArrayBuffer = (b: Uint8Array) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
@@ -235,39 +235,110 @@ async function main() {
     assert.equal(plainWb.worksheets.length, 1)
   }
 
-  // --- a kode owned by another kurikulum is never overwritten ------------------------------------
+  // --- course import adds kurikulum memberships, never removes them --------------------------------
   {
-    const ada = [
-      { kode_mk: '15152002', kurikulum: '2021', prodi: 's1' },
-      { kode_mk: '15152003', kurikulum: '2021', prodi: 's1' },
-      { kode_mk: '15152002', kurikulum: '2026', prodi: 's2' },
-    ]
-    const pemilik = pemilikKurikulum(ada, 's1')
-    assert.deepEqual([...pemilik], [['15152002', '2021'], ['15152003', '2021']], 'only this prodi owns the kode')
-    assert.equal(alasanKurikulumBentrok(pemilik, '15152002', '2026'), '"15152002" sudah terdaftar di kurikulum 2021.')
-    assert.equal(alasanKurikulumBentrok(pemilik, '15152002', '2021'), null, 'same kurikulum may be updated')
-    assert.equal(alasanKurikulumBentrok(pemilik, '15159999', '2026'), null, 'a new kode is fine')
-
-    const baris = (kode_mk: string, kurikulum: string) => ({ kode_mk, nama_mk: 'MK', sks: 2, jenis_mk: 'A', smt: 5, semester: 'Gasal', kurikulum })
-    const preview = classifyRows({
-      parsed: [baris('15152002', '2026'), baris('15152003', '2021'), baris('15159999', '2026')],
-      parseRow: coursesTable.parseRow,
-      existingByKey: new Map([
-        ['15152002', { kode_mk: '15152002', nama_mk: 'MK lama', sks: 2, jenis_mk: 'A', smt: 5, kurikulum: '2021', prodi: 's1' }],
-        ['15152003', { kode_mk: '15152003', nama_mk: 'MK lama', sks: 2, jenis_mk: 'A', smt: 5, kurikulum: '2021', prodi: 's1' }],
-      ]) as never,
-      equal: coursesTable.equal as never,
-      reject: (data) => {
-        const r = data as { kode_mk: string; kurikulum: string }
-        return alasanKurikulumBentrok(pemilik, r.kode_mk, r.kurikulum)
-      },
+    const course = (kode_mk: string, kurikulum: string, over: { sks?: number } = {}) => ({
+      kode_mk, nama_mk: 'MK', sks: 2, jenis_mk: 'A', smt: 5, kurikulum, ...over,
     })
-    assert.deepEqual(preview.rows.map((r) => [r.key, r.status]), [
-      ['15152002', 'rejected'],
-      ['15152003', 'changed'],
-      ['15159999', 'new'],
-    ])
-    assert.equal(preview.counts.rejected, 1)
+    const rows = (data: Record<string, unknown>[]) =>
+      data.map((raw) => {
+        const r = coursesTable.parseRow(raw, 2)
+        if (!('data' in r)) throw new Error(JSON.stringify(r))
+        return { key: r.data.kode_mk, data: r.data, notes: r.notes, rowNumber: 2 }
+      })
+    const existing = (kode_mk: string, kurikulum: string, over: Partial<CourseRow> = {}) => {
+      const map = new Map<string, CourseRow>()
+      map.set(kode_mk, {
+        kode_mk, nama_mk: 'MK', sks: 2, jenis_mk: 'A', smt: 5, kurikulum: [kurikulum], ...over,
+      })
+      return map
+    }
+    const dataOf = (row: CombinedRow<CourseRow>) => {
+      if (!('data' in row)) throw new Error(row.reason)
+      return row.data
+    }
+
+    // The 10-row 2021 upload: 2026 stays, 2021 is added.
+    const tambah = combineCourseRows(rows([course('10012003', '2021')]), existing('10012003', '2026'))
+    assert.deepEqual(dataOf(tambah[0]).kurikulum, ['2026', '2021'])
+
+    // Both already stored: unchanged input, same memberships.
+    const tetap = combineCourseRows(
+      rows([course('10012003', '2021')]),
+      existing('10012003', '2026', { kurikulum: ['2026', '2021'] })
+    )
+    assert.deepEqual(dataOf(tetap[0]).kurikulum, ['2026', '2021'])
+
+    // No kurikulum cell: existing memberships untouched; a new code defaults to 2026.
+    const kosongLama = combineCourseRows(rows([course('15152002', '')]), existing('15152002', '2021'))
+    assert.deepEqual(dataOf(kosongLama[0]).kurikulum, ['2021'])
+    const kosongBaru = combineCourseRows(rows([course('15159999', '')]), new Map<string, CourseRow>())
+    assert.deepEqual(dataOf(kosongBaru[0]).kurikulum, ['2026'])
+
+    // Same code, different SKS inside the file: one code, one definition.
+    const bentrok = combineCourseRows(
+      rows([course('15152002', '2021'), course('15152002', '2026', { sks: 3 })]),
+      new Map<string, CourseRow>()
+    )
+    const bentrokRow = bentrok[0]
+    if (!('reason' in bentrokRow)) throw new Error('expected a rejection')
+    assert.match(bentrokRow.reason, /satu data/)
+
+    // A new code listed under both kurikulum: one row, both memberships.
+    const baru = combineCourseRows(
+      rows([course('15159999', '2021'), course('15159999', '2026')]),
+      new Map<string, CourseRow>()
+    )
+    assert.deepEqual(dataOf(baru[0]).kurikulum, ['2026', '2021'])
+
+    // A file that changes a shared course's SKS updates it and names the effect.
+    const ubah = combineCourseRows(rows([course('10012003', '2021', { sks: 3 })]), existing('10012003', '2026'))
+    const ubahRow = ubah[0]
+    if (!('data' in ubahRow)) throw new Error('expected data')
+    assert.equal(ubahRow.data.sks, 3)
+    assert.ok(ubahRow.notes.some((n) => n.includes('SKS 2 → 3')))
+
+    // The real wiring: 10 shared MKWU rows imported under 2021 while 2026 exists.
+    const kode = Array.from({ length: 10 }, (_, i) => String(10012001 + i))
+    const existing2026 = new Map<string, CourseRow>()
+    for (const k of kode) {
+      existing2026.set(k, {
+        kode_mk: k, nama_mk: 'MKWU', sks: 2, jenis_mk: 'A', smt: 1, kurikulum: ['2026'],
+      })
+    }
+    const preview = classifyRows<CourseRow>({
+      parsed: kode.map((k) => ({ kode_mk: k, nama_mk: 'MKWU', sks: 2, jenis_mk: 'A', smt: 1, kurikulum: '2021' })),
+      parseRow: coursesTable.parseRow,
+      existingByKey: existing2026,
+      equal: coursesTable.equal,
+      combine: combineCourseRows,
+    })
+    assert.deepEqual(preview.counts, { new: 0, changed: 10, unchanged: 0, rejected: 0 })
+    for (const row of preview.rows) {
+      assert.equal(row.status, 'changed')
+      if (row.status === 'changed') assert.deepEqual(row.data.kurikulum, ['2026', '2021'])
+    }
+
+    // Parse/equal: a blank cell is "no membership", not 2026; a typed value is accepted.
+    const parseKosong = coursesTable.parseRow(
+      { kode_mk: '1', nama_mk: 'A', sks: 2, jenis_mk: 'A', smt: 1, kurikulum: '' },
+      2
+    )
+    if (!('data' in parseKosong)) throw new Error('expected data')
+    assert.equal(parseKosong.data.kurikulum.length, 0)
+
+    const parseSatu = coursesTable.parseRow(
+      { kode_mk: '1', nama_mk: 'A', sks: 2, jenis_mk: 'A', smt: 1, kurikulum: '2029' },
+      2
+    )
+    if (!('data' in parseSatu)) throw new Error('expected data')
+    assert.equal(parseSatu.data.kurikulum[0], '2029', 'a hand-typed kurikulum is accepted')
+
+    const a: CourseRow = {
+      kode_mk: '1', nama_mk: 'A', sks: 2, jenis_mk: 'A', smt: 1, kurikulum: ['2021', '2026'],
+    }
+    assert.equal(coursesTable.equal({ ...a, kurikulum: ['2026', '2021'] }, a), true, 'membership order does not matter')
+    assert.equal(coursesTable.equal({ ...a, kurikulum: ['2026'] }, a), false, 'a missing membership is a change')
   }
 
   {
