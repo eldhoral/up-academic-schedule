@@ -1,6 +1,7 @@
-import { gabungKurikulum } from '@/lib/kurikulum'
+import { daftarKurikulum, gabungKurikulum, sebagaiDaftar } from '@/lib/kurikulum'
 import type { CombinedRow, ParsedOkay } from './engine'
-import type { CourseRow } from './tables'
+import { coursesTable, type CourseRow } from './tables'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** The fields shared by every kurikulum of one kode_mk. */
 function samaDataMk(a: CourseRow, b: CourseRow): boolean {
@@ -61,4 +62,32 @@ export function combineCourseRows(
     out.push({ key, data: { ...first.data, kurikulum: anggota }, notes, rowNumber: first.rowNumber })
   }
   return out
+}
+
+// ---------------------------------------------------------------------------
+// Mata Kuliah xlsx: kurikulum dropdown, one export row per membership
+// ---------------------------------------------------------------------------
+
+/**
+ * The kurikulum options for the template/export, plus rows that re-import as memberships. Pure.
+ * The dropdown is strict; the importer still accepts any non-blank hand-typed value.
+ */
+export function courseSheet(list: string[]) {
+  const pilihan = list.length ? daftarKurikulum(list.map((kurikulum) => ({ kurikulum }))) : ['2026']
+  return {
+    dropdowns: { kurikulum: pilihan },
+    exampleRow: { ...coursesTable.exampleRow, kurikulum: pilihan[0] },
+    exportRows: (rows: Record<string, unknown>[]): Record<string, unknown>[] =>
+      rows.flatMap((r) => {
+        const anggota = sebagaiDaftar(r.kurikulum)
+        return (anggota.length ? anggota : ['']).map((kurikulum) => ({ ...r, kurikulum }))
+      }),
+  }
+}
+
+/** The Mata Kuliah sheet extras with kurikulum read through `db` (session client: RLS decides). */
+export async function loadCourseSheet(db: SupabaseClient) {
+  const { data, error } = await db.from('courses').select('kurikulum')
+  if (error) throw new Error(`Gagal memuat daftar kurikulum: ${error.message}`)
+  return courseSheet(daftarKurikulum((data ?? []) as { kurikulum: unknown }[]))
 }

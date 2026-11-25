@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import ExcelJS from 'exceljs'
 import { coursesTable, kodeDosen, lecturersTable, studentSheet, studentsTable, type CourseRow } from '../src/lib/import/tables'
 import { buildExportBuffer, buildTemplateBuffer, classifyRows, parseWorkbookRows, type CombinedRow } from '../src/lib/import/engine'
-import { combineCourseRows } from '../src/lib/import/courses'
+import { courseSheet, combineCourseRows } from '../src/lib/import/courses'
 import { daftarKurikulum, gabungKurikulum, samaKurikulum, sebagaiDaftar } from '../src/lib/kurikulum'
 
 const toArrayBuffer = (b: Uint8Array) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
@@ -346,6 +346,32 @@ async function main() {
     }
     assert.equal(coursesTable.equal({ ...a, kurikulum: ['2026', '2021'] }, a), true, 'membership order does not matter')
     assert.equal(coursesTable.equal({ ...a, kurikulum: ['2026'] }, a), false, 'a missing membership is a change')
+  }
+
+  {
+    const sheet = courseSheet(['2021', '2026', '2021'])
+    assert.deepEqual(sheet.dropdowns.kurikulum, ['2026', '2021'])
+    assert.equal(sheet.exampleRow.kurikulum, '2026')
+    assert.deepEqual(courseSheet([]).dropdowns.kurikulum, ['2026'], 'empty DB still gives a usable template')
+
+    const rows = sheet.exportRows([
+      { kode_mk: '10012003', nama_mk: 'KEWARGANEGARAAN', sks: 2, kurikulum: ['2026', '2021'] },
+      { kode_mk: '15152002', nama_mk: 'KEWIRAUSAHAAN', sks: 2, kurikulum: ['2026'] },
+    ])
+    assert.deepEqual(
+      rows.map((r) => `${String(r.kode_mk)}|${String(r.kurikulum)}`),
+      ['10012003|2026', '10012003|2021', '15152002|2026']
+    )
+
+    const buf = await buildExportBuffer(rows, sheet.dropdowns)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(toArrayBuffer(buf))
+    const data = wb.worksheets[0]
+    const kolom = (data.getRow(1).values as unknown[]).indexOf('kurikulum')
+    assert.ok(kolom > 0, 'kurikulum column exists')
+    assert.equal(data.getCell(2, kolom).dataValidation?.type, 'list', 'kurikulum column has a dropdown')
+    assert.deepEqual(await parseWorkbookRows(toArrayBuffer(buf)), rows, 'export re-parses')
+    assert.deepEqual(wb.worksheets.map((s) => [s.name, s.state]), [['Data', 'visible'], ['Pilihan', 'hidden']])
   }
 
   {

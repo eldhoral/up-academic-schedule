@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { buildTemplateBuffer } from '@/lib/import/engine'
+import { buildTemplateBuffer, type Dropdowns } from '@/lib/import/engine'
+import { loadCourseSheet } from '@/lib/import/courses'
 import { importTables, loadStudentSheet, type ImportTableSlug } from '@/lib/import/tables'
 
 export async function GET(_req: Request, ctx: RouteContext<'/api/import/[table]/template'>) {
@@ -10,7 +11,10 @@ export async function GET(_req: Request, ctx: RouteContext<'/api/import/[table]/
   }
 
   // Mahasiswa: Dosen Pembimbing picked by name from a dropdown, with real dosen in the example row.
-  const sheet = def.slug === 'students' ? await loadStudentSheet(await createClient()) : null
+  // Mata Kuliah: kurikulum picked from the kurikulum seen in the DB, newest first.
+  let sheet: { exampleRow: Record<string, string | number>; dropdowns: Dropdowns } | null = null
+  if (def.slug === 'students') sheet = await loadStudentSheet(await createClient())
+  else if (def.slug === 'courses') sheet = await loadCourseSheet(await createClient())
   const buffer = sheet
     ? await buildTemplateBuffer(def.headers, sheet.exampleRow, sheet.dropdowns)
     : await buildTemplateBuffer(def.headers, def.exampleRow)
