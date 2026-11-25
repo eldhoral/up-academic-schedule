@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs'
 import { coursesTable, kodeDosen, lecturersTable, studentSheet, studentsTable } from '../src/lib/import/tables'
 import { buildExportBuffer, buildTemplateBuffer, classifyRows, parseWorkbookRows } from '../src/lib/import/engine'
 import { alasanKurikulumBentrok, pemilikKurikulum } from '../src/lib/import/kurikulum'
+import { daftarKurikulum, gabungKurikulum, samaKurikulum, sebagaiDaftar } from '../src/lib/kurikulum'
 
 const toArrayBuffer = (b: Uint8Array) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
 
@@ -14,6 +15,21 @@ async function workbookOf(fill: (sheet: ExcelJS.Worksheet) => void): Promise<Arr
 }
 
 async function main() {
+  {
+    assert.deepEqual(sebagaiDaftar('2021, 2026,2021'), ['2021', '2026'])
+    assert.deepEqual(sebagaiDaftar(['2026', '', ' 2021 ']), ['2026', '2021'])
+    assert.deepEqual(sebagaiDaftar(undefined), [])
+    assert.deepEqual(gabungKurikulum(['2021'], '2026,2021'), ['2026', '2021'])
+    assert.deepEqual(gabungKurikulum(undefined, undefined), [])
+    assert.equal(samaKurikulum(['2021', '2026'], ['2026', '2021']), true)
+    assert.equal(samaKurikulum(['2021'], ['2026']), false)
+    assert.equal(samaKurikulum(['2021'], ['2021', '2026']), false)
+    assert.deepEqual(
+      daftarKurikulum([{ kurikulum: ['2021'] }, { kurikulum: ['2026', '2021'] }, { kurikulum: [] }]),
+      ['2026', '2021']
+    )
+  }
+
   // --- uploads are parsed by exceljs, not the unpatched SheetJS (prototype pollution, ReDoS) -----
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.ok(!('xlsx' in pkg.dependencies), 'the xlsx (SheetJS) dependency is gone')
