@@ -61,14 +61,18 @@ export function renderRevisi(i: RevisiInput): { subject: string; text: string; h
 
   const kolom = i.kolom ?? 'Halaman'
   const rujukan = (h: string) => (kolom === 'Halaman' ? `Halaman ${h || '-'}` : h || '-')
-  const revisiText = ada.flatMap((r, n) => [...(n ? [''] : []), `${r.peranLabel}: ${r.nama}`, ...r.rows.map((x) => `- ${rujukan(x.halaman)}: ${x.catatan}`)]).join('\n')
+  // The sidang form no longer asks for a halaman (kiprat 2026-11-26): the column shows only when a row has one.
+  const pakai = (rows: Revisi) => kolom !== 'Halaman' || rows.some((x) => x.halaman?.trim())
+  const revisiText = ada.flatMap((r, n) => [
+    ...(n ? [''] : []), `${r.peranLabel}: ${r.nama}`, ...r.rows.map((x) => `- ${pakai(r.rows) ? `${rujukan(x.halaman)}: ` : ''}${x.catatan}`),
+  ]).join('\n')
   const text = substituteTemplate(isiT, { ...vars, revisi: revisiText })
 
   const cell = 'border:1px solid #ccc;padding:4px 8px;vertical-align:top'
   const revisiHtml = ada.map((r) => [
     `<p><b>${esc(r.peranLabel)}: ${esc(r.nama)}</b></p>`,
-    `<table style="border-collapse:collapse"><tr><th style="${cell}">${esc(kolom)}</th><th style="${cell}">Catatan revisi</th></tr>`,
-    ...r.rows.map((x) => `<tr><td style="${cell}">${esc(x.halaman) || '-'}</td><td style="${cell};white-space:pre-wrap">${esc(x.catatan)}</td></tr>`),
+    `<table style="border-collapse:collapse"><tr>${pakai(r.rows) ? `<th style="${cell}">${esc(kolom)}</th>` : ''}<th style="${cell}">Catatan revisi</th></tr>`,
+    ...r.rows.map((x) => `<tr>${pakai(r.rows) ? `<td style="${cell}">${esc(x.halaman) || '-'}</td>` : ''}<td style="${cell};white-space:pre-wrap">${esc(x.catatan)}</td></tr>`),
     '</table>',
   ].join('')).join('')
   // Escape the admin's text first, then fill in escaped values; only {revisi} brings markup.

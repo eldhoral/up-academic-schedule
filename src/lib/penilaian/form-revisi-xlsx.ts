@@ -60,10 +60,15 @@ export async function buildFormRevisiXlsx(d: FormRevisi): Promise<Uint8Array<Arr
     if (b.rows.length === 0) continue
     ws.addRow([])
     ws.addRow([`${b.peranLabel}: ${b.nama}`]).font = { bold: true }
-    const head = ws.addRow(['No', d.kolom, 'Catatan revisi'])
+    // The sidang form no longer asks for a halaman (kiprat 2026-11-26): without one, Catatan revisi spans both columns.
+    const pakai = d.kolom !== 'Halaman' || b.rows.some((x) => x.rujukan?.trim())
+    const head = ws.addRow(pakai ? ['No', d.kolom, 'Catatan revisi'] : ['No', 'Catatan revisi'])
     head.font = { bold: true }
-    const tabel = [head, ...b.rows.map((x, i) => ws.addRow([i + 1, x.rujukan || '-', x.catatan]))]
-    for (const r of tabel) for (let c = 1; c <= 3; c++) { r.getCell(c).border = border; r.getCell(c).alignment = top }
+    const tabel = [head, ...b.rows.map((x, i) => ws.addRow(pakai ? [i + 1, x.rujukan || '-', x.catatan] : [i + 1, x.catatan]))]
+    for (const r of tabel) {
+      for (let c = 1; c <= 3; c++) { r.getCell(c).border = border; r.getCell(c).alignment = top }
+      if (!pakai) ws.mergeCells(r.number, 2, r.number, 3)
+    }
   }
 
   return new Uint8Array((await wb.xlsx.writeBuffer()) as ArrayBuffer)

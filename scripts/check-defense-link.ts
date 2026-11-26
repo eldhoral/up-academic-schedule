@@ -10,9 +10,8 @@ assert.equal(normalizeDefenseLink('javascript:alert(1)'), null, 'javascript: nev
 assert.equal(normalizeDefenseLink('data:text/html,x'), null, 'data: never becomes a link')
 assert.equal(normalizeDefenseLink('drive.google.com/file/x'), null, 'no scheme is not a link — it would open the site itself')
 
-// --- defenseLinkLabel: the button reads as "the material" ----------------------
-assert.equal(defenseLinkLabel('https://drive.google.com/file/d/1abc/view'), 'Lihat Materi')
-assert.equal(defenseLinkLabel('https://docs.google.com/document/d/1abc'), 'Lihat Materi', 'Docs links are material too')
-assert.equal(defenseLinkLabel('https://example.com/materi.pdf'), 'Buka Tautan', 'anything else stays a plain link label')
+// --- defenseLinkLabel: the button names the defense's material ----------------------
+assert.equal(defenseLinkLabel('sidang'), 'Materi Sidang')
+assert.equal(defenseLinkLabel('prasidang'), 'Materi Prasidang')
 
 console.log('defense link: all checks passed')

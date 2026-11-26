@@ -53,7 +53,7 @@ const SCHEDULE_COLS = 'id, prodi, jenis_kelas, kode_mk, kelas, hari, jam_mulai, 
 const EXAM_COLS = 'id, prodi, jenis_kelas, jenis_ujian, kode_mk, kelas, tanggal, jam_mulai, jam_selesai, keterangan_ujian, pengawas, courses(nama_mk), rooms(nama)'
 const DEFENSE_COLS = 'id, prodi, jenis, tanggal, jam_mulai, jam_selesai, kelompok, nama_mahasiswa, pembimbing_kode, penguji_kode, penguji_eksternal_kode, link, rooms(nama)'
 // A deploy can reach prod before its migration does: without the link column the feed still
-// loads (minus the Lihat Materi buttons) instead of erroring the whole schedule.
+// loads (minus the materi buttons) instead of erroring the whole schedule.
 const DEFENSE_COLS_NO_LINK = 'id, prodi, jenis, tanggal, jam_mulai, jam_selesai, kelompok, nama_mahasiswa, pembimbing_kode, penguji_kode, penguji_eksternal_kode, rooms(nama)'
 
 const byDateTime = (a: { tanggal: string; jam_mulai: string }, b: { tanggal: string; jam_mulai: string }) =>

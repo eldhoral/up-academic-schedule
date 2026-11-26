@@ -9,7 +9,7 @@ import { hariFromTanggal, hariLabel } from '@/lib/hari'
 import { romanSemester } from '@/lib/print'
 import { dayLabel, defaultWeek, mondayOf, weekDays } from '@/lib/week'
 import { PROGRAM_LABEL, SIDANG_PERAN_LABEL } from '@/app/jadwal-dosen/events'
-import { jenisLabel } from '@/app/[prodi]/sidang/defense-types'
+import { defenseLinkLabel, jenisLabel } from '@/app/[prodi]/sidang/defense-types'
 import { type Prodi } from '@/lib/prodi'
 import { liburOn, type HariLibur } from '@/lib/hari-libur'
 import { GABUNGAN, KETERANGAN_LABEL, needsRoom } from '@/app/[prodi]/ujian/exam-types'
@@ -36,7 +36,7 @@ const UJIAN_LABEL: Record<'uts' | 'uas', string> = { uts: 'UTS', uas: 'UAS' }
 const sidangTempat = (d: KalSidang) => (d.room_nama ? `Ruang ${d.room_nama}` : d.kelompok !== null ? `Kelompok ${d.kelompok} (Zoom)` : '—')
 
 /** The action inside the detail modal: same language as the public jadwal-dosen rows. */
-function MateriLink({ link }: { link: string }) {
+function MateriLink({ link, jenis }: { link: string; jenis: string }) {
   return (
     <a
       href={link}
@@ -44,7 +44,7 @@ function MateriLink({ link }: { link: string }) {
       rel="noopener noreferrer"
       className="inline-block px-[0.6rem] py-[0.3rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.8rem] font-medium no-underline cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors"
     >
-      Lihat Materi <span aria-hidden="true">&nearr;</span>
+      {defenseLinkLabel(jenis)} <span aria-hidden="true">&nearr;</span>
     </a>
   )
 }
@@ -295,7 +295,7 @@ function SidangModal({ e, onClose }: { e: KalEventSidang; onClose: () => void })
         ['Judul', d.judul_skripsi || '—'],
         ['Tempat', sidangTempat(d)],
         ...roleRows,
-        ['Materi', d.link ? <MateriLink key="materi" link={d.link} /> : '—'],
+        ['Materi', d.link ? <MateriLink key="materi" link={d.link} jenis={d.jenis} /> : '—'],
       ]}
       onClose={onClose}
     />

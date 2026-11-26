@@ -42,12 +42,8 @@ export function normalizeDefenseLink(input: string): string | null {
   return /^https?:\/\/\S+$/i.test(trimmed) ? trimmed : null
 }
 
-/** Label for the public jadwal-dosen button: a material link almost always lives on Google Drive. */
-export function defenseLinkLabel(url: string): string {
-  const host = url.replace(/^https?:\/\//i, '').toLowerCase().split('/')[0]
-  if (host === 'drive.google.com' || host === 'docs.google.com') return 'Lihat Materi'
-  return 'Buka Tautan'
-}
+/** Label of the material button (jadwal dosen, kalender): named after the defense it belongs to (kiprat 2026-11-25). */
+export const defenseLinkLabel = (jenis: string): string => (jenis === 'prasidang' ? 'Materi Prasidang' : 'Materi Sidang')
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 

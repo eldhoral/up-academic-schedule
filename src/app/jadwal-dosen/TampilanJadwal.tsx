@@ -59,13 +59,8 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
     <div className="min-h-screen flex flex-col bg-[var(--kertas)] text-[var(--tinta)] leading-[normal]">
       <header className="bg-[var(--brand-langit)]">
         <div className="mx-auto flex max-w-[74.667rem] items-center gap-[0.667rem] px-[1.067rem] py-[0.667rem] sm:gap-[0.933rem] sm:px-[2.133rem] sm:py-[0.8rem]">
-          <Image src="/images/logo-universitas-pancasila.png" alt="Universitas Pancasila" width={64} height={64} className="h-[36px] w-auto sm:h-[44px]" />
-          <span aria-hidden="true" className="h-[26px] w-px bg-[var(--tinta)]/25 sm:h-[32px]" />
-          <Image src="/images/logo-fakultas-psikologi.png" alt="Fakultas Psikologi" width={64} height={64} className="h-[36px] w-auto sm:h-[44px]" />
-          <div className="leading-[1.25]">
-            <div className="text-[0.733rem] sm:text-[0.8rem]">Universitas Pancasila</div>
-            <div className="text-[0.933rem] font-semibold sm:text-[1rem]">Fakultas Psikologi</div>
-          </div>
+          {/* One lockup: both emblems and the faculty name (kiprat 2026-11-26). */}
+          <Image src="/images/logo-psikologi-up.png" alt="Fakultas Psikologi Universitas Pancasila" width={800} height={176} priority className="h-[40px] w-auto sm:h-[52px]" />
           <a href={SITUS_NEOSISDAM} target="_blank" rel="noopener noreferrer" className="ml-auto hidden text-[0.867rem] font-medium text-[var(--tinta)] no-underline hover:underline sm:inline">
             neosisdam.univpancasila.ac.id ↗
           </a>
@@ -162,20 +157,32 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
           </Kartu>
 
           <div className="flex flex-col gap-[0.933rem]">
-            <Kartu judul="Sidang & Prasidang" kolom>
-              {sidang.length === 0 ? (
-                <Kosong>{`Tidak ada jadwal sidang dalam ${SIDANG_HARI_MAJU} hari ke depan.`}</Kosong>
-              ) : (
-                <>
-                  {sidang.map((s) => (
-                    <BarisTanggal key={s.id} tanggal={s.tanggal} judul={`${sidangJudul(s)} · ${s.nama_mahasiswa}`} meta={`${s.jam_mulai}–${s.jam_selesai} · ${metaSidang(s)}`}>
-                      <TombolSidang s={s} today={today} />
-                    </BarisTanggal>
-                  ))}
-                  <p className="m-0 text-[0.8rem] text-[var(--tinta-3)]">Tombol Beri Nilai muncul pada hari sidang.</p>
-                </>
-              )}
-            </Kartu>
+            {/* Prasidang and sidang in their own cards, a rule between rows (kiprat 2026-11-25). */}
+            {(['prasidang', 'sidang'] as const).map((jenis) => {
+              const daftar = sidang.filter((s) => s.jenis === jenis)
+              return (
+                <Kartu key={jenis} judul={jenis === 'prasidang' ? 'Prasidang' : 'Sidang'} kolom>
+                  {daftar.length === 0 ? (
+                    <Kosong>{`Tidak ada jadwal ${jenis} dalam ${SIDANG_HARI_MAJU} hari ke depan.`}</Kosong>
+                  ) : (
+                    <>
+                      <div className="divide-y divide-[var(--garis-kuat)]">
+                        {daftar.map((s) => (
+                          <div key={s.id} className="py-[0.8rem] first:pt-0 last:pb-0">
+                            <BarisTanggal tanggal={s.tanggal} judul={`${sidangJudul(s)} · ${s.nama_mahasiswa}`} meta={`${s.jam_mulai}–${s.jam_selesai} · ${metaSidang(s)}`}>
+                              <TombolSidang s={s} today={today} />
+                            </BarisTanggal>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="m-0 text-[0.8rem] text-[var(--tinta-3)]">
+                        {jenis === 'prasidang' ? 'Tombol Isi Berita Acara muncul pada hari prasidang.' : 'Tombol Penilaian muncul pada hari sidang.'}
+                      </p>
+                    </>
+                  )}
+                </Kartu>
+              )
+            })}
 
             <Kartu judul="Ujian" kolom>
               {ujian.length === 0 ? (
@@ -287,7 +294,7 @@ function TombolSidang({ s, today }: { s: SidangItem; today: string }) {
           rel="noopener noreferrer"
           className="tekan inline-flex min-h-[2.4rem] items-center gap-[0.4rem] rounded-[8px] bg-[var(--aksen)] px-[0.8rem] text-[0.867rem] font-medium text-white no-underline hover:bg-[#1546A8]"
         >
-          {defenseLinkLabel(s.link)} <span aria-hidden="true">↗</span>
+          {defenseLinkLabel(s.jenis)} <span aria-hidden="true">↗</span>
         </a>
       )}
       {/* Grants nothing by itself: the page behind it needs a DOSEN login. */}
@@ -298,7 +305,7 @@ function TombolSidang({ s, today }: { s: SidangItem; today: string }) {
           rel="noopener noreferrer"
           className="tekan inline-flex min-h-[2.4rem] items-center gap-[0.4rem] rounded-[8px] border border-[var(--garis-kuat)] bg-[var(--lembar)] px-[0.8rem] text-[0.867rem] font-medium text-[var(--tinta)] no-underline hover:bg-[var(--cekung)]"
         >
-          {s.jenis === 'prasidang' ? 'Isi Berita Acara' : 'Beri Nilai'} <span aria-hidden="true">↗</span>
+          {s.jenis === 'prasidang' ? 'Isi Berita Acara' : 'Penilaian'} <span aria-hidden="true">↗</span>
         </a>
       )}
     </div>

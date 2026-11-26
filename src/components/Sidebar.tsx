@@ -102,7 +102,6 @@ export async function Sidebar({ active, prodi, user: initialUser, phone = false,
   const nama = user?.email ? namaLogin(user.email) : 'Admin'
   const role: Role = user?.role ?? 'VIEWER'
   const groups = sidebarModel({ active, prodi, role, prodiAccess: user?.prodiAccess ?? 's1' })
-  const logo = phone ? 'h-[48px]' : 'h-[52px]'
 
   return (
     <nav
@@ -110,9 +109,7 @@ export async function Sidebar({ active, prodi, user: initialUser, phone = false,
       className={`no-print flex flex-col gap-[1.2rem] overflow-y-auto leading-[normal] bg-[var(--sidebar)] border-r border-[var(--garis)] px-[0.933rem] py-[1.333rem] text-[var(--tinta)] ${className}`}
     >
       <Link href="/" aria-label="Beranda" className="flex items-center justify-center gap-[0.933rem] py-[0.4rem]">
-        <Image src="/images/logo-universitas-pancasila.png" alt="Universitas Pancasila" width={64} height={64} className={`${logo} w-auto`} />
-        <span aria-hidden="true" className="h-[40px] w-px bg-[var(--garis-kuat)]" />
-        <Image src="/images/logo-fakultas-psikologi.png" alt="Fakultas Psikologi" width={64} height={64} className={`${logo} w-auto`} />
+        <Image src="/images/logo-psikologi-up.png" alt="Fakultas Psikologi Universitas Pancasila" width={800} height={176} className="w-full h-auto" />
       </Link>
 
       <div className="flex items-center gap-[0.667rem] rounded-[var(--r-item)] bg-[var(--cekung)] p-[0.667rem]">

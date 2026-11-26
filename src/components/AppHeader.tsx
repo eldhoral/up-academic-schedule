@@ -18,21 +18,7 @@ export async function AppHeader({ active, prodi }: { active: string; prodi?: Pro
     <header className="sticky top-0 z-20 min-h-[3.4rem] flex items-center gap-[1rem] px-[1.3rem] py-[0.4rem] bg-[var(--header)] border-b border-[var(--garis-kuat)] flex-wrap">
       <div className="flex items-center gap-x-[1.5rem] gap-y-[0.4rem]">
         <Link href={dosen ? '/penilaian' : '/'} className="flex items-center gap-[0.6rem]">
-          <Image
-            src="/images/logo-universitas-pancasila.png"
-            alt="Universitas Pancasila"
-            width={64}
-            height={64}
-            className="h-[2.13rem] w-auto"
-          />
-          <span className="w-px h-[1.6rem] bg-[var(--garis-kuat)]" aria-hidden="true" />
-          <Image
-            src="/images/logo-fakultas-psikologi.png"
-            alt="Fakultas Psikologi"
-            width={64}
-            height={64}
-            className="h-[2.13rem] w-auto"
-          />
+          <Image src="/images/logo-psikologi-up.png" alt="Fakultas Psikologi Universitas Pancasila" width={800} height={176} className="h-[2.13rem] w-auto" />
           <span className="sr-only">Menu utama</span>
         </Link>
         {/* Minimal header for a DOSEN: no section nav, the logo is its menu. */}

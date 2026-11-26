@@ -138,7 +138,7 @@ export function PengujiForm({ aspek, awal, tabel, pembanding = [], yudisium, aks
             }}
             className="w-[1rem] h-[1rem]"
           />
-          Ada revisi
+          Revisi
         </label>
         {adaRevisi && (
           <div className="mt-[0.8rem]">
@@ -147,18 +147,8 @@ export function PengujiForm({ aspek, awal, tabel, pembanding = [], yudisium, aks
                 const salah = dicoba && !r.catatan.trim()
                 const id = `${uid}-rev-${i}`
                 return (
+                  // No Halaman field (kiprat 2026-11-26): a row is just its catatan; halaman is sent as ''.
                   <li key={i} className="flex flex-col sm:flex-row gap-[0.6rem] sm:items-start">
-                    <div className="sm:w-[7rem] shrink-0">
-                      <label htmlFor={`${id}-hal`} className={LABEL_KECIL}>Halaman</label>
-                      <input
-                        id={`${id}-hal`}
-                        autoComplete="off"
-                        maxLength={50}
-                        value={r.halaman}
-                        onChange={(e) => ubahBaris(i, 'halaman', e.target.value)}
-                        className={`${FIELD} border-[var(--garis-kuat)]`}
-                      />
-                    </div>
                     <div className="flex-1 min-w-0">
                       <label htmlFor={`${id}-cat`} className={LABEL_KECIL}>Catatan revisi {i + 1}</label>
                       <textarea
@@ -189,7 +179,7 @@ export function PengujiForm({ aspek, awal, tabel, pembanding = [], yudisium, aks
               })}
             </ol>
             {dicoba && revisi.length === 0 && (
-              <p className="m-0 mt-[0.4rem] text-[0.8rem] text-[var(--merah-teks)]">Tambahkan minimal satu baris revisi, atau matikan &quot;Ada revisi&quot;.</p>
+              <p className="m-0 mt-[0.4rem] text-[0.8rem] text-[var(--merah-teks)]">Tambahkan minimal satu baris revisi, atau matikan &quot;Revisi&quot;.</p>
             )}
             <button
               type="button"

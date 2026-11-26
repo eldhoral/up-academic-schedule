@@ -377,6 +377,8 @@ function Meta({ row }: { row: NilaiSidangRow }) {
 
 /** A submitted grade, read-only: its snapshot rows (never the current list), the nilai, then its revisi. */
 function Terkirim({ row, tabel }: { row: NilaiSidangRow; tabel: BarisNilai[] }) {
+  // The form no longer asks for a halaman (kiprat 2026-11-26); older grades that have one still show it.
+  const adaHalaman = row.revisi.some((r) => r.halaman?.trim())
   return (
     <div>
       <Meta row={row} />
@@ -407,14 +409,14 @@ function Terkirim({ row, tabel }: { row: NilaiSidangRow; tabel: BarisNilai[] }) 
         <table className="w-full border-collapse border border-[var(--garis-kuat)] bg-[var(--lembar)] text-[0.93rem]">
           <thead className="bg-[var(--cekung)] text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">
             <tr>
-              <th className={`text-left w-[7rem] ${TH}`}>Halaman</th>
+              {adaHalaman && <th className={`text-left w-[7rem] ${TH}`}>Halaman</th>}
               <th className={`text-left ${TH}`}>Catatan revisi</th>
             </tr>
           </thead>
           <tbody>
             {row.revisi.map((r, i) => (
               <tr key={i} className="border-t border-[var(--garis)] align-top">
-                <td className={`${TD} mono`}>{r.halaman || '—'}</td>
+                {adaHalaman && <td className={`${TD} mono`}>{r.halaman || '—'}</td>}
                 <td className={`${TD} whitespace-pre-line`}>{r.catatan}</td>
               </tr>
             ))}

@@ -393,6 +393,9 @@ async function cekEmail() {
     assert.ok(s.includes('Kepada Yth,') && s.includes('Semester Genap TA. 2025/2026.') && s.includes('Akademik F.Psi UP'))
   }
   assert.ok(m.text.startsWith('Kepada Yth,\nBudi 87,50 A\n\n\nBerikut dikirimkan Form Revisi Sidang Skripsi\n'), m.text)
+  // No halaman asked any more (kiprat 2026-11-26): an examiner whose rows have none gets no Halaman column.
+  assert.ok(m.text.includes('- Halaman 12: Perbaiki tabel') && m.text.includes('- Tambah saran'), m.text)
+  assert.ok(!m.html.includes('<td style="border:1px solid #ccc;padding:4px 8px;vertical-align:top">-</td>'), 'no empty halaman cell')
   assert.equal(semesterTA('20251'), 'Gasal TA. 2025/2026')
   assert.equal(semesterTA('x'), 'x')
   // PDF attached: no tables appended to a body without {revisi}; with {revisi}, they stay where it says.

@@ -4,11 +4,12 @@ import { AkunLain } from '@/components/AkunLain'
 import { AppShell } from '@/components/AppShell'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { tanggalPanjang } from '@/lib/hari'
-import { aksesBimbingan, penilaianPath, PERAN_LABEL, peranBimbingan, todayJakarta, type Peran } from '@/lib/penilaian/akses'
+import { aksesBimbingan, penilaianPath, PERAN_LABEL, PERAN_SIDANG, peranBimbingan, todayJakarta, type Peran } from '@/lib/penilaian/akses'
 import type { BarisNilai } from '@/lib/penilaian/aturan'
-import { loadPenilaian, type NilaiRow } from '@/lib/penilaian/data'
-import { baris, formatNilai } from '@/lib/penilaian/nilai'
+import { loadPenilaian, loadSidang, type NilaiRow } from '@/lib/penilaian/data'
+import { baris, formatNilai, hasilAkhir, nilaiBimbingan } from '@/lib/penilaian/nilai'
 import { editNilaiAction, inputNilaiAdminAction, submitNilaiAction } from '../actions'
+import { HasilAkhirPanel } from './HasilAkhir'
 import { NilaiForm } from './NilaiForm'
 
 const PERAN: Peran[] = ['pembimbing_1', 'pembimbing_2']
@@ -50,6 +51,17 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
     ['Tanggal sidang', tanggalPanjang(defense.tanggal, false)],
   ]
   const peranSaya = dosen ? peranBimbingan(defense, user.kodeDosen!) : null
+
+  // Hasil akhir after the dosen's own grade is sent (staff: always), once the sidang is locked (kiprat 2026-11-25).
+  const sidang = (!dosen || akses?.kind === 'terkirim') && data.kunci ? await loadSidang(defense.id) : null
+  const beku = sidang?.hasil?.aturan
+  const bimbingan = nilaiBimbingan(data.nilai.pembimbing_1?.nilai ?? null, data.nilai.pembimbing_2?.nilai ?? null, defense.tanpa_pembimbing_2)
+  const akhir = sidang && beku
+    ? hasilAkhir({
+      sidang: PERAN_SIDANG.map((p) => sidang.nilai[p]?.nilai ?? null), locked: { lulus: sidang.hasil!.yudisium_lulus, aturan: beku },
+      bimbingan, sks: sidang.student.sks, bobot: sidang.student.bobot, tepatWaktu: sidang.student.tepatWaktu,
+    })
+    : null
   if (peranSaya) fakta.push(['Peran Anda', `${data.dosen[peranSaya]} (${PERAN_LABEL[peranSaya]})`])
 
   return (
@@ -136,6 +148,7 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
               </section>
             )
           })}
+        {akhir && beku && <HasilAkhirPanel bimbingan={bimbingan} h={akhir} ipkAwal={data.ipk} tabel={beku.tabelNilai} />}
       </main>
     </AppShell>
   )

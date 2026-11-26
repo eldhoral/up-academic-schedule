@@ -10,7 +10,7 @@ import type { SkorAspek } from '@/lib/penilaian/nilai'
  */
 export const WARNA_PERAN: Record<PeranSidang, string> = { ketua: '#2a78d6', anggota_1: '#eb6834', anggota_2: '#1baf7a' }
 /** IPK before and after: one hue, light to dark (ordinal). */
-const WARNA_IPK = { sebelum: '#86b6ef', setelah: '#1c5cab' }
+export const WARNA_IPK = { sebelum: '#86b6ef', setelah: '#1c5cab' }
 
 const SINGKAT: Record<PeranSidang, string> = { ketua: 'Ketua', anggota_1: 'Anggota I', anggota_2: 'Anggota II' }
 const JUDUL = 'm-0 pb-[0.9rem] text-[0.87rem] font-semibold'
@@ -18,7 +18,7 @@ const SUMBU = 'text-[0.73rem] text-[var(--tinta-3)] text-center'
 const NILAI = 'absolute bottom-full left-1/2 -translate-x-1/2 pb-[0.25rem] mono text-[0.8rem] whitespace-nowrap'
 
 /** A column growing from the baseline: 4px rounded top, square bottom, value printed above it. */
-function Kolom({ tinggi, warna, teks, tip, tebal, besar }: { tinggi: number; warna: string; teks: string; tip: string; tebal?: boolean; besar?: boolean }) {
+export function Kolom({ tinggi, warna, teks, tip, tebal, besar }: { tinggi: number; warna: string; teks: string; tip: string; tebal?: boolean; besar?: boolean }) {
   return (
     <div title={tip} className={`h-full ${besar ? 'w-[6rem]' : 'w-[4rem]'} flex justify-center items-end`}>
       <div className={`relative ${besar ? 'w-[3rem]' : 'w-[1.5rem]'} rounded-t-[4px]`} style={{ height: `${tinggi}%`, background: warna }}>
