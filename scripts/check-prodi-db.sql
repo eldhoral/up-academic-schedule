@@ -1797,3 +1797,63 @@ begin
         'a course may hold several kurikulum';
     delete from courses where kode_mk = 'MULTIKUR01';
 end $$;
+
+-- Unvalidasi (kiprat 2026-11-25): the Ketua deletes an Anggota grade before the lock; nobody else, nothing else.
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, penguji_kode, penguji_eksternal_kode, pembimbing_kode, prodi)
+values ('R0002', 'sidang', (now() at time zone 'Asia/Jakarta')::date - 1, '13:00', '15:00', '88000', 'UV',
+        (select kode_dosen from profiles where id = :'dosen'), 'EXTB', 'DSN03', 's1');
+create temp table uv as select id from defenses where nama_mahasiswa = 'UV';
+grant select on uv to authenticated;
+insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber)
+select (select id from uv), kode, peran, '[{"label": "A", "bobot": 100, "skor": 75}]', 75, 'manual'
+from (values ((select kode_dosen from profiles where id = :'dosen'), 'ketua'), ('EXTB', 'anggota_1'), ('DSN03', 'anggota_2')) v(kode, peran);
+
+select set_config('request.jwt.claim.sub', :'viewer', false);
+set role authenticated;
+do $$ begin
+    begin
+        perform unvalidasi_nilai_sidang((select id from uv), 'anggota_1');
+        raise exception 'FAIL: unvalidasi by someone who is not the Ketua';
+    exception when insufficient_privilege then
+        assert sqlerrm = 'Hanya Ketua Sidang yang dapat membatalkan validasi nilai.', sqlerrm;
+    end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    begin
+        perform unvalidasi_nilai_sidang((select id from uv), 'ketua');
+        raise exception 'FAIL: unvalidasi of the Ketua''s own grade';
+    exception when check_violation then null;
+    end;
+    perform unvalidasi_nilai_sidang((select id from uv), 'anggota_1');
+    begin
+        perform unvalidasi_nilai_sidang((select id from uv), 'anggota_1');
+        raise exception 'FAIL: unvalidasi of a grade not sent';
+    exception when no_data_found then
+        assert sqlerrm = 'Nilai belum dikirim.', sqlerrm;
+    end;
+end $$;
+reset role;
+do $$ begin
+    assert (select array_agg(peran order by peran) from nilai_sidang where defense_id = (select id from uv)) = array['anggota_2', 'ketua'],
+        'only Anggota I''s grade is gone';
+    assert exists (select 1 from audit_log where table_name = 'nilai_sidang' and action = 'DELETE'), 'the deleted grade is in the audit log';
+end $$;
+-- Locked: refused.
+insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber)
+values ((select id from uv), 'EXTB', 'anggota_1', '[{"label": "A", "bobot": 100, "skor": 75}]', 75, 'manual');
+insert into hasil_sidang (defense_id, yudisium_label, yudisium_lulus) values ((select id from uv), 'Lulus Tanpa Revisi', true);
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    begin
+        perform unvalidasi_nilai_sidang((select id from uv), 'anggota_2');
+        raise exception 'FAIL: unvalidasi after the lock';
+    exception when insufficient_privilege then
+        assert sqlerrm = 'Nilai sidang sudah dikunci.', sqlerrm;
+    end;
+end $$;
+reset role;

@@ -11,7 +11,7 @@ import {
   DEFAULT_ATURAN, bekukan, loadAturan, parseAturanBeku, validateAspek, validatePilihanYudisium, type AturanBeku,
 } from '../src/lib/penilaian/aturan'
 import { humanDbError } from '../src/lib/db-error'
-import { baris, hasilAkhir, ipkSetelah, nilaiSidang, predikat } from '../src/lib/penilaian/nilai'
+import { baris, cekSelisih, hasilAkhir, ipkSetelah, nilaiSidang, predikat } from '../src/lib/penilaian/nilai'
 
 // ---- rules
 assert.equal(validateAspek(DEFAULT_ATURAN.aspekSidang), null)
@@ -963,3 +963,13 @@ void (async () => {
     console.log('nilai-sidang review fixes: all checks passed')
   })().catch((e) => { console.error(e); process.exit(1) })
 }
+
+// ---- examiner grades at most 10 points apart (kiprat 2026-11-25)
+assert.equal(cekSelisih(60, []), null)
+assert.equal(cekSelisih(70, [80]), null)
+assert.equal(cekSelisih(90, [80]), null)
+assert.match(cekSelisih(60, [80])!, /antara 70,00 dan 90,00/)
+assert.match(cekSelisih(69.99, [80])!, /lebih dari 10 poin/)
+assert.equal(cekSelisih(75, [70, 80]), null)
+assert.match(cekSelisih(85, [70, 80])!, /antara 70,00 dan 80,00/)
+assert.equal(cekSelisih(5, [3]), null)

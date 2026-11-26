@@ -2,9 +2,8 @@ import { getCurrentUser } from '@/lib/roles'
 import { isPenguji } from '@/lib/role-types'
 import { canAccessProdi } from '@/lib/prodi'
 import { convertXlsxToPdf } from '@/lib/aspose'
-import { PERAN_SIDANG } from '@/lib/penilaian/akses'
 import { loadSidang } from '@/lib/penilaian/data'
-import { buildBeritaAcaraXlsx } from '@/lib/penilaian/berita-acara-xlsx'
+import { beritaAcaraDariSidang, buildBeritaAcaraXlsx } from '@/lib/penilaian/berita-acara-xlsx'
 import { namaBeritaAcara } from '@/lib/penilaian/berita-acara-prasidang-xlsx'
 import { getSettings } from '@/lib/settings'
 import { kopBaris } from '@/lib/xlsx'
@@ -24,18 +23,11 @@ export async function GET(req: Request, ctx: RouteContext<'/api/berita-acara/[de
   const { defenseId } = await ctx.params
   // Admin client inside loadSidang, after the staff check above.
   const data = await loadSidang(defenseId)
-  if (!data?.hasil?.aturan) return new Response('Berita acara belum tersedia: sidang belum dikunci.', { status: 404 })
+  const isi = data && beritaAcaraDariSidang(data, kopBaris((await getSettings('s1')).kop_baris))
+  if (!data || !isi) return new Response('Berita acara belum tersedia: sidang belum dikunci.', { status: 404 })
 
-  const { defense, hasil, student } = data
-  const xlsx = await buildBeritaAcaraXlsx({
-    npm: defense.npm, nama: defense.nama_mahasiswa, judul: defense.judul_skripsi, tanggal: defense.tanggal,
-    pembimbing1: student.pembimbing1, pembimbing2: student.pembimbing2,
-    penguji: PERAN_SIDANG.map((p) => ({ peran: p, nama: data.dosen[p], nilai: data.nilai[p]?.nilai ?? null })),
-    aturan: hasil.aturan!, pilihan: data.aturan.pilihanYudisium,
-    yudisium: { label: hasil.yudisium_label, lulus: hasil.yudisium_lulus },
-    sks: student.sks, bobot: student.bobot, tepatWaktu: student.tepatWaktu,
-    kop: kopBaris((await getSettings('s1')).kop_baris),
-  })
+  const { defense } = data
+  const xlsx = await buildBeritaAcaraXlsx(isi)
   const nama = namaBeritaAcara('Sidang', defense.academic_year_id, defense.nama_mahasiswa)
 
   if (format === 'xlsx') {

@@ -5,15 +5,16 @@ import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser, canManage } from '@/lib/roles'
 import { humanDbError } from '@/lib/db-error'
-import { kirimRevisi } from '@/lib/mailer'
+import { kirimBeritaAcara, kirimRevisi } from '@/lib/mailer'
 import { tanggalPanjang } from '@/lib/hari'
 import {
-  adminSidang, ANGGOTA_I_LEGACY, aksesSidang, PERAN_SIDANG_LABEL, penilaianSidangPath, todayJakarta, type PeranSidang,
+  adminSidang, ANGGOTA_I_LEGACY, aksesSidang, PERAN_SIDANG, PERAN_SIDANG_LABEL, penilaianSidangPath, peranPenguji, todayJakarta,
+  type PeranSidang,
 } from '@/lib/penilaian/akses'
 import { identitasPenguji, loadSidang, type Sidang } from '@/lib/penilaian/data'
 import { bolehKirimUlang } from '@/lib/penilaian/rekap'
 import {
-  ASPEK_BERUBAH, SUDAH_DIKIRIM, aspekSama, cekRevisi, nilaiDariSnapshot, snapshotDariSkor, type Revisi, type SkorAspek,
+  ASPEK_BERUBAH, SUDAH_DIKIRIM, aspekSama, cekRevisi, cekSelisih, nilaiDariSnapshot, snapshotDariSkor, type Revisi, type SkorAspek,
 } from '@/lib/penilaian/nilai'
 
 export type Hasil = { error: string } | { ok: true; email?: string }
@@ -55,11 +56,13 @@ async function aksesAksi(defenseId: string) {
     today: todayJakarta(),
     akunTanggal: saya.akunTanggal,
   })
-  return data && akses.kind !== 'tidak-ada' ? { user, data, akses } : null
+  return data && akses.kind !== 'tidak-ada' ? { user, data, akses, peran: peranPenguji(data.defense, saya.kode) } : null
 }
 
 /** The grade a form sent: aspek still the displayed list, every skor valid, revisi valid. */
-function nilaiForm(aspek: { label: string; bobot: number }[], tampil: unknown, skor: unknown, adaRevisi: unknown, revisi: unknown) {
+function nilaiForm(
+  aspek: { label: string; bobot: number }[], tampil: unknown, skor: unknown, adaRevisi: unknown, revisi: unknown,
+): { error: string } | { aspek: SkorAspek[]; nilai: number; ada_revisi: boolean; revisi: Revisi } {
   if (!aspekSama(tampil, aspek)) return { error: ASPEK_BERUBAH }
   const snap = snapshotDariSkor(aspek, skor)
   if ('error' in snap) return snap
@@ -82,6 +85,9 @@ export async function submitNilaiSidangAction(
 
   const n = nilaiForm(data.aturan.aspekSidang, tampil, skor, adaRevisi, revisi)
   if ('error' in n) return n
+  // ponytail: checked against the grades read above; two examiners sending at the same moment can both pass.
+  const selisih = cekSelisih(n.nilai, PERAN_SIDANG.flatMap((p) => (p !== peran && data.nilai[p] ? [data.nilai[p]!.nilai] : [])))
+  if (selisih) return { error: selisih }
 
   // Session client: audit_row records the examiner as the actor; RLS (may_grade_sidang) checks again.
   const supabase = await createClient()
@@ -109,6 +115,8 @@ async function kunci(data: Sidang, userId: string, yudisium: string): Promise<Ha
   // The lock is committed. The send (PDF 10 s + SMTP 20 s caps) runs after the response, so the Ketua does not wait;
   // it only updates email_status, and a send that never finishes shows as stuck 'menunggu' with a retry after 2 minutes.
   if (row.email_status === 'menunggu') after(() => kirimAman(data.defense.id))
+  // The berita acara to the three examiners, whatever the revisi (kiprat 2026-11-25); it checks for an old sidang itself.
+  after(() => kirimBeritaAcara(data.defense.id).catch((e) => console.error('kirimBeritaAcara gagal:', e instanceof Error ? e.message : 'error')))
   revalidate(data.defense.id)
   return { ok: true, email: row.email_status as string }
 }
@@ -125,6 +133,24 @@ export async function kunciSidangAction(defenseId: string, yudisium: string): Pr
   }
   if (akses.kind !== 'kunci') return { error: TIDAK_ADA }
   return kunci(data, user.id, yudisium)
+}
+
+/** The Ketua sends an Anggota's grade back before locking (kiprat 2026-11-25): the row goes and that examiner grades again. */
+export async function unvalidasiNilaiSidangAction(defenseId: string, peran: PeranSidang): Promise<Hasil> {
+  if (peran !== 'anggota_1' && peran !== 'anggota_2') return { error: TIDAK_ADA }
+  const a = await aksesAksi(defenseId)
+  if (!a) return { error: TIDAK_ADA }
+  if (a.akses.kind === 'terkunci') return { error: TERKUNCI }
+  if (a.peran !== 'ketua') return { error: 'Hanya Ketua Sidang yang dapat membatalkan validasi nilai.' }
+  if (!a.data.nilai[peran]) return { error: 'Nilai belum dikirim.' }
+
+  // The DB function checks the Ketua and the lock again, and deletes (there is no delete policy).
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('unvalidasi_nilai_sidang', { p_defense: a.data.defense.id, p_peran: peran })
+  if (error) return { error: humanDbError(error) }
+
+  revalidate(a.data.defense.id)
+  return { ok: true }
 }
 
 /** kirimRevisi that never throws: a DB problem while sending leaves email_status as it was ('menunggu'). */

@@ -10,6 +10,9 @@ import type { Revisi } from '@/lib/penilaian/nilai'
 import { convertXlsxToPdf } from '@/lib/aspose'
 import { kopBaris } from '@/lib/xlsx'
 import { buildFormRevisiXlsx, namaFormRevisi, type FormRevisi } from '@/lib/penilaian/form-revisi-xlsx'
+import { beritaAcaraDariSidang, buildBeritaAcaraXlsx } from '@/lib/penilaian/berita-acara-xlsx'
+import { namaBeritaAcara } from '@/lib/penilaian/berita-acara-prasidang-xlsx'
+import { loadSidang } from '@/lib/penilaian/data'
 
 export type Lampiran = { filename: string; content: Uint8Array; contentType: string }
 export type Transport = (msg: { to: string[]; cc?: string[]; subject: string; text: string; html: string; attachments?: Lampiran[] }) => Promise<{ accepted: string[]; rejected: string[] }>
@@ -243,4 +246,43 @@ export async function kirimRevisi(
   // Order in the stored detail: earlier successes, this send's recipients, skipped ones last.
   await deps.simpan(defenseId, status, semua)
   return status
+}
+
+/**
+ * The locked sidang's berita acara to its three examiners (kiprat 2026-11-25), apart from the revisi mail: it holds every
+ * grade, so never to the student. PDF, or the Excel file when Aspose fails. Skipped for an old sidang, like the revisi mail.
+ * ponytail: best effort, only logged; add an email status column and a retry button if a lost mail ever matters.
+ */
+export async function kirimBeritaAcara(defenseId: string, transport: Transport | null = smtpTransport()): Promise<void> {
+  const db = createAdminClient()
+  const data = await loadSidang(defenseId)
+  const isi = data && beritaAcaraDariSidang(data, kopBaris((await loadSettings(db, 's1', false)).kop_baris))
+  if (!data || !isi || data.defense.tanggal < data.aturan.tanggalMulai) return
+  if (!transport) {
+    console.error('Berita acara sidang tidak dikirim:', TIDAK_DIKONFIGURASI)
+    return
+  }
+  const kode = PERAN_SIDANG.flatMap((p) => (data.nilai[p] ? [data.nilai[p]!.kode_dosen] : []))
+  const { data: dosen, error } = await db.from('lecturers').select('email').in('kode_dosen', kode)
+  if (error) throw new Error(`Gagal memuat dosen: ${error.message}`)
+  const to = [...new Set((dosen ?? []).map((d) => ((d.email as string | null) ?? '').trim()).filter((a) => a && !emailError(a)))]
+  if (to.length === 0) return
+
+  const xlsx = await buildBeritaAcaraXlsx(isi)
+  const nama = namaBeritaAcara('Sidang', data.defense.academic_year_id, data.defense.nama_mahasiswa)
+  let lampiran: Lampiran
+  try {
+    lampiran = { filename: `${nama}.pdf`, content: await batasWaktu(convertXlsxToPdf(xlsx), PDF_MS, 'Melewati batas waktu PDF'), contentType: 'application/pdf' }
+  } catch (e) {
+    console.error('Berita acara PDF gagal dibuat, dikirim sebagai Excel:', e instanceof Error ? e.message : 'error')
+    lampiran = { filename: `${nama}.xlsx`, content: xlsx, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+  }
+  const { nama_mahasiswa: mhs, npm } = data.defense
+  const text = `Yth. Bapak/Ibu Dosen Penguji,\n\nTerlampir Berita Acara Sidang Skripsi ${mhs} (${npm}).\n\nDemikian dan terima kasih.\n\nSalam,\nAkademik F.Psi UP`
+  const r = await batasWaktu(transport({
+    to, subject: `Berita Acara Sidang Skripsi — ${mhs} (${npm})`, text,
+    html: `<div style="font-family:Arial,sans-serif;font-size:14px">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>`,
+    attachments: [lampiran],
+  }), MAKS_MS, 'Melewati batas waktu pengiriman')
+  if (r.rejected.length) console.error('Berita acara sidang ditolak untuk', r.rejected.length, 'alamat')
 }

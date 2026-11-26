@@ -22,6 +22,7 @@ import {
 import { Grafik, WARNA_PERAN } from './Grafik'
 import { LiveSidang } from './LiveSidang'
 import { PengujiForm } from './PengujiForm'
+import { Unvalidasi } from './Unvalidasi'
 import { YudisiumForm } from './YudisiumForm'
 
 const waktu = (iso: string) =>
@@ -181,6 +182,10 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                       <p className="m-0 text-[0.8rem] text-[var(--tinta-3)]">{PERAN_SIDANG_LABEL[p]}</p>
                       <p className="m-0 text-[0.87rem] font-medium">{data.dosen[p]}</p>
                       <p className="m-0 mt-[0.4rem] mono text-[1.3rem] font-semibold">{row ? nilaiHuruf(row.nilai, tabel) : <span className="text-[0.87rem] font-normal text-[var(--tinta-3)]">belum dikirim</span>}</p>
+                      {/* The Ketua sends an Anggota's grade back before locking (kiprat 2026-11-25). */}
+                      {row && !hasil && peranSaya === 'ketua' && p !== 'ketua' && (
+                        <Unvalidasi defenseId={defense.id} peran={p} label={PERAN_SIDANG_LABEL[p]} dosen={data.dosen[p]} />
+                      )}
                     </div>
                   )
                 })}
@@ -219,6 +224,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                 <PengujiForm
                   aspek={aturan.aspekSidang}
                   tabel={tabel}
+                  pembanding={PERAN_SIDANG.flatMap((p) => (p !== akses.peran && data.nilai[p] ? [data.nilai[p]!.nilai] : []))}
                   aksi={submitNilaiSidangAction.bind(null, defense.id, akses.peran, tampil)}
                   tombol="Kirim nilai"
                   konfirmasi={{ judul: 'Kirim nilai?', isi: 'Setelah dikirim, nilai tidak bisa diubah.', tombol: 'Kirim nilai' }}
@@ -235,7 +241,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
             {akses?.kind === 'kunci' && (
               <section className="mb-[1.6rem]">
                 <h2 className={H2}>Kunci sidang</h2>
-                <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-2)]">Ketiga nilai sudah masuk. Pilih yudisium lalu kunci.</p>
+                <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-2)]">Ketiga nilai sudah masuk. Periksa nilai di atas (Unvalidasi bila nilai Anggota perlu diisi ulang), lalu pilih yudisium dan kunci.</p>
                 <YudisiumForm
                   pilihan={aturan.pilihanYudisium}
                   aksi={kunciSidangAction.bind(null, defense.id)}

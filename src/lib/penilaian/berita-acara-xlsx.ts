@@ -5,6 +5,8 @@ import { PERAN_SIDANG_LABEL, type PeranSidang } from './akses'
 import type { AturanBeku, Yudisium } from './aturan'
 import { baris, formatNilai, ipkSebelum } from './nilai'
 import { hasilBeritaAcara } from './berita-acara-sidang'
+import { PERAN_SIDANG } from './akses'
+import type { Sidang } from './data'
 
 /** Everything one locked sidang's berita acara shows. The numbers come from Nilai Sidang (hasilBeritaAcara). */
 export type BeritaAcaraSidang = {
@@ -25,6 +27,22 @@ export type BeritaAcaraSidang = {
   kop?: string[]
 }
 
+/** One loaded sidang as its berita acara (the download and the examiners' mail); null until locked with readable frozen rules. */
+export function beritaAcaraDariSidang(data: Sidang, kop: string[]): BeritaAcaraSidang | null {
+  const { defense, hasil, student } = data
+  if (!hasil?.aturan) return null
+  return {
+    npm: defense.npm, nama: defense.nama_mahasiswa, judul: defense.judul_skripsi, tanggal: defense.tanggal,
+    pembimbing1: student.pembimbing1, pembimbing2: student.pembimbing2,
+    penguji: PERAN_SIDANG.map((p) => ({ peran: p, nama: data.dosen[p], nilai: data.nilai[p]?.nilai ?? null })),
+    aturan: hasil.aturan, pilihan: data.aturan.pilihanYudisium,
+    yudisium: { label: hasil.yudisium_label, lulus: hasil.yudisium_lulus },
+    sks: student.sks, bobot: student.bobot, tepatWaktu: student.tepatWaktu,
+    kop,
+  }
+}
+
+const CEKLIS = '☑'
 const TEMPAT = 'FAKULTAS PSIKOLOGI UNIVERSITAS PANCASILA'
 const LABEL_BA: Record<PeranSidang, string> = { ketua: 'Ketua Penguji', anggota_1: 'Anggota Penguji 1', anggota_2: 'Anggota Penguji 2' }
 const PENJELASAN: Record<string, string> = {
@@ -40,11 +58,18 @@ export async function buildBeritaAcaraXlsx(d: BeritaAcaraSidang): Promise<Uint8A
   })
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Berita Acara', { pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } })
-  ws.columns = [{ width: 34 }, { width: 3 }, { width: 34 }, { width: 12 }, { width: 12 }, { width: 12 }]
+  ws.columns = [{ width: 34 }, { width: 3 }, { width: 42 }, { width: 12 }, { width: 12 }, { width: 12 }]
   const huruf = (n: number | null) => (n === null ? '' : baris(n, d.aturan.tabelNilai).huruf)
   const tebal = (r: ExcelJS.Row) => { r.font = { bold: true } }
   const kosong = () => ws.addRow([])
   const isian = (label: string, value: string | number) => ws.addRow([label, ':', value])
+  // Lines on columns A–F; the label spans the empty spacer column(s) after it, so a ruled cell never cuts it.
+  const garis = (rows: ExcelJS.Row[]) => {
+    for (const r of rows) {
+      for (let c = 1; c <= 6; c++) r.getCell(c).border = BORDER_ALL
+      ws.mergeCells(r.number, 1, r.number, r.getCell(3).value === '' ? 3 : 2)
+    }
+  }
 
   if (d.kop?.length) {
     addKop(wb, ws, d.kop, 6)
@@ -70,32 +95,42 @@ export async function buildBeritaAcaraXlsx(d: BeritaAcaraSidang): Promise<Uint8A
 
   // I. Rincian nilai
   tebal(ws.addRow(['I. Rincian Nilai Sidang Skripsi']))
-  const head = ws.addRow(['PENGUJI', '', 'NAMA', 'NILAI', 'NILAI HURUF'])
+  // VALIDASI: the examiner sent its grade in the app, ticked in place of a signature (kiprat 2026-11-26).
+  const head = ws.addRow(['PENGUJI', '', 'NAMA', 'NILAI', 'NILAI HURUF', 'VALIDASI'])
   tebal(head)
   const tabel: ExcelJS.Row[] = [head]
-  for (const p of d.penguji) tabel.push(ws.addRow([LABEL_BA[p.peran] ?? PERAN_SIDANG_LABEL[p.peran], '', p.nama, p.nilai, huruf(p.nilai)]))
-  const rata = ws.addRow(['RATA-RATA', '', '', h.nilaiSidang, h.huruf ?? ''])
+  for (const p of d.penguji) {
+    const r = ws.addRow([LABEL_BA[p.peran] ?? PERAN_SIDANG_LABEL[p.peran], '', p.nama, p.nilai, huruf(p.nilai), p.nilai === null ? '' : CEKLIS])
+    r.getCell(3).alignment = { wrapText: true, vertical: 'top' }
+    tabel.push(r)
+  }
+  const rata = ws.addRow(['RATA-RATA', '', '', h.nilaiSidang, h.huruf ?? '', ''])
   tebal(rata)
   tabel.push(rata)
-  for (const r of tabel) for (let c = 1; c <= 5; c++) r.getCell(c).border = BORDER_ALL
+  garis(tabel)
   for (const r of tabel.slice(1)) r.getCell(4).numFmt = '0.00'
+  for (const r of tabel) r.getCell(6).alignment = { horizontal: 'center' }
   kosong()
 
   // II. IPK (from Nilai Sidang, as the sheet did)
   tebal(ws.addRow(['II. Indeks Prestasi Kumulatif (IPK) Semester Berjalan']))
-  tebal(ws.addRow(['', '', '', 'SKS', 'BOBOT', 'IPK']))
+  const kepalaIpk = ws.addRow(['', '', '', 'SKS', 'BOBOT', 'IPK'])
+  tebal(kepalaIpk)
+  const tabelIpk: ExcelJS.Row[] = [kepalaIpk]
   if ('alasan' in h.ipk) {
-    ws.addRow(['Kredit yang sudah diambil (sebelum skripsi)', '', '', d.sks ?? '', d.bobot ?? ''])
-    ws.addRow(['IPK setelah Sidang Skripsi', '', h.ipk.alasan])
+    tabelIpk.push(ws.addRow(['Kredit yang sudah diambil (sebelum skripsi)', '', '', d.sks ?? '', d.bobot ?? '', '']))
+    tabelIpk.push(ws.addRow(['IPK setelah Sidang Skripsi', '', h.ipk.alasan, '', '', '']))
   } else {
     const i = h.ipk
-    ws.addRow(['Kredit yang sudah diambil (sebelum skripsi)', '', '', i.sks, i.bobot, ipkSebelum(i.bobot, i.sks) ?? ''])
-    ws.addRow(['Kredit skripsi', '', `Nilai ${formatNilai(h.nilaiSidang!)} · ${h.huruf} · mutu ${formatNilai(h.mutu!)}`, i.sksSkripsi, i.bobotSkripsi])
-    ws.addRow(['Jumlah', '', '', i.jumlahSks, i.jumlahBobot])
+    tabelIpk.push(ws.addRow(['Kredit yang sudah diambil (sebelum skripsi)', '', '', i.sks, i.bobot, ipkSebelum(i.bobot, i.sks) ?? '']))
+    tabelIpk.push(ws.addRow(['Kredit skripsi', '', `Nilai ${formatNilai(h.nilaiSidang!)} · ${h.huruf} · mutu ${formatNilai(h.mutu!)}`, i.sksSkripsi, i.bobotSkripsi, '']))
+    tabelIpk.push(ws.addRow(['Jumlah', '', '', i.jumlahSks, i.jumlahBobot, '']))
     const ipk = ws.addRow(['IPK setelah Sidang Skripsi', '', '', '', '', i.ipkSetelah])
     tebal(ipk)
     ipk.getCell(6).numFmt = '0.00'
+    tabelIpk.push(ipk)
   }
+  garis(tabelIpk) // table lines (kiprat 2026-11-26)
   kosong()
 
   // III. Yudisium

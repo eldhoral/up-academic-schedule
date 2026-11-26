@@ -18,6 +18,9 @@ const PESAN_DB = new Set<string>([
   'NPM tidak cocok.',
   'Prasidang tidak ditemukan.',
   'Sidang tidak ditemukan.',
+  'Hanya Ketua Sidang yang dapat membatalkan validasi nilai.',
+  'Nilai sidang sudah dikunci.',
+  'Nilai belum dikirim.',
 ])
 
 /** A dosen that can't be deleted, by the table that still references it (on delete restrict). */

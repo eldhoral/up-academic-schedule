@@ -25,6 +25,8 @@ import {
  */
 
 const SITUS_FAKULTAS = 'https://psikologi.univpancasila.ac.id/'
+/** The header link (kiprat 2026-11-25: point it at NeoSISDAM). */
+const SITUS_NEOSISDAM = 'https://neosisdam.univpancasila.ac.id'
 const short = (p: KuliahItem['prodi']) => PRODI_CONFIG[p].short
 
 /** "1 Sep 2026" */
@@ -64,8 +66,8 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
             <div className="text-[0.733rem] sm:text-[0.8rem]">Universitas Pancasila</div>
             <div className="text-[0.933rem] font-semibold sm:text-[1rem]">Fakultas Psikologi</div>
           </div>
-          <a href={SITUS_FAKULTAS} target="_blank" rel="noopener noreferrer" className="ml-auto hidden text-[0.867rem] font-medium text-[var(--tinta)] no-underline hover:underline sm:inline">
-            psikologi.univpancasila.ac.id ↗
+          <a href={SITUS_NEOSISDAM} target="_blank" rel="noopener noreferrer" className="ml-auto hidden text-[0.867rem] font-medium text-[var(--tinta)] no-underline hover:underline sm:inline">
+            neosisdam.univpancasila.ac.id ↗
           </a>
         </div>
       </header>

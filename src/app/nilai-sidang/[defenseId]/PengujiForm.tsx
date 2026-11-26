@@ -4,7 +4,7 @@ import { useId, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import type { BarisNilai, Yudisium } from '@/lib/penilaian/aturan'
-import { baris, cekRevisi, formatNilai, nilaiDariSnapshot, parseAngka, SUDAH_DIKIRIM, type Revisi } from '@/lib/penilaian/nilai'
+import { baris, cekRevisi, cekSelisih, formatNilai, nilaiDariSnapshot, parseAngka, SUDAH_DIKIRIM, type Revisi } from '@/lib/penilaian/nilai'
 import type { Hasil } from '../actions'
 
 type Props = {
@@ -12,6 +12,8 @@ type Props = {
   /** A stored grade (Super Admin edit); an empty form otherwise. */
   awal?: { skor: number[]; adaRevisi: boolean; revisi: Revisi }
   tabel: BarisNilai[]
+  /** Grades the other examiners already sent: the total must stay within SELISIH_MAKS of each (the action checks again). */
+  pembanding?: number[]
   /** The Ketua's form: a yudisium is picked and sent with the grade. */
   yudisium?: Yudisium[]
   /** A server action bound to its record; the yudisium is passed only on the Ketua's form. */
@@ -28,7 +30,7 @@ const LABEL_KECIL = 'block text-[0.73rem] uppercase tracking-[0.04em] text-[var(
 const BARIS_KOSONG = { halaman: '', catatan: '' }
 
 /** A sidang grade: one score per aspek with live total, optional revisi rows, the Ketua's yudisium, then an in-page confirm. */
-export function PengujiForm({ aspek, awal, tabel, yudisium, aksi, tombol, konfirmasi }: Props) {
+export function PengujiForm({ aspek, awal, tabel, pembanding = [], yudisium, aksi, tombol, konfirmasi }: Props) {
   const [skor, setSkor] = useState<string[]>(() => aspek.map((_, i) => (awal ? String(awal.skor[i]).replace('.', ',') : '')))
   const [adaRevisi, setAdaRevisi] = useState(awal?.adaRevisi ?? false)
   const [revisi, setRevisi] = useState<Revisi>(awal?.revisi.length ? awal.revisi : [BARIS_KOSONG])
@@ -47,6 +49,7 @@ export function PengujiForm({ aspek, awal, tabel, yudisium, aksi, tombol, konfir
   const total = semuaOk
     ? nilaiDariSnapshot(aspek.map((a, i) => ({ label: a.label, bobot: a.bobot, skor: (parsed[i] as { value: number }).value })))
     : null
+  const selisih = total === null ? null : cekSelisih(total, pembanding)
   const cekRev = cekRevisi(adaRevisi, revisi)
   const yudisiumKurang = !!yudisium && !pilihan
 
@@ -60,7 +63,7 @@ export function PengujiForm({ aspek, awal, tabel, yudisium, aksi, tombol, konfir
     e.preventDefault()
     setDicoba(true)
     setError('')
-    if (semuaOk && !('error' in cekRev) && !yudisiumKurang) dialog.current?.showModal()
+    if (semuaOk && !selisih && !('error' in cekRev) && !yudisiumKurang) dialog.current?.showModal()
   }
 
   function kirim() {
@@ -231,6 +234,11 @@ export function PengujiForm({ aspek, awal, tabel, yudisium, aksi, tombol, konfir
           {tombol}
         </button>
       </div>
+      {selisih && (
+        <p role="alert" className="mt-[0.8rem] m-0 bg-[var(--kuning-lembut)] border border-[var(--kuning-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.87rem] text-[var(--kuning)]">
+          {selisih}
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="mt-[0.8rem] m-0 bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.87rem] text-[var(--merah-teks)]">

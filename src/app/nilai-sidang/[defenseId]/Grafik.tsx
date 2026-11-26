@@ -18,11 +18,11 @@ const SUMBU = 'text-[0.73rem] text-[var(--tinta-3)] text-center'
 const NILAI = 'absolute bottom-full left-1/2 -translate-x-1/2 pb-[0.25rem] mono text-[0.8rem] whitespace-nowrap'
 
 /** A column growing from the baseline: 4px rounded top, square bottom, value printed above it. */
-function Kolom({ tinggi, warna, teks, tip, tebal }: { tinggi: number; warna: string; teks: string; tip: string; tebal?: boolean }) {
+function Kolom({ tinggi, warna, teks, tip, tebal, besar }: { tinggi: number; warna: string; teks: string; tip: string; tebal?: boolean; besar?: boolean }) {
   return (
-    <div title={tip} className="h-full w-[4rem] flex justify-center items-end">
-      <div className="relative w-[1.5rem] rounded-t-[4px]" style={{ height: `${tinggi}%`, background: warna }}>
-        <span className={`${NILAI} ${tebal ? 'font-semibold' : ''}`}>{teks}</span>
+    <div title={tip} className={`h-full ${besar ? 'w-[6rem]' : 'w-[4rem]'} flex justify-center items-end`}>
+      <div className={`relative ${besar ? 'w-[3rem]' : 'w-[1.5rem]'} rounded-t-[4px]`} style={{ height: `${tinggi}%`, background: warna }}>
+        <span className={`${NILAI} ${besar ? 'text-[1rem]' : ''} ${tebal ? 'font-semibold' : ''}`}>{teks}</span>
       </div>
     </div>
   )
@@ -53,7 +53,7 @@ export function Grafik({ nilai, snapshot, aspek, ipk }: {
         ))}
       </div>
 
-      <div className={`grid gap-[2rem] ${adaIpk ? 'sm:grid-cols-[1fr_13rem]' : ''}`}>
+      <div className={`grid gap-[2rem] ${adaIpk ? 'sm:grid-cols-[1fr_18rem]' : ''}`}>
         <figure className="m-0">
           <figcaption className={JUDUL}>Nilai penguji</figcaption>
           <div className="relative h-[9rem] border-b border-[var(--garis-kuat)] mt-[1rem]">
@@ -80,15 +80,16 @@ export function Grafik({ nilai, snapshot, aspek, ipk }: {
         {adaIpk && (
           <figure className="m-0">
             <figcaption className={JUDUL}>IPK</figcaption>
-            <div className="h-[9rem] border-b border-[var(--garis-kuat)] mt-[1rem] flex justify-around items-end">
-              <Kolom tinggi={(ipk.sebelum! / 4) * 100} warna={WARNA_IPK.sebelum} teks={formatNilai(ipk.sebelum!)} tip={`IPK sebelum sidang: ${formatNilai(ipk.sebelum!)}`} />
-              <Kolom tinggi={ipk.setelah === null ? 0 : (ipk.setelah / 4) * 100} warna={WARNA_IPK.setelah} tebal
+            {/* Bigger than the examiner chart (kiprat 2026-11-25). */}
+            <div className="h-[13rem] border-b border-[var(--garis-kuat)] mt-[1.4rem] flex justify-around items-end">
+              <Kolom besar tinggi={(ipk.sebelum! / 4) * 100} warna={WARNA_IPK.sebelum} teks={formatNilai(ipk.sebelum!)} tip={`IPK sebelum sidang: ${formatNilai(ipk.sebelum!)}`} />
+              <Kolom besar tinggi={ipk.setelah === null ? 0 : (ipk.setelah / 4) * 100} warna={WARNA_IPK.setelah} tebal
                 teks={ipk.setelah === null ? '—' : formatNilai(ipk.setelah)}
                 tip={ipk.setelah === null ? `IPK setelah sidang: ${ipk.alasan ?? 'belum ada'}` : `IPK setelah sidang: ${formatNilai(ipk.setelah)}`} />
             </div>
             <div className="flex justify-around pt-[0.4rem]">
-              <span className={`${SUMBU} w-[4rem]`}>Sebelum</span>
-              <span className={`${SUMBU} w-[4rem]`}>Setelah</span>
+              <span className="w-[6rem] text-center text-[0.87rem] text-[var(--tinta-3)]">Sebelum</span>
+              <span className="w-[6rem] text-center text-[0.87rem] text-[var(--tinta-3)]">Setelah</span>
             </div>
           </figure>
         )}

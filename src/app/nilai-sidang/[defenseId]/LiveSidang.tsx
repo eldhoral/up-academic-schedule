@@ -25,6 +25,8 @@ export function LiveSidang({ defenseId }: { defenseId: string }) {
       .channel(topikKanal(defenseId))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'nilai_sidang', filter }, segarkan)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hasil_sidang', filter }, segarkan)
+      // Realtime can't filter DELETE events: any grade removed (Ketua's unvalidasi, hapus paksa) refreshes. They are rare.
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'nilai_sidang' }, segarkan)
       .subscribe((status) => {
         const a = aksiKanal(status)
         setPutus(a.putus)

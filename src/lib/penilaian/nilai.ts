@@ -102,6 +102,18 @@ export function formatNilai(n: number): string {
   return round2(n).toFixed(2).replace('.', ',')
 }
 
+/** kiprat 2026-11-25: one sidang's examiner grades may be at most this many points apart. */
+export const SELISIH_MAKS = 10
+
+/** A grade outside SELISIH_MAKS of any grade already sent: the message with the range still allowed; null when fine. */
+export function cekSelisih(nilai: number, lain: number[]): string | null {
+  if (!lain.length) return null
+  const bawah = Math.max(0, round2(Math.max(...lain) - SELISIH_MAKS))
+  const atas = Math.min(100, round2(Math.min(...lain) + SELISIH_MAKS))
+  if (nilai >= bawah && nilai <= atas) return null
+  return `Selisih dengan nilai penguji lain tidak boleh lebih dari ${SELISIH_MAKS} poin. Nilai harus antara ${formatNilai(bawah)} dan ${formatNilai(atas)}.`
+}
+
 /** The unique (defense_id, peran) answer to a double submit; the form refreshes into the read-only view on it. */
 export const SUDAH_DIKIRIM = 'Nilai sudah dikirim.'
 export const ASPEK_BERUBAH = 'Daftar aspek penilaian berubah. Muat ulang halaman lalu isi lagi.'
