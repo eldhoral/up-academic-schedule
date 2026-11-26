@@ -92,7 +92,7 @@ export function PengujiForm({ aspek, awal, tabel, yudisium, aksi, tombol, konfir
             <li key={i} className="flex flex-col sm:flex-row gap-[0.6rem] sm:gap-[1rem] p-[0.9rem]">
               <div className="flex-1 min-w-0">
                 <label htmlFor={id} className="block text-[0.93rem] font-medium">
-                  {a.label} <span className="mono text-[0.8rem] font-normal text-[var(--tinta-3)]">{a.bobot}%</span>
+                  {a.label} <span className="mono text-[0.8rem] font-bold text-[var(--tinta-3)]">{a.bobot}%</span>
                 </label>
                 {a.sub && a.sub.length > 0 && (
                   <ul className="m-0 mt-[0.3rem] pl-[1.1rem] text-[0.8rem] text-[var(--tinta-3)] list-disc">
