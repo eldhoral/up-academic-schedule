@@ -11,7 +11,7 @@ import {
   todayJakarta, type PeranSidang,
 } from '@/lib/penilaian/akses'
 import type { BarisNilai } from '@/lib/penilaian/aturan'
-import { identitasPenguji, loadSidang, type HasilRow, type NilaiSidangRow } from '@/lib/penilaian/data'
+import { identitasPenguji, loadDrafSidang, loadSidang, type HasilRow, type NilaiSidangRow } from '@/lib/penilaian/data'
 import { baris, formatNilai, nilaiSidang } from '@/lib/penilaian/nilai'
 import { ALASAN_ATURAN_RUSAK, bolehKirimUlang, EMAIL_LABEL } from '@/lib/penilaian/rekap'
 import { hasilBeritaAcara } from '@/lib/penilaian/berita-acara-sidang'
@@ -66,6 +66,8 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   // What the form shows; the action refuses the grade if the list changed before submit.
   const tampil = aturan.aspekSidang.map((a): [string, number] => [a.label, a.bobot])
   const legacy = !defense.penguji_eksternal_kode
+  // An Anggota the Ketua sent back finds its last scores in the form (kiprat 2026-11-27).
+  const draf = akses?.kind === 'isi' ? await loadDrafSidang(defense.id, akses.peran, aturan.aspekSidang) : null
   const peranSaya = saya ? peranPenguji(defense, saya.kode) : null
   const nSidang = nilaiSidang(PERAN_SIDANG.map((p) => data.nilai[p]?.nilai ?? null))
   const st = data.student
@@ -222,8 +224,10 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
             {akses?.kind === 'isi' && (
               <section className="mb-[1.6rem]">
                 <h2 className={H2}>Nilai Anda</h2>
+                {draf && <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-2)]">Ketua Sidang membatalkan validasi nilai Anda. Nilai sebelumnya sudah terisi: ubah yang perlu, lalu validasi lagi.</p>}
                 <PengujiForm
                   aspek={aturan.aspekSidang}
+                  awal={draf ?? undefined}
                   tabel={tabel}
                   pembanding={PERAN_SIDANG.flatMap((p) => (p !== akses.peran && data.nilai[p] ? [data.nilai[p]!.nilai] : []))}
                   aksi={submitNilaiSidangAction.bind(null, defense.id, akses.peran, tampil)}

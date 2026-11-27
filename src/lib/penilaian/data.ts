@@ -3,7 +3,7 @@ import { lecturerDisplayName } from '@/lib/import/tables'
 import { isPenguji, type Role } from '@/lib/role-types'
 import { bisaDinilaiSidang, isPrasidangS1, type BimbinganRef, type DefenseRef, type Peran, type PeranSidang, type SidangRef } from './akses'
 import { loadAturan, parseAturanBeku, type Aturan, type AturanBeku } from './aturan'
-import { ipkSebelum, type Revisi, type SkorAspek } from './nilai'
+import { aspekSama, ipkSebelum, type Revisi, type SkorAspek } from './nilai'
 import type { Hasil, Jawaban, PeranPrasidang, StatusPrasidang } from './prasidang'
 
 export type NilaiRow = {
@@ -189,6 +189,24 @@ export async function loadSidang(defenseId: string): Promise<Sidang | null> {
     dosen: { ketua: nama(defense.penguji_kode), anggota_1: nama(defense.penguji_eksternal_kode), anggota_2: nama(defense.pembimbing_kode) },
     aturan,
   }
+}
+
+/**
+ * The scores an unvalidated Anggota grade had (kiprat 2026-11-27), to fill that examiner's form again; null when none,
+ * or when the aspek list changed since (labels and bobot must match `aspek`). Admin client: the draft is server-only.
+ */
+export async function loadDrafSidang(
+  defenseId: string, peran: PeranSidang, aspek: { label: string; bobot: number }[],
+): Promise<{ skor: number[]; adaRevisi: boolean; revisi: Revisi } | null> {
+  if (peran === 'ketua') return null
+  const { data, error } = await createAdminClient()
+    .from('nilai_sidang_draf').select('aspek, ada_revisi, revisi').eq('defense_id', defenseId).eq('peran', peran).maybeSingle()
+  // ponytail: a failed read (e.g. the table not migrated yet) only costs the pre-fill, never the grading page.
+  if (error) console.error('Gagal memuat nilai sebelumnya:', error.message)
+  if (!data) return null
+  const lama = data.aspek as SkorAspek[]
+  if (!aspekSama(lama.map((x) => [x.label, x.bobot]), aspek)) return null
+  return { skor: lama.map((x) => x.skor), adaRevisi: !!data.ada_revisi, revisi: data.revisi as Revisi }
 }
 
 /**

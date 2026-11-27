@@ -135,7 +135,7 @@ export async function kunciSidangAction(defenseId: string, yudisium: string): Pr
   return kunci(data, user.id, yudisium)
 }
 
-/** The Ketua sends an Anggota's grade back before locking (kiprat 2026-11-25): the row goes and that examiner grades again. */
+/** The Ketua sends an Anggota's grade back before locking (kiprat 2026-11-25): the row goes, its scores stay as a draft (2026-11-27), and that examiner validates again. */
 export async function unvalidasiNilaiSidangAction(defenseId: string, peran: PeranSidang): Promise<Hasil> {
   if (peran !== 'anggota_1' && peran !== 'anggota_2') return { error: TIDAK_ADA }
   const a = await aksesAksi(defenseId)
@@ -144,7 +144,7 @@ export async function unvalidasiNilaiSidangAction(defenseId: string, peran: Pera
   if (a.peran !== 'ketua') return { error: 'Hanya Ketua Sidang yang dapat membatalkan validasi nilai.' }
   if (!a.data.nilai[peran]) return { error: 'Nilai belum dikirim.' }
 
-  // The DB function checks the Ketua and the lock again, and deletes (there is no delete policy).
+  // The DB function checks the Ketua and the lock again, moves the scores to nilai_sidang_draf and deletes (there is no delete policy).
   const supabase = await createClient()
   const { error } = await supabase.rpc('unvalidasi_nilai_sidang', { p_defense: a.data.defense.id, p_peran: peran })
   if (error) return { error: humanDbError(error) }

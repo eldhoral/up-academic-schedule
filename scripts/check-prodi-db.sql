@@ -1841,7 +1841,21 @@ do $$ begin
     assert (select array_agg(peran order by peran) from nilai_sidang where defense_id = (select id from uv)) = array['anggota_2', 'ketua'],
         'only Anggota I''s grade is gone';
     assert exists (select 1 from audit_log where table_name = 'nilai_sidang' and action = 'DELETE'), 'the deleted grade is in the audit log';
+    -- kiprat 2026-11-27: the scores are kept, so Anggota I's form opens filled in.
+    assert (select aspek from nilai_sidang_draf where defense_id = (select id from uv) and peran = 'anggota_1')
+        = '[{"label": "A", "bobot": 100, "skor": 75}]'::jsonb, 'the unvalidated grade is kept as a draft';
 end $$;
+-- Only the server reads the draft.
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    begin
+        perform 1 from nilai_sidang_draf;
+        raise exception 'FAIL: a signed-in user read nilai_sidang_draf';
+    exception when insufficient_privilege then null;
+    end;
+end $$;
+reset role;
 -- Locked: refused.
 insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber)
 values ((select id from uv), 'EXTB', 'anggota_1', '[{"label": "A", "bobot": 100, "skor": 75}]', 75, 'manual');
