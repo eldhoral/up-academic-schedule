@@ -15,6 +15,8 @@ export const WARNA_IPK = { sebelum: '#86b6ef', setelah: '#1c5cab' }
 const SINGKAT: Record<PeranSidang, string> = { ketua: 'Ketua', anggota_1: 'Anggota I', anggota_2: 'Anggota II' }
 const JUDUL = 'm-0 pb-[0.9rem] text-[0.87rem] font-semibold'
 const SUMBU = 'text-[0.73rem] text-[var(--tinta-3)] text-center'
+/** "80", "87,5": the short form, so a value fits over its narrow bar. */
+const singkat = (n: number) => n.toLocaleString('id-ID', { maximumFractionDigits: 2 })
 const NILAI = 'absolute bottom-full left-1/2 -translate-x-1/2 pb-[0.25rem] mono text-[0.8rem] whitespace-nowrap'
 
 /** A column growing from the baseline: 4px rounded top, square bottom, value printed above it. */
@@ -98,7 +100,8 @@ export function Grafik({ nilai, snapshot, aspek, ipk }: {
       <figure className="m-0 mt-[2rem]">
         <figcaption className={JUDUL}>Nilai per aspek</figcaption>
         <div className="overflow-x-auto">
-          <div className="min-w-[30rem] grid grid-cols-[1.8rem_1fr] gap-x-[0.5rem]">
+          {/* Room above for the 100 bar's label; wider bars so each value fits over its own bar. */}
+          <div className="min-w-[48rem] mt-[1rem] grid grid-cols-[1.8rem_1fr] gap-x-[0.5rem]">
             <div className="relative h-[12rem] mono text-[0.7rem] text-[var(--tinta-3)]">
               <span className="absolute right-0 -top-[0.45rem]">100</span>
               <span className="absolute right-0 top-1/2 -translate-y-1/2">50</span>
@@ -109,14 +112,17 @@ export function Grafik({ nilai, snapshot, aspek, ipk }: {
               style={{ backgroundImage: 'linear-gradient(to bottom, var(--garis) 1px, transparent 1px)', backgroundSize: '100% 50%' }}
             >
               {baris.map(({ label, skor }) => (
-                <div key={label} className="h-full flex items-end gap-[2px]">
+                <div key={label} className="h-full flex items-end gap-[3px]">
                   {PERAN_SIDANG.map((p) => (
                     <div
                       key={p}
                       title={`${label} · ${PERAN_SIDANG_LABEL[p]}: ${skor[p] === undefined ? 'belum dikirim' : formatNilai(skor[p]!)}`}
-                      className="w-[0.75rem] sm:w-[1.15rem] rounded-t-[4px]"
+                      className="relative w-[1.8rem] rounded-t-[4px]"
                       style={{ height: `${skor[p] ?? 0}%`, background: WARNA_PERAN[p] }}
-                    />
+                    >
+                      {/* Each value printed over its bar, no hover needed (kiprat 2026-11-25). */}
+                      {skor[p] !== undefined && <span className="absolute bottom-full left-1/2 -translate-x-1/2 pb-[0.2rem] mono text-[0.6rem] tracking-[-0.03em] whitespace-nowrap">{singkat(skor[p]!)}</span>}
+                    </div>
                   ))}
                 </div>
               ))}

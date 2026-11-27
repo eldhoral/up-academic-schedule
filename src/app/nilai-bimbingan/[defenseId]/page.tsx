@@ -2,12 +2,13 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AkunLain } from '@/components/AkunLain'
 import { AppShell } from '@/components/AppShell'
+import { KotakNilai } from '@/components/KotakNilai'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { tanggalPanjang } from '@/lib/hari'
 import { aksesBimbingan, penilaianPath, PERAN_LABEL, PERAN_SIDANG, peranBimbingan, todayJakarta, type Peran } from '@/lib/penilaian/akses'
 import type { BarisNilai } from '@/lib/penilaian/aturan'
 import { loadPenilaian, loadSidang, type NilaiRow } from '@/lib/penilaian/data'
-import { baris, formatNilai, hasilAkhir, nilaiBimbingan } from '@/lib/penilaian/nilai'
+import { formatNilai, hasilAkhir, nilaiBimbingan } from '@/lib/penilaian/nilai'
 import { editNilaiAction, inputNilaiAdminAction, submitNilaiAction } from '../actions'
 import { HasilAkhirPanel } from './HasilAkhir'
 import { NilaiForm } from './NilaiForm'
@@ -15,7 +16,6 @@ import { NilaiForm } from './NilaiForm'
 const PERAN: Peran[] = ['pembimbing_1', 'pembimbing_2']
 const waktu = (iso: string) =>
   new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date(iso))
-const nilaiHuruf = (n: number, tabel: BarisNilai[]) => `${formatNilai(n)} · ${baris(n, tabel).huruf}`
 const KOTAK = 'm-0 p-[1rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] text-[0.93rem]'
 
 export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbingan/[defenseId]'>) {
@@ -186,10 +186,7 @@ function Terkirim({ row, tabel }: { row: NilaiRow; tabel: BarisNilai[] }) {
           ))}
         </tbody>
       </table>
-      <p className="m-0 mt-[1rem]">
-        <span className="block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">Nilai</span>
-        <span className="mono text-[1.87rem] font-semibold leading-none">{nilaiHuruf(row.nilai, tabel)}</span>
-      </p>
+      <KotakNilai nilai={row.nilai} tabel={tabel} className="mt-[1rem] w-[16rem] max-w-full" />
     </div>
   )
 }

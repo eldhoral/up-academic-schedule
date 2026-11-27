@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { KotakNilai } from '@/components/KotakNilai'
 import type { BarisNilai } from '@/lib/penilaian/aturan'
 import { baris, formatNilai, nilaiDariSnapshot, parseAngka, SUDAH_DIKIRIM } from '@/lib/penilaian/nilai'
 import type { Hasil } from '../actions'
@@ -72,8 +73,8 @@ export function NilaiForm({ aspek, awal, tabel, aksi, tombol, konfirmasi }: Prop
           return (
             <li key={i} className="flex flex-col sm:flex-row gap-[0.6rem] sm:gap-[1rem] p-[0.9rem]">
               <div className="flex-1 min-w-0">
-                <label htmlFor={id} className="block text-[0.93rem] font-medium">
-                  {a.label} <span className="mono text-[0.8rem] font-bold text-[var(--tinta-3)]">{a.bobot}%</span>
+                <label htmlFor={id} className="block text-[1.07rem] font-semibold">
+                  {a.label} <span className="mono text-[0.87rem] font-bold text-[var(--tinta-3)]">{a.bobot}%</span>
                 </label>
                 {a.sub && a.sub.length > 0 && (
                   <ul className="m-0 mt-[0.3rem] pl-[1.1rem] text-[0.8rem] text-[var(--tinta-3)] list-disc">
@@ -94,7 +95,7 @@ export function NilaiForm({ aspek, awal, tabel, aksi, tombol, konfirmasi }: Prop
                   }}
                   aria-invalid={!!salah}
                   aria-describedby={salah ? `${id}-err` : undefined}
-                  className={`mono w-full px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] border bg-[var(--cekung)] text-[1rem] text-right ${salah ? 'border-[var(--merah)]' : 'border-[var(--garis-kuat)]'}`}
+                  className={`mono w-full px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] border bg-[#41f108] text-[var(--tinta)] text-[1rem] text-right placeholder:text-[var(--tinta-2)] ${salah ? 'border-[var(--merah)]' : 'border-[var(--garis-kuat)]'}`}
                 />
                 {salah && <p id={`${id}-err`} className="m-0 mt-[0.25rem] text-[0.8rem] text-[var(--merah-teks)]">{salah}</p>}
               </div>
@@ -103,12 +104,10 @@ export function NilaiForm({ aspek, awal, tabel, aksi, tombol, konfirmasi }: Prop
         })}
       </ol>
 
-      <div className="mt-[1rem] flex flex-wrap items-center gap-[1rem]">
-        <div aria-live="polite">
-          <span className="block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">Nilai</span>
-          <span className="mono text-[1.87rem] font-semibold leading-none">
-            {total === null ? '—' : `${formatNilai(total)} · ${baris(total, tabel).huruf}`}
-          </span>
+      <div className="mt-[1rem] flex flex-wrap items-end gap-[1rem]">
+        {/* Nilai Angka and Nilai Huruf in a box (kiprat 2026-11-25). */}
+        <div aria-live="polite" className="w-[16rem] max-w-full">
+          <KotakNilai nilai={total} tabel={tabel} />
         </div>
         <button type="submit" disabled={pending} className={`${BTN} ml-auto bg-[var(--biru)] text-white font-medium hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors`}>
           {tombol}

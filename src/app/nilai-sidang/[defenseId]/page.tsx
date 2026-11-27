@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AkunLain } from '@/components/AkunLain'
 import { AppShell } from '@/components/AppShell'
+import { KotakNilai } from '@/components/KotakNilai'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { canAccessProdi } from '@/lib/prodi'
 import { tanggalPanjang } from '@/lib/hari'
@@ -226,8 +227,8 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                   tabel={tabel}
                   pembanding={PERAN_SIDANG.flatMap((p) => (p !== akses.peran && data.nilai[p] ? [data.nilai[p]!.nilai] : []))}
                   aksi={submitNilaiSidangAction.bind(null, defense.id, akses.peran, tampil)}
-                  tombol="Kirim nilai"
-                  konfirmasi={{ judul: 'Kirim nilai?', isi: 'Setelah dikirim, nilai tidak bisa diubah.', tombol: 'Kirim nilai' }}
+                  tombol="Validasi"
+                  konfirmasi={{ judul: 'Validasi nilai?', isi: 'Setelah divalidasi, nilai tidak bisa diubah.', tombol: 'Validasi' }}
                 />
               </section>
             )}
@@ -400,10 +401,7 @@ function Terkirim({ row, tabel }: { row: NilaiSidangRow; tabel: BarisNilai[] }) 
           ))}
         </tbody>
       </table>
-      <p className="m-0 mt-[1rem]">
-        <span className={KECIL}>Nilai</span>
-        <span className="mono text-[1.87rem] font-semibold leading-none">{nilaiHuruf(row.nilai, tabel)}</span>
-      </p>
+      <KotakNilai nilai={row.nilai} tabel={tabel} className="mt-[1rem] w-[16rem] max-w-full" />
       <h3 className="m-0 mt-[1rem] mb-[0.4rem] text-[0.93rem] font-semibold">Revisi</h3>
       {row.ada_revisi ? (
         <table className="w-full border-collapse border border-[var(--garis-kuat)] bg-[var(--lembar)] text-[0.93rem]">

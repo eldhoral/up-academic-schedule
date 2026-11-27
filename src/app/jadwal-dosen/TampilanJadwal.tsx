@@ -212,9 +212,9 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
       {/* The faculty, and a reminder that the link is personal. */}
       <footer className="border-t-4 border-[var(--brand-langit)] bg-[var(--lembar)]">
         <div className="mx-auto flex max-w-[74.667rem] flex-wrap items-center gap-x-[0.8rem] gap-y-[0.267rem] px-[1.067rem] py-[1.2rem] text-[0.8rem] text-[var(--tinta-3)] sm:px-[2.133rem] sm:text-[0.867rem]">
-          <Image src="/images/logo-fakultas-psikologi.png" alt="" width={56} height={56} className="hidden h-[28px] w-auto sm:block" />
+          {/* No trisula or faculty name here, a copyright instead (kiprat 2026-11-26). */}
           <span>
-            <b className="font-semibold text-[var(--tinta)]">Fakultas Psikologi Universitas Pancasila</b> · Tautan ini khusus untuk Anda, mohon tidak dibagikan.
+            <b className="font-semibold text-[var(--tinta)]">© PULAHTA 2026</b> · Tautan ini khusus untuk Anda, mohon tidak dibagikan.
           </span>
           <a href={SITUS_FAKULTAS} target="_blank" rel="noopener noreferrer" className="text-[var(--aksen)] sm:ml-auto">
             psikologi.univpancasila.ac.id
