@@ -132,7 +132,7 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
         {/* Today, marked with the faculty's yellow. */}
         <section className="rounded-[var(--r-kartu)] border border-l-4 border-[var(--garis)] border-l-[var(--brand-kuning)] bg-[var(--lembar)] p-[1.067rem] sm:p-[1.333rem]">
           <div className="mb-[0.267rem] flex flex-wrap items-baseline gap-[0.533rem]">
-            <h2 className="m-0 text-[1.067rem] font-semibold sm:text-[1.133rem]">Hari ini</h2>
+            <h2 className="m-0 text-[1.067rem] font-semibold uppercase sm:text-[1.133rem]">Hari ini</h2>
             <span className="rounded-[4px] bg-[var(--brand-kuning-lembut)] px-[0.467rem] py-[0.133rem] text-[0.8rem] font-semibold text-[var(--brand-kuning-teks)]">
               {tanggalPanjang(today, false)}
             </span>
@@ -175,9 +175,12 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
                           </div>
                         ))}
                       </div>
-                      <p className="m-0 text-[0.8rem] text-[var(--tinta-3)]">
-                        {jenis === 'prasidang' ? 'Tombol Isi Berita Acara muncul pada hari prasidang.' : 'Tombol Penilaian muncul pada hari sidang.'}
-                      </p>
+                      {/* Only where a row gets the button: a Dosen Pembahas never fills the berita acara (kiprat 2026-11-26). */}
+                      {daftar.some((s) => linkNilai(s)) && (
+                        <p className="m-0 text-[0.8rem] text-[var(--tinta-3)]">
+                          {jenis === 'prasidang' ? 'Tombol Isi Berita Acara muncul pada hari prasidang.' : 'Tombol Penilaian muncul pada hari sidang.'}
+                        </p>
+                      )}
                     </>
                   )}
                 </Kartu>
@@ -312,10 +315,11 @@ function TombolSidang({ s, today }: { s: SidangItem; today: string }) {
   )
 }
 
+/** Card headers in capitals (kiprat 2026-11-26), as is "Hari ini". */
 function Kartu({ judul, kolom = false, className = '', children }: { judul: string; kolom?: boolean; className?: string; children: React.ReactNode }) {
   return (
     <section className={`rounded-[var(--r-kartu)] border border-[var(--garis)] bg-[var(--lembar)] p-[1.067rem] sm:p-[1.333rem] ${kolom ? 'flex flex-col gap-[0.8rem]' : ''} ${className}`}>
-      <h2 className="m-0 text-[1.067rem] font-semibold sm:text-[1.133rem]">{judul}</h2>
+      <h2 className="m-0 text-[1.067rem] font-semibold uppercase sm:text-[1.133rem]">{judul}</h2>
       {children}
     </section>
   )
