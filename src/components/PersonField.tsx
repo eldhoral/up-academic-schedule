@@ -40,13 +40,14 @@ export function PersonField({
   return (
     <div className="space-y-[0.27rem]">
       <Select
+        cari
         value={selected}
         onValueChange={pick}
         placeholder="— pilih pengawas —"
         ariaLabel={ariaLabel}
         options={[
           ...fixedNames.map((n) => ({ value: `n:${n}`, label: n })),
-          ...dosen.map((d) => ({ value: `d:${d.value}`, label: d.label })),
+          ...dosen.map((d) => ({ value: `d:${d.value}`, label: d.label, kode: d.value })),
           { value: MANUAL, label: 'Isi manual…' },
         ]}
         className={`w-full ${CONTROL}`}

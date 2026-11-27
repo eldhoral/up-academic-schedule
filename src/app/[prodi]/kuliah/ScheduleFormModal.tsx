@@ -317,6 +317,7 @@ export function ScheduleFormModal({
               {dosenRows.map((kode, i) => (
                 <div key={i} className="flex gap-[0.5rem]">
                   <Select
+                    cari
                     name="dosen"
                     value={kode}
                     onValueChange={(v) => setDosenRows((prev) => prev.map((row, j) => (j === i ? v : row)))}

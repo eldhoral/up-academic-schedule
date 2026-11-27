@@ -1,8 +1,10 @@
 'use client'
 
 import * as SelectPrimitive from '@radix-ui/react-select'
+import { CariSelect } from './CariSelect'
 
-export type SelectOption = { value: string; label: string }
+/** kode: what a `cari` search matches besides the label (defaults to value). */
+export type SelectOption = { value: string; label: string; kode?: string }
 
 /**
  * Custom-rendered dropdown replacing the native <select>. Native selects'
@@ -28,6 +30,7 @@ export function Select({
   className = '',
   id,
   ariaLabel,
+  cari,
 }: {
   value?: string
   defaultValue?: string
@@ -40,7 +43,26 @@ export function Select({
   className?: string
   id?: string
   ariaLabel?: string
+  /** Type to search by kode, part of the name or initials (kiprat 2026-11-27: every dosen list). */
+  cari?: boolean
 }) {
+  if (cari) {
+    return (
+      <CariSelect
+        value={value}
+        defaultValue={defaultValue}
+        onValueChange={onValueChange}
+        options={options.map((o) => ({ value: o.value, label: o.label, kode: o.kode ?? o.value, nama: o.label }))}
+        placeholder={placeholder}
+        name={name}
+        required={required}
+        disabled={disabled}
+        id={id}
+        ariaLabel={ariaLabel}
+        className={className}
+      />
+    )
+  }
   return (
     <SelectPrimitive.Root
       value={value}

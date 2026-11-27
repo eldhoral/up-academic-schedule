@@ -206,6 +206,7 @@ function RoleSelect({ userId, role, dosenOptions }: { userId: string; role: Role
       {choosingDosen && (
         <div className="mt-[0.3rem] flex items-center gap-[0.3rem]">
           <Select
+            cari
             value={kodeDosen}
             onValueChange={setKodeDosen}
             disabled={isPending}
@@ -338,6 +339,7 @@ function CreateUserModal({ dosenOptions, onClose }: { dosenOptions: SelectOption
           {role === 'DOSEN' ? (
             <Field label="Dosen">
               <Select
+                cari
                 name="kode_dosen"
                 ariaLabel="Dosen"
                 placeholder="Pilih dosen"
@@ -381,33 +383,32 @@ function CreateUserModal({ dosenOptions, onClose }: { dosenOptions: SelectOption
 }
 
 function ResetPasswordModal({ user, onClose }: { user: Profile; onClose: () => void }) {
-  const [password, setPassword] = useState<string | null>(null)
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [selesai, setSelesai] = useState(false)
   const [isPending, startTransition] = useTransition()
   useEscape(onClose, isPending)
 
-  function reset() {
+  // The Super Admin types the new password (kiprat 2026-11-27); the server checks the length again.
+  function simpan(e: React.FormEvent) {
+    e.preventDefault()
     setError('')
+    if (password.length < 8) return setError('Kata sandi minimal 8 karakter.')
     startTransition(async () => {
-      const result = await resetPasswordAction(user.id)
+      let result: Awaited<ReturnType<typeof resetPasswordAction>>
+      try {
+        result = await resetPasswordAction(user.id, password)
+      } catch {
+        result = { error: 'Tidak dapat menyimpan. Periksa koneksi lalu coba lagi.' }
+      }
       if ('error' in result) setError(result.error)
-      else setPassword(result.password)
+      else setSelesai(true)
     })
-  }
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(password ?? '')
-      setCopied(true)
-    } catch {
-      setError('Tidak dapat menyalin. Salin kata sandi secara manual.')
-    }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="reset-judul">
-      <div className="w-full max-w-[26rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
+      <form onSubmit={simpan} noValidate className="w-full max-w-[26rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
         <h3 id="reset-judul" className="m-0 text-[1.1rem] font-semibold mb-[0.6rem]">Atur ulang kata sandi</h3>
 
         {error && (
@@ -416,27 +417,30 @@ function ResetPasswordModal({ user, onClose }: { user: Profile; onClose: () => v
           </div>
         )}
 
-        {password === null ? (
-          <p className="text-[0.93rem] text-[var(--tinta-2)] mb-[1rem]">
-            Buat kata sandi baru untuk <strong>{user.email}</strong>? Kata sandi lama langsung tidak berlaku.
+        {selesai ? (
+          <p role="status" className="text-[0.93rem] text-[var(--tinta-2)] mb-[1rem]">
+            Kata sandi <strong>{user.email}</strong> sudah diganti. Bagikan ke pengguna secara langsung.
           </p>
         ) : (
-          <>
-            <p className="text-[0.93rem] text-[var(--tinta-2)] mb-[0.6rem]">Kata sandi baru untuk <strong>{user.email}</strong>:</p>
-            <div className="flex items-center gap-[0.5rem] mb-[0.6rem]">
-              <code className="flex-1 bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[1rem] tracking-[0.05em] select-all">
-                {password}
-              </code>
-              <button
-                type="button"
-                onClick={copy}
-                className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]"
-              >
-                {copied ? 'Tersalin' : 'Salin'}
-              </button>
-            </div>
-            <p className="text-[0.8rem] text-[var(--tinta-3)] mb-[1rem]">Kata sandi ini tidak akan ditampilkan lagi. Bagikan ke pengguna secara langsung.</p>
-          </>
+          <div className="mb-[1rem]">
+            <p className="text-[0.93rem] text-[var(--tinta-2)] mb-[0.6rem]">
+              Kata sandi baru untuk <strong>{user.email}</strong>. Kata sandi lama langsung tidak berlaku.
+            </p>
+            <Field label="Kata sandi baru">
+              <input
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                autoFocus
+                autoComplete="new-password"
+                autoCapitalize="none"
+                spellCheck={false}
+                className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] mono"
+              />
+              <p className="mt-[0.25rem] text-[0.8rem] text-[var(--tinta-3)]">Minimal 8 karakter.</p>
+            </Field>
+          </div>
         )}
 
         <div className="flex gap-[0.6rem] justify-end">
@@ -445,20 +449,19 @@ function ResetPasswordModal({ user, onClose }: { user: Profile; onClose: () => v
             onClick={onClose}
             className="px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)]"
           >
-            {password === null ? 'Batal' : 'Tutup'}
+            {selesai ? 'Tutup' : 'Batal'}
           </button>
-          {password === null && (
+          {!selesai && (
             <button
-              type="button"
+              type="submit"
               disabled={isPending}
-              onClick={reset}
               className="px-[0.8rem] py-[0.4rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] disabled:opacity-60"
             >
-              {isPending ? 'Membuat…' : 'Buat kata sandi baru'}
+              {isPending ? 'Menyimpan…' : 'Simpan kata sandi'}
             </button>
           )}
         </div>
-      </div>
+      </form>
     </div>
   )
 }

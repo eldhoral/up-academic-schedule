@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
+import { Select } from '@/components/Select'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { formatNilai, ipkSebelum } from '@/lib/penilaian/nilai'
 import { HASIL_LABEL, lolosGerbang, STATUS_LABEL, type Hasil, type StatusPrasidang } from '@/lib/penilaian/prasidang'
@@ -220,19 +221,18 @@ function StudentFormModal({ student, dosen, onClose }: { student: Student | null
               {(['pembimbing_1_kode', 'pembimbing_2_kode'] as const).map((f, i) => (
                 <Field key={f} label={`Dosen Pembimbing ${i === 0 ? 'I' : 'II'}`} className="flex-1">
                   {/* Without Pembimbing II the select is disabled, so it isn't submitted: the action stores none. */}
-                  <select
+                  {/* Eksternal dosen can't supervise; one already assigned stays selectable so the form still saves. */}
+                  <Select
+                    cari
                     name={f}
                     required={i === 0 || !tanpaP2}
                     disabled={i === 1 && tanpaP2}
                     defaultValue={student?.[f] ?? ''}
-                    className={`${INPUT} disabled:opacity-50`}
-                  >
-                    <option value="">— pilih dosen —</option>
-                    {/* Eksternal dosen can't supervise; one already assigned stays selectable so the form still saves. */}
-                    {dosen.filter((d) => !d.eksternal || d.kode === student?.[f]).map((d) => (
-                      <option key={d.kode} value={d.kode}>{d.nama}</option>
-                    ))}
-                  </select>
+                    placeholder="— pilih dosen —"
+                    ariaLabel={`Dosen Pembimbing ${i === 0 ? 'I' : 'II'}`}
+                    options={dosen.filter((d) => !d.eksternal || d.kode === student?.[f]).map((d) => ({ value: d.kode, label: d.nama }))}
+                    className={`${INPUT} min-h-[2.4rem]`}
+                  />
                 </Field>
               ))}
             </div>

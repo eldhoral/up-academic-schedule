@@ -7,26 +7,39 @@ import { cocokCariMk, kodeMkPersis } from '@/lib/cari-mk'
 export type CariSelectOption = { value: string; label: string; kode: string; nama: string }
 
 /**
- * Dropdown dengan kolom cari, dipakai untuk daftar panjang seperti Mata Kuliah.
- * Pencarian menerima kode mk, sebagian nama, atau inisial nama (lihat cari-mk.ts).
+ * Dropdown dengan kolom cari, dipakai untuk daftar panjang seperti Mata Kuliah dan dosen.
+ * Pencarian menerima kode, sebagian nama, atau inisial nama (lihat cari-mk.ts).
+ * Controlled (value) atau, di dalam form, uncontrolled (defaultValue + name).
  */
 export function CariSelect({
-  value,
+  value: controlled,
+  defaultValue = '',
   onValueChange,
   options,
   placeholder,
   name,
+  required,
+  disabled,
+  id,
   ariaLabel,
   className = '',
 }: {
-  value: string
-  onValueChange: (value: string) => void
+  value?: string
+  defaultValue?: string
+  onValueChange?: (value: string) => void
   options: CariSelectOption[]
   placeholder?: string
   name?: string
+  /** Checked by the browser on submit, like a native select. */
+  required?: boolean
+  /** Disabled: not opened and, like a native select, not submitted. */
+  disabled?: boolean
+  id?: string
   ariaLabel?: string
   className?: string
 }) {
+  const [inner, setInner] = useState(defaultValue)
+  const value = controlled ?? inner
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -61,7 +74,8 @@ export function CariSelect({
   }
 
   function pilih(o: CariSelectOption) {
-    onValueChange(o.value)
+    setInner(o.value)
+    onValueChange?.(o.value)
     tutup()
     triggerRef.current?.focus()
   }
@@ -132,16 +146,33 @@ export function CariSelect({
   }
 
   return (
-    <div>
-      <input type="hidden" name={name} value={value} />
+    <div className="relative">
+      {required ? (
+        // A hidden input can't be required: an invisible one can, and the browser's message points at the trigger's spot.
+        <input
+          tabIndex={-1}
+          aria-hidden="true"
+          name={name}
+          value={value}
+          required
+          disabled={disabled}
+          onChange={() => {}}
+          onFocus={() => triggerRef.current?.focus()}
+          className="absolute bottom-0 left-[1rem] w-px h-px opacity-0 pointer-events-none"
+        />
+      ) : (
+        <input type="hidden" name={name} value={value} disabled={disabled} />
+      )}
       <button
         ref={triggerRef}
+        id={id}
         type="button"
+        disabled={disabled}
         onClick={() => (open ? tutup() : buka())}
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`inline-flex items-center justify-between gap-[0.4rem] cursor-pointer data-[placeholder]:text-[var(--tinta-3)] ${className}`}
+        className={`inline-flex items-center justify-between gap-[0.4rem] cursor-pointer disabled:cursor-default disabled:opacity-60 data-[placeholder]:text-[var(--tinta-3)] ${className}`}
         data-placeholder={selected ? undefined : ''}
       >
         <span className="min-w-0 truncate text-left">{selected ? selected.label : placeholder}</span>
@@ -163,7 +194,7 @@ export function CariSelect({
               onChange={(e) => gantiQuery(e.target.value)}
               onKeyDown={onInputKeyDown}
               placeholder="Cari kode, nama, atau inisial…"
-              aria-label="Cari mata kuliah"
+              aria-label={`Cari ${ariaLabel ?? ''}`.trim()}
               className="w-full bg-[var(--cekung)] border-b border-[var(--garis-kuat)] px-[0.6rem] py-[0.45rem] text-[0.87rem] outline-none"
             />
             <div role="listbox" aria-label={ariaLabel} className="p-[0.27rem] max-h-[14rem] overflow-y-auto">

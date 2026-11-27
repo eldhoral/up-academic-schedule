@@ -6,7 +6,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser, ROLES, type Role } from '@/lib/roles'
 import { humanDbError } from '@/lib/db-error'
 import { PRODI_ACCESS, type ProdiAccess } from '@/lib/prodi'
-import { generatePassword } from '@/lib/password'
 
 export type FormState = { error: string } | { success: true } | null
 
@@ -180,7 +179,8 @@ export async function deleteUserAction(userId: string): Promise<FormState> {
   return { success: true }
 }
 
-export async function resetPasswordAction(userId: string): Promise<{ error: string } | { password: string }> {
+/** Super Admin sets the new password it typed (kiprat 2026-11-27: not generated). Same rule as a new account's. */
+export async function resetPasswordAction(userId: string, password: string): Promise<{ error: string } | { ok: true }> {
   let me
   try {
     me = await requireSuperadmin()
@@ -188,7 +188,7 @@ export async function resetPasswordAction(userId: string): Promise<{ error: stri
     return { error: (e as Error).message }
   }
 
-  const password = generatePassword()
+  if (typeof password !== 'string' || password.length < 8) return { error: 'Kata sandi minimal 8 karakter.' }
   const admin = createAdminClient()
   const { data, error } = await admin.auth.admin.updateUserById(userId, { password })
   if (error) return { error: humanDbError(error) }
@@ -204,5 +204,5 @@ export async function resetPasswordAction(userId: string): Promise<{ error: stri
   })
   if (logError) console.error('audit_log reset password insert failed:', logError.message)
 
-  return { password }
+  return { ok: true }
 }

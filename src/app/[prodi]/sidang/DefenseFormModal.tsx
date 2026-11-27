@@ -315,10 +315,11 @@ export function DefenseFormModal({
           {sidang ? (
             <div className="grid gap-[0.8rem] sm:grid-cols-3 items-end">
               <Field label="Ketua sidang" hint={graded.includes('ketua') ? SUDAH_DINILAI : undefined}>
-                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Ketua sidang" options={internalOptions(penguji)} disabled={graded.includes('ketua')} className={CONTROL} />
+                <Select cari value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Ketua sidang" options={internalOptions(penguji)} disabled={graded.includes('ketua')} className={CONTROL} />
               </Field>
               <Field label="Anggota penguji I (penguji eksternal)" hint={graded.includes('anggota_1') ? SUDAH_DINILAI : undefined}>
                 <Select
+                  cari
                   value={eksternalKode}
                   onValueChange={(v) => {
                     setEksternalKode(v === NONE ? '' : v)
@@ -332,16 +333,16 @@ export function DefenseFormModal({
                 />
               </Field>
               <Field label="Anggota penguji II (dosen pembimbing)" hint={graded.includes('anggota_2') ? SUDAH_DINILAI : undefined}>
-                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Anggota penguji II" options={internalOptions(pembimbing)} disabled={graded.includes('anggota_2')} className={CONTROL} />
+                <Select cari value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Anggota penguji II" options={internalOptions(pembimbing)} disabled={graded.includes('anggota_2')} className={CONTROL} />
               </Field>
             </div>
           ) : (
             <div className="grid gap-[0.8rem] sm:grid-cols-2 items-end">
               <Field label="Dosen pembimbing pendamping" hint={graded.includes('pendamping') ? SUDAH_DINILAI : undefined}>
-                <Select value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Dosen pembimbing pendamping" options={internalOptions(pembimbing)} disabled={graded.includes('pendamping')} className={CONTROL} />
+                <Select cari value={pembimbing} onValueChange={pickDosen(setPembimbing)} placeholder="— pilih dosen —" ariaLabel="Dosen pembimbing pendamping" options={internalOptions(pembimbing)} disabled={graded.includes('pendamping')} className={CONTROL} />
               </Field>
               <Field label="Dosen pembahas" hint={graded.includes('pembahas') ? SUDAH_DINILAI : undefined}>
-                <Select value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Dosen pembahas" options={internalOptions(penguji)} disabled={graded.includes('pembahas')} className={CONTROL} />
+                <Select cari value={penguji} onValueChange={pickDosen(setPenguji)} placeholder="— pilih dosen —" ariaLabel="Dosen pembahas" options={internalOptions(penguji)} disabled={graded.includes('pembahas')} className={CONTROL} />
               </Field>
             </div>
           )}

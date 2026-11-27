@@ -62,6 +62,7 @@ export function RekapClient({
           Dosen
         </label>
         <Select
+          cari
           id="ctx-dosen"
           value={selectedDosen}
           onValueChange={(v) => navigate({ dosen: v })}

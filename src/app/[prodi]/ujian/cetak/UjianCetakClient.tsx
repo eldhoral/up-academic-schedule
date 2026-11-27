@@ -102,6 +102,7 @@ export function UjianCetakClient({
           Dosen
         </label>
         <Select
+          cari
           id="ctx-dosen"
           value={context.dosen || ALL_DOSEN}
           onValueChange={(v) => navigate({ dosen: v === ALL_DOSEN ? '' : v })}

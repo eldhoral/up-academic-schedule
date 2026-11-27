@@ -86,6 +86,7 @@ export function RekapPengawasClient({
           Pengawas
         </label>
         <Select
+          cari
           id="ctx-pengawas"
           value={context.pengawas || ALL_PENGAWAS}
           onValueChange={(v) => navigate({ pengawas: v === ALL_PENGAWAS ? '' : v })}
