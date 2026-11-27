@@ -139,11 +139,7 @@ function MasukForm() {
               required
               placeholder="admin@univpancasila.ac.id"
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] p-[0.53rem_0.67rem] min-h-[2.8rem] text-[1rem] transition-colors focus:bg-[var(--lembar)]"
-              aria-describedby="bantu-email"
             />
-            <p className="mt-[0.33rem] text-[0.87rem] text-[var(--tinta-3)]" id="bantu-email">
-              Username atau email yang didaftarkan oleh administrator Anda. Penguji eksternal: username dari bagian akademik.
-            </p>
           </div>
 
           <div className="mb-[1.07rem]">
