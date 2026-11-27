@@ -93,8 +93,8 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
             aspek={aturan.aspekBimbingan}
             tabel={tabel}
             aksi={submitNilaiAction.bind(null, defense.id, akses.peran, tampil)}
-            tombol="Kirim nilai"
-            konfirmasi={{ judul: 'Kirim nilai?', isi: 'Setelah dikirim, nilai tidak bisa diubah.', tombol: 'Kirim nilai' }}
+            tombol="Validasi"
+            konfirmasi={{ judul: 'Validasi nilai?', isi: 'Setelah divalidasi, nilai tidak bisa diubah.', tombol: 'Validasi' }}
           />
         )}
         {akses?.kind === 'terkirim' && <Terkirim row={data.nilai[akses.peran]!} tabel={tabel} />}
