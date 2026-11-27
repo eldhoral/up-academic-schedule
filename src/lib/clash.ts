@@ -21,6 +21,7 @@ export function timeOverlapMinutes(aStart: string, aEnd: string, bStart: string,
 export type ScheduleCandidate = {
   prodi: Prodi
   id?: string // excluded from its own clash check when editing
+  kode_mk?: string
   hari: string
   jam_mulai: string
   jam_selesai: string
@@ -48,6 +49,8 @@ export type ExistingScheduleForClash = {
   room_nama: string | null
   dosenCodes: string[]
   dosenNames: string[]
+  /** The course is Pilihan (courses.jenis_mk 'B'). */
+  pilihan: boolean
 }
 
 export type ClashType = 'dosen' | 'kelas' | 'ruangan'
@@ -69,6 +72,9 @@ export function findClashes(candidate: ScheduleCandidate, existing: ExistingSche
 
   for (const row of existing) {
     if (candidate.id && row.id === candidate.id) continue
+    // A Pilihan course entered again (another semester or kelas) is merged into one class (kiprat 2026-11-27).
+    // jenis_mk belongs to the course, so the row's flag is the candidate's too when the course matches.
+    if (row.pilihan && row.prodi === candidate.prodi && row.kode_mk === candidate.kode_mk) continue
     if (row.hari !== candidate.hari) continue
     if (!weeksCollide(row.minggu, candidate.minggu)) continue
 
@@ -122,6 +128,7 @@ function pairSameDay(existing: ExistingScheduleForClash[], pairings: ClashPairin
     const candidate: ScheduleCandidate = {
       prodi: a.prodi,
       id: a.id,
+      kode_mk: a.kode_mk,
       hari: a.hari,
       jam_mulai: a.jam_mulai,
       jam_selesai: a.jam_selesai,

@@ -34,6 +34,7 @@ function row(overrides: Partial<ExistingScheduleForClash>): ExistingScheduleForC
     room_nama: null,
     dosenCodes: [],
     dosenNames: [],
+    pilihan: false,
     ...overrides,
   }
 }
@@ -52,6 +53,18 @@ function candidate(overrides: Partial<ScheduleCandidate>): ScheduleCandidate {
     dosenCodes: [],
     ...overrides,
   }
+}
+
+// kiprat 2026-11-27: a Pilihan (P) course entered again (another semester or kelas) is merged into one class:
+// those rows never clash with each other, on dosen, room, kelas or time. Another course in the slot still does.
+{
+  const p = { kode_mk: '20012001', pilihan: true, dosenCodes: ['DSN01'], dosenNames: ['Dosen 1'], room_id: 'R1', room_nama: 'R1' }
+  assert.deepEqual(findClashes(candidate({ kode_mk: '20012001', dosenCodes: ['DSN01'], room_id: 'R1' }), [row(p)]), [], 'same Pilihan course: no clash')
+  assert.deepEqual(findClashes(candidate({ kode_mk: '20012001', semester_ke: 3, dosenCodes: ['DSN01'] }), [row({ ...p, semester_ke: 5 })]), [])
+  assert.equal(findClashes(candidate({ kode_mk: '20012002', dosenCodes: ['DSN01'] }), [row(p)]).length, 2, 'a different course still clashes (dosen + kelas)')
+  assert.equal(findClashes(candidate({ kode_mk: '20012001', dosenCodes: ['DSN01'] }), [row({ ...p, pilihan: false })]).length, 2, 'a Wajib course entered twice still clashes')
+  assert.equal(findClashes(candidate({ prodi: 's2', kode_mk: '20012001', dosenCodes: ['DSN01'] }), [row(p)]).length, 1, 'same kode in the other prodi is another course')
+  assert.deepEqual(findAllClashes([row({ ...p, id: 'a' }), row({ ...p, id: 'b', semester_ke: 3 })]), [], 'standing check agrees')
 }
 
 // Real conflict from PLAN.md §7: SMTR I kelas C, two required courses, same slot.

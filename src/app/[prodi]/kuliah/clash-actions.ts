@@ -57,7 +57,7 @@ type SupabaseRow = {
   jam_selesai: string
   minggu: 'setiap' | 'ganjil' | 'genap'
   room_id: string | null
-  courses: { nama_mk: string; sks: number } | { nama_mk: string; sks: number }[] | null
+  courses: { nama_mk: string; sks: number; jenis_mk: string } | { nama_mk: string; sks: number; jenis_mk: string }[] | null
   rooms: { nama: string } | { nama: string }[] | null
   schedule_lecturers: { kode_dosen: string; lecturers: { nama: string; gelar_depan: string; gelar_belakang: string } | { nama: string; gelar_depan: string; gelar_belakang: string }[] | null }[]
 }
@@ -69,7 +69,7 @@ function one<T>(v: T | T[] | null): T | null {
 }
 
 const CLASH_SELECT =
-  'id, prodi, kode_mk, kelas, jenis_kelas, semester_ke, hari, jam_mulai, jam_selesai, minggu, room_id, courses(nama_mk, sks), rooms(nama), schedule_lecturers(kode_dosen, lecturers(nama, gelar_depan, gelar_belakang))'
+  'id, prodi, kode_mk, kelas, jenis_kelas, semester_ke, hari, jam_mulai, jam_selesai, minggu, room_id, courses(nama_mk, sks, jenis_mk), rooms(nama), schedule_lecturers(kode_dosen, lecturers(nama, gelar_depan, gelar_belakang))'
 
 function mapClashRows(data: SupabaseRow[]): YearRow[] {
   return data.map((r) => {
@@ -96,6 +96,7 @@ function mapClashRows(data: SupabaseRow[]): YearRow[] {
       room_nama: room?.nama ?? null,
       dosenCodes,
       dosenNames,
+      pilihan: course?.jenis_mk === 'B',
       sks: course?.sks ?? 0,
     }
   })
@@ -141,7 +142,7 @@ async function candidateLoad(
 
 export async function checkScheduleClashes(
   academicYearId: string,
-  candidate: ScheduleCandidate & { kode_mk?: string }
+  candidate: ScheduleCandidate
 ): Promise<ClashCheckResult> {
   const empty: ClashCheckResult = { clashes: [], beban: [], freeRooms: [], blocking: false }
   if (!academicYearId || !candidate.hari || !candidate.jam_mulai || !candidate.jam_selesai) return empty
