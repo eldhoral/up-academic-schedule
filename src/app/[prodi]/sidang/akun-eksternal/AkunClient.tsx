@@ -31,13 +31,50 @@ export function AkunClient({ akun, bisaPerpanjang }: { akun: Akun[]; bisaPerpanj
       <p className="m-0 mb-[1rem] text-[0.87rem] text-[var(--tinta-3)] max-w-[44rem]">
         Satu akun per dosen eksternal per tanggal sidang, dipakai untuk semua mahasiswa yang diuji hari itu. Akun berlaku sampai sehari setelah sidang.
       </p>
-      <ul className="m-0 p-0 list-none grid gap-[0.8rem] [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
-        {akun.map((a) => (
-          <AkunCard key={a.userId} akun={a} bisaPerpanjang={bisaPerpanjang} onReset={() => setReset(a)} />
+      {/* One card per dosen; its day accounts open under Detail (kiprat 2026-11-27: a dosen can have 8+ days). */}
+      <ul className="m-0 p-0 list-none grid gap-[0.8rem] items-start [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
+        {[...Map.groupBy(akun, (a) => a.kode).values()].map((hari) => (
+          <DosenCard key={hari[0].kode} hari={hari} bisaPerpanjang={bisaPerpanjang} onReset={setReset} />
         ))}
       </ul>
       {reset && <PasswordModal akun={reset} onClose={() => setReset(null)} />}
     </div>
+  )
+}
+
+/** A dosen eksternal: its name and day count; Detail lists each day's account (newest first, as the page reads them). */
+function DosenCard({ hari, bisaPerpanjang, onReset }: { hari: Akun[]; bisaPerpanjang: boolean; onReset: (a: Akun) => void }) {
+  const aktif = hari.filter((a) => a.aktif).length
+  const mahasiswa = hari.reduce((n, a) => n + a.mahasiswa.length, 0)
+  return (
+    <li className="bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1rem]">
+      <div className="flex items-start justify-between gap-[0.6rem]">
+        <div className="min-w-0">
+          <h2 className="m-0 text-[1rem] font-semibold">{hari[0].nama}</h2>
+          <p className="m-0 text-[0.87rem] text-[var(--tinta-2)]">
+            {hari.length} tanggal sidang · {mahasiswa} mahasiswa
+          </p>
+        </div>
+        <span
+          className={`shrink-0 px-[0.5rem] py-[0.13rem] rounded-[var(--r-kecil)] text-[0.8rem] font-medium ${
+            aktif ? 'bg-[var(--hijau-lembut)] text-[var(--hijau)]' : 'bg-[var(--cekung)] text-[var(--tinta-2)] border border-[var(--garis)]'
+          }`}
+        >
+          {aktif ? `${aktif} aktif` : 'Kedaluwarsa'}
+        </span>
+      </div>
+      <details className="mt-[0.6rem] group">
+        <summary className="cursor-pointer text-[0.87rem] text-[var(--biru)] select-none">
+          <span className="group-open:hidden">Lihat detail</span>
+          <span className="hidden group-open:inline">Tutup detail</span>
+        </summary>
+        <ul className="m-0 mt-[0.6rem] p-0 list-none flex flex-col gap-[0.6rem]">
+          {hari.map((a) => (
+            <AkunCard key={a.userId} akun={a} bisaPerpanjang={bisaPerpanjang} onReset={() => onReset(a)} />
+          ))}
+        </ul>
+      </details>
+    </li>
   )
 }
 
@@ -57,12 +94,9 @@ function AkunCard({ akun: a, bisaPerpanjang, onReset }: { akun: Akun; bisaPerpan
   }
 
   return (
-    <li className="bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1rem] flex flex-col gap-[0.6rem]">
+    <li className="border border-[var(--garis)] rounded-[var(--r-kecil)] p-[0.8rem] flex flex-col gap-[0.6rem]">
       <div className="flex items-start justify-between gap-[0.6rem]">
-        <div className="min-w-0">
-          <h2 className="m-0 text-[1rem] font-semibold">{a.nama}</h2>
-          <p className="m-0 text-[0.87rem] text-[var(--tinta-2)]">{tanggalPanjang(a.tanggal)}</p>
-        </div>
+        <h3 className="m-0 text-[0.93rem] font-semibold">{tanggalPanjang(a.tanggal)}</h3>
         <span
           className={`shrink-0 px-[0.5rem] py-[0.13rem] rounded-[var(--r-kecil)] text-[0.8rem] font-medium ${
             a.aktif ? 'bg-[var(--hijau-lembut)] text-[var(--hijau)]' : 'bg-[var(--cekung)] text-[var(--tinta-2)] border border-[var(--garis)]'
