@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
-import { EmptySheet } from '@/components/EmptySheet'
 import { prodiParam } from '@/lib/prodi-server'
 import { canAccessProdi } from '@/lib/prodi'
 import { canManage, canWrite, getCurrentUser } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { eksternalAktif } from '@/lib/penilaian/akses'
+import type { Lecturer } from '@/app/dosen/DosenClient'
 import { AkunClient, type Akun } from './AkunClient'
 
 export default async function AkunEksternalPage(props: PageProps<'/[prodi]/sidang/akun-eksternal'>) {
@@ -17,25 +17,17 @@ export default async function AkunEksternalPage(props: PageProps<'/[prodi]/sidan
 
   // The session client: staff read akun_eksternal, profiles and defenses through RLS.
   const supabase = await createClient()
-  const { data: akunRows, error } = await supabase
-    .from('akun_eksternal')
-    .select('user_id, kode_dosen, tanggal, username, lecturers(nama)')
-    .order('tanggal', { ascending: false })
-    .order('username')
-  if (error) throw new Error(humanDbError(error))
+  // The dosen eksternal themselves are kept here too, apart from Data Dosen (kiprat 2026-11-27).
+  const [{ data: akunRows, error }, { data: dosenEksternal, error: dErr }] = await Promise.all([
+    supabase
+      .from('akun_eksternal')
+      .select('user_id, kode_dosen, tanggal, username, lecturers(nama)')
+      .order('tanggal', { ascending: false })
+      .order('username'),
+    supabase.from('lecturers').select('kode_dosen, nidn, nama, gelar_depan, gelar_belakang, email, eksternal').eq('eksternal', true).order('nama'),
+  ])
+  if (error || dErr) throw new Error(humanDbError((error ?? dErr)!))
   const rows = akunRows ?? []
-  if (rows.length === 0) {
-    return (
-      <AppShell active="/sidang/akun-eksternal" prodi={prodi}>
-        <EmptySheet
-          title="Belum ada akun penguji eksternal"
-          detail="Akun dibuat otomatis saat sidang skripsi disimpan dengan dosen eksternal sebagai Anggota Penguji I."
-          actionHref={`/${prodi}/sidang`}
-          actionLabel="Buka Jadwal Sidang"
-        />
-      </AppShell>
-    )
-  }
 
   const [{ data: profiles, error: pErr }, { data: sidang, error: sErr }] = await Promise.all([
     supabase.from('profiles').select('id, berlaku_sampai').in('id', rows.map((r) => r.user_id)),
@@ -71,7 +63,7 @@ export default async function AkunEksternalPage(props: PageProps<'/[prodi]/sidan
 
   return (
     <AppShell active="/sidang/akun-eksternal" prodi={prodi}>
-      <AkunClient akun={akun} bisaPerpanjang={canManage(user.role)} />
+      <AkunClient akun={akun} dosen={(dosenEksternal ?? []) as Lecturer[]} bisaPerpanjang={canManage(user.role)} />
     </AppShell>
   )
 }

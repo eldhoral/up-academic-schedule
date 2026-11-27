@@ -80,7 +80,6 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
                 <Th>NIDN</Th>
                 <Th>Nama tercetak</Th>
                 <Th>Email</Th>
-                <Th>Eksternal</Th>
                 <Th className="text-right">&nbsp;</Th>
               </tr>
             </thead>
@@ -91,7 +90,6 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
                   <Td className="mono">{l.nidn || '—'}</Td>
                   <Td>{lecturerDisplayName(l)}</Td>
                   <Td className="text-[var(--tinta-2)]">{l.email || '—'}</Td>
-                  <Td className={l.eksternal ? '' : 'text-[var(--tinta-3)]'}>{l.eksternal ? 'Ya' : '—'}</Td>
                   <Td className="text-right whitespace-nowrap">
                     <JadwalLinkButtons kodeDosen={l.kode_dosen} hasLink={!!l.jadwal_token} onMessage={setLinkMessage} />
                     {canEdit && (
@@ -108,7 +106,7 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6}className="text-center py-[1.6rem] text-[var(--tinta-3)]">
+                  <td colSpan={5} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
                     {lecturers.length === 0
                       ? 'Belum ada data dosen — tambahkan satu, atau impor dari Excel di bawah.'
                       : <>Tidak ada dosen yang cocok dengan &ldquo;{query}&rdquo;.</>}
@@ -122,7 +120,7 @@ export function DosenClient({ lecturers, canEdit }: { lecturers: Lecturer[]; can
 
       {canEdit && <ImportPanel tableSlug="lecturers" label="Dosen" onCommitted={() => router.refresh()} />}
 
-      {editing && <LecturerFormModal lecturer={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <LecturerFormModal lecturer={editing === 'new' ? null : editing} eksternal={false} onClose={() => setEditing(null)} />}
     </div>
   )
 }
@@ -175,7 +173,8 @@ function JadwalLinkButtons({ kodeDosen, hasLink, onMessage }: { kodeDosen: strin
   )
 }
 
-function LecturerFormModal({ lecturer, onClose }: { lecturer: Lecturer | null; onClose: () => void }) {
+/** Add or edit a dosen. eksternal is fixed by the page: Data Dosen keeps internal dosen, Akun Penguji Eksternal the external ones. */
+export function LecturerFormModal({ lecturer, eksternal, onClose }: { lecturer: Lecturer | null; eksternal: boolean; onClose: () => void }) {
   const action = lecturer ? updateLecturerAction : createLecturerAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
   useEscape(onClose, isPending)
@@ -192,7 +191,7 @@ function LecturerFormModal({ lecturer, onClose }: { lecturer: Lecturer | null; o
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-[26rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
         <h3 className="m-0 text-[1.1rem] font-semibold mb-[1rem]">
-          {lecturer ? `Ubah ${lecturer.kode_dosen}` : 'Tambah dosen'}
+          {lecturer ? `Ubah ${lecturer.kode_dosen}` : eksternal ? 'Tambah dosen eksternal' : 'Tambah dosen'}
         </h3>
 
         {state && 'error' in state && (
@@ -255,10 +254,7 @@ function LecturerFormModal({ lecturer, onClose }: { lecturer: Lecturer | null; o
               className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem]"
             />
           </Field>
-          <label className="flex items-center gap-[0.4rem] text-[0.87rem]">
-            <input type="checkbox" name="eksternal" defaultChecked={lecturer?.eksternal} className="w-[1rem] h-[1rem]" />
-            Dosen eksternal
-          </label>
+          {eksternal && <input type="hidden" name="eksternal" value="on" />}
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {lecturer && (

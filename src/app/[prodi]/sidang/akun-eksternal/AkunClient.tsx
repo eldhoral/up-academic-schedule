@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { buatPasswordBaruAction, perpanjangAction } from './actions'
 import { useEscape } from '@/components/useEscape'
+import { lecturerDisplayName } from '@/lib/import/tables'
+import { LecturerFormModal, type Lecturer } from '@/app/dosen/DosenClient'
 
 export type Akun = {
   userId: string
@@ -23,14 +25,20 @@ const tanggalPanjang = (iso: string) =>
 const BUTTON = 'px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[0.87rem] cursor-pointer hover:bg-[var(--cekung)] disabled:opacity-60'
 const HARI = Array.from({ length: 7 }, (_, i) => ({ value: String(i + 1), label: `+${i + 1} hari` }))
 
-export function AkunClient({ akun, bisaPerpanjang }: { akun: Akun[]; bisaPerpanjang: boolean }) {
+export function AkunClient({ akun, dosen, bisaPerpanjang }: { akun: Akun[]; dosen: Lecturer[]; bisaPerpanjang: boolean }) {
   const [reset, setReset] = useState<Akun | null>(null)
 
   return (
     <div className="px-[1.3rem] py-[1rem]">
+      {/* Super Admin only, as on Data Dosen (bisaPerpanjang = canManage). */}
+      <DosenEksternal dosen={dosen} bisaUbah={bisaPerpanjang} />
+
+      <h2 className="m-0 mt-[1.6rem] mb-[0.3rem] text-[1.07rem] font-semibold">Akun per tanggal sidang</h2>
       <p className="m-0 mb-[1rem] text-[0.87rem] text-[var(--tinta-3)] max-w-[44rem]">
         Satu akun per dosen eksternal per tanggal sidang, dipakai untuk semua mahasiswa yang diuji hari itu. Akun berlaku sampai sehari setelah sidang.
+        Akun dibuat otomatis saat sidang skripsi disimpan dengan dosen eksternal sebagai Anggota Penguji I.
       </p>
+      {akun.length === 0 && <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">Belum ada akun penguji eksternal.</p>}
       {/* One card per dosen; its day accounts open under Detail (kiprat 2026-11-27: a dosen can have 8+ days). */}
       <ul className="m-0 p-0 list-none grid gap-[0.8rem] items-start [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
         {[...Map.groupBy(akun, (a) => a.kode).values()].map((hari) => (
@@ -39,6 +47,60 @@ export function AkunClient({ akun, bisaPerpanjang }: { akun: Akun[]; bisaPerpanj
       </ul>
       {reset && <PasswordModal akun={reset} onClose={() => setReset(null)} />}
     </div>
+  )
+}
+
+/** The dosen eksternal records (kode, name, email), kept here instead of Data Dosen (kiprat 2026-11-27). */
+function DosenEksternal({ dosen, bisaUbah }: { dosen: Lecturer[]; bisaUbah: boolean }) {
+  const [editing, setEditing] = useState<Lecturer | 'new' | null>(null)
+  return (
+    <section>
+      <div className="flex items-center justify-between gap-[1rem] flex-wrap mb-[0.6rem]">
+        <div>
+          <h2 className="m-0 text-[1.07rem] font-semibold">Dosen eksternal</h2>
+          <p className="m-0 text-[0.87rem] text-[var(--tinta-3)]">{dosen.length} dosen · dipilih sebagai Anggota Penguji I di Jadwal Sidang</p>
+        </div>
+        {bisaUbah && (
+          <button type="button" onClick={() => setEditing('new')} className="px-[0.8rem] py-[0.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white text-[0.87rem] font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.98] transition-colors">
+            Tambah dosen eksternal
+          </button>
+        )}
+      </div>
+      <div className="overflow-x-auto border border-[var(--garis)] rounded-[var(--r-kecil)] bg-[var(--lembar)]">
+        <table className="w-full text-[0.87rem] border-collapse">
+          <thead className="bg-[var(--cekung)]">
+            <tr>
+              <th className="text-left px-[0.6rem] py-[0.4rem] font-medium text-[var(--tinta-3)]">Kode</th>
+              <th className="text-left px-[0.6rem] py-[0.4rem] font-medium text-[var(--tinta-3)]">Nama tercetak</th>
+              <th className="text-left px-[0.6rem] py-[0.4rem] font-medium text-[var(--tinta-3)]">Email</th>
+              {bisaUbah && <th className="px-[0.6rem] py-[0.4rem]"><span className="sr-only">Aksi</span></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {dosen.map((l) => (
+              <tr key={l.kode_dosen} className="border-t border-[var(--garis)]">
+                <td className="px-[0.6rem] py-[0.4rem] mono">{l.kode_dosen}</td>
+                <td className="px-[0.6rem] py-[0.4rem]">{lecturerDisplayName(l)}</td>
+                <td className="px-[0.6rem] py-[0.4rem] text-[var(--tinta-2)]">{l.email || '—'}</td>
+                {bisaUbah && (
+                  <td className="px-[0.6rem] py-[0.4rem] text-right">
+                    <button type="button" onClick={() => setEditing(l)} className="text-[var(--biru)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-[0.87rem]">
+                      Ubah
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+            {dosen.length === 0 && (
+              <tr>
+                <td colSpan={bisaUbah ? 4 : 3} className="text-center py-[1.2rem] text-[var(--tinta-3)]">Belum ada dosen eksternal.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {editing && <LecturerFormModal lecturer={editing === 'new' ? null : editing} eksternal onClose={() => setEditing(null)} />}
+    </section>
   )
 }
 
