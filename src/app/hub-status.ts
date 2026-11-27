@@ -5,6 +5,7 @@ import { checkAllClashes } from './[prodi]/kuliah/clash-actions'
 import { checkAllExamClashes } from './[prodi]/ujian/actions'
 import { checkAllDefenseClashes } from './[prodi]/sidang/actions'
 import { todayJakarta } from '@/lib/penilaian/akses'
+import { UJIAN_LABEL } from '@/lib/ujian'
 
 /** One menu row's status: a lead figure with its label, quieter detail, and the tally inputs. */
 export type ScheduleStatus = {
@@ -57,8 +58,8 @@ export async function getUjianStatus(academicYearId: string, prodi: Prodi): Prom
     const of = (jenis: string) => data.filter((r) => r.jenis_ujian === jenis)
     const dated = (rows: typeof data) => rows.filter((r) => r.tanggal).length
     const [uts, uas] = [of('uts'), of('uas')]
-    const lead = uts.length > 0 || uas.length === 0 ? { rows: uts, name: 'UTS' } : { rows: uas, name: 'UAS' }
-    const other = lead.name === 'UTS' ? { rows: uas, name: 'UAS' } : { rows: uts, name: 'UTS' }
+    const lead = uts.length > 0 || uas.length === 0 ? { rows: uts, name: UJIAN_LABEL.uts } : { rows: uas, name: UJIAN_LABEL.uas }
+    const other = lead.name === UJIAN_LABEL.uts ? { rows: uas, name: UJIAN_LABEL.uas } : { rows: uts, name: UJIAN_LABEL.uts }
     const undated = data.length - dated(data)
     return {
       figure: `${dated(lead.rows)}/${lead.rows.length}`,

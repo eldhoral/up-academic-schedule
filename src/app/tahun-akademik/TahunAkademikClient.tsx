@@ -277,7 +277,7 @@ function AcademicYearFormModal({ year, onClose }: { year: AcademicYearRow | null
             </Field>
           </div>
           <p className="text-[0.8rem] text-[var(--tinta-3)]">
-            Dipakai kalender jadwal dosen: kuliah berulang tiap minggu di antara kedua tanggal ini, kecuali minggu UTS/UAS.
+            Dipakai kalender jadwal dosen: kuliah berulang tiap minggu di antara kedua tanggal ini, kecuali minggu ETS/EAS.
           </p>
           <label className="flex items-center gap-[0.5rem] text-[0.93rem]">
             <input type="checkbox" name="is_active" defaultChecked={year?.is_active ?? false} className="w-[1rem] h-[1rem]" />

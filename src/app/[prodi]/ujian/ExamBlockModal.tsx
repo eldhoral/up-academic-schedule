@@ -17,6 +17,7 @@ import {
 } from './actions'
 import { GABUNGAN, KETERANGAN_LABEL, KETERANGAN_UJIAN, needsRoom, shortDate, type ExamContext, type ExamView, type KeteranganUjian } from './exam-types'
 import { useEscape } from '@/components/useEscape'
+import { UJIAN_LABEL } from '@/lib/ujian'
 
 type Option = { value: string; label: string }
 type RowState = { kelas: string; room_id: string; pengawas: PersonValue[]; keterangan_ujian: KeteranganUjian }
@@ -25,7 +26,6 @@ const CONTROL = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rou
 const NO_ROOM = '__none__'
 const NO_KETERANGAN = '__kosong__' // Radix Select reserves '' for its placeholder
 const CLASH_LABEL = { pengawas: 'Pengawas', ruangan: 'Ruangan', kelas: 'Kelas' }
-const UJIAN_LABEL = { uts: 'UTS', uas: 'UAS' }
 const dot = (t: string) => t.replace(':', '.')
 
 const toRowState = (r: ExamView): RowState => ({ kelas: r.kelas, room_id: r.room_id ?? '', pengawas: r.pengawas, keterangan_ujian: r.keterangan_ujian })

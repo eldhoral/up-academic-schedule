@@ -1,4 +1,5 @@
 import type { AuditRow } from './audit-log'
+import { ujianLabel } from '@/lib/ujian'
 
 /**
  * Helpers for the Riwayat page (per-record change history). The audit log
@@ -89,7 +90,7 @@ export function historyValue(field: string, value: unknown, lookups: LookupMaps)
 
   switch (field) {
     case 'jenis_kelas': return PROGRAM_LABEL[String(value)] ?? String(value)
-    case 'jenis_ujian': return String(value).toUpperCase()
+    case 'jenis_ujian': return ujianLabel(String(value))
     case 'keterangan_ujian': return EXAM_TYPE_LABEL[String(value)] ?? String(value)
     case 'jenis': return defenseJenisLabel(value)
     case 'minggu': return capitalize(String(value))

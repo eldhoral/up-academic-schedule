@@ -18,6 +18,7 @@ import {
   type SidangItem,
   type UjianItem,
 } from './events'
+import { ujianLabel } from '@/lib/ujian'
 
 /*
  * The lecturer's public page (Publik-JadwalDosen.dc.html): the app's cards and type, with the faculty's
@@ -198,7 +199,7 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
                       key={u.id}
                       tanggal={u.tanggal}
                       lewat={lewat}
-                      judul={`${u.jenis_ujian.toUpperCase()} · ${u.nama_mk} (${u.kelas})`}
+                      judul={`${ujianLabel(u.jenis_ujian)} · ${u.nama_mk} (${u.kelas})`}
                       meta={[blok(u.tanggal).bulan, jamUjian(u), ujianPeranText(u.peran), `${short(u.prodi)} ${PROGRAM_LABEL[u.jenis_kelas]}`, tempatUjian(u)].filter(Boolean).join(' · ')}
                     />
                   )
@@ -237,7 +238,7 @@ function BarisAgenda({ a, pertama, today }: { a: AgendaItem; pertama: boolean; t
       <Baris
         pertama={pertama}
         jam={jamUjian(a.item)}
-        judul={`${a.item.jenis_ujian.toUpperCase()} · ${a.item.nama_mk} (${a.item.kelas})`}
+        judul={`${ujianLabel(a.item.jenis_ujian)} · ${a.item.nama_mk} (${a.item.kelas})`}
         meta={[ujianPeranText(a.item.peran), `${short(a.item.prodi)} ${PROGRAM_LABEL[a.item.jenis_kelas]}`, tempatUjian(a.item)].filter(Boolean).join(' · ')}
       />
     )

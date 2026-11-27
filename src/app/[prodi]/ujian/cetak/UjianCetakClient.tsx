@@ -8,6 +8,7 @@ import { UjianCetakPreview } from './UjianCetakPreview'
 import type { UjianDoc, UjianSheet } from './ujian-cetak-data'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 import { PRODI_CONFIG, semesterList, type JenisKelas, type Prodi } from '@/lib/prodi'
+import { UJIAN_LABEL } from '@/lib/ujian'
 
 const ALL_DOSEN = '__all__'
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
@@ -63,8 +64,8 @@ export function UjianCetakClient({
           value={context.jenis_ujian}
           onValueChange={(v) => navigate({ jenis_ujian: v as 'uts' | 'uas' })}
           options={[
-            { value: 'uts', label: 'UTS' },
-            { value: 'uas', label: 'UAS' },
+            { value: 'uts', label: UJIAN_LABEL.uts },
+            { value: 'uas', label: UJIAN_LABEL.uas },
           ]}
           className={CONTROL}
         />

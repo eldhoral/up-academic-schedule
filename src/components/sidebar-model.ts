@@ -67,7 +67,7 @@ export function sidebarModel({
       },
       {
         href: `/${p}/ujian`,
-        label: 'Jadwal UTS & UAS',
+        label: 'Jadwal ETS & EAS',
         ikon: 'ujian',
         aktif: isCurrentProdi && active.startsWith('/ujian'),
       },

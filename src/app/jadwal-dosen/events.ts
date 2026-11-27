@@ -4,6 +4,7 @@ import { bisaDinilaiSidang, isPrasidangS1, penilaianSidangPath } from '@/lib/pen
 import { beritaAcaraPath } from '@/lib/penilaian/prasidang'
 import { PRODI_CONFIG, type JenisKelas, type Prodi } from '@/lib/prodi'
 import { addDays, mondayOf } from '@/lib/week'
+import { ujianLabel } from '@/lib/ujian'
 
 // One lecturer's duties for the active term, and the calendar events they become. Pure: no I/O.
 
@@ -149,7 +150,7 @@ export function buildEvents(j: JadwalDosen, origin?: string): IcsEvent[] {
     const allDay = u.keterangan === 'take_home'
     events.push({
       uid: `ujian-${u.id}@krs`,
-      summary: `${u.jenis_ujian.toUpperCase()} ${ujianPeranText(u.peran)} · ${u.nama_mk} (${u.kelas}) · ${short(u.prodi)}`,
+      summary: `${ujianLabel(u.jenis_ujian)} ${ujianPeranText(u.peran)} · ${u.nama_mk} (${u.kelas}) · ${short(u.prodi)}`,
       location: u.tempat || undefined,
       date: u.tanggal,
       ...(allDay ? {} : { start: u.jam_mulai, end: u.jam_selesai }),

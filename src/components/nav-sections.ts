@@ -60,7 +60,7 @@ export function sectionOf(active: string, prodi: Prodi | undefined, canManage: b
     const pre = (tabs: Tab[]) => tabs.map((t) => ({ ...t, href: `/${prodi}${t.href}` }))
     const own = (title: string, tabs: Tab[]): Section => ({ title: `${c.short} · ${title}`, tabs: pre(tabs) })
     if (active.startsWith('/kuliah')) return own('Jadwal Mata Kuliah & Dosen', KULIAH)
-    if (active.startsWith('/ujian')) return own('Jadwal UTS & UAS', UJIAN)
+    if (active.startsWith('/ujian')) return own('Jadwal ETS & EAS', UJIAN)
     if (active.startsWith('/sidang')) {
       const tabs = SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t))
       const section = own(`Jadwal ${c.defense.section}`, tabs)

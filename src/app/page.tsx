@@ -74,7 +74,7 @@ export default async function MenuPage() {
               </div>
               <div className="grid grid-cols-1 gap-[0.933rem] sm:grid-cols-3">
                 <KartuModul judul="Jadwal Mata Kuliah & Dosen" href={`/${prodi}/kuliah`} cetakHref={`/${prodi}/kuliah/cetak`} status={kuliah} adaTahun={!!year} />
-                <KartuModul judul="Jadwal UTS & UAS" href={`/${prodi}/ujian`} cetakHref={`/${prodi}/ujian/cetak`} status={ujian} adaTahun={!!year} />
+                <KartuModul judul="Jadwal ETS & EAS" href={`/${prodi}/ujian`} cetakHref={`/${prodi}/ujian/cetak`} status={ujian} adaTahun={!!year} />
                 <KartuModul judul={`Jadwal ${c.defense.section}`} href={`/${prodi}/sidang`} cetakHref={`/${prodi}/sidang/cetak`} status={sidang} adaTahun={!!year} />
               </div>
             </section>

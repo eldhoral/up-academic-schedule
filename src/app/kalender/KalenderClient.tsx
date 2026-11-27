@@ -24,13 +24,13 @@ import {
   type KalTerm,
   type KalUjian,
 } from './items'
+import { UJIAN_LABEL } from '@/lib/ujian'
 
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
 
 type Year = { id: string; label: string }
 
 const PRODI_LABEL: Record<Prodi, string> = { s1: 'S1', s2: 'S2' }
-const UJIAN_LABEL: Record<'uts' | 'uas', string> = { uts: 'UTS', uas: 'UAS' }
 
 /** Tempat on the board: prasidang sits in a breakout room, sidang in a room. */
 const sidangTempat = (d: KalSidang) => (d.room_nama ? `Ruang ${d.room_nama}` : d.kelompok !== null ? `Kelompok ${d.kelompok} (Zoom)` : '—')

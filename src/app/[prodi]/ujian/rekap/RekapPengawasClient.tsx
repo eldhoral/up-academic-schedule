@@ -7,6 +7,7 @@ import { Select } from '@/components/Select'
 import type { PengawasGroup } from '../pengawas-rows'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 import { useProdi } from '@/lib/use-prodi'
+import { UJIAN_LABEL } from '@/lib/ujian'
 
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
 const COLUMNS = [
@@ -76,8 +77,8 @@ export function RekapPengawasClient({
           value={context.jenis_ujian}
           onValueChange={(v) => navigate({ jenis_ujian: v as 'uts' | 'uas' })}
           options={[
-            { value: 'uts', label: 'UTS' },
-            { value: 'uas', label: 'UAS' },
+            { value: 'uts', label: UJIAN_LABEL.uts },
+            { value: 'uas', label: UJIAN_LABEL.uas },
           ]}
           className={CONTROL}
         />

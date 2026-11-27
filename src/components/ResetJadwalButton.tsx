@@ -12,7 +12,7 @@ type Step = 'pilih' | 'konfirmasi' | 'selesai'
 
 const ROWS: { kind: ResetKind; label: (p: Prodi) => string }[] = [
   { kind: 'kuliah', label: () => 'Mata Kuliah & Dosen' },
-  { kind: 'ujian', label: () => 'UTS & UAS' },
+  { kind: 'ujian', label: () => 'ETS & EAS' },
   { kind: 'sidang', label: (p) => PRODI_CONFIG[p].defense.section },
 ]
 const ALL = ROWS.flatMap((r) => PRODI.map((p) => `${r.kind}:${p}`))

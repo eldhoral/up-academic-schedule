@@ -87,7 +87,7 @@ assert.equal(buildEvents(base({ term: null, kuliah: [k()] })).length, 0)
 // --- ujian: joined roles, take home all-day, UID survives a time change -------------------------
 {
   const [both] = buildEvents(base({ ujian: [u({ peran: ['pengawas', 'pengampu'] })] }))
-  assert.equal(both.summary, 'UTS Pengawas & Pengampu · Psikologi Klinis (A) · S1')
+  assert.equal(both.summary, 'ETS Pengawas & Pengampu · Psikologi Klinis (A) · S1')
   assert.equal(both.start, '08:00')
   const [takeHome] = buildEvents(base({ ujian: [u({ keterangan: 'take_home', tempat: 'Take Home' })] }))
   assert.equal(takeHome.start, undefined, 'take home is all-day')
