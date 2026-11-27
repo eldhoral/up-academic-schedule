@@ -15,6 +15,7 @@ import {
   type AuditRow,
   type LogFilters,
 } from '@/lib/audit-log'
+import { useEscape } from '@/components/useEscape'
 
 const ACTION_BADGE: Record<AuditAction, string> = {
   INSERT: 'bg-[var(--hijau-lembut)] text-[var(--hijau)]',
@@ -198,6 +199,7 @@ export function LogAktivitasClient({ rows, total, filters, loadError }: { rows: 
 }
 
 function DetailModal({ row, onClose }: { row: AuditRow; onClose: () => void }) {
+  useEscape(onClose)
   const fields = changedFields(row)
 
   return (

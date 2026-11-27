@@ -1,5 +1,6 @@
 import { toMinutes } from '@/lib/clash'
 import { layoutOverlapping } from '@/lib/calendar-layout'
+import { useEscape } from '@/components/useEscape'
 
 // The week grid shared by the three calendars (kuliah by hari, ujian and sidang by date):
 // columns are days, time runs down at REM_PER_MIN, overlapping events split side by side.
@@ -148,6 +149,7 @@ export function DetailModal({
   rows: [string, React.ReactNode][]
   onClose: () => void
 }) {
+  useEscape(onClose)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
       <div className="w-full max-w-[28rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] overflow-hidden" onClick={(e) => e.stopPropagation()}>

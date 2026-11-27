@@ -9,6 +9,7 @@ import { PRODI_CONFIG } from '@/lib/prodi'
 import { daftarKurikulum } from '@/lib/kurikulum'
 import { useProdi } from '@/lib/use-prodi'
 import { createCourseAction, deleteCourseAction, updateCourseAction, type FormState } from './actions'
+import { useEscape } from '@/components/useEscape'
 
 export type Course = {
   kode_mk: string
@@ -187,6 +188,7 @@ function CourseFormModal({
 }) {
   const action = course ? updateCourseAction : createCourseAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
+  useEscape(onClose, isPending)
   const router = useRouter()
   const prodi = useProdi()
 

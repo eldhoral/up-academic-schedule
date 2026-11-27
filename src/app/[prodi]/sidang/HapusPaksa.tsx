@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { penilaianSidangPath } from '@/lib/penilaian/akses'
 import { hapusPaksaAction } from './actions'
 import { tanggalSingkat, type DefenseRow } from './defense-types'
+import { TutupDenganEscape } from '@/components/useEscape'
 
 /**
  * Super Admin: delete a prasidang whose berita acara is filled, or a sidang already graded. Two steps: this button
@@ -53,8 +54,8 @@ export function HapusPaksa({ jenis, row, terisi, onDeleted }: { jenis: 'prasidan
           role="dialog"
           aria-modal="true"
           aria-labelledby="hapus-paksa-judul"
-          onKeyDown={(e) => e.key === 'Escape' && !pending && tutup()}
         >
+          <TutupDenganEscape tutup={tutup} nonaktif={pending} />
           <div className="w-full max-w-[30rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.2rem] space-y-[0.8rem] text-[0.93rem]">
             <h3 id="hapus-paksa-judul" className="m-0 text-[1.1rem] font-semibold">
               {sidang ? 'Hapus sidang beserta nilainya?' : 'Hapus prasidang beserta berita acaranya?'}

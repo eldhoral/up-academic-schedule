@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { buatPasswordBaruAction, perpanjangAction } from './actions'
+import { useEscape } from '@/components/useEscape'
 
 export type Akun = {
   userId: string
@@ -122,6 +123,7 @@ function PasswordModal({ akun, onClose }: { akun: Akun; onClose: () => void }) {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [isPending, startTransition] = useTransition()
+  useEscape(onClose, isPending)
 
   function buat() {
     setError('')

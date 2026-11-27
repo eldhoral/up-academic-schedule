@@ -37,7 +37,11 @@ export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
     semester_ke: clampSemester(prodi, searchParams.smt),
   }
 
-  const [{ exams, addable, kelasByMk }, findings] = await Promise.all([fetchExamPage(context), checkAllExamClashes(context.academic_year_id, prodi)])
+  const [{ exams, addable, kelasByMk }, findings, { count: ujianTahunIni }] = await Promise.all([
+    fetchExamPage(context),
+    checkAllExamClashes(context.academic_year_id, prodi),
+    supabase.from('exams').select('*', { count: 'exact', head: true }).eq('academic_year_id', context.academic_year_id).eq('prodi', prodi),
+  ])
   const lecturerList = (lecturers as Lecturer[]) ?? []
 
   return (
@@ -49,6 +53,7 @@ export default async function UjianPage(props: PageProps<'/[prodi]/ujian'>) {
         addable={addable}
         kelasByMk={kelasByMk}
         findings={findings}
+        tahunKosong={ujianTahunIni === 0}
         lecturers={lecturerList.map((l) => ({ value: l.kode_dosen, label: lecturerDisplayName(l) }))}
         rooms={((rooms as Room[]) ?? []).map((r) => ({ value: r.id, label: r.nama }))}
         sesi={parseSesiList(settingText(settings, context.jenis_kelas === 'reguler' ? 'sesi_ujian_reguler' : 'sesi_ujian_regsus'))}

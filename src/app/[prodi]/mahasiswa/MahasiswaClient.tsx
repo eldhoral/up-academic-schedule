@@ -11,6 +11,7 @@ import { useProdi } from '@/lib/use-prodi'
 import {
   createStudentAction, deleteStudentAction, hapusKeputusanAction, simpanKeputusanAction, updateStudentAction, type FormState,
 } from './actions'
+import { useEscape } from '@/components/useEscape'
 
 export type Student = {
   id: string
@@ -164,6 +165,7 @@ const ipk = (s: Student) => {
 function StudentFormModal({ student, dosen, onClose }: { student: Student | null; dosen: Dosen[]; onClose: () => void }) {
   const action = student ? updateStudentAction.bind(null, student.id) : createStudentAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
+  useEscape(onClose, isPending)
   const router = useRouter()
   const prodi = useProdi()
   const [tanpaP2, setTanpaP2] = useState(!!student?.tanpa_pembimbing_2)
@@ -288,6 +290,7 @@ function KeputusanModal({ student, onClose }: { student: Student; onClose: () =>
   const [alasan, setAlasan] = useState(student.keputusan?.alasan ?? '')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
+  useEscape(onClose, pending)
 
   const jalankan = async (f: () => Promise<FormState>) => {
     setPending(true)

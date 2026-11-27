@@ -276,12 +276,17 @@ export async function checkAllClashes(academicYearId: string, prodi: Prodi): Pro
   return rows ? clashFindings(rows, policies, prodi) : []
 }
 
-export type KuliahFindings = { clashes: ClashFinding[]; beban: BebanSummary[] }
+// jadwal: this prodi's rows in the year (null when unreadable); 0 hides the bar's "no clashes" line.
+export type KuliahFindings = { clashes: ClashFinding[]; beban: BebanSummary[]; jadwal: number | null }
 
 /** Both standing checks for the kuliah findings bar, from one read of the year (also outside a render, e.g. /api/clashes). */
 export async function checkKuliahFindings(academicYearId: string, prodi: Prodi): Promise<KuliahFindings> {
-  if (!academicYearId) return { clashes: [], beban: [] }
+  if (!academicYearId) return { clashes: [], beban: [], jadwal: 0 }
   const [policies, rows] = await Promise.all([getClashPolicies(prodi), fetchYearRows(academicYearId)])
-  if (!rows) return { clashes: [], beban: [] }
-  return { clashes: clashFindings(rows, policies, prodi), beban: workloadFindings(rows, policies, prodi) }
+  if (!rows) return { clashes: [], beban: [], jadwal: null }
+  return {
+    clashes: clashFindings(rows, policies, prodi),
+    beban: workloadFindings(rows, policies, prodi),
+    jadwal: rows.filter((r) => r.prodi === prodi).length,
+  }
 }

@@ -24,6 +24,7 @@ export function SidangClient({
   context,
   defenses,
   findings,
+  tahunKosong,
   graded,
   lecturers,
   rooms,
@@ -38,6 +39,7 @@ export function SidangClient({
   context: DefenseContext
   defenses: DefenseRow[]
   findings: DefenseFinding[]
+  tahunKosong: boolean // no rows of this prodi in the whole year (the findings bar's scope)
   graded: Record<string, (PeranPrasidang | PeranSidang)[]>
   lecturers: Option[]
   rooms: Option[]
@@ -185,6 +187,7 @@ export function SidangClient({
       <div className="p-[1.07rem_1.3rem_1.3rem]">
         <FindingsBar
           scopeLabel={yearLabel}
+          kosong={tahunKosong}
           onView={viewFinding}
           findings={findings.map((f) => ({
             policy: f.policy === 'blok' ? 'blok' : 'peringatan',

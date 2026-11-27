@@ -35,11 +35,12 @@ function KuliahFindingsBar({
   lecturers: Lecturer[]
   onView: (sides: ClashFindingSide[]) => void
 }) {
-  const { clashes, beban } = findings instanceof Promise ? use(findings) : findings
+  const { clashes, beban, jadwal } = findings instanceof Promise ? use(findings) : findings
   const nama = new Map(lecturers.map((l) => [l.kode_dosen, lecturerDisplayName(l)]))
   return (
     <FindingsBar
       scopeLabel={scopeLabel}
+      kosong={jadwal === 0}
       findings={clashes.map((c) => ({
         policy: c.policy === 'blok' ? 'blok' : 'peringatan',
         where: `Semester ${c.a.semester_ke} · Kelas ${c.a.kelas}`,

@@ -95,7 +95,11 @@ silently win over Tailwind utilities again.
   390px with a long university email.
 - **Modals** — `fixed inset-0 z-50 flex items-center justify-center bg-black/40`,
   card is `border border-[var(--garis-kuat)] rounded-[var(--r-sedang)]`, no
-  shadow. Field wrapper is a plain `<div>` (not `<label>`) whenever a field
+  shadow. Escape closes every modal through `useEscape(onClose, pending)`
+  (`src/components/useEscape.ts`; `<TutupDenganEscape>` for a dialog written inline
+  behind `{open && …}`): only the topmost dialog answers, never while saving, and
+  never when the Escape closed a `Select`/`CariSelect` popup inside it (they
+  `preventDefault()`). Field wrapper is a plain `<div>` (not `<label>`) whenever a field
   holds more than one control (a `<label>` may only wrap one labelable
   element — this was a real bug in the Penjadwalan form, fixed in phase 7).
 - **Import panel** (`src/components/import/ImportPanel.tsx`) — one shared
@@ -168,6 +172,12 @@ silently win over Tailwind utilities again.
   no room). Scoped to the whole academic year — `checkAllClashes()` for kuliah,
   `checkAllExamClashes()`, `checkAllDefenseClashes()` — not the semester or
   date filter, since a person or room clashing across two views still matters.
+  `kosong` (the prodi has no rows in that year) hides the green line: "no
+  clashes" over nothing reads as an all-clear.
+- **404 and error pages** (`src/app/not-found.tsx`, `src/app/error.tsx`, frame in
+  `HalamanGagal.tsx`) — logo over one `--lembar` card: `mono` code, `1.33rem`/600
+  title, one sentence, "Kembali ke Beranda" (error adds "Coba lagi" via `retry()`
+  and the `digest` to send the administrator). `/beranda` redirects to `/`.
 - **DownloadButtons** (`src/components/DownloadButtons.tsx`) — "Unduh PDF" +
   "Unduh Excel" at the right of a print page's context bar. The PDF is fetched,
   not navigated to: busy label "Membuat PDF…", inline `--merah-teks` error when

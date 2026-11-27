@@ -100,6 +100,7 @@ export function CariSelect({
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
+        e.preventDefault() // this Escape closed the list; the dialog around it stays open (useEscape)
         tutup()
         triggerRef.current?.focus()
       }

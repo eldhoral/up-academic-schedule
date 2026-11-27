@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { createRoomAction, deleteRoomAction, updateRoomAction, type FormState } from './actions'
+import { useEscape } from '@/components/useEscape'
 
 export type Room = {
   id: string
@@ -100,6 +101,7 @@ export function RuanganClient({ rooms, canEdit }: { rooms: Room[]; canEdit: bool
 function RoomFormModal({ room, onClose }: { room: Room | null; onClose: () => void }) {
   const action = room ? updateRoomAction.bind(null, room.id) : createRoomAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
+  useEscape(onClose, isPending)
   const router = useRouter()
 
   useEffect(() => {

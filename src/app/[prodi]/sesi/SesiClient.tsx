@@ -15,6 +15,7 @@ import {
   updateSessionAction,
   type FormState,
 } from './actions'
+import { useEscape } from '@/components/useEscape'
 
 export type SessionRow = {
   id: string
@@ -345,6 +346,7 @@ function SessionFormModal({ session, hasRegsus, onClose }: { session: SessionRow
   const prodi = useProdi()
   const boundAction = updateSessionAction.bind(null, prodi, session.id)
   const [state, formAction, isPending] = useActionState<FormState, FormData>(boundAction, null)
+  useEscape(onClose, isPending)
   const router = useRouter()
 
   useEffect(() => {

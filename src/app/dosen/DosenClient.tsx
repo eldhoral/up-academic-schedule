@@ -6,6 +6,7 @@ import { ImportPanel } from '@/components/import/ImportPanel'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { createLecturerAction, deleteLecturerAction, jadwalLinkAction, updateLecturerAction, type FormState } from './actions'
+import { useEscape } from '@/components/useEscape'
 
 export type Lecturer = {
   kode_dosen: string
@@ -177,6 +178,7 @@ function JadwalLinkButtons({ kodeDosen, hasLink, onMessage }: { kodeDosen: strin
 function LecturerFormModal({ lecturer, onClose }: { lecturer: Lecturer | null; onClose: () => void }) {
   const action = lecturer ? updateLecturerAction : createLecturerAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
+  useEscape(onClose, isPending)
   const router = useRouter()
 
   useEffect(() => {

@@ -24,6 +24,7 @@ import { useProdi } from '@/lib/use-prodi'
 import { PRODI_CONFIG } from '@/lib/prodi'
 import { PERAN_SIDANG_LABEL, type PeranSidang } from '@/lib/penilaian/akses'
 import { lolosGerbang, PERAN_PRASIDANG_LABEL, PESAN_GERBANG, type PeranPrasidang, type StatusPrasidang } from '@/lib/penilaian/prasidang'
+import { useEscape } from '@/components/useEscape'
 
 type Option = { value: string; label: string; eksternal?: boolean }
 export type DefenseDraft = {
@@ -99,6 +100,7 @@ export function DefenseFormModal({
   const [live, setLive] = useState<DefenseClashResult | null>(null)
   const [, startCheck] = useTransition()
   const [isSaving, startSave] = useTransition()
+  useEscape(onClose, isSaving)
   const [error, setError] = useState<string | null>(null)
   const [needsOverride, setNeedsOverride] = useState<DefenseClashSummary[] | null>(null)
   const [overrideConfirmed, setOverrideConfirmed] = useState(false)
@@ -455,6 +457,7 @@ const BUTTON = 'px-[0.7rem] py-[0.4rem] rounded-[var(--r-kecil)] border border-[
 
 /** The new day login, shown once: the password is not stored anywhere. */
 function AkunDialog({ akunBaru, akunError, onClose }: { akunBaru?: AkunBaru; akunError?: string; onClose: () => void }) {
+  useEscape(onClose)
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState(false)
 

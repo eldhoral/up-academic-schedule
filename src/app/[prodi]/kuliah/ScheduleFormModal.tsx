@@ -12,6 +12,7 @@ import { checkScheduleClashes, type BebanSummary, type ClashCheckResult } from '
 import { HARI_DB as HARI, hariLabel } from '@/lib/hari'
 import { addMinutes } from '@/lib/sesi-generator'
 import type { Course, KuliahContext, Lecturer, Room, ScheduleRow, SessionRow } from './penjadwalan-types'
+import { useEscape } from '@/components/useEscape'
 
 const CLASH_LABEL: Record<string, string> = { dosen: 'Dosen', kelas: 'Kelas', ruangan: 'Ruangan' }
 
@@ -46,6 +47,7 @@ export function ScheduleFormModal({
 }) {
   const action = editing ? updateScheduleAction.bind(null, editing.id) : createScheduleAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
+  useEscape(onClose, isPending)
   const router = useRouter()
 
   useEffect(() => {

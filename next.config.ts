@@ -26,6 +26,8 @@ const nextConfig: NextConfig = {
       { source: "/mahasiswa", destination: "/s1/mahasiswa", permanent: false },
       { source: "/sesi", destination: "/s1/sesi", permanent: false },
       { source: "/pengaturan", destination: "/s1/pengaturan", permanent: false },
+      // The sidebar calls "/" Beranda, so /beranda gets typed and bookmarked.
+      { source: "/beranda", destination: "/", permanent: false },
     ];
   },
   // The lecturer link carries its secret in the URL: keep it out of search engines and Referer headers.

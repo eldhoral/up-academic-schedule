@@ -38,6 +38,7 @@ export function UjianClient({
   addable,
   kelasByMk,
   findings,
+  tahunKosong,
   lecturers,
   rooms,
   sesi,
@@ -51,6 +52,7 @@ export function UjianClient({
   addable: AddableExam[]
   kelasByMk: Record<string, string[]>
   findings: ExamFinding[]
+  tahunKosong: boolean // no rows of this prodi in the whole year (the findings bar's scope)
   lecturers: Option[]
   rooms: Option[]
   sesi: { mulai: string; selesai: string }[]
@@ -218,6 +220,7 @@ export function UjianClient({
       <div className="p-[1.07rem_1.3rem_1.3rem]">
         <FindingsBar
           scopeLabel={yearLabel}
+          kosong={tahunKosong}
           notes={notes}
           onView={viewFinding}
           findings={findings.map((f) => ({

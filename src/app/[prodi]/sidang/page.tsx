@@ -38,7 +38,11 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
   }
   const tanggal = /^\d{4}-\d{2}-\d{2}$/.test((searchParams.tanggal as string) ?? '') ? (searchParams.tanggal as string) : null
 
-  const [defenses, findings] = await Promise.all([fetchDefenses(context.academic_year_id, context.jenis, prodi), checkAllDefenseClashes(context.academic_year_id, prodi)])
+  const [defenses, findings, { count: sidangTahunIni }] = await Promise.all([
+    fetchDefenses(context.academic_year_id, context.jenis, prodi),
+    checkAllDefenseClashes(context.academic_year_id, prodi),
+    supabase.from('defenses').select('*', { count: 'exact', head: true }).eq('academic_year_id', context.academic_year_id).eq('prodi', prodi),
+  ])
 
   // Which roles already have a grade (sidang) or a berita acara (prasidang), S1 only: their dosen select and the date are locked (the DB trigger enforces it too).
   const graded: Record<string, (PeranPrasidang | PeranSidang)[]> = {}
@@ -57,6 +61,7 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
         context={context}
         defenses={defenses}
         findings={findings}
+        tahunKosong={sidangTahunIni === 0}
         graded={graded}
         lecturers={((lecturers as unknown as (Lecturer & { eksternal: boolean })[]) ?? []).map((l) => ({ value: l.kode_dosen, label: lecturerDisplayName(l), eksternal: l.eksternal }))}
         rooms={((rooms as Room[]) ?? []).map((r) => ({ value: r.id, label: r.nama }))}

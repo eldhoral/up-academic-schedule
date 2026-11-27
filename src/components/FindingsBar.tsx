@@ -19,24 +19,29 @@ export function FindingsBar<T>({
   findings,
   scopeLabel,
   notes = [],
+  kosong = false,
   onView,
 }: {
   findings: Finding<T>[]
   scopeLabel: string
   notes?: string[]
+  kosong?: boolean // nothing scheduled in scope: "no clashes" would be true but say nothing, so it stays hidden
   onView?: (target: T) => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const blocking = findings.filter((f) => f.policy === 'blok').length
   const warning = findings.length - blocking
+  if (kosong && findings.length === 0 && notes.length === 0) return null
 
   return (
     <div className="mb-[1rem] space-y-[0.53rem]">
       {findings.length === 0 ? (
-        <div className="flex items-center gap-[0.53rem] px-[1rem] py-[0.53rem] bg-[var(--hijau-lembut)] border border-[var(--hijau)]/25 rounded-[var(--r-sedang)] text-[0.87rem] text-[var(--hijau)]">
-          <span aria-hidden="true">&#10003;</span>
-          Tidak ada bentrokan di {scopeLabel}.
-        </div>
+        !kosong && (
+          <div className="flex items-center gap-[0.53rem] px-[1rem] py-[0.53rem] bg-[var(--hijau-lembut)] border border-[var(--hijau)]/25 rounded-[var(--r-sedang)] text-[0.87rem] text-[var(--hijau)]">
+            <span aria-hidden="true">&#10003;</span>
+            Tidak ada bentrokan di {scopeLabel}.
+          </div>
+        )
       ) : (
         <div className="border border-[var(--merah-garis)] rounded-[var(--r-sedang)] bg-[var(--lembar)] overflow-hidden">
           <div className="flex items-center gap-[0.8rem] px-[1rem] py-[0.67rem] bg-[var(--merah-lembut)] border-b border-[var(--merah-garis)] flex-wrap">

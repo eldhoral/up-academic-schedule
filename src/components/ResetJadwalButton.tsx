@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Select } from '@/components/Select'
 import { PRODI, PRODI_CONFIG, type Prodi } from '@/lib/prodi'
 import { countJadwalAction, resetJadwalAction, type ResetCounts, type ResetKind } from '@/app/actions/reset-jadwal'
+import { useEscape } from '@/components/useEscape'
 
 type Year = { id: string; label: string; is_active: boolean }
 type Step = 'pilih' | 'konfirmasi' | 'selesai'
@@ -61,11 +62,7 @@ function ResetJadwalModal({ years, onClose }: { years: Year[]; onClose: () => vo
     })
   }, [yearId])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !isResetting && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [isResetting, onClose])
+  useEscape(onClose, isResetting)
 
   const count = (kind: ResetKind, p: Prodi) => counts?.[kind][p] ?? 0
   // A sidang reset also deletes graded prasidang and sidang, which the database refuses: lock that cell.

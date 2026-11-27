@@ -7,6 +7,7 @@ import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { ROLES, ROLE_LABEL, type Role } from '@/lib/role-types'
 import { PRODI_ACCESS, PRODI_ACCESS_LABEL, type ProdiAccess } from '@/lib/prodi'
 import { createUserAction, deleteUserAction, resetPasswordAction, updateUserProdiAccessAction, updateUserRoleAction, type FormState } from './actions'
+import { useEscape } from '@/components/useEscape'
 
 export type Profile = {
   id: string
@@ -276,6 +277,7 @@ function ProdiAccessSelect({ userId, access }: { userId: string; access: ProdiAc
 function CreateUserModal({ dosenOptions, onClose }: { dosenOptions: SelectOption[]; onClose: () => void }) {
   const [role, setRole] = useState<Role>('VIEWER')
   const [state, formAction, isPending] = useActionState<FormState, FormData>(createUserAction, null)
+  useEscape(onClose, isPending)
   const router = useRouter()
 
   useEffect(() => {
@@ -383,6 +385,7 @@ function ResetPasswordModal({ user, onClose }: { user: Profile; onClose: () => v
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [isPending, startTransition] = useTransition()
+  useEscape(onClose, isPending)
 
   function reset() {
     setError('')

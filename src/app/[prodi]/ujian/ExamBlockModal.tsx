@@ -16,6 +16,7 @@ import {
   type ExamClashSummary,
 } from './actions'
 import { GABUNGAN, KETERANGAN_LABEL, KETERANGAN_UJIAN, needsRoom, shortDate, type ExamContext, type ExamView, type KeteranganUjian } from './exam-types'
+import { useEscape } from '@/components/useEscape'
 
 type Option = { value: string; label: string }
 type RowState = { kelas: string; room_id: string; pengawas: PersonValue[]; keterangan_ujian: KeteranganUjian }
@@ -66,6 +67,7 @@ export function ExamBlockModal({
   const [live, setLive] = useState<ExamClashResult | null>(null)
   const [, startCheck] = useTransition()
   const [isSaving, startSave] = useTransition()
+  useEscape(onClose, isSaving)
   const [error, setError] = useState<string | null>(null)
   const [needsOverride, setNeedsOverride] = useState<ExamClashSummary[] | null>(null)
   const [overrideConfirmed, setOverrideConfirmed] = useState(false)

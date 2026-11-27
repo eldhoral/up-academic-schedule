@@ -6,6 +6,7 @@ import { TextSizeController } from '@/components/TextSizeController'
 import { signInAction, resetPasswordAction, type AuthState } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
 import { FOTO_LOGIN_BUCKET, FOTO_LOGIN_FALLBACK, FOTO_LOGIN_PREFIX } from '@/lib/foto-login'
+import { TutupDenganEscape } from '@/components/useEscape'
 
 const CAROUSEL_INTERVAL_MS = 7000
 
@@ -209,6 +210,7 @@ function MasukForm() {
           aria-modal="true"
           aria-labelledby="forgot-title"
         >
+          <TutupDenganEscape tutup={() => setShowForgotModal(false)} nonaktif={isForgotPending} />
           <div className="w-full max-w-[22rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
             <h3 id="forgot-title" className="m-0 text-[1.1rem] font-semibold mb-[0.6rem]">
               Atur ulang kata sandi

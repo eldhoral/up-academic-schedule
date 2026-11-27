@@ -12,6 +12,7 @@ import {
   type FormState,
 } from './actions'
 import { hariFromTanggal, hariLabel } from '@/lib/hari'
+import { useEscape } from '@/components/useEscape'
 
 export type AcademicYearRow = {
   id: string
@@ -208,6 +209,7 @@ function HariLiburSection({ libur, canEdit }: { libur: HolidayRow[]; canEdit: bo
 function AcademicYearFormModal({ year, onClose }: { year: AcademicYearRow | null; onClose: () => void }) {
   const action = year ? updateAcademicYearAction.bind(null, year.id) : createAcademicYearAction
   const [state, formAction, isPending] = useActionState<FormState, FormData>(action, null)
+  useEscape(onClose, isPending)
   const router = useRouter()
 
   useEffect(() => {
