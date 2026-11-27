@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { KotakNilai } from '@/components/KotakNilai'
+import { KOLOM_SKOR, KOTAK_SKOR, KotakNilai } from '@/components/KotakNilai'
 import type { BarisNilai } from '@/lib/penilaian/aturan'
 import { baris, formatNilai, nilaiDariSnapshot, parseAngka, SUDAH_DIKIRIM } from '@/lib/penilaian/nilai'
 import type { Hasil } from '../actions'
@@ -82,7 +82,7 @@ export function NilaiForm({ aspek, awal, tabel, aksi, tombol, konfirmasi }: Prop
                   </ul>
                 )}
               </div>
-              <div className="sm:w-[7rem] shrink-0">
+              <div className={KOLOM_SKOR}>
                 <input
                   id={id}
                   inputMode="decimal"
@@ -95,9 +95,9 @@ export function NilaiForm({ aspek, awal, tabel, aksi, tombol, konfirmasi }: Prop
                   }}
                   aria-invalid={!!salah}
                   aria-describedby={salah ? `${id}-err` : undefined}
-                  className={`mono w-full px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] border bg-[#41f108] text-[var(--tinta)] text-[1rem] text-right placeholder:text-[var(--tinta-2)] ${salah ? 'border-[var(--merah)]' : 'border-[var(--garis-kuat)]'}`}
+                  className={`${KOTAK_SKOR} ${salah ? 'border-[var(--merah)]' : 'border-[var(--garis-kuat)]'}`}
                 />
-                {salah && <p id={`${id}-err`} className="m-0 mt-[0.25rem] text-[0.8rem] text-[var(--merah-teks)]">{salah}</p>}
+                {salah && <p id={`${id}-err`} className="m-0 mt-[0.25rem] text-[0.8rem] text-[var(--merah-teks)] sm:text-right">{salah}</p>}
               </div>
             </li>
           )

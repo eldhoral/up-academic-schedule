@@ -1,6 +1,6 @@
 import { tanggalPanjang } from '@/lib/hari'
 import { substituteTemplate } from '@/lib/print'
-import type { Revisi } from './nilai'
+import { LABEL_HALAMAN, type Revisi } from './nilai'
 
 /** Defaults of the 'email_revisi_subjek' / 'email_revisi_isi' settings (S1), used when a setting is missing or blank. */
 export const SUBJEK_REVISI_BAWAAN = 'Revisi Sidang Skripsi — {nama} ({npm})'
@@ -60,7 +60,8 @@ export function renderRevisi(i: RevisiInput): { subject: string; text: string; h
   const subject = substituteTemplate(subjekT, vars).replace(/\s*[\r\n]+\s*/g, ' ')
 
   const kolom = i.kolom ?? 'Halaman'
-  const rujukan = (h: string) => (kolom === 'Halaman' ? `Halaman ${h || '-'}` : h || '-')
+  const label = kolom === 'Halaman' ? LABEL_HALAMAN : kolom
+  const rujukan = (h: string) => (kolom === 'Halaman' ? `${LABEL_HALAMAN} ${h || '-'}` : h || '-')
   // The sidang form no longer asks for a halaman (kiprat 2026-11-26): the column shows only when a row has one.
   const pakai = (rows: Revisi) => kolom !== 'Halaman' || rows.some((x) => x.halaman?.trim())
   const revisiText = ada.flatMap((r, n) => [
@@ -71,7 +72,7 @@ export function renderRevisi(i: RevisiInput): { subject: string; text: string; h
   const cell = 'border:1px solid #ccc;padding:4px 8px;vertical-align:top'
   const revisiHtml = ada.map((r) => [
     `<p><b>${esc(r.peranLabel)}: ${esc(r.nama)}</b></p>`,
-    `<table style="border-collapse:collapse"><tr>${pakai(r.rows) ? `<th style="${cell}">${esc(kolom)}</th>` : ''}<th style="${cell}">Catatan revisi</th></tr>`,
+    `<table style="border-collapse:collapse"><tr>${pakai(r.rows) ? `<th style="${cell}">${esc(label)}</th>` : ''}<th style="${cell}">Catatan revisi</th></tr>`,
     ...r.rows.map((x) => `<tr>${pakai(r.rows) ? `<td style="${cell}">${esc(x.halaman) || '-'}</td>` : ''}<td style="${cell};white-space:pre-wrap">${esc(x.catatan)}</td></tr>`),
     '</table>',
   ].join('')).join('')

@@ -2,10 +2,10 @@
 
 import { useId, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { KotakNilai } from '@/components/KotakNilai'
+import { KOLOM_SKOR, KOTAK_SKOR, KotakNilai } from '@/components/KotakNilai'
 import { Select } from '@/components/Select'
 import type { BarisNilai, Yudisium } from '@/lib/penilaian/aturan'
-import { baris, cekRevisi, cekSelisih, formatNilai, nilaiDariSnapshot, parseAngka, SUDAH_DIKIRIM, type Revisi } from '@/lib/penilaian/nilai'
+import { baris, cekRevisi, cekSelisih, formatNilai, LABEL_HALAMAN, nilaiDariSnapshot, parseAngka, SUDAH_DIKIRIM, type Revisi } from '@/lib/penilaian/nilai'
 import type { Hasil } from '../actions'
 
 type Props = {
@@ -27,8 +27,6 @@ const BTN = 'min-h-[2.4rem] px-[0.9rem] rounded-[var(--r-kecil)] text-[0.93rem] 
 const BTN_PRIMER = `${BTN} bg-[var(--biru)] text-white font-medium hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors`
 const BTN_SEKUNDER = `${BTN} border border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--cekung)]`
 const FIELD = 'w-full px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] border bg-[var(--cekung)] text-[0.93rem]'
-/** The score boxes in the faculty's green (kiprat 2026-11-26: #41f108). */
-const SKOR = 'mono w-full px-[0.6rem] py-[0.4rem] rounded-[var(--r-kecil)] border bg-[#41f108] text-[var(--tinta)] text-[1rem] text-right placeholder:text-[var(--tinta-2)]'
 const LABEL_KECIL = 'block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]'
 const BARIS_KOSONG = { halaman: '', catatan: '' }
 
@@ -106,7 +104,7 @@ export function PengujiForm({ aspek, awal, tabel, pembanding = [], yudisium, aks
                   </ul>
                 )}
               </div>
-              <div className="sm:w-[7rem] shrink-0">
+              <div className={KOLOM_SKOR}>
                 <input
                   id={id}
                   inputMode="decimal"
@@ -119,9 +117,9 @@ export function PengujiForm({ aspek, awal, tabel, pembanding = [], yudisium, aks
                   }}
                   aria-invalid={!!salah}
                   aria-describedby={salah ? `${id}-err` : undefined}
-                  className={`${SKOR} ${salah ? 'border-[var(--merah)]' : 'border-[var(--garis-kuat)]'}`}
+                  className={`${KOTAK_SKOR} ${salah ? 'border-[var(--merah)]' : 'border-[var(--garis-kuat)]'}`}
                 />
-                {salah && <p id={`${id}-err`} className="m-0 mt-[0.25rem] text-[0.8rem] text-[var(--merah-teks)]">{salah}</p>}
+                {salah && <p id={`${id}-err`} className="m-0 mt-[0.25rem] text-[0.8rem] text-[var(--merah-teks)] sm:text-right">{salah}</p>}
               </div>
             </li>
           )
@@ -150,8 +148,19 @@ export function PengujiForm({ aspek, awal, tabel, pembanding = [], yudisium, aks
                 const salah = dicoba && !r.catatan.trim()
                 const id = `${uid}-rev-${i}`
                 return (
-                  // No Halaman field (kiprat 2026-11-26): a row is just its catatan; halaman is sent as ''.
+                  // The old layout with a Halaman / BAB field back, optional (kiprat 2026-11-27: only the wording changes).
                   <li key={i} className="flex flex-col sm:flex-row gap-[0.6rem] sm:items-start">
+                    <div className="sm:w-[8rem] shrink-0">
+                      <label htmlFor={`${id}-hal`} className={LABEL_KECIL}>{LABEL_HALAMAN}</label>
+                      <input
+                        id={`${id}-hal`}
+                        autoComplete="off"
+                        maxLength={50}
+                        value={r.halaman}
+                        onChange={(e) => ubahBaris(i, 'halaman', e.target.value)}
+                        className={`${FIELD} border-[var(--garis-kuat)]`}
+                      />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <label htmlFor={`${id}-cat`} className={LABEL_KECIL}>Catatan revisi {i + 1}</label>
                       <textarea

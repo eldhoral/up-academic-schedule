@@ -119,6 +119,9 @@ export const SUDAH_DIKIRIM = 'Nilai sudah dikirim.'
 export const ASPEK_BERUBAH = 'Daftar aspek penilaian berubah. Muat ulang halaman lalu isi lagi.'
 
 /** The aspek list a form showed ([label, bobot] in order) still equals the current one. From the client, so shape-checked. */
+/** What a sidang revisi row's halaman is called on screen, in the email and on the Form Revisi (kiprat 2026-11-27). */
+export const LABEL_HALAMAN = 'Halaman / BAB'
+
 export function aspekSama(tampil: unknown, kini: { label: string; bobot: number }[]): boolean {
   return Array.isArray(tampil) && tampil.length === kini.length &&
     tampil.every((t, i) => Array.isArray(t) && t.length === 2 && t[0] === kini[i].label && t[1] === kini[i].bobot)

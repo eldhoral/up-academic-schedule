@@ -12,7 +12,7 @@ import {
 } from '@/lib/penilaian/akses'
 import { bekukan, type BarisNilai } from '@/lib/penilaian/aturan'
 import { identitasPenguji, loadDrafSidang, loadSidang, type HasilRow, type NilaiSidangRow } from '@/lib/penilaian/data'
-import { baris, formatNilai, nilaiSidang } from '@/lib/penilaian/nilai'
+import { baris, formatNilai, LABEL_HALAMAN, nilaiSidang } from '@/lib/penilaian/nilai'
 import { ALASAN_ATURAN_RUSAK, bolehKirimUlang, EMAIL_LABEL } from '@/lib/penilaian/rekap'
 import { hasilBeritaAcara } from '@/lib/penilaian/berita-acara-sidang'
 import { KirimUlang } from '@/app/[prodi]/sidang/nilai-akhir/KirimUlang'
@@ -386,7 +386,7 @@ function Meta({ row }: { row: NilaiSidangRow }) {
 
 /** A submitted grade, read-only: its snapshot rows (never the current list), the nilai, then its revisi. */
 function Terkirim({ row, tabel }: { row: NilaiSidangRow; tabel: BarisNilai[] }) {
-  // The form no longer asks for a halaman (kiprat 2026-11-26); older grades that have one still show it.
+  // Halaman / BAB is optional (kiprat 2026-11-27): the column shows when a row has one.
   const adaHalaman = row.revisi.some((r) => r.halaman?.trim())
   return (
     <div>
@@ -415,7 +415,7 @@ function Terkirim({ row, tabel }: { row: NilaiSidangRow; tabel: BarisNilai[] }) 
         <table className="w-full border-collapse border border-[var(--garis-kuat)] bg-[var(--lembar)] text-[0.93rem]">
           <thead className="bg-[var(--cekung)] text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">
             <tr>
-              {adaHalaman && <th className={`text-left w-[7rem] ${TH}`}>Halaman</th>}
+              {adaHalaman && <th className={`text-left w-[7rem] ${TH}`}>{LABEL_HALAMAN}</th>}
               <th className={`text-left ${TH}`}>Catatan revisi</th>
             </tr>
           </thead>
