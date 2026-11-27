@@ -10,7 +10,7 @@ import {
   adminSidang, ANGGOTA_I_LEGACY, aksesSidang, PERAN_SIDANG, PERAN_SIDANG_LABEL, penilaianSidangPath, peranPenguji,
   todayJakarta, type PeranSidang,
 } from '@/lib/penilaian/akses'
-import type { BarisNilai } from '@/lib/penilaian/aturan'
+import { bekukan, type BarisNilai } from '@/lib/penilaian/aturan'
 import { identitasPenguji, loadDrafSidang, loadSidang, type HasilRow, type NilaiSidangRow } from '@/lib/penilaian/data'
 import { baris, formatNilai, nilaiSidang } from '@/lib/penilaian/nilai'
 import { ALASAN_ATURAN_RUSAK, bolehKirimUlang, EMAIL_LABEL } from '@/lib/penilaian/rekap'
@@ -71,14 +71,18 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   const peranSaya = saya ? peranPenguji(defense, saya.kode) : null
   const nSidang = nilaiSidang(PERAN_SIDANG.map((p) => data.nilai[p]?.nilai ?? null))
   const st = data.student
-  // IPK after the sidang as the berita acara computes it (from Nilai Sidang, frozen rules); known once locked.
-  const ba = hasil?.aturan
-    ? hasilBeritaAcara({ nilai: PERAN_SIDANG.map((p) => data.nilai[p]?.nilai ?? null), aturan: hasil.aturan, lulus: hasil.yudisium_lulus, sks: st.sks, bobot: st.bobot, tepatWaktu: st.tepatWaktu }).ipk
-    : null
+  // IPK after the sidang as the berita acara computes it (from Nilai Sidang). Locked: the frozen rules and the yudisium.
+  // Before that, as soon as all three grades are validated (kiprat 2026-11-27): today's rules, counted as lulus.
+  const nilaiTiga = PERAN_SIDANG.map((p) => data.nilai[p]?.nilai ?? null)
+  const lengkap = nilaiTiga.every((n) => n !== null)
+  const dasar = { nilai: nilaiTiga, sks: st.sks, bobot: st.bobot, tepatWaktu: st.tepatWaktu }
+  const ba = hasil
+    ? hasil.aturan ? hasilBeritaAcara({ ...dasar, aturan: hasil.aturan, lulus: hasil.yudisium_lulus }).ipk : null
+    : lengkap ? hasilBeritaAcara({ ...dasar, aturan: bekukan(aturan), lulus: true }).ipk : null
   const ipk = {
     sebelum: st.ipk,
     setelah: ba && 'ipkSetelah' in ba ? ba.ipkSetelah : null,
-    alasan: !hasil ? 'menunggu sidang dikunci' : ba && 'alasan' in ba ? ba.alasan : undefined,
+    alasan: !hasil && !lengkap ? 'menunggu ketiga nilai divalidasi' : ba && 'alasan' in ba ? ba.alasan : undefined,
   }
   const angka = (n: number | null, key: string) => <span key={key} className="mono">{n === null ? '—' : formatNilai(n)}</span>
   const fakta: [string, React.ReactNode][] = [
