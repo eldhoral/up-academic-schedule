@@ -98,11 +98,6 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
         {akses?.kind === 'terkirim' && <Terkirim row={data.nilai[akses.peran]!} tabel={tabel} />}
 
         {/* Staff: both dosen's grades. Only Super Admin writes, at any time: edits a submitted grade, or enters a missing one. */}
-        {!dosen && defense.tanpa_pembimbing_2 && (
-          <p className="m-0 mb-[1rem] text-[0.93rem] text-[var(--tinta-2)]">
-            Tanpa Dosen Pembimbing II: Nilai Bimbingan = nilai Pembimbing I.
-          </p>
-        )}
         {!dosen &&
           PERAN.filter((p) => !(p === 'pembimbing_2' && defense.tanpa_pembimbing_2)).map((peran) => {
             const row = data.nilai[peran]
