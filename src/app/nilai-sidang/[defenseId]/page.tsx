@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AkunLain } from '@/components/AkunLain'
 import { AppShell } from '@/components/AppShell'
+import { TabelFakta } from '@/components/TabelFakta'
 import { KotakNilai } from '@/components/KotakNilai'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { canAccessProdi } from '@/lib/prodi'
@@ -111,14 +112,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
         <Link href="/penilaian" className="text-[0.87rem] text-[var(--tinta-2)] hover:underline">‹ Penilaian Saya</Link>
       )}
       <h1 className="m-0 mt-[0.4rem] text-[1.6rem] font-semibold tracking-[-0.02em]">{defense.prodi === 's2' ? 'Nilai Tesis' : 'Nilai Sidang'}</h1>
-      <dl className="m-0 mt-[1rem] mb-[1.6rem] grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-x-[1rem] gap-y-[0.4rem] text-[0.93rem]">
-        {fakta.map(([k, v]) => (
-          <div key={k} className="contents">
-            <dt className="text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)] sm:pt-[0.2rem]">{k}</dt>
-            <dd className="m-0 mb-[0.4rem] sm:mb-0">{v}</dd>
-          </div>
-        ))}
-      </dl>
+      <TabelFakta fakta={fakta} />
     </>
   )
   if (rusak) {
