@@ -6,8 +6,15 @@ import { AppHeader } from './AppHeader'
 import { Sidebar } from './Sidebar'
 import { SidebarToggle } from './SidebarToggle'
 
+// Per-student grading pages live outside /[prodi]; staff see them under their recap tab in the Sidang section.
+const DETAIL_KE_REKAP: [string, string][] = [
+  ['/nilai-sidang/', '/sidang/nilai-sidang'],
+  ['/nilai-bimbingan/', '/sidang/nilai-bimbingan'],
+  ['/berita-acara-prasidang/', '/sidang/hasil-prasidang'],
+]
+
 export async function AppShell({
-  active,
+  active: halaman,
   prodi,
   children,
 }: {
@@ -21,12 +28,13 @@ export async function AppShell({
   if (dosen) {
     return (
       <div className="min-h-screen flex flex-col">
-        <AppHeader active={active} prodi={prodi} />
+        <AppHeader active={halaman} prodi={prodi} />
         {children}
       </div>
     )
   }
 
+  const active = DETAIL_KE_REKAP.find(([d]) => halaman.startsWith(d))?.[1] ?? halaman
   const role = user?.role ?? null
   const prodiAccess = user?.prodiAccess ?? 's1'
   const manage = canManage(role)
@@ -61,7 +69,7 @@ export async function AppShell({
           </div>
         )}
         {/* Keyed per page: each navigation mounts it afresh, so the new content fades in (globals.css). */}
-        <div key={`${prodi ?? ''}${active}`} className="halaman-masuk flex-1 min-w-0 flex flex-col">
+        <div key={`${prodi ?? ''}${halaman}`} className="halaman-masuk flex-1 min-w-0 flex flex-col">
           {children}
         </div>
       </div>
