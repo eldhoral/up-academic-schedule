@@ -308,7 +308,8 @@ export function ScheduleFormModal({
               onValueChange={setKelas}
               ariaLabel="Kelas"
               options={kelasOptions.map((k) => ({ value: k, label: k }))}
-              className="w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
+              // A short box, so its list of letters stays short too, not across the form (kiprat 2026-11-27).
+              className="w-[8rem] bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.6rem] py-[0.4rem] text-[0.93rem] min-h-[2.4rem]"
             />
           </Field>
 
