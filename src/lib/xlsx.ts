@@ -1,6 +1,7 @@
 import type ExcelJS from 'exceljs'
 import { parseImageDataUri } from './print'
 import { LOGO_UP_PNG_BASE64 } from './logo-up'
+import { istilah } from './prodi'
 
 // Helpers shared by every exceljs document builder (kuliah, ujian, sidang).
 
@@ -112,4 +113,17 @@ export function mergedText(
   cell.font = { bold: opts.bold ?? false, size: opts.size ?? 10, underline: opts.underline ?? false }
   cell.alignment = { horizontal: opts.align ?? 'left', vertical: 'top' }
   return cell
+}
+
+/**
+ * Rewords every text cell of a grading sheet built in S1's terms for S2 (tesis, seminar proposal, Magister).
+ * ponytail: a pass over the finished sheet instead of a branch per label; a student's own text (judul) that says
+ * "skripsi" or "prasidang" is reworded too. Per-label wording if that ever matters.
+ */
+export function istilahLembar(ws: ExcelJS.Worksheet, prodi: string) {
+  if (prodi !== 's2') return
+  ws.eachRow((r) => r.eachCell((c) => {
+    if (typeof c.value === 'string') c.value = istilah(prodi, c.value)
+  }))
+  ws.name = istilah(prodi, ws.name)
 }

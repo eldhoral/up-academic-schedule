@@ -505,7 +505,7 @@ begin
         values ((select id from nb_def where k = 'pras'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
         raise exception 'FAIL: bimbingan graded on a prasidang';
     exception when check_violation then
-        assert sqlerrm = 'Nilai bimbingan hanya untuk sidang S1.', sqlerrm;
+        assert sqlerrm = 'Nilai bimbingan hanya untuk sidang skripsi atau tesis.', sqlerrm;
     end;
     update nilai_bimbingan set nilai = 90;
     get diagnostics n = row_count;
@@ -521,7 +521,7 @@ begin
     assert n = 0, 'a dosen never edits the rules';
     assert (select count(*) from nilai_bimbingan) = 2, 'a dosen reads its own grades';
     assert (select count(*) from audit_log) = 0, 'a dosen reads no audit log';
-    assert (select count(*) from aturan_penilaian) = 10, 'a dosen reads the rules';
+    assert (select count(*) from aturan_penilaian where prodi = 's1') = 10, 'a dosen reads the rules';
 end $$;
 reset role;
 
@@ -877,7 +877,7 @@ begin
     assert is_eksternal_aktif(), 'the day account is active';
     assert my_kode_dosen() is null, 'my_kode_dosen() stays DOSEN-only';
     assert my_kode_penguji() = 'EXT01', 'my_kode_penguji() is the EKSTERNAL''s lecturer';
-    assert (select count(*) from aturan_penilaian) = 10, 'an active EKSTERNAL reads the rules';
+    assert (select count(*) from aturan_penilaian where prodi = 's1') = 10, 'an active EKSTERNAL reads the rules';
     assert (select count(*) from nilai_bimbingan) = 0, 'an EKSTERNAL reads no bimbingan grade, not even its own kode';
     begin
         insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
@@ -1413,11 +1413,18 @@ do $$ begin
 end $$;
 reset role;
 
--- S2 is never gated (a scheduler with access to both prodi).
+-- S2 is gated like S1 since 20261128000001: a sidang tesis needs its seminar proposal (a scheduler with access to both prodi).
 select set_config('request.jwt.claim.sub', :'semua', false);
 set role authenticated;
-insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
-values ('R0002', 'sidang', '2027-03-01', '08:00', '10:00', '89999', 'S2', 's2');
+do $$ begin
+    begin
+        insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, prodi)
+        values ('R0002', 'sidang', '2027-03-01', '08:00', '10:00', '89999', 'S2', 's2');
+        raise exception 'FAIL: an S2 sidang tesis without seminar proposal';
+    exception when check_violation then
+        assert sqlerrm = 'Mahasiswa belum memiliki seminar proposal. Super Admin dapat memberi keputusan di Data Mahasiswa.', sqlerrm;
+    end;
+end $$;
 reset role;
 
 -- DSN03 (Pembahas) no longer fills the berita acara (20261123000003).
@@ -1871,3 +1878,34 @@ do $$ begin
     end;
 end $$;
 reset role;
+
+-- S2 grading (kiprat 2026-11-27): S2 has its own copy of every rule, and its sidang tesis is graded, locked and
+-- given a Nilai Bimbingan like an S1 sidang, under S2's rules.
+do $$ begin
+    assert not exists (select kunci from aturan_penilaian where prodi = 's1' except select kunci from aturan_penilaian where prodi = 's2'),
+        'every S1 rule has an S2 copy';
+    assert exists (select 1 from settings where prodi = 's2' and key = 'email_revisi_subjek' and value like '%Tesis%'), 'S2 revisi email says tesis';
+end $$;
+update aturan_penilaian set nilai = '8'::jsonb where prodi = 's2' and kunci = 'sks_skripsi';
+insert into students (npm, nama, prodi, pembimbing_1_kode, tanpa_pembimbing_2) values ('88300', 'Tesis', 's2', 'DSN03', true);
+insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, penguji_kode, penguji_eksternal_kode, pembimbing_kode, prodi)
+values ('R0002', 'sidang', (now() at time zone 'Asia/Jakarta')::date - 1, '13:00', '15:00', '88300', 'Tesis',
+        (select kode_dosen from profiles where id = :'dosen'), 'EXTB', 'DSN03', 's2');
+create temp table s2t as select id from defenses where npm = '88300';
+grant select on s2t to authenticated;
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    assert my_peran_sidang((select id from s2t)) = 'ketua', 'the Ketua holds its peran on an S2 sidang tesis';
+end $$;
+reset role;
+insert into nilai_sidang (defense_id, kode_dosen, peran, aspek, nilai, sumber)
+select (select id from s2t), kode, peran, '[{"label": "A", "bobot": 100, "skor": 80}]', 80, 'manual'
+from (values ((select kode_dosen from profiles where id = :'dosen'), 'ketua'), ('EXTB', 'anggota_1'), ('DSN03', 'anggota_2')) v(kode, peran);
+insert into hasil_sidang (defense_id, yudisium_lulus, yudisium_label) values ((select id from s2t), true, 'Lulus Tanpa Revisi');
+insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, sumber)
+values ((select id from s2t), 'DSN03', 'pembimbing_1', '[{"label": "A", "bobot": 100, "skor": 85}]', 85, 'manual');
+do $$ begin
+    assert (select aturan ->> 'sksSkripsi' from hasil_sidang where defense_id = (select id from s2t)) = '8', 'the lock froze S2''s own rules';
+    assert exists (select 1 from nilai_bimbingan where defense_id = (select id from s2t)), 'an S2 sidang tesis takes a Nilai Bimbingan';
+end $$;

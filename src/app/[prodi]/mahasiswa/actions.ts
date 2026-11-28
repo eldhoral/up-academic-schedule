@@ -34,7 +34,7 @@ type StudentRow = {
 }
 
 /** The row to save, or the reason it can't be (the DB checks, said in words). S1 needs Pembimbing I, and Pembimbing II or the explicit "tanpa" flag. */
-function toRow(f: StudentForm, prodi: Prodi): { error: string } | { row: StudentRow } {
+function toRow(f: StudentForm): { error: string } | { row: StudentRow } {
   if (!f.npm || !f.nama) return { error: 'NPM dan nama wajib diisi.' }
   if (!/^\d+$/.test(f.npm)) return { error: 'NPM hanya boleh berisi angka.' }
   const badEmail = emailError(f.email)
@@ -43,7 +43,7 @@ function toRow(f: StudentForm, prodi: Prodi): { error: string } | { row: Student
   if ('error' in nilai) return { error: cap(nilai.error) }
   const { npm, nama, judul_skripsi, email, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2 } = f
   const row: StudentRow = { npm, nama, judul_skripsi, email, tepat_waktu, sks_sebelum: nilai.sks, bobot_sebelum: nilai.bobot }
-  if (prodi === 's1') {
+  {
     if (!pembimbing_1_kode) return { error: 'Dosen Pembimbing I wajib diisi.' }
     if (tanpa_pembimbing_2) {
       Object.assign(row, { pembimbing_1_kode, pembimbing_2_kode: null, tanpa_pembimbing_2 })
@@ -60,7 +60,7 @@ export async function createStudentAction(_prev: FormState, formData: FormData):
   const { prodi: rawProdi, ...form } = readStudentForm(formData)
   const gate = await manageableProdi(rawProdi)
   if ('error' in gate) return { error: gate.error }
-  const parsed = toRow(form, gate.prodi)
+  const parsed = toRow(form)
   if ('error' in parsed) return { error: parsed.error }
   const row = parsed.row
 
@@ -76,7 +76,7 @@ export async function updateStudentAction(id: string, _prev: FormState, formData
   const { prodi: rawProdi, ...form } = readStudentForm(formData)
   const gate = await manageableProdi(rawProdi)
   if ('error' in gate) return { error: gate.error }
-  const parsed = toRow(form, gate.prodi)
+  const parsed = toRow(form)
   if ('error' in parsed) return { error: parsed.error }
   const row = parsed.row
 
@@ -99,10 +99,10 @@ export async function deleteStudentAction(prodi: Prodi, id: string): Promise<For
   return { success: true }
 }
 
-/** The latest S1 prasidang of this student (the one an override is tied to), or null. */
-async function prasidangTerbaruId(supabase: Awaited<ReturnType<typeof createClient>>, npm: string): Promise<{ id: string | null } | { error: string }> {
+/** The latest prasidang (S1) or seminar proposal (S2) of this student (the one an override is tied to), or null. */
+async function prasidangTerbaruId(supabase: Awaited<ReturnType<typeof createClient>>, prodi: Prodi, npm: string): Promise<{ id: string | null } | { error: string }> {
   const { data, error } = await supabase
-    .from('defenses').select('id').eq('prodi', 's1').eq('jenis', 'prasidang').eq('npm', npm)
+    .from('defenses').select('id').eq('prodi', prodi).eq('jenis', 'prasidang').eq('npm', npm)
     .order('tanggal', { ascending: false }).order('created_at', { ascending: false }).limit(1)
   if (error) return { error: humanDbError(error) }
   return { id: data?.[0]?.id ?? null }
@@ -113,12 +113,11 @@ const BUKAN_SUPERADMIN: FormState = { error: 'Hanya Super Admin yang dapat membe
 /** Super Admin overrides a student's prasidang verdict so the sidang can be scheduled. Tied to the latest prasidang. */
 export async function simpanKeputusanAction(prodi: Prodi, npm: string, hasil: string, alasan: string): Promise<FormState> {
   if (!canManage(await getCurrentRole())) return BUKAN_SUPERADMIN
-  if (prodi !== 's1') return { error: 'Keputusan prasidang hanya untuk S1.' }
   if (hasil !== 'layak' && hasil !== 'layak_revisi') return { error: 'Pilih keputusan.' }
   if (!alasan.trim()) return { error: 'Alasan wajib diisi.' }
 
   const supabase = await createClient()
-  const p = await prasidangTerbaruId(supabase, npm)
+  const p = await prasidangTerbaruId(supabase, prodi, npm)
   if ('error' in p) return p
   const { error } = await supabase
     .from('keputusan_prasidang')
@@ -132,7 +131,6 @@ export async function simpanKeputusanAction(prodi: Prodi, npm: string, hasil: st
 
 export async function hapusKeputusanAction(prodi: Prodi, npm: string): Promise<FormState> {
   if (!canManage(await getCurrentRole())) return BUKAN_SUPERADMIN
-  if (prodi !== 's1') return { error: 'Keputusan prasidang hanya untuk S1.' }
   const supabase = await createClient()
   const { error } = await supabase.from('keputusan_prasidang').delete().eq('npm', npm)
   if (error) return { error: humanDbError(error) }

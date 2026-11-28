@@ -11,9 +11,8 @@ import { AkunClient, type Akun } from './AkunClient'
 
 export default async function AkunEksternalPage(props: PageProps<'/[prodi]/sidang/akun-eksternal'>) {
   const prodi = await prodiParam(props.params)
-  if (prodi !== 's1') notFound() // sidang grading is S1 only
   const user = await getCurrentUser()
-  if (!user || !canWrite(user.role) || !canAccessProdi(user.prodiAccess, 's1')) notFound()
+  if (!user || !canWrite(user.role) || !canAccessProdi(user.prodiAccess, prodi)) notFound()
 
   // The session client: staff read akun_eksternal, profiles and defenses through RLS.
   const supabase = await createClient()
@@ -34,7 +33,7 @@ export default async function AkunEksternalPage(props: PageProps<'/[prodi]/sidan
     supabase
       .from('defenses')
       .select('npm, nama_mahasiswa, tanggal, jam_mulai, penguji_eksternal_kode')
-      .eq('prodi', 's1')
+      .in('prodi', ['s1', 's2'])
       .eq('jenis', 'sidang')
       .in('penguji_eksternal_kode', [...new Set(rows.map((r) => r.kode_dosen))])
       .in('tanggal', [...new Set(rows.map((r) => r.tanggal))])

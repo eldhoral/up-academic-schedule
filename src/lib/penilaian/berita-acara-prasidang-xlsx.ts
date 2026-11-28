@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs'
 import { tanggalPanjang } from '@/lib/hari'
-import { addKop, addSignatureImage } from '@/lib/xlsx'
+import { addKop, addSignatureImage, istilahLembar } from '@/lib/xlsx'
 import type { BeritaAcara } from './data'
 import { semesterParts } from './email-revisi'
 import { HASIL_LABEL } from './prasidang'
@@ -92,5 +92,6 @@ export async function buildBeritaAcaraPrasidangXlsx(d: BeritaAcara, c: BeritaAca
   for (let i = 0; i < 4; i++) ws.addRow([])
   tengah(c.nama, true)
 
+  istilahLembar(ws, d.defense.prodi)
   return new Uint8Array((await wb.xlsx.writeBuffer()) as ArrayBuffer)
 }

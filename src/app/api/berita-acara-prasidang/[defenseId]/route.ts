@@ -1,6 +1,6 @@
 import { getCurrentUser } from '@/lib/roles'
 import { isPenguji } from '@/lib/role-types'
-import { canAccessProdi } from '@/lib/prodi'
+import { canAccessProdi, istilah } from '@/lib/prodi'
 import { convertXlsxToPdf } from '@/lib/aspose'
 import { loadBeritaAcara } from '@/lib/penilaian/data'
 import { buildBeritaAcaraPrasidangXlsx, namaBeritaAcara } from '@/lib/penilaian/berita-acara-prasidang-xlsx'
@@ -14,7 +14,8 @@ import { kopBaris } from '@/lib/xlsx'
 export async function GET(req: Request, ctx: RouteContext<'/api/berita-acara-prasidang/[defenseId]'>) {
   const user = await getCurrentUser()
   if (!user) return new Response('Masuk terlebih dahulu.', { status: 401 })
-  if (isPenguji(user.role) || !canAccessProdi(user.prodiAccess, 's1')) {
+  // Staff only; the prodi is checked once the record is loaded (S1 or S2).
+  if (isPenguji(user.role)) {
     return new Response('Akun ini tidak dapat mengunduh berita acara.', { status: 403 })
   }
   const format = new URL(req.url).searchParams.get('format') === 'pdf' ? 'pdf' : 'xlsx'
@@ -23,13 +24,14 @@ export async function GET(req: Request, ctx: RouteContext<'/api/berita-acara-pra
   // Admin client inside loadBeritaAcara, after the staff check above.
   const data = await loadBeritaAcara(defenseId)
   if (!data) return new Response('Prasidang tidak ditemukan.', { status: 404 })
+  if (!canAccessProdi(user.prodiAccess, data.defense.prodi)) return new Response('Akun ini tidak dapat mengunduh berita acara.', { status: 403 })
 
   // The kop and the cetak penandatangan (Ketua Program Studi), with the signature image.
-  const s = await getSettings('s1', true)
+  const s = await getSettings(data.defense.prodi, true)
   const xlsx = await buildBeritaAcaraPrasidangXlsx(data, {
     kop: kopBaris(s.kop_baris), jabatan: s.jabatan_penandatangan ?? '', nama: s.nama_penandatangan ?? '', gambarTandaTangan: s.gambar_tanda_tangan ?? '',
   })
-  const nama = namaBeritaAcara('Prasidang', data.academicYearId, data.defense.nama_mahasiswa)
+  const nama = istilah(data.defense.prodi, namaBeritaAcara('Prasidang', data.academicYearId, data.defense.nama_mahasiswa))
 
   if (format === 'xlsx') {
     return new Response(xlsx, {

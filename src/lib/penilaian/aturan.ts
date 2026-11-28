@@ -252,7 +252,7 @@ function parseTanggal(v: unknown): string | null {
 }
 
 /** The prodi's rules; each missing or invalid kunci falls back to the default so a bad row never breaks grading. */
-export async function loadAturan(db: SupabaseClient, prodi: 's1'): Promise<Aturan> {
+export async function loadAturan(db: SupabaseClient, prodi: string): Promise<Aturan> {
   const { data, error } = await db.from('aturan_penilaian').select('kunci, nilai').eq('prodi', prodi)
   // A transient DB error must not fall back to defaults: that would freeze a default snapshot into an immutable grade.
   if (error) throw new Error(`Gagal memuat aturan penilaian: ${error.message}`)

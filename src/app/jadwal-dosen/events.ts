@@ -1,6 +1,6 @@
 import { hariFromTanggal } from '@/lib/hari'
 import type { IcsEvent } from '@/lib/ics'
-import { bisaDinilaiSidang, isPrasidangS1, penilaianSidangPath } from '@/lib/penilaian/akses'
+import { bisaDinilaiSidang, isPrasidangDinilai, penilaianSidangPath } from '@/lib/penilaian/akses'
 import { beritaAcaraPath } from '@/lib/penilaian/prasidang'
 import { PRODI_CONFIG, type JenisKelas, type Prodi } from '@/lib/prodi'
 import { addDays, mondayOf } from '@/lib/week'
@@ -71,7 +71,7 @@ export function publicOrigin(h: Headers): string {
  * S1 sidang: grading, for all three examiners (Ketua, Anggota I = eksternal, Anggota II = pembimbing).
  */
 export const linkNilai = (s: Pick<SidangItem, 'id' | 'prodi' | 'jenis' | 'peran'>): string | null =>
-  bisaDinilaiSidang(s) ? penilaianSidangPath(s.id) : isPrasidangS1(s) && s.peran === 'pembimbing' ? beritaAcaraPath(s.id) : null
+  bisaDinilaiSidang(s) ? penilaianSidangPath(s.id) : isPrasidangDinilai(s) && s.peran === 'pembimbing' ? beritaAcaraPath(s.id) : null
 
 /** Sidang shows this many days ahead on the public page, so examiners can review the materi first (faculty request, 2026-11-23). */
 export const SIDANG_HARI_MAJU = 7

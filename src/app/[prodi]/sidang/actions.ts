@@ -271,7 +271,7 @@ export async function deleteDefenseAction(prodi: Prodi, id: string): Promise<Def
 }
 
 /**
- * Super Admin deletes an S1 prasidang whose berita acara is filled, or an S1 sidang already graded, after typing the
+ * Super Admin deletes a prasidang whose berita acara is filled, or a sidang already graded (S1 or S2), after typing the
  * student's NPM. The DB function checks the role and the NPM again and deletes everything in one transaction; the
  * audit log keeps the deleted rows.
  */
@@ -285,7 +285,7 @@ export async function hapusPaksaAction(jenis: 'prasidang' | 'sidang', id: string
   return { success: true }
 }
 
-/** S1 sidang form: the student's gate status (status_prasidang) and Dosen Pembimbing I/II. Null when unknown. */
+/** Sidang form (S1 and S2): the student's gate status (status_prasidang) and Dosen Pembimbing I/II. Null when unknown. */
 export async function infoMahasiswaSidangAction(
   npm: string,
 ): Promise<{ status: StatusPrasidang; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null; tanpa_pembimbing_2: boolean } | null> {
@@ -293,7 +293,8 @@ export async function infoMahasiswaSidangAction(
   const supabase = await createClient()
   const [status, mhs] = await Promise.all([
     supabase.rpc('status_prasidang', { p_npm: npm.trim() }),
-    supabase.from('students').select('pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', 's1').eq('npm', npm.trim()).maybeSingle(),
+    // NPM is unique across both prodi.
+    supabase.from('students').select('pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('npm', npm.trim()).maybeSingle(),
   ])
   if (status.error || mhs.error || !status.data) return null
   return {

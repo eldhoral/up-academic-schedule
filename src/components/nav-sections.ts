@@ -41,10 +41,10 @@ const NILAI_BIMBINGAN: Tab = { href: '/sidang/nilai-bimbingan', label: 'Nilai Bi
 
 const NILAI_AKHIR: Tab = { href: '/sidang/nilai-akhir', label: 'Nilai Akhir' }
 
-// Super Admin and Penjadwal, S1 only: day logins for external sidang examiners.
+// Super Admin and Penjadwal: day logins for external sidang examiners.
 const AKUN_EKSTERNAL: Tab = { href: '/sidang/akun-eksternal', label: 'Akun Penguji Eksternal' }
 
-// Super Admin only, S1 only (online grading is S1 prasidang).
+// Super Admin only: each prodi's grading rules.
 const PENILAIAN: Tab = { href: '/pengaturan/penilaian', label: 'Penilaian' }
 
 const MASTER_SHARED: Tab[] = [
@@ -64,13 +64,17 @@ export function sectionOf(active: string, prodi: Prodi | undefined, canManage: b
     if (active.startsWith('/sidang')) {
       const tabs = SIDANG.map((t) => (t.href === '/sidang' ? { ...t, label: `Jadwal ${c.defense.sidang}` } : t))
       const section = own(`Jadwal ${c.defense.section}`, tabs)
-      if (prodi !== 's1') return section
-      const nilai = [HASIL_PRASIDANG, NILAI_SIDANG, NILAI_BIMBINGAN, NILAI_AKHIR, ...(akunEksternal ? [AKUN_EKSTERNAL] : [])]
+      // Both prodi grade online (S2 since kiprat 2026-11-27): Hasil Seminar Proposal and Nilai Tesis on S2.
+      const nilai = [
+        prodi === 's2' ? { ...HASIL_PRASIDANG, label: 'Hasil Seminar Proposal' } : HASIL_PRASIDANG,
+        prodi === 's2' ? { ...NILAI_SIDANG, label: 'Nilai Tesis' } : NILAI_SIDANG,
+        NILAI_BIMBINGAN, NILAI_AKHIR, ...(akunEksternal ? [AKUN_EKSTERNAL] : []),
+      ]
       return { ...section, group: { label: 'Penilaian', items: pre(nilai) } }
     }
     const pengaturan: Tab[] = [
       ...BAGIAN_PENGATURAN.map((b) => ({ href: pengaturanHref(b.slug), label: b.slug === 'sidang' ? `Jadwal ${c.defense.section}` : b.label })),
-      ...(canManage && prodi === 's1' ? [PENILAIAN] : []),
+      ...(canManage ? [PENILAIAN] : []),
     ]
     if ([...MASTER_PRODI, ...pengaturan].some((t) => t.href === active)) {
       return { ...own('Data Master', MASTER_PRODI), group: { label: 'Pengaturan', items: pre(pengaturan) } }

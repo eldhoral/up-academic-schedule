@@ -44,9 +44,9 @@ export default async function SidangPage(props: PageProps<'/[prodi]/sidang'>) {
     supabase.from('defenses').select('*', { count: 'exact', head: true }).eq('academic_year_id', context.academic_year_id).eq('prodi', prodi),
   ])
 
-  // Which roles already have a grade (sidang) or a berita acara (prasidang), S1 only: their dosen select and the date are locked (the DB trigger enforces it too).
+  // Which roles already have a grade (sidang) or a berita acara (prasidang), both prodi: their dosen select and the date are locked (the DB trigger enforces it too).
   const graded: Record<string, (PeranPrasidang | PeranSidang)[]> = {}
-  if (prodi === 's1' && defenses.length) {
+  if (defenses.length) {
     const ids = defenses.map((d) => d.id)
     const { data: nilai } = await (context.jenis === 'sidang' ? supabase.from('nilai_sidang') : supabase.from('berita_acara_prasidang')).select('defense_id, peran').in('defense_id', ids)
     for (const n of nilai ?? []) (graded[n.defense_id] ??= []).push(n.peran as PeranPrasidang | PeranSidang)

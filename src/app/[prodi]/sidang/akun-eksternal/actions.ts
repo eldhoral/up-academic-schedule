@@ -18,9 +18,10 @@ async function akunEksternal(admin: Admin, userId: string): Promise<{ berlaku_sa
   return profil?.berlaku_sampai ? { berlaku_sampai: profil.berlaku_sampai as string } : null
 }
 
-/** Super Admin and Penjadwal with S1 access. The new password is returned once and never stored. */
+/** Super Admin and Penjadwal with S1 or S2 access (an account serves both prodi's sidang). The new password is returned once and never stored. */
 export async function buatPasswordBaruAction(userId: string): Promise<{ error: string } | { password: string }> {
-  const gate = await writableProdi('s1')
+  const s1 = await writableProdi('s1')
+  const gate = 'error' in s1 ? await writableProdi('s2') : s1
   if ('error' in gate) return gate
   const me = (await getCurrentUser())!
 

@@ -10,16 +10,15 @@ import { MahasiswaClient, type Student } from './MahasiswaClient'
 export default async function MahasiswaPage(props: PageProps<'/[prodi]/mahasiswa'>) {
   const prodi = await prodiParam(props.params)
   const supabase = await createClient()
-  const s1 = prodi === 's1'
-  const kosong = { data: [], error: null }
   const [{ data }, dosen, pras, isian, keputusan] = await Promise.all([
     supabase.from('students')
       .select('id, npm, nama, judul_skripsi, email, sks_sebelum, bobot_sebelum, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2')
       .eq('prodi', prodi).order('npm'),
-    s1 ? supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang, eksternal').order('nama') : kosong,
-    s1 ? supabase.from('defenses').select('id, npm, tanggal, created_at').eq('prodi', 's1').eq('jenis', 'prasidang') : kosong,
-    s1 ? supabase.from('berita_acara_prasidang').select('defense_id, peran, hasil') : kosong,
-    s1 ? supabase.from('keputusan_prasidang').select('npm, prasidang_id, hasil, alasan') : kosong,
+    // Pembimbing and the prasidang / seminar proposal gate, both prodi (S2 since kiprat 2026-11-27).
+    supabase.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang, eksternal').order('nama'),
+    supabase.from('defenses').select('id, npm, tanggal, created_at').eq('prodi', prodi).eq('jenis', 'prasidang'),
+    supabase.from('berita_acara_prasidang').select('defense_id, peran, hasil'),
+    supabase.from('keputusan_prasidang').select('npm, prasidang_id, hasil, alasan'),
   ])
   const err = dosen.error ?? pras.error ?? isian.error ?? keputusan.error
   if (err) throw new Error(`Gagal memuat data mahasiswa: ${err.message}`)
@@ -28,7 +27,7 @@ export default async function MahasiswaPage(props: PageProps<'/[prodi]/mahasiswa
   const kep = (keputusan.data ?? []).map((x) => ({ npm: x.npm as string, prasidang_id: x.prasidang_id as string | null, hasil: x.hasil as Hasil, alasan: x.alasan as string }))
   const students = ((data ?? []) as Omit<Student, 'status' | 'keputusan'>[]).map((s): Student => ({
     ...s,
-    status: s1 ? statusPrasidang(s.npm, pras.data ?? [], isi, kep) : null,
+    status: statusPrasidang(s.npm, pras.data ?? [], isi, kep),
     keputusan: kep.find((k) => k.npm === s.npm) ?? null,
   }))
   // Internal dosen for the pickers; a dosen already assigned stays listed even if flagged eksternal later.

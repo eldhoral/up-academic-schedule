@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { EmptySheet } from '@/components/EmptySheet'
 import { PreviewTable, cell } from '@/components/preview'
@@ -14,6 +13,7 @@ import { bacaFilter, cariSql, kolomUrut, urutkan } from '@/lib/penilaian/rekap-f
 import { RekapBar } from '../nilai-bimbingan/RekapBar'
 import { RekapFilter, TidakCocok } from '../nilai-bimbingan/RekapFilter'
 import { KirimUlang } from './KirimUlang'
+import { istilah } from '@/lib/prodi'
 
 const C = 'center' as const
 const URUT = ['tanggal', 'npm', 'nama', 'nilai_sidang', 'nilai_akhir'] as const
@@ -31,14 +31,13 @@ const angka = (n: number | null) => (n === null ? KOSONG : <span className="mono
  */
 export default async function RekapNilaiAkhirPage(props: PageProps<'/[prodi]/sidang/nilai-akhir'>) {
   const prodi = await prodiParam(props.params)
-  if (prodi !== 's1') notFound() // sidang grading is S1 only
   const searchParams = await props.searchParams
   const supabase = await createClient()
   const [{ years, ay }, role] = await Promise.all([pilihTahun(supabase, searchParams.ay as string | undefined), getCurrentRole()])
   const path = `/${prodi}/sidang/nilai-akhir`
   const f = bacaFilter(searchParams, { urut: URUT, status: STATUS.map((s) => s.value) })
   // Search and tanggal/NPM/nama order in SQL; the computed grades and statuses after.
-  const cocok = (await loadRekapAkhir(supabase, ay, cariSql(f))).filter((r) =>
+  const cocok = (await loadRekapAkhir(supabase, prodi, ay, cariSql(f))).filter((r) =>
     f.status === 'lengkap' ? r.hasil.status === 'lengkap'
       : f.status === 'belum' ? r.hasil.status !== 'lengkap'
         : f.status === 'email_gagal' ? r.emailStatus === 'gagal' || r.emailStatus === 'sebagian'
@@ -62,8 +61,8 @@ export default async function RekapNilaiAkhirPage(props: PageProps<'/[prodi]/sid
         <RekapBar years={years} ay={ay} bisaUnduh={rows.length > 0 || aktif} slug="nilai-akhir" objek="sidang" />
         {rows.length === 0 && !aktif ? (
           <EmptySheet
-            title="Belum ada sidang skripsi"
-            detail={`${years.find((y) => y.id === ay)?.label ?? 'Tahun ini'} belum memiliki jadwal sidang skripsi. Nilai akhir muncul di sini setelah sidang dijadwalkan.`}
+            title={istilah(prodi, 'Belum ada sidang skripsi')}
+            detail={istilah(prodi, `${years.find((y) => y.id === ay)?.label ?? 'Tahun ini'} belum memiliki jadwal sidang skripsi. Nilai akhir muncul di sini setelah sidang dijadwalkan.`)}
             actionHref={`/${prodi}/sidang?${new URLSearchParams({ ay })}`}
             actionLabel="Buka Jadwal Sidang"
           />

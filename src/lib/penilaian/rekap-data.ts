@@ -27,14 +27,14 @@ export async function pilihTahun(db: SupabaseClient, raw: string | null | undefi
   return { years, ay }
 }
 
-/** The bimbingan recap of one tahun akademik: one row per S1 sidang. Session client: RLS (is_staff) decides who may read. Any DB error throws. */
-export async function loadRekapBimbingan(db: SupabaseClient, ay: string, cari?: CariRekap): Promise<{ rows: RekapBimbingan[]; aturan: Aturan }> {
+/** The bimbingan recap of one prodi's tahun akademik: one row per sidang skripsi (S1) or sidang tesis (S2). Session client: RLS (is_staff) decides who may read. Any DB error throws. */
+export async function loadRekapBimbingan(db: SupabaseClient, prodi: string, ay: string, cari?: CariRekap): Promise<{ rows: RekapBimbingan[]; aturan: Aturan }> {
   const [d, s, l, aturan] = await Promise.all([
     terapkanCari(db.from('defenses').select('id, tanggal, npm, nama_mahasiswa, judul_skripsi')
-      .eq('prodi', 's1').eq('jenis', 'sidang').eq('academic_year_id', ay), cari),
-    db.from('students').select('npm, sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', 's1'),
+      .eq('prodi', prodi).eq('jenis', 'sidang').eq('academic_year_id', ay), cari),
+    db.from('students').select('npm, sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', prodi),
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
-    loadAturan(db, 's1'),
+    loadAturan(db, prodi),
   ])
   const err = d.error ?? s.error ?? l.error
   if (err) throw new Error(`Gagal memuat rekap nilai bimbingan: ${err.message}`)
@@ -69,11 +69,11 @@ export async function loadRekapBimbingan(db: SupabaseClient, ay: string, cari?: 
 /**
  * The Nilai Akhir recap of one tahun akademik. Session client: RLS (is_staff) decides who may read. Any DB error throws.
  */
-export async function loadRekapAkhir(db: SupabaseClient, ay: string, cari?: CariRekap): Promise<RekapAkhir[]> {
+export async function loadRekapAkhir(db: SupabaseClient, prodi: string, ay: string, cari?: CariRekap): Promise<RekapAkhir[]> {
   const [d, s, l, n, h] = await Promise.all([
     terapkanCari(db.from('defenses').select('id, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode, penguji_eksternal_kode')
-      .eq('prodi', 's1').eq('jenis', 'sidang').eq('academic_year_id', ay), cari),
-    db.from('students').select('npm, sks_sebelum, bobot_sebelum, tepat_waktu, tanpa_pembimbing_2').eq('prodi', 's1'),
+      .eq('prodi', prodi).eq('jenis', 'sidang').eq('academic_year_id', ay), cari),
+    db.from('students').select('npm, sks_sebelum, bobot_sebelum, tepat_waktu, tanpa_pembimbing_2').eq('prodi', prodi),
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
     db.from('nilai_sidang').select('defense_id, peran, nilai, defenses!inner(academic_year_id)').eq('defenses.academic_year_id', ay),
     db.from('hasil_sidang')

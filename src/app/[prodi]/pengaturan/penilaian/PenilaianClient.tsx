@@ -7,6 +7,8 @@ import {
 } from '@/lib/penilaian/aturan'
 import { todayJakarta } from '@/lib/penilaian/akses'
 import { parseAngka, round2 } from '@/lib/penilaian/nilai'
+import { istilah } from '@/lib/prodi'
+import { useProdi } from '@/lib/use-prodi'
 import { saveAturanAction, type Hasil, type Kunci } from './actions'
 
 // Without a width: a fixed-width control uses this, since w-full beside w-[..] wins by CSS order, not class order.
@@ -65,18 +67,20 @@ function Kartu({ judul, bantuan, kunci, error, nilai, onDefault, children }: {
   onDefault: () => void
   children: ReactNode
 }) {
+  // Each prodi edits its own rules (S2 since kiprat 2026-11-27); the texts are written in S1's words.
+  const prodi = useProdi()
   const [pending, start] = useTransition()
   const [hasil, setHasil] = useState<{ h: Hasil; snap: string } | null>(null)
   const snap = JSON.stringify(nilai)
   // A result only counts for the exact content it saved; editing afterwards hides it.
   const tampil = hasil && hasil.snap === snap ? hasil.h : null
 
-  const simpan = () => start(async () => setHasil({ h: await saveAturanAction(kunci, nilai), snap }))
+  const simpan = () => start(async () => setHasil({ h: await saveAturanAction(prodi, kunci, nilai), snap }))
 
   return (
     <section className="bg-[var(--lembar)] border border-[var(--garis)] rounded-[var(--r-sedang)] p-[1.6rem]">
-      <h2 className="m-0 text-[1.07rem] font-semibold">{judul}</h2>
-      <p className="mt-[0.2rem] mb-[1rem] pb-[0.8rem] border-b border-[var(--garis)] text-[0.87rem] text-[var(--tinta-3)] leading-[1.4]">{bantuan}</p>
+      <h2 className="m-0 text-[1.07rem] font-semibold">{istilah(prodi, judul)}</h2>
+      <p className="mt-[0.2rem] mb-[1rem] pb-[0.8rem] border-b border-[var(--garis)] text-[0.87rem] text-[var(--tinta-3)] leading-[1.4]">{istilah(prodi, bantuan)}</p>
       {children}
       <div className="mt-[1rem] flex flex-wrap items-center gap-[0.6rem]">
         <button

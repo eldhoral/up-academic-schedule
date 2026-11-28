@@ -75,17 +75,18 @@ const KUNCI: readonly string[] = [
   'pertanyaan_prasidang', 'batas_hari_bimbingan', 'ketentuan_sidang',
 ]
 
-/** Super Admin, S1 only. Writes on the session client so the audit log names the real actor. */
-export async function saveAturanAction(kunci: Kunci, value: unknown): Promise<Hasil> {
+/** Super Admin, either prodi's rules. Writes on the session client so the audit log names the real actor. */
+export async function saveAturanAction(prodi: string, kunci: Kunci, value: unknown): Promise<Hasil> {
   const denied = await managerOnly()
   if (denied) return denied
+  if (prodi !== 's1' && prodi !== 's2') return { error: 'Prodi tidak dikenali.' }
   if (!KUNCI.includes(kunci)) return { error: 'Aturan tidak dikenali.' }
 
   const cek = periksa(kunci, value)
   if ('error' in cek) return cek
 
   const supabase = await createClient()
-  const { error } = await supabase.from('aturan_penilaian').upsert({ prodi: 's1', kunci, nilai: cek.nilai }, { onConflict: 'prodi,kunci' })
+  const { error } = await supabase.from('aturan_penilaian').upsert({ prodi, kunci, nilai: cek.nilai }, { onConflict: 'prodi,kunci' })
   if (error) return { error: humanDbError(error) }
 
   revalidatePath('/[prodi]/pengaturan/penilaian', 'page')

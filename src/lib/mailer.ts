@@ -13,6 +13,7 @@ import { buildFormRevisiXlsx, namaFormRevisi, type FormRevisi } from '@/lib/peni
 import { beritaAcaraDariSidang, buildBeritaAcaraXlsx } from '@/lib/penilaian/berita-acara-xlsx'
 import { namaBeritaAcara } from '@/lib/penilaian/berita-acara-prasidang-xlsx'
 import { loadSidang } from '@/lib/penilaian/data'
+import { istilah } from '@/lib/prodi'
 
 export type Lampiran = { filename: string; content: Uint8Array; contentType: string }
 export type Transport = (msg: { to: string[]; cc?: string[]; subject: string; text: string; html: string; attachments?: Lampiran[] }) => Promise<{ accepted: string[]; rejected: string[] }>
@@ -23,6 +24,8 @@ export type { DetailEmail }
 export type MailData = {
   /** Missing = sidang. Prasidang: penguji is the Pendamping, revisi[].halaman holds the question text. */
   jenis?: 'sidang' | 'prasidang'
+  /** Missing = s1. S2 words the attached form for the tesis / seminar proposal. */
+  prodi?: string
   status: string
   /** hasil_sidang.email_detail as stored: who already got the mail. */
   detailLama: DetailEmail[]
@@ -34,11 +37,11 @@ export type MailData = {
   academicYearId: string
   mahasiswaEmail: string | null
   penguji: { peranLabel: string; nama: string; email: string | null; revisi: Revisi }[]
-  /** Pengaturan S1 'email_revisi_cc_kaprodi' / 'email_revisi_cc_wadek1', CC'd on the mail; blank = not CC'd. */
+  /** Pengaturan (per prodi) 'email_revisi_cc_kaprodi' / 'email_revisi_cc_wadek1', CC'd on the mail; blank = not CC'd. */
   cc?: { siapa: string; email: string | null }[]
-  /** Pengaturan S1 'email_revisi_subjek' / 'email_revisi_isi'; missing = the built-in defaults. */
+  /** Pengaturan (per prodi) 'email_revisi_subjek' / 'email_revisi_isi'; missing = the built-in defaults. */
   template?: { subjek: string; isi: string }
-  /** Pengaturan S1 'kop_baris', the kop on the attached form PDF. */
+  /** Pengaturan (per prodi) 'kop_baris', the kop on the attached form PDF. */
   kop?: string[]
 }
 export type MailDeps = {
@@ -89,14 +92,14 @@ const dbDeps: MailDeps = {
   async muat(defenseId) {
     const db = createAdminClient()
     const { data: d, error } = await db
-      .from('defenses').select('id, npm, nama_mahasiswa, judul_skripsi, tanggal, academic_year_id').eq('id', defenseId).maybeSingle()
+      .from('defenses').select('id, prodi, npm, nama_mahasiswa, judul_skripsi, tanggal, academic_year_id').eq('id', defenseId).maybeSingle()
     if (error) throw new Error(`Gagal memuat sidang: ${error.message}`)
     if (!d) return null
     const [hasil, nilai, mhs, settings] = await Promise.all([
       db.from('hasil_sidang').select('yudisium_label, email_status, email_detail').eq('defense_id', defenseId).maybeSingle(),
       db.from('nilai_sidang').select('peran, kode_dosen, ada_revisi, revisi').eq('defense_id', defenseId),
-      db.from('students').select('email').eq('prodi', 's1').eq('npm', d.npm).maybeSingle(),
-      loadSettings(db, 's1', false),
+      db.from('students').select('email').eq('prodi', d.prodi).eq('npm', d.npm).maybeSingle(),
+      loadSettings(db, d.prodi, false),
     ])
     const err = hasil.error ?? nilai.error ?? mhs.error
     if (err) throw new Error(`Gagal memuat sidang: ${err.message}`)
@@ -110,7 +113,7 @@ const dbDeps: MailDeps = {
       return n && l ? [{ peranLabel: PERAN_SIDANG_LABEL[p], nama: lecturerDisplayName(l), email: l.email as string | null, revisi: n.ada_revisi ? (n.revisi as Revisi) : [] }] : []
     })
     return {
-      status: hasil.data.email_status, detailLama: parseDetailEmail(hasil.data.email_detail), nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal, academicYearId: d.academic_year_id,
+      prodi: d.prodi, status: hasil.data.email_status, detailLama: parseDetailEmail(hasil.data.email_detail), nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal, academicYearId: d.academic_year_id,
       yudisium: hasil.data.yudisium_label, mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null, penguji,
       template: { subjek: settings.email_revisi_subjek ?? '', isi: settings.email_revisi_isi ?? '' },
       cc: ccSettings(settings),
@@ -129,13 +132,13 @@ const prasidangDeps: MailDeps = {
   async muat(defenseId) {
     const db = createAdminClient()
     const { data: d, error } = await db
-      .from('defenses').select('id, npm, nama_mahasiswa, judul_skripsi, tanggal, academic_year_id').eq('id', defenseId).maybeSingle()
+      .from('defenses').select('id, prodi, npm, nama_mahasiswa, judul_skripsi, tanggal, academic_year_id').eq('id', defenseId).maybeSingle()
     if (error) throw new Error(`Gagal memuat prasidang: ${error.message}`)
     if (!d) return null
     const [ba, mhs, settings] = await Promise.all([
       db.from('berita_acara_prasidang').select('kode_dosen, jawaban, hasil, email_status, email_detail').eq('defense_id', defenseId).eq('peran', 'pendamping').maybeSingle(),
-      db.from('students').select('email').eq('prodi', 's1').eq('npm', d.npm).maybeSingle(),
-      loadSettings(db, 's1', false),
+      db.from('students').select('email').eq('prodi', d.prodi).eq('npm', d.npm).maybeSingle(),
+      loadSettings(db, d.prodi, false),
     ])
     const err = ba.error ?? mhs.error
     if (err) throw new Error(`Gagal memuat berita acara: ${err.message}`)
@@ -144,9 +147,9 @@ const prasidangDeps: MailDeps = {
     if (l.error) throw new Error(`Gagal memuat dosen: ${l.error.message}`)
     const revisi: Revisi = (ba.data.jawaban as Jawaban[]).filter((j) => j.catatan.trim()).map((j) => ({ halaman: j.teks, catatan: j.catatan }))
     return {
-      jenis: 'prasidang', status: ba.data.email_status, detailLama: parseDetailEmail(ba.data.email_detail),
+      jenis: 'prasidang', prodi: d.prodi, status: ba.data.email_status, detailLama: parseDetailEmail(ba.data.email_detail),
       nama: d.nama_mahasiswa, npm: d.npm, judul: d.judul_skripsi, tanggal: d.tanggal, academicYearId: d.academic_year_id,
-      yudisium: HASIL_LABEL[ba.data.hasil as Hasil], mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null,
+      yudisium: istilah(d.prodi, HASIL_LABEL[ba.data.hasil as Hasil]), mahasiswaEmail: (mhs.data?.email as string | null | undefined) ?? null,
       penguji: [{ peranLabel: PERAN_PRASIDANG_LABEL.pendamping, nama: l.data ? lecturerDisplayName(l.data) : ba.data.kode_dosen, email: (l.data?.email as string | null | undefined) ?? null, revisi }],
       template: { subjek: settings.email_prasidang_subjek ?? '', isi: settings.email_prasidang_isi ?? '' },
       cc: ccSettings(settings),
@@ -211,7 +214,7 @@ export async function kirimRevisi(
   const lampiran = async (): Promise<Lampiran[]> => {
     if (!deps.pdf) return []
     const form: FormRevisi = {
-      jenis, kolom, hasil: m.yudisium, kop: m.kop, npm: m.npm, nama: m.nama, judul: m.judul, tanggal: m.tanggal,
+      jenis, prodi: m.prodi, kolom, hasil: m.yudisium, kop: m.kop, npm: m.npm, nama: m.nama, judul: m.judul, tanggal: m.tanggal,
       bagian: m.penguji.map((p) => ({ peranLabel: p.peranLabel, nama: p.nama, rows: p.revisi.map((r) => ({ rujukan: r.halaman, catatan: r.catatan })) })),
     }
     try {
@@ -256,7 +259,7 @@ export async function kirimRevisi(
 export async function kirimBeritaAcara(defenseId: string, transport: Transport | null = smtpTransport()): Promise<void> {
   const db = createAdminClient()
   const data = await loadSidang(defenseId)
-  const isi = data && beritaAcaraDariSidang(data, kopBaris((await loadSettings(db, 's1', false)).kop_baris))
+  const isi = data && beritaAcaraDariSidang(data, kopBaris((await loadSettings(db, data.defense.prodi, false)).kop_baris))
   if (!data || !isi || data.defense.tanggal < data.aturan.tanggalMulai) return
   if (!transport) {
     console.error('Berita acara sidang tidak dikirim:', TIDAK_DIKONFIGURASI)
@@ -269,7 +272,7 @@ export async function kirimBeritaAcara(defenseId: string, transport: Transport |
   if (to.length === 0) return
 
   const xlsx = await buildBeritaAcaraXlsx(isi)
-  const nama = namaBeritaAcara('Sidang', data.defense.academic_year_id, data.defense.nama_mahasiswa)
+  const nama = istilah(data.defense.prodi, namaBeritaAcara('Sidang', data.defense.academic_year_id, data.defense.nama_mahasiswa))
   let lampiran: Lampiran
   try {
     lampiran = { filename: `${nama}.pdf`, content: await batasWaktu(convertXlsxToPdf(xlsx), PDF_MS, 'Melewati batas waktu PDF'), contentType: 'application/pdf' }
@@ -278,9 +281,9 @@ export async function kirimBeritaAcara(defenseId: string, transport: Transport |
     lampiran = { filename: `${nama}.xlsx`, content: xlsx, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
   }
   const { nama_mahasiswa: mhs, npm } = data.defense
-  const text = `Yth. Bapak/Ibu Dosen Penguji,\n\nTerlampir Berita Acara Sidang Skripsi ${mhs} (${npm}).\n\nDemikian dan terima kasih.\n\nSalam,\nAkademik F.Psi UP`
+  const text = istilah(data.defense.prodi, `Yth. Bapak/Ibu Dosen Penguji,\n\nTerlampir Berita Acara Sidang Skripsi ${mhs} (${npm}).\n\nDemikian dan terima kasih.\n\nSalam,\nAkademik F.Psi UP`)
   const r = await batasWaktu(transport({
-    to, subject: `Berita Acara Sidang Skripsi — ${mhs} (${npm})`, text,
+    to, subject: istilah(data.defense.prodi, `Berita Acara Sidang Skripsi — ${mhs} (${npm})`), text,
     html: `<div style="font-family:Arial,sans-serif;font-size:14px">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>`,
     attachments: [lampiran],
   }), MAKS_MS, 'Melewati batas waktu pengiriman')

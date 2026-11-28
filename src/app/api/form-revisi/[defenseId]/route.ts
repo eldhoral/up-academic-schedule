@@ -1,6 +1,6 @@
 import { getCurrentUser } from '@/lib/roles'
 import { isPenguji } from '@/lib/role-types'
-import { canAccessProdi } from '@/lib/prodi'
+import { canAccessProdi, istilah } from '@/lib/prodi'
 import { convertXlsxToPdf } from '@/lib/aspose'
 import { getSettings } from '@/lib/settings'
 import { kopBaris } from '@/lib/xlsx'
@@ -11,12 +11,13 @@ import { PERAN_PRASIDANG, PERAN_PRASIDANG_LABEL, STATUS_LABEL } from '@/lib/peni
 
 /**
  * The revisi form for the student of an S1 sidang or prasidang (?format=xlsx|pdf): each examiner's revisi as
- * filled so far. Staff with S1 access only. The PDF is the Excel file converted by Aspose.
+ * filled so far. Staff with access to its prodi (S1 or S2) only. The PDF is the Excel file converted by Aspose.
  */
 export async function GET(req: Request, ctx: RouteContext<'/api/form-revisi/[defenseId]'>) {
   const user = await getCurrentUser()
   if (!user) return new Response('Masuk terlebih dahulu.', { status: 401 })
-  if (isPenguji(user.role) || !canAccessProdi(user.prodiAccess, 's1')) {
+  // Staff only; the prodi is checked once the record is loaded (S1 or S2).
+  if (isPenguji(user.role)) {
     return new Response('Akun ini tidak dapat mengunduh form revisi.', { status: 403 })
   }
   const format = new URL(req.url).searchParams.get('format') === 'pdf' ? 'pdf' : 'xlsx'
@@ -26,10 +27,12 @@ export async function GET(req: Request, ctx: RouteContext<'/api/form-revisi/[def
   const sidang = await loadSidang(defenseId)
   const prasidang = sidang ? null : await loadBeritaAcara(defenseId)
   if (!sidang && !prasidang) return new Response('Jadwal tidak ditemukan.', { status: 404 })
+  const prodi = (sidang?.defense ?? prasidang!.defense).prodi
+  if (!canAccessProdi(user.prodiAccess, prodi)) return new Response('Akun ini tidak dapat mengunduh form revisi.', { status: 403 })
 
   const form: FormRevisi = sidang
     ? {
-      jenis: 'sidang', kolom: 'Halaman', hasil: sidang.hasil?.yudisium_label ?? null,
+      jenis: 'sidang', prodi, kolom: 'Halaman', hasil: sidang.hasil?.yudisium_label ?? null,
       npm: sidang.defense.npm, nama: sidang.defense.nama_mahasiswa, judul: sidang.defense.judul_skripsi, tanggal: sidang.defense.tanggal,
       bagian: PERAN_SIDANG.map((p) => {
         const n = sidang.nilai[p]
@@ -37,7 +40,7 @@ export async function GET(req: Request, ctx: RouteContext<'/api/form-revisi/[def
       }),
     }
     : {
-      jenis: 'prasidang', kolom: 'Pertanyaan', hasil: STATUS_LABEL[prasidang!.status],
+      jenis: 'prasidang', prodi, kolom: 'Pertanyaan', hasil: istilah(prodi, STATUS_LABEL[prasidang!.status]),
       npm: prasidang!.defense.npm, nama: prasidang!.defense.nama_mahasiswa, judul: prasidang!.defense.judul_skripsi, tanggal: prasidang!.defense.tanggal,
       bagian: PERAN_PRASIDANG.map((p) => ({
         peranLabel: PERAN_PRASIDANG_LABEL[p],
@@ -46,7 +49,7 @@ export async function GET(req: Request, ctx: RouteContext<'/api/form-revisi/[def
       })),
     }
 
-  const kop = kopBaris((await getSettings('s1')).kop_baris)
+  const kop = kopBaris((await getSettings(prodi)).kop_baris)
   const xlsx = await buildFormRevisiXlsx({ ...form, kop })
   const nama = namaFormRevisi(form)
 

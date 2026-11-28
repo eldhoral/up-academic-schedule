@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ImportPanel } from '@/components/import/ImportPanel'
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton'
 import { Select } from '@/components/Select'
-import { PRODI_CONFIG } from '@/lib/prodi'
+import { PRODI_CONFIG, istilah } from '@/lib/prodi'
 import { formatNilai, ipkSebelum } from '@/lib/penilaian/nilai'
 import { HASIL_LABEL, lolosGerbang, STATUS_LABEL, type Hasil, type StatusPrasidang } from '@/lib/penilaian/prasidang'
 import { useProdi } from '@/lib/use-prodi'
@@ -39,7 +39,6 @@ const INPUT = 'w-full bg-[var(--cekung)] border border-[var(--garis-kuat)] round
 export function MahasiswaClient({ students, dosen, canEdit }: { students: Student[]; dosen: Dosen[]; canEdit: boolean }) {
   const router = useRouter()
   const prodi = useProdi()
-  const s1 = prodi === 's1'
   const [editing, setEditing] = useState<Student | 'new' | null>(null)
   const [memutus, setMemutus] = useState<Student | null>(null)
   const namaDosen = (k: string | null) => (k ? dosen.find((d) => d.kode === k)?.nama ?? k : '—')
@@ -84,8 +83,8 @@ export function MahasiswaClient({ students, dosen, canEdit }: { students: Studen
                 <Th>{PRODI_CONFIG[prodi].defense.judul}</Th>
                 <Th>Email</Th>
                 <Th className="text-right">IPK</Th>
-                {s1 && <Th>Dosen Pembimbing I / II</Th>}
-                {s1 && <Th>Keputusan Prasidang</Th>}
+                <Th>Dosen Pembimbing I / II</Th>
+                <Th>{istilah(prodi, 'Keputusan Prasidang')}</Th>
                 <Th className="text-right">&nbsp;</Th>
               </tr>
             </thead>
@@ -97,7 +96,6 @@ export function MahasiswaClient({ students, dosen, canEdit }: { students: Studen
                   <Td className="text-[var(--tinta-2)]">{s.judul_skripsi || '—'}</Td>
                   <Td className="text-[var(--tinta-2)]">{s.email || '—'}</Td>
                   <Td className="mono text-right whitespace-nowrap">{ipk(s)}</Td>
-                  {s1 && (
                     <Td className="text-[var(--tinta-2)]">
                       {s.pembimbing_1_kode && (s.pembimbing_2_kode || s.tanpa_pembimbing_2)
                         ? <>
@@ -106,10 +104,9 @@ export function MahasiswaClient({ students, dosen, canEdit }: { students: Studen
                         </>
                         : <span className="text-[var(--merah-teks)]">Belum lengkap</span>}
                     </Td>
-                  )}
-                  {s1 && s.status && (
+                  {s.status && (
                     <Td>
-                      <span className={lolosGerbang(s.status) ? 'text-[var(--hijau)]' : 'text-[var(--tinta-2)]'}>{STATUS_LABEL[s.status]}</span>
+                      <span className={lolosGerbang(s.status) ? 'text-[var(--hijau)]' : 'text-[var(--tinta-2)]'}>{istilah(prodi, STATUS_LABEL[s.status])}</span>
                       {s.keputusan && <span className="block text-[0.8rem] text-[var(--tinta-3)]">Keputusan Super Admin</span>}
                       {canEdit && (
                         <button
@@ -137,7 +134,7 @@ export function MahasiswaClient({ students, dosen, canEdit }: { students: Studen
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={s1 ? 8 : 6} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
+                  <td colSpan={8} className="text-center py-[1.6rem] text-[var(--tinta-3)]">
                     {students.length === 0
                       ? 'Belum ada data mahasiswa — tambahkan satu, atau impor dari Excel di bawah.'
                       : <>Tidak ada mahasiswa yang cocok dengan &ldquo;{query}&rdquo;.</>}
@@ -215,8 +212,6 @@ function StudentFormModal({ student, dosen, onClose }: { student: Student | null
             <input type="checkbox" name="tepat_waktu" defaultChecked={student?.tepat_waktu} className="w-[1rem] h-[1rem]" />
             Lulus tepat waktu
           </label>
-          {prodi === 's1' && (
-            <>
             <div className="flex flex-col sm:flex-row gap-[0.8rem]">
               {(['pembimbing_1_kode', 'pembimbing_2_kode'] as const).map((f, i) => (
                 <Field key={f} label={`Dosen Pembimbing ${i === 0 ? 'I' : 'II'}`} className="flex-1">
@@ -246,8 +241,6 @@ function StudentFormModal({ student, dosen, onClose }: { student: Student | null
               />
               Tanpa Dosen Pembimbing II (Nilai Bimbingan = nilai Pembimbing I)
             </label>
-            </>
-          )}
 
           <div className="flex gap-[0.6rem] justify-between pt-[0.4rem]">
             {student && (
@@ -307,10 +300,9 @@ function KeputusanModal({ student, onClose }: { student: Student; onClose: () =>
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="keputusan-judul">
       <div className="w-full max-w-[30rem] bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] p-[1.4rem]">
-        <h3 id="keputusan-judul" className="m-0 text-[1.1rem] font-semibold">Keputusan prasidang · {student.npm}</h3>
+        <h3 id="keputusan-judul" className="m-0 text-[1.1rem] font-semibold">{istilah(prodi, 'Keputusan prasidang')} · {student.npm}</h3>
         <p className="m-0 mt-[0.3rem] mb-[1rem] text-[0.87rem] text-[var(--tinta-3)]">
-          {student.nama}. Status sekarang: {student.status ? STATUS_LABEL[student.status] : '—'}. Keputusan ini berlaku untuk prasidang terakhir mahasiswa;
-          prasidang baru akan menilai ulang dari berita acaranya.
+          {student.nama}. Status sekarang: {student.status ? istilah(prodi, STATUS_LABEL[student.status]) : '—'}. {istilah(prodi, 'Keputusan ini berlaku untuk prasidang terakhir mahasiswa; prasidang baru akan menilai ulang dari berita acaranya.')}
         </p>
         {error && (
           <div role="alert" className="bg-[var(--merah-lembut)] border border-[var(--merah-garis)] rounded-[var(--r-kecil)] p-[0.6rem] text-[0.87rem] text-[var(--merah)] mb-[1rem]">{error}</div>
@@ -320,7 +312,7 @@ function KeputusanModal({ student, onClose }: { student: Student; onClose: () =>
           {(['layak', 'layak_revisi'] as const).map((h) => (
             <label key={h} className="flex items-center gap-[0.4rem] text-[0.93rem] cursor-pointer">
               <input type="radio" name="hasil" checked={hasil === h} onChange={() => setHasil(h)} />
-              {HASIL_LABEL[h]}
+              {istilah(prodi, HASIL_LABEL[h])}
             </label>
           ))}
         </fieldset>

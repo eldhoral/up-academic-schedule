@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { EmptySheet } from '@/components/EmptySheet'
 import { PreviewTable, cell } from '@/components/preview'
@@ -14,6 +13,7 @@ import { pilihTahun, terapkanCari } from '@/lib/penilaian/rekap-data'
 import { bacaFilter, cariSql, kolomUrut, urutkan } from '@/lib/penilaian/rekap-filter'
 import { RekapBar } from '../nilai-bimbingan/RekapBar'
 import { RekapFilter, TidakCocok } from '../nilai-bimbingan/RekapFilter'
+import { istilah } from '@/lib/prodi'
 
 const C = 'center' as const
 const URUT = ['tanggal', 'npm', 'nama', 'hasil'] as const
@@ -34,7 +34,6 @@ const PERINGKAT: Record<StatusPrasidang, number> = { layak: 0, layak_revisi: 1, 
  */
 export default async function HasilPrasidangPage(props: PageProps<'/[prodi]/sidang/hasil-prasidang'>) {
   const prodi = await prodiParam(props.params)
-  if (prodi !== 's1') notFound() // the berita acara is S1 prasidang only
   const searchParams = await props.searchParams
   const supabase = await createClient()
   const { years, ay } = await pilihTahun(supabase, searchParams.ay as string | undefined)
@@ -45,10 +44,10 @@ export default async function HasilPrasidangPage(props: PageProps<'/[prodi]/sida
     // Search and tanggal/NPM/nama order in SQL; the hasil filter and sort after (it is computed).
     terapkanCari(supabase.from('defenses')
       .select('id, npm, tanggal, created_at, nama_mahasiswa, judul_skripsi')
-      .eq('prodi', 's1').eq('jenis', 'prasidang').eq('academic_year_id', ay), cariSql(f)),
+      .eq('prodi', prodi).eq('jenis', 'prasidang').eq('academic_year_id', ay), cariSql(f)),
     supabase.from('berita_acara_prasidang').select('defense_id, peran, hasil, email_status, email_detail, submitted_at, defenses!inner(academic_year_id)').eq('defenses.academic_year_id', ay),
     supabase.from('keputusan_prasidang').select('npm, prasidang_id, hasil, alasan'),
-    supabase.from('defenses').select('npm').eq('prodi', 's1').eq('jenis', 'sidang'),
+    supabase.from('defenses').select('npm').eq('prodi', prodi).eq('jenis', 'sidang'),
     getCurrentRole(),
   ])
   const err = d.error ?? isian.error ?? kep.error ?? sid.error
@@ -83,24 +82,24 @@ export default async function HasilPrasidangPage(props: PageProps<'/[prodi]/sida
         <RekapBar years={years} ay={ay} bisaUnduh={null} slug="hasil-prasidang" />
         {rows.length === 0 && !aktif ? (
           <EmptySheet
-            title="Belum ada prasidang"
-            detail={`${years.find((y) => y.id === ay)?.label ?? 'Tahun ini'} belum memiliki jadwal prasidang. Hasil berita acara muncul di sini setelah prasidang dijadwalkan.`}
+            title={istilah(prodi, 'Belum ada prasidang')}
+            detail={istilah(prodi, `${years.find((y) => y.id === ay)?.label ?? 'Tahun ini'} belum memiliki jadwal prasidang. Hasil berita acara muncul di sini setelah prasidang dijadwalkan.`)}
             actionHref={`/${prodi}/sidang?${new URLSearchParams({ ay })}`}
-            actionLabel="Buka Jadwal Prasidang"
+            actionLabel={istilah(prodi, 'Buka Jadwal Prasidang')}
           />
         ) : (
           <>
             <RekapFilter path={path} ay={ay} f={f} status={[...STATUS]} />
             <div className="px-[1.3rem] py-[1rem]">
               {rows.length === 0 ? <TidakCocok /> : (
-                <PreviewTable label="Rekap Hasil Prasidang" columns={columns}>
+                <PreviewTable label={istilah(prodi, 'Rekap Hasil Prasidang')} columns={columns}>
                   {rows.map((r, i) => (
                     <tr key={r.defenseId} className="border-t border-[var(--garis)] align-top">
                       <td className={`${cell(C)} mono`}>{i + 1}</td>
                       <td className={`${cell()} mono whitespace-nowrap`}>{r.npm}</td>
                       <td className={cell()}><Link href={beritaAcaraPath(r.defenseId)}>{r.nama}</Link></td>
                       <td className={`${cell()} font-semibold ${lolosGerbang(hasil(r)) ? 'text-[var(--hijau)]' : ''}`}>
-                        {r.keputusan ? HASIL_LABEL[r.keputusan.hasil] : STATUS_LABEL[r.status]}
+                        {istilah(prodi, r.keputusan ? HASIL_LABEL[r.keputusan.hasil] : STATUS_LABEL[r.status])}
                         {r.keputusan && <span className="block text-[0.8rem] font-normal text-[var(--tinta-3)]">Keputusan Super Admin</span>}
                       </td>
                       <td className={cell(C)}>{r.adaSidang ? 'Ada' : '—'}</td>

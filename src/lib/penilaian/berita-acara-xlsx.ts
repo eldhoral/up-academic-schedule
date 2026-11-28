@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs'
-import { addKop, BORDER_ALL } from '@/lib/xlsx'
+import { addKop, BORDER_ALL, istilahLembar } from '@/lib/xlsx'
 import { tanggalPanjang } from '@/lib/hari'
 import { PERAN_SIDANG_LABEL, type PeranSidang } from './akses'
 import type { AturanBeku, Yudisium } from './aturan'
@@ -23,7 +23,9 @@ export type BeritaAcaraSidang = {
   sks: number | null
   bobot: number | null
   tepatWaktu: boolean
-  /** Pengaturan S1 'kop_baris' lines; empty = no kop. */
+  /** S2 words the sheet for the tesis (default s1). */
+  prodi?: string
+  /** Pengaturan 'kop_baris' lines of the prodi; empty = no kop. */
   kop?: string[]
 }
 
@@ -38,7 +40,7 @@ export function beritaAcaraDariSidang(data: Sidang, kop: string[]): BeritaAcaraS
     aturan: hasil.aturan, pilihan: data.aturan.pilihanYudisium,
     yudisium: { label: hasil.yudisium_label, lulus: hasil.yudisium_lulus },
     sks: student.sks, bobot: student.bobot, tepatWaktu: student.tepatWaktu,
-    kop,
+    prodi: defense.prodi, kop,
   }
 }
 
@@ -150,6 +152,7 @@ export async function buildBeritaAcaraXlsx(d: BeritaAcaraSidang): Promise<Uint8A
     ws.addRow([`${i + 1}.  IPK ${formatNilai(p.min)} – ${formatNilai(p.max)}  ${p.predikat}${p.butuhTepatWaktu ? ' (hanya bila lulus tepat waktu)' : ''}`]),
   )
 
+  istilahLembar(ws, d.prodi ?? 's1')
   const buf = await wb.xlsx.writeBuffer()
   return new Uint8Array(buf as ArrayBuffer)
 }

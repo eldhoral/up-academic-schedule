@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import { isPenguji, type Role } from '@/lib/role-types'
-import { bisaDinilaiSidang, isPrasidangS1, type BimbinganRef, type DefenseRef, type Peran, type PeranSidang, type SidangRef } from './akses'
+import { bisaDinilaiSidang, isPrasidangDinilai, type BimbinganRef, type DefenseRef, type Peran, type PeranSidang, type SidangRef } from './akses'
 import { loadAturan, parseAturanBeku, type Aturan, type AturanBeku } from './aturan'
 import { aspekSama, ipkSebelum, type Revisi, type SkorAspek } from './nilai'
 import type { Hasil, Jawaban, PeranPrasidang, StatusPrasidang } from './prasidang'
@@ -55,10 +55,10 @@ export async function loadPenilaian(defenseId: string): Promise<Penilaian | null
   if (!d || !bisaDinilaiSidang(d)) return null
 
   const [mhs, rows, hasil, aturan] = await Promise.all([
-    db.from('students').select('sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', 's1').eq('npm', d.npm).maybeSingle(),
+    db.from('students').select('sks_sebelum, bobot_sebelum, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', d.prodi).eq('npm', d.npm).maybeSingle(),
     db.from('nilai_bimbingan').select('id, peran, kode_dosen, aspek, nilai, sumber, submitted_at').eq('defense_id', d.id),
     db.from('hasil_sidang').select('locked_at, yudisium_lulus').eq('defense_id', d.id).maybeSingle(),
-    loadAturan(db, 's1'),
+    loadAturan(db, d.prodi),
   ])
   const err = mhs.error ?? rows.error ?? hasil.error
   if (err) throw new Error(`Gagal memuat penilaian: ${err.message}`)
@@ -151,11 +151,11 @@ export async function loadSidang(defenseId: string): Promise<Sidang | null> {
 
   // ponytail: the whole lecturer list (a few dozen rows) also names the student's Pembimbing in one round trip.
   const [mhs, rows, hasil, dosen, aturan, room] = await Promise.all([
-    db.from('students').select('sks_sebelum, bobot_sebelum, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', 's1').eq('npm', defense.npm).maybeSingle(),
+    db.from('students').select('sks_sebelum, bobot_sebelum, tepat_waktu, pembimbing_1_kode, pembimbing_2_kode, tanpa_pembimbing_2').eq('prodi', defense.prodi).eq('npm', defense.npm).maybeSingle(),
     db.from('nilai_sidang').select('id, peran, kode_dosen, aspek, nilai, ada_revisi, revisi, sumber, submitted_at').eq('defense_id', defense.id),
     db.from('hasil_sidang').select('yudisium_label, yudisium_lulus, aturan, locked_at, email_status').eq('defense_id', defense.id).maybeSingle(),
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang'),
-    loadAturan(db, 's1'),
+    loadAturan(db, defense.prodi),
     db.from('defenses').select('rooms(nama)').eq('id', defense.id).maybeSingle(),
   ])
   const err = mhs.error ?? rows.error ?? hasil.error ?? dosen.error ?? room.error
@@ -258,7 +258,7 @@ export async function loadBeritaAcara(defenseId: string): Promise<BeritaAcara | 
     .eq('id', defenseId)
     .maybeSingle()
   if (error) throw new Error(`Gagal memuat prasidang: ${error.message}`)
-  if (!d || !isPrasidangS1(d)) return null
+  if (!d || !isPrasidangDinilai(d)) return null
   const defense = d as DefensePenilaian
 
   const kode = [defense.pembimbing_kode, defense.penguji_kode].filter((k): k is string => !!k)
@@ -267,7 +267,7 @@ export async function loadBeritaAcara(defenseId: string): Promise<BeritaAcara | 
     db.from('lecturers').select('kode_dosen, nama, gelar_depan, gelar_belakang').in('kode_dosen', kode),
     db.rpc('status_prasidang', { p_npm: defense.npm }),
     db.from('keputusan_prasidang').select('prasidang_id, hasil, alasan').eq('npm', defense.npm).maybeSingle(),
-    loadAturan(db, 's1'),
+    loadAturan(db, defense.prodi),
   ])
   const err = rows.error ?? dosen.error ?? status.error ?? keputusan.error
   if (err) throw new Error(`Gagal memuat berita acara: ${err.message}`)

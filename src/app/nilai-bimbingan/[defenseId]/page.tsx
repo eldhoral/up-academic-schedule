@@ -65,7 +65,7 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
   if (peranSaya) fakta.push(['Peran Anda', `${data.dosen[peranSaya]} (${PERAN_LABEL[peranSaya]})`])
 
   return (
-    <AppShell active={path}>
+    <AppShell active={path} prodi={defense.prodi}>
       <main className="flex-1 w-full max-w-[52rem] mx-auto px-[1.3rem] py-[1.6rem]">
         {dosen && (
           <Link href="/penilaian" className="text-[0.87rem] text-[var(--tinta-2)] hover:underline">‹ Penilaian Saya</Link>

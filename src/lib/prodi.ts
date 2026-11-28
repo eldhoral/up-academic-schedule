@@ -57,3 +57,18 @@ export const parseJenisKelas = (p: Prodi, raw: unknown): JenisKelas =>
 
 /** Prefix for the other prodi's side of a clash, e.g. "S1 · Psikologi Klinis"; empty for the current prodi. */
 export const prodiTag = (current: Prodi, other: Prodi) => (other === current ? '' : `${PRODI_CONFIG[other].short} · `)
+
+/** S2's word for each S1 grading term (kiprat 2026-11-27: Seminar Proposal, Tesis, Magister). */
+const ISTILAH_S2: [RegExp, string][] = [
+  [/SKRIPSI/g, 'TESIS'], [/Skripsi/g, 'Tesis'], [/skripsi/g, 'tesis'],
+  [/PRASIDANG/g, 'SEMINAR PROPOSAL'], [/Prasidang/g, 'Seminar Proposal'], [/prasidang/g, 'seminar proposal'],
+  [/SARJANA \(S1\)/g, 'MAGISTER (S2)'], [/Sarjana \(S1\)/g, 'Magister (S2)'],
+]
+
+/**
+ * A grading text in the prodi's words: written once in S1's terms (skripsi, prasidang, Sarjana (S1)) and turned
+ * into S2's (tesis, seminar proposal, Magister (S2)) for S2. For display text only, never for stored values.
+ */
+export function istilah(prodi: string, teks: string): string {
+  return prodi === 's2' ? ISTILAH_S2.reduce((t, [re, ganti]) => t.replace(re, ganti), teks) : teks
+}

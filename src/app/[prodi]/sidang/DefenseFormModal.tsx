@@ -21,7 +21,7 @@ import {
 } from './actions'
 import { jenisLabel, tanggalSingkat, type DefenseContext, type DefenseRow, type Student } from './defense-types'
 import { useProdi } from '@/lib/use-prodi'
-import { PRODI_CONFIG } from '@/lib/prodi'
+import { PRODI_CONFIG, istilah } from '@/lib/prodi'
 import { PERAN_SIDANG_LABEL, type PeranSidang } from '@/lib/penilaian/akses'
 import { lolosGerbang, PERAN_PRASIDANG_LABEL, PESAN_GERBANG, type PeranPrasidang, type StatusPrasidang } from '@/lib/penilaian/prasidang'
 import { useEscape } from '@/components/useEscape'
@@ -91,11 +91,11 @@ export function DefenseFormModal({
   const [eksternal, setEksternal] = useState(row?.penguji_eksternal ?? '')
   const [link, setLink] = useState(row?.link ?? '')
   const [filledFrom, setFilledFrom] = useState<string | null>(null)
-  // S1 sidang: the student's gate status and Dosen Pembimbing, fetched when a student is picked.
+  // Sidang (S1 and S2 since kiprat 2026-11-27): the student's gate status and Dosen Pembimbing, fetched when a student is picked.
   const [info, setInfo] = useState<{
     npm: string; status: StatusPrasidang; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null; tanpa_pembimbing_2: boolean
   } | null>(null)
-  const gerbangS1 = prodi === 's1' && sidang
+  const gerbang = sidang
 
   const [live, setLive] = useState<DefenseClashResult | null>(null)
   const [, startCheck] = useTransition()
@@ -147,7 +147,7 @@ export function DefenseFormModal({
     setFilledFrom(null)
     const kosong = !(row || pembimbing) || !!filledFrom
     if (filledFrom) setPembimbing('') // the previous pick's, not a choice
-    if (gerbangS1) {
+    if (gerbang) {
       setInfo(null)
       const i = await infoMahasiswaSidangAction(s.npm)
       setInfo(i && { npm: s.npm, ...i })
@@ -164,11 +164,11 @@ export function DefenseFormModal({
     setFilledFrom(`${found.from}`)
   }
 
-  // The DB refuses a new S1 sidang (or a changed student) while this holds; the form says why first.
+  // The DB refuses a new sidang (or a changed student) while this holds; the form says why first.
   const alasanBlok =
-    gerbangS1 && !kept && info && info.npm === npm
+    gerbang && !kept && info && info.npm === npm
       ? !lolosGerbang(info.status)
-        ? PESAN_GERBANG[info.status as Exclude<StatusPrasidang, 'layak' | 'layak_revisi'>]
+        ? istilah(prodi, PESAN_GERBANG[info.status as Exclude<StatusPrasidang, 'layak' | 'layak_revisi'>])
         : !info.pembimbing_1_kode || (!info.pembimbing_2_kode && !info.tanpa_pembimbing_2)
           ? PESAN_GERBANG.pembimbing
           : null

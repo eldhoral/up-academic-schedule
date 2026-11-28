@@ -73,18 +73,21 @@ export function sidebarModel({
       },
     ]
 
-    if (p === 's1') {
-      const s1DefenseSection = sectionOf(
+    // Both prodi grade online (S2 since kiprat 2026-11-27). A grading page (/nilai-sidang/…) belongs to its defense's prodi.
+    {
+      const defenseSection = sectionOf(
         '/sidang',
-        's1',
+        p,
         canManage(role),
-        canWrite(role) && canAccessProdi(prodiAccess, 's1'),
+        canWrite(role) && canAccessProdi(prodiAccess, p),
       )
-      const rawNilaiItems = s1DefenseSection?.group?.items ?? []
-      const isPenilaianPath =
+      const rawNilaiItems = defenseSection?.group?.items ?? []
+      const halamanNilai = isCurrentProdi && (
         active.startsWith('/nilai-sidang/') ||
         active.startsWith('/berita-acara-prasidang/') ||
-        active.startsWith('/nilai-bimbingan/') ||
+        active.startsWith('/nilai-bimbingan/'))
+      const isPenilaianPath =
+        halamanNilai ||
         (isCurrentProdi &&
           active.startsWith('/sidang/') &&
           rawNilaiItems.some((child) => child.href === `/${p}${active}` || child.href === active))
@@ -100,11 +103,11 @@ export function sidebarModel({
         let childAktif = false
         if (isCurrentProdi && (child.href === `/${p}${active}` || child.href === active)) {
           childAktif = true
-        } else if (child.href.endsWith('/nilai-sidang') && active.startsWith('/nilai-sidang/')) {
+        } else if (halamanNilai && child.href.endsWith('/nilai-sidang') && active.startsWith('/nilai-sidang/')) {
           childAktif = true
-        } else if (child.href.endsWith('/hasil-prasidang') && active.startsWith('/berita-acara-prasidang/')) {
+        } else if (halamanNilai && child.href.endsWith('/hasil-prasidang') && active.startsWith('/berita-acara-prasidang/')) {
           childAktif = true
-        } else if (child.href.endsWith('/nilai-bimbingan') && active.startsWith('/nilai-bimbingan/')) {
+        } else if (halamanNilai && child.href.endsWith('/nilai-bimbingan') && active.startsWith('/nilai-bimbingan/')) {
           childAktif = true
         }
         return {
@@ -115,18 +118,11 @@ export function sidebarModel({
       })
 
       items.push({
-        href: anak[0]?.href ?? '/s1/sidang/hasil-prasidang',
+        href: anak[0]?.href ?? `/${p}/sidang/hasil-prasidang`,
         label: 'Penilaian',
         ikon: 'penilaian',
         aktif: isPenilaianPath,
         anak,
-      })
-    } else {
-      items.push({
-        href: `/${p}/sidang`,
-        label: `Jadwal ${c.defense.section}`,
-        ikon: 'sidang',
-        aktif: isCurrentProdi && active.startsWith('/sidang'),
       })
     }
 

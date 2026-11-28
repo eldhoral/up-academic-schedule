@@ -24,7 +24,7 @@ export function RekapBar({ years, ay, bisaUnduh, slug = 'nilai-bimbingan', objek
       />
       {bisaUnduh === null ? null : bisaUnduh ? (
         <a
-          href={`/api/${slug}?year=${encodeURIComponent(ay)}`}
+          href={`/api/${slug}?year=${encodeURIComponent(ay)}&prodi=${prodi}`}
           className="ml-auto inline-flex items-center px-[1rem] py-[0.4rem] min-h-[2.5rem] rounded-[var(--r-kecil)] bg-[var(--biru)] text-white font-medium cursor-pointer hover:bg-[var(--biru-hover)] active:scale-[0.97] transition-colors text-[0.93rem]"
         >
           Unduh Excel

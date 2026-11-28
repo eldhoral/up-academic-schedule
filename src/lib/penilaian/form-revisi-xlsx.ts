@@ -1,11 +1,14 @@
 import ExcelJS from 'exceljs'
 import { tanggalPanjang } from '@/lib/hari'
 import { addKop } from '@/lib/xlsx'
+import { istilah } from '@/lib/prodi'
 import { LABEL_HALAMAN } from './nilai'
 
 /** The revisi form handed to a student: who they are and each examiner's revisi. Grades are never part of it. */
 export type FormRevisi = {
   jenis: 'prasidang' | 'sidang'
+  /** S2 words it for the tesis and the seminar proposal (default s1). */
+  prodi?: string
   npm: string
   nama: string
   judul: string
@@ -22,7 +25,7 @@ export type FormRevisi = {
 
 /** File name without extension, e.g. "Form Revisi Sidang 2021110099 Budi". */
 export const namaFormRevisi = (d: FormRevisi) =>
-  `Form Revisi ${d.jenis === 'sidang' ? 'Sidang' : 'Prasidang'} ${d.npm} ${d.nama}`.replace(/[^\w .-]/g, '')
+  istilah(d.prodi ?? 's1', `Form Revisi ${d.jenis === 'sidang' ? 'Sidang' : 'Prasidang'} ${d.npm} ${d.nama}`).replace(/[^\w .-]/g, '')
 
 /** One A4 portrait sheet. */
 export async function buildFormRevisiXlsx(d: FormRevisi): Promise<Uint8Array<ArrayBuffer>> {
@@ -30,13 +33,14 @@ export async function buildFormRevisiXlsx(d: FormRevisi): Promise<Uint8Array<Arr
   const ws = wb.addWorksheet('Form Revisi', { pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } })
   ws.columns = [{ width: 6 }, { width: 28 }, { width: 70 }]
   const top = { vertical: 'top' as const, wrapText: true }
+  const t = (s: string) => istilah(d.prodi ?? 's1', s)
   const border = { top: { style: 'thin' as const }, left: { style: 'thin' as const }, bottom: { style: 'thin' as const }, right: { style: 'thin' as const } }
 
   if (d.kop?.length) {
     addKop(wb, ws, d.kop)
     ws.addRow([])
   }
-  const judul = ws.addRow([`FORM REVISI ${d.jenis === 'sidang' ? 'SIDANG' : 'PRASIDANG'} SKRIPSI SARJANA (S1) PSIKOLOGI`])
+  const judul = ws.addRow([t(`FORM REVISI ${d.jenis === 'sidang' ? 'SIDANG' : 'PRASIDANG'} SKRIPSI SARJANA (S1) PSIKOLOGI`)])
   ws.mergeCells(judul.number, 1, judul.number, 3)
   judul.font = { bold: true, size: 13 }
   judul.alignment = { horizontal: 'center' }
@@ -49,9 +53,9 @@ export async function buildFormRevisiXlsx(d: FormRevisi): Promise<Uint8Array<Arr
   }
   isian('NPM', d.npm)
   isian('Nama Mahasiswa', d.nama)
-  isian('Judul Skripsi', d.judul || '—')
-  isian(`Tanggal ${d.jenis}`, tanggalPanjang(d.tanggal, false))
-  if (d.hasil) isian(d.jenis === 'sidang' ? 'Yudisium' : 'Status Prasidang', d.hasil)
+  isian(t('Judul Skripsi'), d.judul || '—')
+  isian(t(`Tanggal ${d.jenis}`), tanggalPanjang(d.tanggal, false))
+  if (d.hasil) isian(d.jenis === 'sidang' ? 'Yudisium' : t('Status Prasidang'), d.hasil)
 
   if (d.bagian.every((b) => b.rows.length === 0)) {
     ws.addRow([])

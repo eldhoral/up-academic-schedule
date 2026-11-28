@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { accessibleProdi, canAccessProdi, clampSemester, parseJenisKelas, parseProdi, prodiTag, semesterList, PRODI_CONFIG } from '../src/lib/prodi'
+import { accessibleProdi, canAccessProdi, clampSemester, istilah, parseJenisKelas, parseProdi, prodiTag, semesterList, PRODI_CONFIG } from '../src/lib/prodi'
 import { classifyRows } from '../src/lib/import/engine'
 
 // --- parseProdi: only the two known values pass ----------------------------------------
@@ -48,5 +48,12 @@ assert.equal(prodiTag('s2', 's1'), 'S1 · ')
   const rejected = result.rows[2]
   assert.ok(rejected.status === 'rejected' && rejected.reason.includes('prodi lain'), 'the reason says why')
 }
+
+// --- istilah: S1's grading words become S2's (kiprat 2026-11-27), S1 untouched ---------
+assert.equal(istilah('s1', 'Berita Acara Prasidang Skripsi'), 'Berita Acara Prasidang Skripsi')
+assert.equal(istilah('s2', 'Berita Acara Prasidang'), 'Berita Acara Seminar Proposal')
+assert.equal(istilah('s2', 'FORM REVISI SIDANG SKRIPSI SARJANA (S1) PSIKOLOGI'), 'FORM REVISI SIDANG TESIS MAGISTER (S2) PSIKOLOGI')
+assert.equal(istilah('s2', 'Hasil prasidang: skripsi tidak layak untuk dilanjutkan.'), 'Hasil seminar proposal: tesis tidak layak untuk dilanjutkan.')
+assert.equal(istilah('s2', 'Revisi Sidang Skripsi — {nama}'), 'Revisi Sidang Tesis — {nama}')
 
 console.log('prodi: all checks passed')

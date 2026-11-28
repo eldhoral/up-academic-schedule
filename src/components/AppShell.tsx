@@ -30,7 +30,7 @@ export async function AppShell({
   const role = user?.role ?? null
   const prodiAccess = user?.prodiAccess ?? 's1'
   const manage = canManage(role)
-  const akunEksternal = !!user && canWrite(user.role) && canAccessProdi(prodiAccess, 's1')
+  const akunEksternal = !!user && canWrite(user.role) && canAccessProdi(prodiAccess, prodi ?? 's1')
   const section = sectionOf(active, prodi, manage, akunEksternal)
 
   return (

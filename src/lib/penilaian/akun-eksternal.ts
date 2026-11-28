@@ -58,10 +58,11 @@ export async function ensureAkunEksternal(admin: SupabaseClient, kode: string, t
     if (e) throw new Error(`Akun ${username} gagal dibuat dan gagal dihapus (${humanDbError(e)}). Hapus akun ini dari halaman Pengguna.`)
   }
 
-  // Role, kode and expiry in ONE update: the DB checks tie them together.
+  // Role, kode and expiry in ONE update: the DB checks tie them together. prodi_access 'all': one day login serves
+  // that dosen's S1 and S2 sidang alike (S2 since kiprat 2026-11-27); an examiner's pages never read it.
   const { error: profilError } = await admin
     .from('profiles')
-    .update({ role: 'EKSTERNAL', kode_dosen: kode, berlaku_sampai: berlaku, prodi_access: 's1' })
+    .update({ role: 'EKSTERNAL', kode_dosen: kode, berlaku_sampai: berlaku, prodi_access: 'all' })
     .eq('id', userId)
   if (profilError) {
     await hapus()

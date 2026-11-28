@@ -56,7 +56,7 @@ assert.notEqual(validateBatasHari(2.5), null)
 assert.equal(DEFAULT_ATURAN.batasHariBimbingan, 7)
 
 // ---- prasidang access: only the Pembimbing Pendamping (pembimbing_kode) fills; the Pembahas (penguji_kode) does not
-const p = { id: 'p', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-20', pembimbing_kode: 'A', penguji_kode: 'B' }
+const p = { id: 'p', prodi: 's1' as const, jenis: 'prasidang', tanggal: '2026-11-20', pembimbing_kode: 'A', penguji_kode: 'B' }
 assert.deepEqual(aksesBeritaAcara(p, 'A', new Set(), '2026-11-19'), { kind: 'belum-dibuka', tanggal: '2026-11-20' })
 assert.deepEqual(aksesBeritaAcara(p, 'B', new Set(), '2026-11-20'), { kind: 'tidak-ada' }, 'pembahas does not fill')
 assert.deepEqual(aksesBeritaAcara(p, 'A', new Set(), '2026-11-21'), { kind: 'isi', peran: 'pendamping' })
@@ -65,7 +65,7 @@ assert.deepEqual(aksesBeritaAcara(p, 'B', new Set(['pendamping']), '2026-11-20')
 assert.deepEqual(aksesBeritaAcara(p, 'C', new Set(), '2026-11-20'), { kind: 'tidak-ada' })
 assert.deepEqual(aksesBeritaAcara(null, 'A', new Set(), '2026-11-20'), { kind: 'tidak-ada' })
 assert.deepEqual(aksesBeritaAcara({ ...p, jenis: 'sidang' }, 'A', new Set(), '2026-11-20'), { kind: 'tidak-ada' })
-assert.deepEqual(aksesBeritaAcara({ ...p, prodi: 's2' }, 'A', new Set(), '2026-11-20'), { kind: 'tidak-ada' })
+assert.deepEqual(aksesBeritaAcara({ ...p, prodi: 's2' }, 'A', new Set(), '2026-11-20'), aksesBeritaAcara(p, 'A', new Set(), '2026-11-20'), 'S2 seminar proposal follows the S1 rules (kiprat 2026-11-27)')
 assert.equal(beritaAcaraPath('abc'), '/berita-acara-prasidang/abc')
 assert.ok(halamanDosen('/berita-acara-prasidang/x'))
 assert.ok(!halamanDosen('/berita-acara-prasidang/x', 'EKSTERNAL'))
@@ -145,7 +145,7 @@ assert.equal(
 void (async () => {
   const ExcelJS = (await import('exceljs')).default
   const { buildBeritaAcaraPrasidangXlsx, namaBeritaAcara } = await import('../src/lib/penilaian/berita-acara-prasidang-xlsx')
-  const defense = { id: 'x', prodi: 's1', jenis: 'prasidang', tanggal: '2026-11-23', npm: '6022210049', nama_mahasiswa: 'Fadel Ayafa Diraja', judul_skripsi: 'Judul', pembimbing_kode: 'A', penguji_kode: 'B' }
+  const defense = { id: 'x', prodi: 's1' as const, jenis: 'prasidang', tanggal: '2026-11-23', npm: '6022210049', nama_mahasiswa: 'Fadel Ayafa Diraja', judul_skripsi: 'Judul', pembimbing_kode: 'A', penguji_kode: 'B' }
   const ya = [true, false, true, null, null]
   const cat = ['', '', 'Perhatikan dimensi', 'Ikuti perbaikan', '1. Satu\n2. Dua']
   const ba = {

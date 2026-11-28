@@ -98,14 +98,14 @@ for (const bad of [null, 'x', [['a']], tampil.map(([l]) => l), tampil.map(([l, b
   assert.equal(aspekSama(bad, empat), false, `${JSON.stringify(bad)} refused`)
 }
 
-// ---- akses (bimbingan: S1 sidang, the student's Pembimbing I/II, after the Ketua's lulus lock, n days)
+// ---- akses (bimbingan: S1 and S2 sidang, the student's Pembimbing I/II, after the Ketua's lulus lock, n days)
 assert.equal(todayJakarta(new Date('2026-11-09T17:30:00Z')), '2026-11-10')
 assert.equal(todayJakarta(new Date('2026-11-09T16:59:00Z')), '2026-11-09')
 const s: BimbinganRef = { id: 's', prodi: 's1', jenis: 'sidang', pembimbing_1_kode: 'P1', pembimbing_2_kode: 'P2' }
 assert.equal(peranBimbingan(s, 'P1'), 'pembimbing_1')
 assert.equal(peranBimbingan(s, 'P2'), 'pembimbing_2')
 assert.equal(peranBimbingan(s, 'X'), null)
-assert.equal(peranBimbingan({ ...s, prodi: 's2' }, 'P1'), null)
+assert.equal(peranBimbingan({ ...s, prodi: 's2' }, 'P1'), 'pembimbing_1', 'S2 sidang tesis takes a Nilai Bimbingan too (kiprat 2026-11-27)')
 assert.equal(peranBimbingan({ ...s, jenis: 'prasidang' }, 'P1'), null)
 assert.equal(peranBimbingan({ ...s, pembimbing_1_kode: null }, 'P1'), null)
 // 17:30 UTC on 10 Nov = 00:30 on 11 Nov in Jakarta: day 0 is 11 Nov

@@ -44,7 +44,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   // A DOSEN or EKSTERNAL is an examiner, never staff, even when it can't grade (no kode, no day account).
   const penguji = isPenguji(user.role)
   const saya = penguji ? await identitasPenguji(user) : null
-  if (penguji ? !saya : !canAccessProdi(user.prodiAccess, 's1')) return <AkunLain email={user.email} path={path} />
+  if (penguji && !saya) return <AkunLain email={user.email} path={path} />
 
   const data = await loadSidang(defenseId)
   const akses = saya
@@ -55,8 +55,8 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
       akunTanggal: saya.akunTanggal,
     })
     : null
-  // Not this examiner's S1 sidang (or another day's, or none at all): the signed-in-as card, with no hint the record exists.
-  if (!data || akses?.kind === 'tidak-ada') return <AkunLain email={user.email} path={path} />
+  // Not this examiner's sidang (or another day's, or none at all), or staff without its prodi (S1 or S2): the signed-in-as card, with no hint the record exists.
+  if (!data || akses?.kind === 'tidak-ada' || (!penguji && !canAccessProdi(user.prodiAccess, data.defense.prodi))) return <AkunLain email={user.email} path={path} />
 
   const { defense, aturan, hasil } = data
   // A locked sidang's letters come from its frozen table. If that copy is unreadable we say so (as the recap does)
@@ -110,7 +110,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
       {penguji && (
         <Link href="/penilaian" className="text-[0.87rem] text-[var(--tinta-2)] hover:underline">‹ Penilaian Saya</Link>
       )}
-      <h1 className="m-0 mt-[0.4rem] text-[1.6rem] font-semibold tracking-[-0.02em]">Nilai Sidang</h1>
+      <h1 className="m-0 mt-[0.4rem] text-[1.6rem] font-semibold tracking-[-0.02em]">{defense.prodi === 's2' ? 'Nilai Tesis' : 'Nilai Sidang'}</h1>
       <dl className="m-0 mt-[1rem] mb-[1.6rem] grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-x-[1rem] gap-y-[0.4rem] text-[0.93rem]">
         {fakta.map(([k, v]) => (
           <div key={k} className="contents">
@@ -123,7 +123,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   )
   if (rusak) {
     return (
-      <AppShell active={path}>
+      <AppShell active={path} prodi={defense.prodi}>
         <main className="flex-1 w-full max-w-[52rem] mx-auto px-[1.3rem] py-[1.6rem]">
           {kepala}
           <p className={KOTAK}>{ALASAN_ATURAN_RUSAK}.</p>
@@ -133,7 +133,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
   }
 
   return (
-    <AppShell active={path}>
+    <AppShell active={path} prodi={defense.prodi}>
       <main className="flex-1 w-full max-w-[52rem] xl:max-w-[76rem] mx-auto px-[1.3rem] py-[1.6rem]">
         {kepala}
 

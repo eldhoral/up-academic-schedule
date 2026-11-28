@@ -1,9 +1,10 @@
+import type { Prodi } from '../prodi'
 import type { PeranPrasidang } from './prasidang'
 
 export type Peran = 'pembimbing_1' | 'pembimbing_2'
 export type DefenseRef = {
   id: string
-  prodi: string
+  prodi: Prodi
   jenis: string
   tanggal: string
   pembimbing_kode: string | null
@@ -20,10 +21,11 @@ export type AksesBeritaAcara =
   | { kind: 'isi'; peran: PeranPrasidang }
   | { kind: 'terkirim'; peran: PeranPrasidang }
 
-export const isPrasidangS1 = (s: { prodi: string; jenis: string }): boolean => s.prodi === 's1' && s.jenis === 'prasidang'
+/** A prasidang (S1) or seminar proposal (S2) with an online berita acara (S2 too since kiprat 2026-11-27). */
+export const isPrasidangDinilai = (s: { prodi: string; jenis: string }): boolean => (s.prodi === 's1' || s.prodi === 's2') && s.jenis === 'prasidang'
 
 export function peranPrasidang(d: DefenseRef, kode: string): PeranPrasidang | null {
-  if (!isPrasidangS1(d) || !kode) return null
+  if (!isPrasidangDinilai(d) || !kode) return null
   // Only the Pembimbing Pendamping fills the berita acara; the Pembahas attends but does not (faculty, 2026-11-23).
   if (d.pembimbing_kode === kode) return 'pendamping'
   return null
@@ -39,7 +41,7 @@ export function aksesBeritaAcara(d: DefenseRef | null, kode: string, submitted: 
 }
 
 // ---- Nilai Bimbingan (S1): on the sidang, by the student's Pembimbing I/II, after the Ketua's lulus lock, for n days.
-export type BimbinganRef = { id: string; prodi: string; jenis: string; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null }
+export type BimbinganRef = { id: string; prodi: Prodi; jenis: string; pembimbing_1_kode: string | null; pembimbing_2_kode: string | null }
 export type AksesBimbingan =
   | { kind: 'tidak-ada' }
   | { kind: 'terkirim'; peran: Peran }
@@ -104,7 +106,8 @@ export type AksesSidang =
   | { kind: 'terkirim'; peran: PeranSidang }
   | { kind: 'terkunci' }
 
-export const bisaDinilaiSidang = (s: { prodi: string; jenis: string }): boolean => s.prodi === 's1' && s.jenis === 'sidang'
+/** A sidang skripsi (S1) or sidang tesis (S2) graded online (S2 too since kiprat 2026-11-27). */
+export const bisaDinilaiSidang = (s: { prodi: string; jenis: string }): boolean => (s.prodi === 's1' || s.prodi === 's2') && s.jenis === 'sidang'
 
 export function peranPenguji(d: SidangRef, kode: string): PeranSidang | null {
   if (!bisaDinilaiSidang(d) || !kode) return null

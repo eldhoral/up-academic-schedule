@@ -9,13 +9,14 @@ import { getSettings } from '@/lib/settings'
 import { kopBaris } from '@/lib/xlsx'
 
 /**
- * A locked S1 sidang's berita acara (?format=xlsx|pdf). Staff with S1 access only; 404 for anything else,
+ * A locked sidang's berita acara, S1 or S2 (?format=xlsx|pdf). Staff with access to its prodi only; 404 for anything else,
  * including a sidang not locked yet (no yudisium). The PDF is the Excel file converted by Aspose.
  */
 export async function GET(req: Request, ctx: RouteContext<'/api/berita-acara/[defenseId]'>) {
   const user = await getCurrentUser()
   if (!user) return new Response('Masuk terlebih dahulu.', { status: 401 })
-  if (isPenguji(user.role) || !canAccessProdi(user.prodiAccess, 's1')) {
+  // Staff only; the prodi is checked once the record is loaded (S1 or S2).
+  if (isPenguji(user.role)) {
     return new Response('Akun ini tidak dapat mengunduh berita acara.', { status: 403 })
   }
   const format = new URL(req.url).searchParams.get('format') === 'pdf' ? 'pdf' : 'xlsx'
@@ -23,7 +24,8 @@ export async function GET(req: Request, ctx: RouteContext<'/api/berita-acara/[de
   const { defenseId } = await ctx.params
   // Admin client inside loadSidang, after the staff check above.
   const data = await loadSidang(defenseId)
-  const isi = data && beritaAcaraDariSidang(data, kopBaris((await getSettings('s1')).kop_baris))
+  if (data && !canAccessProdi(user.prodiAccess, data.defense.prodi)) return new Response('Akun ini tidak dapat mengunduh berita acara.', { status: 403 })
+  const isi = data && beritaAcaraDariSidang(data, kopBaris((await getSettings(data.defense.prodi)).kop_baris))
   if (!data || !isi) return new Response('Berita acara belum tersedia: sidang belum dikunci.', { status: 404 })
 
   const { defense } = data

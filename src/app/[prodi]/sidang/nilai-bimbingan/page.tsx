@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { EmptySheet } from '@/components/EmptySheet'
 import { PreviewTable, cell } from '@/components/preview'
@@ -24,14 +23,13 @@ const BELUM = <span className="text-[var(--tinta-3)]">belum dinilai</span>
  */
 export default async function RekapBimbinganPage(props: PageProps<'/[prodi]/sidang/nilai-bimbingan'>) {
   const prodi = await prodiParam(props.params)
-  if (prodi !== 's1') notFound() // online grading is S1 only
   const searchParams = await props.searchParams
   const supabase = await createClient()
   const { years, ay } = await pilihTahun(supabase, searchParams.ay as string | undefined)
   const path = `/${prodi}/sidang/nilai-bimbingan`
   const f = bacaFilter(searchParams, { urut: URUT, status: STATUS.map((s) => s.value) })
   // Search and tanggal/NPM/nama order in SQL; the computed grade and batas after.
-  const { rows: semua, aturan } = await loadRekapBimbingan(supabase, ay, cariSql(f))
+  const { rows: semua, aturan } = await loadRekapBimbingan(supabase, prodi, ay, cariSql(f))
   const cocok = semua.filter((r) => (f.status === 'lengkap' ? r.bimbingan !== null : f.status === 'belum' ? r.bimbingan === null : true))
   const rows = f.urut === 'nilai' ? urutkan(cocok, (r) => r.bimbingan, f.arah)
     : f.urut === 'batas' ? urutkan(cocok, (r) => r.batas, f.arah)

@@ -12,6 +12,7 @@ import {
 import { batasBeritaAcara, beritaAcaraPath, PERAN_PRASIDANG_LABEL, type PeranPrasidang } from '@/lib/penilaian/prasidang'
 import { identitasPenguji, SIDANG_COLS, type DefensePenilaian, type DefenseSidang } from '@/lib/penilaian/data'
 import { loadAturan } from '@/lib/penilaian/aturan'
+import { PRODI_CONFIG } from '@/lib/prodi'
 
 const STATUS_CLS: Record<string, string> = {
   'Belum dibuka': 'bg-[var(--cekung)] text-[var(--tinta-3)] border-[var(--garis-kuat)]',
@@ -45,9 +46,9 @@ export default async function PenilaianSayaPage() {
   // Admin client after the role check: RLS hides defenses from an examiner. One query per column, not an or() filter, so the kode is never parsed as filter syntax.
   const db = createAdminClient()
   const supabase = await createClient()
-  const pras = () => db.from('defenses').select('id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode').eq('prodi', 's1').eq('jenis', 'prasidang')
+  const pras = () => db.from('defenses').select('id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi, pembimbing_kode, penguji_kode').in('prodi', ['s1', 's2']).eq('jenis', 'prasidang')
   const sid = () => {
-    const q = db.from('defenses').select(SIDANG_COLS).eq('prodi', 's1').eq('jenis', 'sidang')
+    const q = db.from('defenses').select(SIDANG_COLS).in('prodi', ['s1', 's2']).eq('jenis', 'sidang')
     return akunTanggal ? q.eq('tanggal', akunTanggal) : q
   }
   const kosong = { data: [], error: null }
@@ -82,14 +83,14 @@ export default async function PenilaianSayaPage() {
     const akses = aksesBeritaAcara(d, kode, new Set((isian.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as PeranPrasidang)), today)
     const peran = peranPrasidang(d, kode)
     if (akses.kind === 'tidak-ada' || !peran) continue
-    rows.push({ id: `ba-${d.id}`, href: beritaAcaraPath(d.id), tanggal: d.tanggal, npm: d.npm, nama: d.nama_mahasiswa, judul: d.judul_skripsi, jenis: 'Berita Acara Prasidang', peran: PERAN_PRASIDANG_LABEL[peran], status: akses.kind === 'isi' ? `Belum diisi (batas ${tanggalPanjang(batasBeritaAcara(d.tanggal), false)})` : STATUS_PRASIDANG[akses.kind] })
+    rows.push({ id: `ba-${d.id}`, href: beritaAcaraPath(d.id), tanggal: d.tanggal, npm: d.npm, nama: d.nama_mahasiswa, judul: d.judul_skripsi, jenis: `Berita Acara ${PRODI_CONFIG[d.prodi].defense.prasidang}`, peran: PERAN_PRASIDANG_LABEL[peran], status: akses.kind === 'isi' ? `Belum diisi (batas ${tanggalPanjang(batasBeritaAcara(d.tanggal), false)})` : STATUS_PRASIDANG[akses.kind] })
   }
   for (const d of sidang.values()) {
     const submitted = new Set((ns.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as PeranSidang))
     const akses = aksesSidang(d, kode, { submitted, locked: locked.has(d.id), today, akunTanggal })
     const peran = peranPenguji(d, kode)
     if (akses.kind === 'tidak-ada' || !peran) continue
-    rows.push({ id: d.id, href: penilaianSidangPath(d.id), tanggal: d.tanggal, npm: d.npm, nama: d.nama_mahasiswa, judul: d.judul_skripsi, jenis: 'Sidang', peran: PERAN_SIDANG_LABEL[peran], status: STATUS_SIDANG[akses.kind] })
+    rows.push({ id: d.id, href: penilaianSidangPath(d.id), tanggal: d.tanggal, npm: d.npm, nama: d.nama_mahasiswa, judul: d.judul_skripsi, jenis: PRODI_CONFIG[d.prodi].defense.sidang, peran: PERAN_SIDANG_LABEL[peran], status: STATUS_SIDANG[akses.kind] })
   }
   if (dosen) rows.push(...(await barisBimbingan(kode, today)))
   rows.sort((a, b) => b.tanggal.localeCompare(a.tanggal) || a.nama.localeCompare(b.nama))
@@ -100,8 +101,8 @@ export default async function PenilaianSayaPage() {
         <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.02em]">Penilaian Saya</h1>
         <p className="m-0 mt-[0.13rem] mb-[1.2rem] text-[0.87rem] text-[var(--tinta-3)]">
           {dosen
-            ? 'Berita acara prasidang S1 tempat Anda menjadi Pembimbing Pendamping, Sidang S1 tempat Anda menjadi penguji, dan Nilai Bimbingan mahasiswa yang Anda bimbing (dibuka setelah Ketua mengunci sidang).'
-            : `Sidang S1 yang Anda uji pada ${tanggalPanjang(akunTanggal ?? '', false)}.`}
+            ? 'Berita acara prasidang (S1) dan seminar proposal (S2) tempat Anda menjadi Pembimbing Pendamping, sidang skripsi dan sidang tesis tempat Anda menjadi penguji, dan Nilai Bimbingan mahasiswa yang Anda bimbing (dibuka setelah Ketua mengunci sidang).'
+            : `Sidang yang Anda uji pada ${tanggalPanjang(akunTanggal ?? '', false)}.`}
         </p>
 
         {rows.length === 0 ? (
@@ -147,9 +148,10 @@ async function barisBimbingan(kode: string, today: string): Promise<Baris[]> {
   const db = createAdminClient()
   const supabase = await createClient()
   const [m1, m2, aturan] = await Promise.all([
-    db.from('students').select('npm, pembimbing_1_kode, pembimbing_2_kode').eq('prodi', 's1').eq('pembimbing_1_kode', kode),
-    db.from('students').select('npm, pembimbing_1_kode, pembimbing_2_kode').eq('prodi', 's1').eq('pembimbing_2_kode', kode),
-    loadAturan(db, 's1'),
+    db.from('students').select('npm, prodi, pembimbing_1_kode, pembimbing_2_kode').eq('pembimbing_1_kode', kode),
+    db.from('students').select('npm, prodi, pembimbing_1_kode, pembimbing_2_kode').eq('pembimbing_2_kode', kode),
+    // Each prodi has its own batas hari (S2 since kiprat 2026-11-27).
+    Promise.all([loadAturan(db, 's1'), loadAturan(db, 's2')]).then(([s1, s2]) => ({ s1, s2 })),
   ])
   const err = m1.error ?? m2.error
   if (err) throw new Error(`Gagal memuat daftar penilaian: ${err.message}`)
@@ -157,7 +159,7 @@ async function barisBimbingan(kode: string, today: string): Promise<Baris[]> {
   if (mhs.size === 0) return []
 
   const { data: sid, error: sErr } = await db.from('defenses').select('id, prodi, jenis, tanggal, npm, nama_mahasiswa, judul_skripsi')
-    .eq('prodi', 's1').eq('jenis', 'sidang').in('npm', [...mhs.keys()])
+    .in('prodi', ['s1', 's2']).eq('jenis', 'sidang').in('npm', [...mhs.keys()])
   if (sErr) throw new Error(`Gagal memuat daftar penilaian: ${sErr.message}`)
   const ids = (sid ?? []).map((d) => d.id as string)
   if (ids.length === 0) return []
@@ -174,7 +176,7 @@ async function barisBimbingan(kode: string, today: string): Promise<Baris[]> {
     const m = mhs.get(d.npm as string)!
     const ref = { ...d, pembimbing_1_kode: m.pembimbing_1_kode, pembimbing_2_kode: m.pembimbing_2_kode }
     const submitted = new Set((nb.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as Peran))
-    const akses = aksesBimbingan(ref, kode, { submitted, kunci: kunci.get(d.id) ?? null, today, batasHari: aturan.batasHariBimbingan })
+    const akses = aksesBimbingan(ref, kode, { submitted, kunci: kunci.get(d.id) ?? null, today, batasHari: aturan[d.prodi as 's1' | 's2'].batasHariBimbingan })
     if (akses.kind === 'tidak-ada') return []
     const status = akses.kind === 'isi' ? STATUS_BIMBINGAN.isi(akses.batas) : STATUS_BIMBINGAN[akses.kind]()
     const peran: Peran = m.pembimbing_1_kode === kode ? 'pembimbing_1' : 'pembimbing_2'

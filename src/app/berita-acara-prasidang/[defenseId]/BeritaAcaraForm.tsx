@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation'
 import type { Pertanyaan } from '@/lib/penilaian/aturan'
 import { HASIL, HASIL_LABEL, MAKS_CATATAN, MAKS_URAIAN, SUDAH_DIKIRIM_BA, type Hasil } from '@/lib/penilaian/prasidang'
 import type { HasilAksi } from '../actions'
+import { istilah } from '@/lib/prodi'
 
 type Props = {
+  /** S2 words it for the seminar proposal (kiprat 2026-11-27). */
+  prodi: string
   pertanyaan: Pertanyaan[]
   /** The server action bound to its record, peran and the displayed question list. */
   aksi: (ya: (boolean | null)[], catatan: string[], hasil: Hasil) => Promise<HasilAksi>
@@ -16,7 +19,8 @@ const BTN = 'min-h-[2.4rem] px-[0.9rem] rounded-[var(--r-kecil)] text-[0.93rem] 
 const RADIO = 'inline-flex items-center gap-[0.4rem] text-[0.93rem] cursor-pointer'
 
 /** Per question Ya/Tidak + catatan, or a required uraian; then the verdict; then an in-page confirm before the action runs. */
-export function BeritaAcaraForm({ pertanyaan, aksi }: Props) {
+export function BeritaAcaraForm({ prodi, pertanyaan, aksi }: Props) {
+  const t = (teks: string) => istilah(prodi, teks)
   const [ya, setYa] = useState<(boolean | null)[]>(() => pertanyaan.map(() => null))
   const [catatan, setCatatan] = useState<string[]>(() => pertanyaan.map(() => ''))
   const [hasil, setHasil] = useState<Hasil | null>(null)
@@ -96,7 +100,7 @@ export function BeritaAcaraForm({ pertanyaan, aksi }: Props) {
                 </div>
                 {pesan}
               </fieldset>
-              <label htmlFor={`${id}-c`} className="block mt-[0.7rem] text-[0.8rem] text-[var(--tinta-3)]">Catatan prasidang</label>
+              <label htmlFor={`${id}-c`} className="block mt-[0.7rem] text-[0.8rem] text-[var(--tinta-3)]">{t('Catatan prasidang')}</label>
               <textarea
                 id={`${id}-c`}
                 rows={2}
@@ -112,17 +116,17 @@ export function BeritaAcaraForm({ pertanyaan, aksi }: Props) {
 
       <fieldset className="mt-[1.2rem] m-0 p-[0.9rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)]">
         <legend className="px-[0.3rem] text-[0.93rem] font-semibold">
-          Hasil prasidang <span className="text-[var(--merah-teks)]" aria-hidden="true">*</span>
+          {t('Hasil prasidang')} <span className="text-[var(--merah-teks)]" aria-hidden="true">*</span>
         </legend>
         <div className="flex flex-col gap-[0.5rem]">
           {HASIL.map((h) => (
             <label key={h} className={RADIO}>
               <input type="radio" name={`${uid}-hasil`} checked={hasil === h} onChange={() => setHasil(h)} />
-              {HASIL_LABEL[h]}
+              {t(HASIL_LABEL[h])}
             </label>
           ))}
         </div>
-        {dicoba && !hasil && <p className="m-0 mt-[0.25rem] text-[0.8rem] text-[var(--merah-teks)]">Pilih hasil prasidang</p>}
+        {dicoba && !hasil && <p className="m-0 mt-[0.25rem] text-[0.8rem] text-[var(--merah-teks)]">{t('Pilih hasil prasidang')}</p>}
       </fieldset>
 
       <div className="mt-[1rem] flex">
@@ -144,7 +148,7 @@ export function BeritaAcaraForm({ pertanyaan, aksi }: Props) {
       >
         <h2 id={`${uid}-judul`} className="m-0 mb-[0.5rem] text-[1.1rem] font-semibold">Kirim berita acara?</h2>
         <p className="m-0 mb-[0.4rem] text-[0.93rem] text-[var(--tinta-2)]">Setelah dikirim, berita acara tidak bisa diubah.</p>
-        {hasil && <p className="m-0 mb-[1rem] text-[0.93rem] font-medium">{HASIL_LABEL[hasil]}</p>}
+        {hasil && <p className="m-0 mb-[1rem] text-[0.93rem] font-medium">{t(HASIL_LABEL[hasil])}</p>}
         <div className="flex gap-[0.6rem] justify-end">
           <button type="button" disabled={pending} onClick={() => dialog.current?.close()} className={`${BTN} border border-[var(--garis-kuat)] text-[var(--tinta-2)] hover:bg-[var(--cekung)]`}>
             Batal

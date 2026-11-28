@@ -4,6 +4,7 @@ import { AkunLain } from '@/components/AkunLain'
 import { AppShell } from '@/components/AppShell'
 import { getCurrentUser, canManage, isPenguji } from '@/lib/roles'
 import { tanggalPanjang } from '@/lib/hari'
+import { canAccessProdi, istilah } from '@/lib/prodi'
 import { aksesBeritaAcara, peranPrasidang, todayJakarta } from '@/lib/penilaian/akses'
 import { loadBeritaAcara, type BeritaAcaraRow } from '@/lib/penilaian/data'
 import {
@@ -32,24 +33,26 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
   const akses = dosen
     ? aksesBeritaAcara(data?.defense ?? null, user.kodeDosen!, new Set(Object.keys(data?.isian ?? {}) as PeranPrasidang[]), todayJakarta())
     : null
-  // Not this dosen's S1 prasidang (or none at all): the signed-in-as card, with no hint the record exists.
-  if (!data || akses?.kind === 'tidak-ada') return <AkunLain email={user.email} path={path} />
+  // Not this dosen's prasidang / seminar proposal (or none at all), or staff without its prodi: the signed-in-as card, with no hint the record exists.
+  if (!data || akses?.kind === 'tidak-ada' || (!dosen && !canAccessProdi(user.prodiAccess, data.defense.prodi))) return <AkunLain email={user.email} path={path} />
 
   const { defense, aturan } = data
+  // Written in S1's words; S2 reads seminar proposal and tesis (kiprat 2026-11-27).
+  const t = (teks: string) => istilah(defense.prodi, teks)
   const fakta: [string, React.ReactNode][] = [
     ['NPM', <span key="npm" className="mono">{defense.npm}</span>],
     ['Nama', defense.nama_mahasiswa],
-    ['Judul skripsi', defense.judul_skripsi || '—'],
-    ['Tanggal prasidang', tanggalPanjang(defense.tanggal, false)],
+    [t('Judul skripsi'), defense.judul_skripsi || '—'],
+    [t('Tanggal prasidang'), tanggalPanjang(defense.tanggal, false)],
   ]
   const peranSaya = dosen ? peranPrasidang(defense, user.kodeDosen!) : null
   if (peranSaya) fakta.push(['Peran Anda', `${data.dosen[peranSaya]} (${PERAN_PRASIDANG_LABEL[peranSaya]})`])
 
   return (
-    <AppShell active={path}>
+    <AppShell active={path} prodi={defense.prodi}>
       <main className="flex-1 w-full max-w-[52rem] mx-auto px-[1.3rem] py-[1.6rem]">
         {dosen && <Link href="/penilaian" className="text-[0.87rem] text-[var(--tinta-2)] hover:underline">‹ Penilaian Saya</Link>}
-        <h1 className="m-0 mt-[0.4rem] text-[1.6rem] font-semibold tracking-[-0.02em]">Berita Acara Prasidang</h1>
+        <h1 className="m-0 mt-[0.4rem] text-[1.6rem] font-semibold tracking-[-0.02em]">{t('Berita Acara Prasidang')}</h1>
         <dl className="m-0 mt-[1rem] mb-[1.6rem] grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-x-[1rem] gap-y-[0.4rem] text-[0.93rem]">
           {fakta.map(([k, v]) => (
             <div key={k} className="contents">
@@ -64,31 +67,32 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
         )}
         {akses?.kind === 'isi' && (
           <>
-            <h2 className="m-0 mb-[0.3rem] text-[1.2rem] font-semibold tracking-[-0.01em]">Saran Perbaikan Proposal Skripsi</h2>
+            <h2 className="m-0 mb-[0.3rem] text-[1.2rem] font-semibold tracking-[-0.01em]">{t('Saran Perbaikan Proposal Skripsi')}</h2>
             <p className="m-0 mb-[0.4rem] text-[0.87rem] text-[var(--tinta-3)]">
-              Uraian mengenai masukan dan perbaikan yang harus dilakukan peserta prasidang dalam rangka perbaikan proposal skripsi yang disampaikan.
+              {t('Uraian mengenai masukan dan perbaikan yang harus dilakukan peserta prasidang dalam rangka perbaikan proposal skripsi yang disampaikan.')}
             </p>
             <p className="m-0 mb-[1rem] text-[0.87rem] text-[var(--tinta-2)]">
               Batas pengisian: <strong>{tanggalPanjang(batasBeritaAcara(defense.tanggal), false)}</strong> (paling lambat 1 hari setelah prasidang).
             </p>
             <BeritaAcaraForm
+              prodi={defense.prodi}
               pertanyaan={aturan.pertanyaanPrasidang}
               aksi={submitBeritaAcaraAction.bind(null, defense.id, akses.peran, aturan.pertanyaanPrasidang)}
             />
           </>
         )}
-        {akses?.kind === 'terkirim' && <Terkirim row={data.isian[akses.peran]!} />}
+        {akses?.kind === 'terkirim' && <Terkirim row={data.isian[akses.peran]!} prodi={defense.prodi} />}
 
         {/* Staff: the Pendamping's berita acara, the result and Super Admin's override. Read-only. */}
         {!dosen && (
           <>
             <section className="mb-[1.6rem]">
               <p className={KOTAK}>
-                <span className="block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">Status prasidang mahasiswa</span>
-                <span className="font-semibold">{STATUS_LABEL[data.status]}</span>
+                <span className="block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">{t('Status prasidang mahasiswa')}</span>
+                <span className="font-semibold">{t(STATUS_LABEL[data.status])}</span>
                 {data.keputusan && (
                   <span className="block mt-[0.3rem] text-[0.87rem] text-[var(--tinta-2)]">
-                    Keputusan Super Admin: {HASIL_LABEL[data.keputusan.hasil]} — {data.keputusan.alasan}
+                    Keputusan Super Admin: {t(HASIL_LABEL[data.keputusan.hasil])} — {data.keputusan.alasan}
                   </span>
                 )}
                 {canManage(user.role) && (
@@ -107,10 +111,10 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
                 <h2 className="m-0 mb-[0.6rem] text-[1.2rem] font-semibold tracking-[-0.01em]">
                   {PERAN_PRASIDANG_LABEL[peran]} <span className="text-[0.87rem] font-normal text-[var(--tinta-3)]">· {data.dosen[peran]}</span>
                 </h2>
-                {data.isian[peran] ? <Terkirim row={data.isian[peran]!} /> : <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">Belum diisi.</p>}
+                {data.isian[peran] ? <Terkirim row={data.isian[peran]!} prodi={defense.prodi} /> : <p className="m-0 text-[0.93rem] text-[var(--tinta-3)]">Belum diisi.</p>}
                 {peran === 'pendamping' && data.isian.pendamping && canManage(user.role) && (
                   <div className="m-0 mt-[1rem] text-[0.93rem]">
-                    <span className="block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">Email catatan prasidang</span>
+                    <span className="block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">{t('Email catatan prasidang')}</span>
                     {EMAIL_LABEL[data.isian.pendamping.email_status] ?? data.isian.pendamping.email_status}
                     {bolehKirimUlang(data.isian.pendamping.email_status, data.isian.pendamping.submitted_at) && <KirimUlang defenseId={defense.id} prasidang />}
                   </div>
@@ -125,7 +129,8 @@ export default async function BeritaAcaraPage(props: PageProps<'/berita-acara-pr
 }
 
 /** A submitted berita acara, read-only: the questions it was answered against, never the current list. */
-function Terkirim({ row }: { row: BeritaAcaraRow }) {
+function Terkirim({ row, prodi }: { row: BeritaAcaraRow; prodi: string }) {
+  const t = (teks: string) => istilah(prodi, teks)
   return (
     <div>
       <p className="m-0 mb-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">Dikirim {waktu(row.submitted_at)}</p>
@@ -145,8 +150,8 @@ function Terkirim({ row }: { row: BeritaAcaraRow }) {
         ))}
       </ol>
       <p className="m-0 mt-[1rem]">
-        <span className="block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">Hasil prasidang</span>
-        <span className="text-[1.2rem] font-semibold">{HASIL_LABEL[row.hasil]}</span>
+        <span className="block text-[0.73rem] uppercase tracking-[0.04em] text-[var(--tinta-3)]">{t('Hasil prasidang')}</span>
+        <span className="text-[1.2rem] font-semibold">{t(HASIL_LABEL[row.hasil])}</span>
       </p>
     </div>
   )

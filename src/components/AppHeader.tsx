@@ -22,7 +22,7 @@ export async function AppHeader({ active, prodi }: { active: string; prodi?: Pro
           <span className="sr-only">Menu utama</span>
         </Link>
         {/* Minimal header for a DOSEN: no section nav, the logo is its menu. */}
-        {!dosen && <HeaderNav active={active} prodi={prodi} canManage={canManage(user?.role ?? null)} akunEksternal={!!user && canWrite(user.role) && canAccessProdi(user.prodiAccess, 's1')} />}
+        {!dosen && <HeaderNav active={active} prodi={prodi} canManage={canManage(user?.role ?? null)} akunEksternal={!!user && canWrite(user.role) && canAccessProdi(user.prodiAccess, prodi ?? 's1')} />}
       </div>
 
       {/* ml-auto (not the parent's justify-between) so this group stays flush right even

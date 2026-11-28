@@ -167,13 +167,15 @@ import {
   const o = (p: Partial<Parameters<typeof aksesSidang>[2]> = {}) => ({ submitted: none, locked: false, today: '2026-11-10', ...p })
 
   assert.equal(bisaDinilaiSidang(sd), true)
-  assert.equal(bisaDinilaiSidang({ ...sd, prodi: 's2' }), false)
+  assert.equal(bisaDinilaiSidang({ ...sd, prodi: 's2' }), true, 'S2 sidang tesis is graded too (kiprat 2026-11-27)')
+  assert.equal(bisaDinilaiSidang({ ...sd, prodi: 's3' }), false)
   assert.equal(bisaDinilaiSidang({ ...sd, jenis: 'prasidang' }), false)
   assert.equal(peranPenguji(sd, 'KT'), 'ketua')
   assert.equal(peranPenguji(sd, 'EX'), 'anggota_1')
   assert.equal(peranPenguji(sd, 'PB'), 'anggota_2')
   assert.equal(peranPenguji(sd, 'ZZ'), null)
-  assert.equal(peranPenguji({ ...sd, prodi: 's2' }, 'KT'), null)
+  assert.equal(peranPenguji({ ...sd, prodi: 's2' }, 'KT'), 'ketua', 'S2 sidang tesis: the same three examiners (kiprat 2026-11-27)')
+  assert.equal(peranPenguji({ ...sd, prodi: 's3' as 's2' }, 'KT'), null)
   assert.equal(peranPenguji({ ...sd, jenis: 'prasidang' }, 'KT'), null)
   assert.equal(peranPenguji({ ...sd, penguji_eksternal_kode: null }, ''), null)
 
@@ -202,7 +204,7 @@ import {
   assert.deepEqual(aksesSidang(sd, 'EX', o({ akunTanggal: '2026-11-10' })), { kind: 'isi', peran: 'anggota_1' })
   assert.deepEqual(aksesSidang(sd, 'EX', o({ akunTanggal: '2026-11-09' })), { kind: 'tidak-ada' })
   assert.deepEqual(aksesSidang(sd, 'EX', o({ akunTanggal: '2026-11-09', locked: true })), { kind: 'tidak-ada' })
-  assert.deepEqual(aksesSidang({ ...sd, prodi: 's2' }, 'KT', o()), { kind: 'tidak-ada' })
+  assert.deepEqual(aksesSidang({ ...sd, prodi: 's2' }, 'KT', o()), aksesSidang(sd, 'KT', o()), 'S2 sidang tesis follows the S1 rules')
 
   // Jakarta day: valid through berlaku_sampai, gone at 00:00 WIB the next day.
   assert.equal(eksternalAktif('2026-11-10', new Date('2026-11-10T16:59:00Z')), true)
@@ -573,7 +575,7 @@ async function cekEmail() {
   assert.equal(lampiran[0][0].contentType, 'application/pdf')
   assert.deepEqual([...lampiran[0][0].content], [37, 80, 68, 70])
   assert.deepEqual(bentuk[0], {
-    jenis: 'sidang', kolom: 'Halaman', hasil: 'Lulus Dengan Revisi', npm: '2021110099', nama: 'Budi', judul: 'J', tanggal: '2026-11-09',
+    jenis: 'sidang', prodi: undefined, kolom: 'Halaman', hasil: 'Lulus Dengan Revisi', npm: '2021110099', nama: 'Budi', judul: 'J', tanggal: '2026-11-09',
     kop: ['FAKULTAS PSIKOLOGI', 'Jl. X'],
     bagian: [
       { peranLabel: 'Ketua Sidang', nama: 'Dr. Ani', rows: [{ rujukan: '1', catatan: 'x' }] },
@@ -853,13 +855,13 @@ void (async () => {
     '/s1/sidang/hasil-prasidang', '/s1/sidang/nilai-sidang', '/s1/sidang/nilai-bimbingan', '/s1/sidang/nilai-akhir', '/s1/sidang/akun-eksternal',
   ])
   assert.deepEqual(sectionOf('/sidang', 's1', false, false)!.group?.items.map((t) => t.label), ['Hasil Prasidang', 'Nilai Sidang', 'Nilai Bimbingan', 'Nilai Akhir'], 'no day accounts without access')
-  // Pengaturan: one dropdown of pages on every Data Master page; Penilaian only for Super Admin on S1.
+  // Pengaturan: one dropdown of pages on every Data Master page; Penilaian for Super Admin on both prodi (S2 since kiprat 2026-11-27).
   const master = sectionOf('/pengaturan/cetak', 's1', true, false)!
   assert.deepEqual(master.tabs.map((t) => t.label), ['Mata Kuliah', 'Mahasiswa', 'Sesi'])
   assert.deepEqual(master.group?.items.map((t) => t.href), ['/s1/pengaturan', '/s1/pengaturan/cetak', '/s1/pengaturan/surat', '/s1/pengaturan/ujian', '/s1/pengaturan/sidang', '/s1/pengaturan/foto-login', '/s1/pengaturan/sesi', '/s1/pengaturan/penilaian'])
-  assert.equal(sectionOf('/mahasiswa', 's2', true, false)!.group?.items.some((t) => t.label === 'Penilaian'), false)
+  assert.equal(sectionOf('/mahasiswa', 's2', true, false)!.group?.items.some((t) => t.label === 'Penilaian'), true)
   assert.equal(sectionOf('/pengaturan/penilaian', 's1', false, false), null, 'Penilaian is not in an admin-less menu')
-  assert.equal(sectionOf('/sidang', 's2', true, true)!.group, undefined, 'S2 has no grading menu')
+  assert.deepEqual(sectionOf('/sidang', 's2', true, true)!.group?.items.map((t) => t.label), ['Hasil Seminar Proposal', 'Nilai Tesis', 'Nilai Bimbingan', 'Nilai Akhir', 'Akun Penguji Eksternal'], 'S2 grading menu in its own words')
   assert.equal(sectionOf('/sidang/nilai-sidang', 's1', false, false)!.title, 'S1 · Jadwal Prasidang & Sidang')
   console.log('nilai-sidang rekap & menu: all checks passed')
 }
