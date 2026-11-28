@@ -5,13 +5,13 @@ import { createClient } from '@/lib/supabase/server'
 import { humanDbError } from '@/lib/db-error'
 import { managerOnly } from '@/lib/prodi-server'
 import {
-  validateAspek, validateBatasHari, validateKetentuan, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
+  validateAspek, validateKetentuan, validatePeriode, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks, validateTabelNilai, validateTanggal,
   type Aspek, type BarisNilai, type BarisPredikat, type Pertanyaan, type Yudisium,
 } from '@/lib/penilaian/aturan'
 
 export type Kunci =
   | 'aspek_bimbingan' | 'aspek_sidang' | 'pilihan_yudisium' | 'tabel_nilai' | 'predikat' | 'sks_skripsi' | 'tanggal_mulai_penilaian'
-  | 'pertanyaan_prasidang' | 'batas_hari_bimbingan' | 'ketentuan_sidang'
+  | 'pertanyaan_prasidang' | 'periode_bimbingan' | 'ketentuan_sidang'
 export type Hasil = { error: string } | { ok: true }
 
 const BENTUK = 'Data tidak berbentuk benar. Muat ulang halaman lalu coba lagi.'
@@ -58,9 +58,11 @@ function periksa(kunci: Kunci, value: unknown): { error: string } | { nilai: unk
     const l = value.map((x) => x.trim())
     return validateKetentuan(l) ? { error: validateKetentuan(l)! } : { nilai: l }
   }
-  if (kunci === 'batas_hari_bimbingan') {
-    if (!isNum(value)) return { error: BENTUK }
-    return validateBatasHari(value) ? { error: validateBatasHari(value)! } : { nilai: value }
+  if (kunci === 'periode_bimbingan') {
+    const v = value as { mulai?: unknown; selesai?: unknown } | null
+    if (typeof v !== 'object' || v === null || !isStr(v.mulai) || !isStr(v.selesai)) return { error: BENTUK }
+    const p = { mulai: v.mulai, selesai: v.selesai }
+    return validatePeriode(p) ? { error: validatePeriode(p)! } : { nilai: p }
   }
   if (kunci === 'sks_skripsi') {
     if (!isNum(value)) return { error: BENTUK }
@@ -72,7 +74,7 @@ function periksa(kunci: Kunci, value: unknown): { error: string } | { nilai: unk
 
 const KUNCI: readonly string[] = [
   'aspek_bimbingan', 'aspek_sidang', 'pilihan_yudisium', 'tabel_nilai', 'predikat', 'sks_skripsi', 'tanggal_mulai_penilaian',
-  'pertanyaan_prasidang', 'batas_hari_bimbingan', 'ketentuan_sidang',
+  'pertanyaan_prasidang', 'periode_bimbingan', 'ketentuan_sidang',
 ]
 
 /** Super Admin, either prodi's rules. Writes on the session client so the audit log names the real actor. */

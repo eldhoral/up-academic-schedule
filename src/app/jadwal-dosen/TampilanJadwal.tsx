@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { KETERANGAN_LABEL, type KeteranganUjian } from '@/app/[prodi]/ujian/exam-types'
 import { HARI_DB, hariLabel, tanggalPanjang } from '@/lib/hari'
 import { PRODI_CONFIG } from '@/lib/prodi'
+import { penilaianPath } from '@/lib/penilaian/akses'
 import { defenseLinkLabel } from '@/app/[prodi]/sidang/defense-types'
 import {
   PROGRAM_LABEL,
@@ -158,6 +159,28 @@ export function TampilanJadwal({ jadwal, today, host, feedPath }: { jadwal: Jadw
           </Kartu>
 
           <div className="flex flex-col gap-[0.933rem]">
+            {/* Nilai Bimbingan open now, as Pembimbing I/II (kiprat 2026-11-27); only while there is one to fill. */}
+            {(jadwal.bimbingan ?? []).length > 0 && (
+              <Kartu judul="Nilai Bimbingan" kolom>
+                <div className="divide-y divide-[var(--garis-kuat)]">
+                  {jadwal.bimbingan!.map((b) => (
+                    <div key={b.id} className="py-[0.8rem] first:pt-0 last:pb-0">
+                      <Baris jam={PRODI_CONFIG[b.prodi].short} judul={`${b.nama_mahasiswa} (${b.npm})`} meta={`Batas pengisian ${tanggalPanjang(b.batas, false)}`}>
+                        {/* Grants nothing by itself: the page behind it needs a DOSEN login. */}
+                        <a
+                          href={penilaianPath(b.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="tekan mt-[0.533rem] inline-flex min-h-[2.4rem] items-center gap-[0.4rem] rounded-[8px] border border-[var(--garis-kuat)] bg-[var(--lembar)] px-[0.8rem] text-[0.867rem] font-medium text-[var(--tinta)] no-underline hover:bg-[var(--cekung)]"
+                        >
+                          Isi Nilai Bimbingan <span aria-hidden="true">↗</span>
+                        </a>
+                      </Baris>
+                    </div>
+                  ))}
+                </div>
+              </Kartu>
+            )}
             {/* Prasidang and sidang in their own cards, a rule between rows (kiprat 2026-11-25). */}
             {(['prasidang', 'sidang'] as const).map((jenis) => {
               const daftar = sidang.filter((s) => s.jenis === jenis)

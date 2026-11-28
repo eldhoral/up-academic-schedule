@@ -1,4 +1,4 @@
-import { ANGGOTA_I_LEGACY, batasBimbingan, PERAN_SIDANG, PERAN_SIDANG_LABEL, type Peran, type PeranSidang } from './akses'
+import { ANGGOTA_I_LEGACY, PERAN_SIDANG, PERAN_SIDANG_LABEL, type Peran, type PeranSidang } from './akses'
 import { parseAturanBeku } from './aturan'
 import { baris, hasilAkhir, ipkSebelum, nilaiBimbingan, nilaiSidang, type HasilAkhir } from './nilai'
 
@@ -39,7 +39,8 @@ export function buildRekapBimbingan(
   students: StudentPembimbingIn[],
   nilai: NilaiIn[],
   kunci: { defense_id: string; locked_at: string }[],
-  batasHari: number,
+  /** The prodi's pengisian range: a locked sidang's batas is its last day. */
+  periode: { mulai: string; selesai: string },
   namaDosen: (kode: string) => string,
 ): RekapBimbingan[] {
   const mhs = new Map(students.map((s) => [s.npm, s]))
@@ -67,7 +68,7 @@ export function buildRekapBimbingan(
         dospem2,
         tanpaP2,
         bimbingan: nilaiBimbingan(dospem1.nilai, dospem2.nilai, tanpaP2),
-        batas: lockedAt ? batasBimbingan(lockedAt, batasHari) : null,
+        batas: lockedAt ? periode.selesai : null,
       }
     })
 }

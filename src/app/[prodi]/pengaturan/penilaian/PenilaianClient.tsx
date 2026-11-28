@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition, type ReactNode } from 'react'
 import {
-  DEFAULT_ATURAN, validateAspek, validateBatasHari, validateKetentuan, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks,
+  DEFAULT_ATURAN, validateAspek, validateKetentuan, validatePeriode, validatePertanyaan, validatePilihanYudisium, validatePredikat, validateSks,
   validateTabelNilai, validateTanggal, type Aturan, type Pertanyaan,
 } from '@/lib/penilaian/aturan'
 import { todayJakarta } from '@/lib/penilaian/akses'
@@ -144,7 +144,7 @@ export function PenilaianClient({ aturan }: { aturan: Aturan }) {
       <TabelKartu awal={aturan.tabelNilai} />
       <PredikatKartu awal={aturan.predikat} />
       <SksKartu awal={aturan.sksSkripsi} />
-      <BatasHariKartu awal={aturan.batasHariBimbingan} />
+      <PeriodeKartu awal={aturan.periodeBimbingan} />
       <PertanyaanKartu awal={aturan.pertanyaanPrasidang} />
       <KetentuanKartu awal={aturan.ketentuanSidang} />
       <TanggalKartu awal={aturan.tanggalMulai} />
@@ -348,22 +348,34 @@ function TanggalKartu({ awal }: { awal: string }) {
   )
 }
 
-function BatasHariKartu({ awal }: { awal: number }) {
-  const [v, setV] = useState(String(awal))
-  const p = angka(v, 1, 60, 'Batas hari')
-  const error = 'error' in p ? p.error : validateBatasHari(p.value)
+/** Pengisian nilai bimbingan from one date to another (kiprat 2026-11-27: a range instead of the lock day plus n days). */
+function PeriodeKartu({ awal }: { awal: Aturan['periodeBimbingan'] }) {
+  const [mulai, setMulai] = useState(awal.mulai)
+  const [selesai, setSelesai] = useState(awal.selesai)
+  const nilai = { mulai, selesai }
+  const error = validatePeriode(nilai)
 
   return (
     <Kartu
-      judul="Batas pengisian nilai bimbingan"
-      bantuan="Jumlah hari setelah Ketua mengunci sidang (hari penguncian = hari ke-0) Dosen Pembimbing masih dapat mengisi nilai bimbingan. Super Admin dapat mengisi kapan saja."
-      kunci="batas_hari_bimbingan"
+      judul="Periode pengisian nilai bimbingan"
+      bantuan="Dosen Pembimbing dapat mengisi nilai bimbingan dari tanggal mulai sampai tanggal selesai (keduanya termasuk), setelah Ketua mengunci sidang dengan yudisium lulus. Super Admin dapat mengisi kapan saja."
+      kunci="periode_bimbingan"
       error={error}
-      nilai={'value' in p ? p.value : null}
-      onDefault={() => setV(String(DEFAULT_ATURAN.batasHariBimbingan))}
+      nilai={nilai}
+      onDefault={() => {
+        setMulai(DEFAULT_ATURAN.periodeBimbingan.mulai)
+        setSelesai(DEFAULT_ATURAN.periodeBimbingan.selesai)
+      }}
     >
-      <div className="max-w-[8rem]">
-        <input className={`${INPUT} mono`} inputMode="numeric" value={v} onChange={(e) => setV(e.target.value)} aria-label="Batas hari" />
+      <div className="flex flex-wrap items-end gap-[0.8rem]">
+        <label className="block">
+          <span className="block text-[0.8rem] text-[var(--tinta-3)] mb-[0.25rem]">Mulai</span>
+          <input type="date" className={`${INPUT} mono w-[12rem]`} value={mulai} onChange={(e) => setMulai(e.target.value)} />
+        </label>
+        <label className="block">
+          <span className="block text-[0.8rem] text-[var(--tinta-3)] mb-[0.25rem]">Selesai</span>
+          <input type="date" className={`${INPUT} mono w-[12rem]`} value={selesai} min={mulai || undefined} onChange={(e) => setSelesai(e.target.value)} />
+        </label>
       </div>
     </Kartu>
   )

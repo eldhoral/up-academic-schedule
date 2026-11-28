@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { addDays } from '../week'
 import { todayJakarta } from './akses'
 import { round2 } from './nilai'
 
@@ -18,8 +19,8 @@ export type Aturan = {
   tanggalMulai: string
   /** Berita Acara Prasidang: ya_tidak = Ya/Tidak + optional catatan; uraian = a required text answer. */
   pertanyaanPrasidang: Pertanyaan[]
-  /** Days after the sidang lock a Dosen Pembimbing may still grade bimbingan (lock day = day 0). */
-  batasHariBimbingan: number
+  /** The dates (inclusive) a Dosen Pembimbing may grade bimbingan, once the sidang is locked lulus (kiprat 2026-11-27: a range, not lock + n days). */
+  periodeBimbingan: Periode
   /** Ketentuan Umum shown beside the sidang form (lines); the Nilai and predikat tables come from their own rules. */
   ketentuanSidang: string[]
 }
@@ -109,7 +110,7 @@ export const DEFAULT_ATURAN: Aturan = {
     { teks: 'Sistematika Penulisan Proposal', jenis: 'uraian' },
     { teks: 'Substansi (isi) Proposal', jenis: 'uraian' },
   ],
-  batasHariBimbingan: 7,
+  periodeBimbingan: { mulai: todayJakarta(), selesai: addDays(todayJakarta(), 30) },
   ketentuanSidang: [
     'Naskah skripsi berisi kurang lebih 60 sampai dengan 80 halaman (tidak termasuk lampiran dan Daftar Pustaka)',
     'Format mengikuti tradisi ilmiah yang berlaku di dunia internasional dan merujuk pada APA',
@@ -176,8 +177,13 @@ export function validatePertanyaan(p: Pertanyaan[]): string | null {
   return p.every((q) => q.teks.trim()) ? null : 'Pertanyaan wajib diisi'
 }
 
-export function validateBatasHari(n: number): string | null {
-  return Number.isInteger(n) && n >= 1 && n <= 60 ? null : 'Batas hari harus bilangan bulat 1–60'
+/** Pengisian nilai bimbingan: from mulai to selesai, both Jakarta dates, inclusive. */
+export type Periode = { mulai: string; selesai: string }
+
+export function validatePeriode(p: unknown): string | null {
+  const v = p as Partial<Periode> | null
+  if (typeof v !== 'object' || v === null || !parseTanggal(v.mulai) || !parseTanggal(v.selesai)) return 'Tanggal mulai dan selesai wajib diisi'
+  return v.mulai! <= v.selesai! ? null : 'Tanggal selesai tidak boleh sebelum tanggal mulai'
 }
 
 export function validateKetentuan(l: string[]): string | null {
@@ -258,7 +264,6 @@ export async function loadAturan(db: SupabaseClient, prodi: string): Promise<Atu
   if (error) throw new Error(`Gagal memuat aturan penilaian: ${error.message}`)
   const raw = new Map<string, unknown>((data ?? []).map((r: { kunci: string; nilai: unknown }) => [r.kunci, r.nilai]))
   const sks = raw.get('sks_skripsi')
-  const batas = raw.get('batas_hari_bimbingan')
   return {
     aspekBimbingan: parseAspek(raw.get('aspek_bimbingan')) ?? DEFAULT_ATURAN.aspekBimbingan,
     aspekSidang: parseAspek(raw.get('aspek_sidang')) ?? DEFAULT_ATURAN.aspekSidang,
@@ -268,7 +273,8 @@ export async function loadAturan(db: SupabaseClient, prodi: string): Promise<Atu
     sksSkripsi: num(sks) && !validateSks(sks) ? sks : DEFAULT_ATURAN.sksSkripsi,
     tanggalMulai: parseTanggal(raw.get('tanggal_mulai_penilaian')) ?? todayJakarta(),
     pertanyaanPrasidang: parsePertanyaan(raw.get('pertanyaan_prasidang')) ?? DEFAULT_ATURAN.pertanyaanPrasidang,
-    batasHariBimbingan: num(batas) && !validateBatasHari(batas) ? batas : DEFAULT_ATURAN.batasHariBimbingan,
+    // A missing or broken range opens a month from today, so grading is never shut by a bad row.
+    periodeBimbingan: validatePeriode(raw.get('periode_bimbingan')) ? { mulai: todayJakarta(), selesai: addDays(todayJakarta(), 30) } : raw.get('periode_bimbingan') as Periode,
     ketentuanSidang: parseKetentuan(raw.get('ketentuan_sidang')) ?? DEFAULT_ATURAN.ketentuanSidang,
   }
 }

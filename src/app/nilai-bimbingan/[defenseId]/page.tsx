@@ -34,7 +34,7 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
       submitted: new Set(Object.keys(data?.nilai ?? {}) as Peran[]),
       kunci: data?.kunci ?? null,
       today: todayJakarta(),
-      batasHari: data?.aturan.batasHariBimbingan ?? 0,
+      periode: data?.aturan.periodeBimbingan ?? { mulai: '9999-12-31', selesai: '9999-12-31' },
     })
     : null
   // Not the student's Pembimbing on this S1 sidang (or none at all): the signed-in-as card, with no hint the record exists.
@@ -83,6 +83,9 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
 
         {akses?.kind === 'menunggu-kunci' && <p className={KOTAK}>Penilaian bimbingan dibuka setelah sidang dikunci Ketua.</p>}
         {akses?.kind === 'tidak-lulus' && <p className={KOTAK}>Sidang tidak lulus: nilai bimbingan tidak dibuka.</p>}
+        {akses?.kind === 'belum-dibuka' && (
+          <p className={KOTAK}>Pengisian nilai bimbingan dibuka mulai <strong>{tanggalPanjang(akses.mulai, false)}</strong>.</p>
+        )}
         {akses?.kind === 'lewat' && (
           <p className={KOTAK}>Batas pengisian sudah lewat (<strong>{tanggalPanjang(akses.batas, false)}</strong>). Hubungi admin akademik.</p>
         )}

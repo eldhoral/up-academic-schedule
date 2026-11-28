@@ -16,6 +16,8 @@ export type SidangPeran = 'pembimbing' | 'penguji' | 'eksternal'
 export type SidangItem = { id: string; prodi: Prodi; jenis: 'prasidang' | 'sidang'; tanggal: string; jam_mulai: string; jam_selesai: string; nama_mahasiswa: string; peran: SidangPeran; tempat: string; link: string }
 export type Term = { id: string; label: string; mulai: string | null; selesai: string | null }
 export type ExamDay = { prodi: Prodi; jenis_kelas: JenisKelas; tanggal: string }
+/** A student whose Nilai Bimbingan this dosen can fill now: locked lulus, not yet sent, today inside the prodi's range. */
+export type BimbinganItem = { id: string; prodi: Prodi; npm: string; nama_mahasiswa: string; batas: string }
 
 export type JadwalDosen = {
   kodeDosen: string
@@ -26,6 +28,8 @@ export type JadwalDosen = {
   sidang: SidangItem[]
   examDays: ExamDay[] // every dated UTS/UAS of the term, any lecturer: the weeks kuliah pauses
   libur: string[] // faculty-wide holiday dates: kuliah meetings on them are dropped
+  /** Open Nilai Bimbingan as this dosen's Pembimbing I/II (kiprat 2026-11-27); missing = none. */
+  bimbingan?: BimbinganItem[]
 }
 
 export const PROGRAM_LABEL: Record<JenisKelas, string> = { reguler: 'Reguler', regsus: 'Reguler Khusus' }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { DEFAULT_ATURAN, validateBatasHari, validatePertanyaan } from '../src/lib/penilaian/aturan'
+import { DEFAULT_ATURAN, validatePeriode, validatePertanyaan } from '../src/lib/penilaian/aturan'
 import { aksesBeritaAcara, halamanDosen } from '../src/lib/penilaian/akses'
 import { batasBeritaAcara, beritaAcaraPath, cekJawaban, HASIL_LABEL, lolosGerbang, type StatusPrasidang } from '../src/lib/penilaian/prasidang'
 import { buildRekapPrasidang } from '../src/lib/penilaian/rekap-prasidang'
@@ -48,12 +48,12 @@ assert.equal(HASIL_LABEL.tidak_layak, 'Skripsi tidak layak untuk dilanjutkan (Ma
 // Shown, not enforced: the faculty asks for it by the day after the prasidang.
 assert.equal(batasBeritaAcara('2026-11-30'), '2026-12-01')
 assert.equal(batasBeritaAcara('2026-12-31'), '2027-01-01')
-assert.equal(validateBatasHari(7), null)
-assert.equal(validateBatasHari(60), null)
-assert.notEqual(validateBatasHari(0), null)
-assert.notEqual(validateBatasHari(61), null)
-assert.notEqual(validateBatasHari(2.5), null)
-assert.equal(DEFAULT_ATURAN.batasHariBimbingan, 7)
+assert.equal(validatePeriode({ mulai: '2026-12-01', selesai: '2026-12-15' }), null)
+assert.equal(validatePeriode({ mulai: '2026-12-01', selesai: '2026-12-01' }), null, 'one day is a range')
+assert.notEqual(validatePeriode({ mulai: '2026-12-15', selesai: '2026-12-01' }), null, 'selesai before mulai')
+assert.notEqual(validatePeriode({ mulai: '2026-12-01' }), null)
+assert.notEqual(validatePeriode({ mulai: '2026-02-30', selesai: '2026-03-01' }), null)
+assert.equal(validatePeriode(DEFAULT_ATURAN.periodeBimbingan), null)
 
 // ---- prasidang access: only the Pembimbing Pendamping (pembimbing_kode) fills; the Pembahas (penguji_kode) does not
 const p = { id: 'p', prodi: 's1' as const, jenis: 'prasidang', tanggal: '2026-11-20', pembimbing_kode: 'A', penguji_kode: 'B' }

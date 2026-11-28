@@ -413,15 +413,15 @@ do $$ begin
 end $$;
 
 -- Nilai Bimbingan: master fields, rules, grades on the sidang -----------------------------------
--- Graded by the student's Pembimbing I/II (students), after the Ketua's lulus lock, for
--- batas_hari_bimbingan days (lock day = day 0). DSN01 = :dosen. Fixtures as the owner (no gate).
+-- Graded by the student's Pembimbing I/II (students), after the Ketua's lulus lock, within the prodi's
+-- periode_bimbingan (20261128000003; seeded today..today+30). DSN01 = :dosen. Fixtures as the owner (no gate).
 insert into lecturers (kode_dosen, nama) values ('DSN02', 'Dosen Dua'), ('DSN03', 'Dosen Tiga');
 insert into lecturers (kode_dosen, nama, eksternal) values ('EXTB', 'Luar Bimbingan', true);
 select set_config('request.jwt.claim.sub', '', false);
 insert into students (npm, nama, prodi, pembimbing_1_kode, pembimbing_2_kode)
 select npm, npm, 's1', 'DSN01', p2 from (values ('88000', 'DSN02'), ('88001', 'DSN02'), ('88002', 'DSN02'), ('88003', null),
     ('88004', 'DSN02'), ('88005', 'DSN02'), ('88006', 'DSN02'), ('88007', 'DSN02')) v(npm, p2);
--- nbA locked today, nbB 8 days ago (closed), nbC 7 days ago (last day), nbT tidak lulus, nbY lulus then
+-- nbA locked today, nbB 8 days ago (closed once the range is moved below), nbC 7 days ago, nbT tidak lulus, nbY lulus then
 -- edited to tidak lulus, nbU not locked (in 3 days, Pembimbing II missing), nbK/nbO for the admin lock.
 insert into defenses (academic_year_id, jenis, tanggal, jam_mulai, jam_selesai, npm, nama_mahasiswa, penguji_kode, pembimbing_kode, prodi)
 select 'R0002', 'sidang', (now() at time zone 'Asia/Jakarta')::date + d, '08:00', '10:00', npm, npm, 'DSN03', 'DSN01', 's1'
@@ -444,7 +444,7 @@ update hasil_sidang set locked_at = now() - interval '8 days' where defense_id =
 update hasil_sidang set locked_at = now() - interval '7 days' where defense_id = (select id from nb_def where k = 'nbC');
 
 do $$ begin
-    assert (select count(*) from aturan_penilaian where prodi = 's1') = 10, 'ten s1 rules seeded';
+    assert (select count(*) from aturan_penilaian where prodi = 's1') = 11, 'eleven s1 rules seeded (periode_bimbingan since 20261128000003)';
     assert (select sum((a ->> 'bobot')::int) from aturan_penilaian, jsonb_array_elements(nilai) a
             where prodi = 's1' and kunci = 'aspek_bimbingan') = 100, 'aspek bobot sums to 100';
     assert (select jsonb_array_length(nilai) from aturan_penilaian where prodi = 's1' and kunci = 'tabel_nilai') = 9, 'nine Nilai rows';
@@ -471,6 +471,35 @@ do $$ begin
     end;
 end $$;
 
+-- Outside the prodi's range (past or not yet open), a lulus lock is not enough (kiprat 2026-11-27: a date range).
+do $$ begin
+    assert (select nilai ->> 'mulai' from aturan_penilaian where prodi = 's1' and kunci = 'periode_bimbingan')
+        = to_char((now() at time zone 'Asia/Jakarta')::date, 'YYYY-MM-DD'), 'seeded from today';
+end $$;
+create temp table periode_asli as select nilai from aturan_penilaian where prodi = 's1' and kunci = 'periode_bimbingan';
+update aturan_penilaian set nilai = '{"mulai": "2020-01-01", "selesai": "2020-01-31"}' where prodi = 's1' and kunci = 'periode_bimbingan';
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    assert not may_grade_bimbingan((select id from nb_def where k = 'nbB'), 'pembimbing_1'), 'a past range is closed';
+end $$;
+reset role;
+update aturan_penilaian set nilai = jsonb_build_object('mulai', to_char((now() at time zone 'Asia/Jakarta')::date + 1, 'YYYY-MM-DD'),
+    'selesai', to_char((now() at time zone 'Asia/Jakarta')::date + 9, 'YYYY-MM-DD')) where prodi = 's1' and kunci = 'periode_bimbingan';
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    assert not may_grade_bimbingan((select id from nb_def where k = 'nbB'), 'pembimbing_1'), 'a range from tomorrow is not open yet';
+end $$;
+reset role;
+update aturan_penilaian set nilai = (select nilai from periode_asli) where prodi = 's1' and kunci = 'periode_bimbingan';
+select set_config('request.jwt.claim.sub', :'dosen', false);
+set role authenticated;
+do $$ begin
+    assert may_grade_bimbingan((select id from nb_def where k = 'nbB'), 'pembimbing_1'), 'inside the range, a lock 8 days ago is open';
+end $$;
+reset role;
+
 -- The DOSEN: its own slot, after a lulus lock, inside the window, once.
 select set_config('request.jwt.claim.sub', :'dosen', false);
 set role authenticated;
@@ -488,11 +517,11 @@ begin
         raise exception 'FAIL: a dosen graded twice';
     exception when unique_violation then null;
     end;
-    -- day 7 is still open
+    -- a lock a week ago: the range, not the lock day, decides
     insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
     values ((select id from nb_def where k = 'nbC'), 'DSN01', 'pembimbing_1', a, 80, auth.uid());
-    -- the other slot; day 8; tidak lulus; not locked: all refused by RLS
-    foreach slot in array array['nbA:pembimbing_2', 'nbB:pembimbing_1', 'nbT:pembimbing_1', 'nbU:pembimbing_1'] loop
+    -- the other slot; tidak lulus; not locked: all refused by RLS
+    foreach slot in array array['nbA:pembimbing_2', 'nbT:pembimbing_1', 'nbU:pembimbing_1'] loop
         begin
             insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)
             values ((select id from nb_def where k = split_part(slot, ':', 1)), 'DSN01', split_part(slot, ':', 2), a, 80, auth.uid());
@@ -521,7 +550,7 @@ begin
     assert n = 0, 'a dosen never edits the rules';
     assert (select count(*) from nilai_bimbingan) = 2, 'a dosen reads its own grades';
     assert (select count(*) from audit_log) = 0, 'a dosen reads no audit log';
-    assert (select count(*) from aturan_penilaian where prodi = 's1') = 10, 'a dosen reads the rules';
+    assert (select count(*) from aturan_penilaian where prodi = 's1') = 11, 'a dosen reads the rules';
 end $$;
 reset role;
 
@@ -877,7 +906,7 @@ begin
     assert is_eksternal_aktif(), 'the day account is active';
     assert my_kode_dosen() is null, 'my_kode_dosen() stays DOSEN-only';
     assert my_kode_penguji() = 'EXT01', 'my_kode_penguji() is the EKSTERNAL''s lecturer';
-    assert (select count(*) from aturan_penilaian where prodi = 's1') = 10, 'an active EKSTERNAL reads the rules';
+    assert (select count(*) from aturan_penilaian where prodi = 's1') = 11, 'an active EKSTERNAL reads the rules';
     assert (select count(*) from nilai_bimbingan) = 0, 'an EKSTERNAL reads no bimbingan grade, not even its own kode';
     begin
         insert into nilai_bimbingan (defense_id, kode_dosen, peran, aspek, nilai, submitted_by)

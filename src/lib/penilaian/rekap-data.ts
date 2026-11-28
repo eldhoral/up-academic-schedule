@@ -60,7 +60,7 @@ export async function loadRekapBimbingan(db: SupabaseClient, prodi: string, ay: 
     })),
     (n.data ?? []).map((x) => ({ defense_id: x.defense_id, peran: x.peran as Peran, nilai: Number(x.nilai), sumber: x.sumber as 'dosen' | 'manual' })),
     (h.data ?? []).map((x) => ({ defense_id: x.defense_id as string, locked_at: x.locked_at as string })),
-    aturan.batasHariBimbingan,
+    aturan.periodeBimbingan,
     (kode) => nama.get(kode) ?? kode,
   )
   return { rows, aturan }

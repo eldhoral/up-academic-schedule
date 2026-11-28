@@ -47,6 +47,7 @@ export type AksesBimbingan =
   | { kind: 'terkirim'; peran: Peran }
   | { kind: 'menunggu-kunci' }
   | { kind: 'tidak-lulus' }
+  | { kind: 'belum-dibuka'; mulai: string }
   | { kind: 'lewat'; batas: string }
   | { kind: 'isi'; peran: Peran; batas: string }
 
@@ -57,25 +58,22 @@ export function peranBimbingan(d: BimbinganRef, kode: string): Peran | null {
   return null
 }
 
-/** The last grading day: the lock's Jakarta date (day 0) plus n days. */
-export function batasBimbingan(lockedAt: string, n: number): string {
-  const d = new Date(`${todayJakarta(new Date(lockedAt))}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
-}
-
-/** Spec rules 1-6, in order. Submitted first: a grade stays visible whatever happens to the lock or the window. */
+/**
+ * Spec rules, in order. Submitted first: a grade stays visible whatever happens to the lock or the window. The window is
+ * the prodi's pengisian range (kiprat 2026-11-27: from date to date, no longer the lock day plus n days).
+ */
 export function aksesBimbingan(
   d: BimbinganRef | null,
   kode: string,
-  o: { submitted: Set<Peran>; kunci: { lockedAt: string; lulus: boolean } | null; today: string; batasHari: number },
+  o: { submitted: Set<Peran>; kunci: { lockedAt: string; lulus: boolean } | null; today: string; periode: { mulai: string; selesai: string } },
 ): AksesBimbingan {
   const peran = d && peranBimbingan(d, kode)
   if (!d || !peran) return { kind: 'tidak-ada' }
   if (o.submitted.has(peran)) return { kind: 'terkirim', peran }
   if (!o.kunci) return { kind: 'menunggu-kunci' }
   if (!o.kunci.lulus) return { kind: 'tidak-lulus' }
-  const batas = batasBimbingan(o.kunci.lockedAt, o.batasHari)
+  if (o.today < o.periode.mulai) return { kind: 'belum-dibuka', mulai: o.periode.mulai }
+  const batas = o.periode.selesai
   return o.today > batas ? { kind: 'lewat', batas } : { kind: 'isi', peran, batas }
 }
 

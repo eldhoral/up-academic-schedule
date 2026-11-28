@@ -4,7 +4,9 @@ import { HARI_DB } from '@/lib/hari'
 import { lecturerDisplayName } from '@/lib/import/tables'
 import type { JenisKelas, Prodi } from '@/lib/prodi'
 import { createAdminClient } from '@/lib/supabase/admin'
-import type { JadwalDosen, KuliahItem, Minggu, SidangItem, SidangPeran, UjianItem, UjianPeran } from './events'
+import { aksesBimbingan, todayJakarta, type Peran } from '@/lib/penilaian/akses'
+import { loadAturan } from '@/lib/penilaian/aturan'
+import type { BimbinganItem, JadwalDosen, KuliahItem, Minggu, SidangItem, SidangPeran, UjianItem, UjianPeran } from './events'
 import { isJadwalToken } from './token'
 import type { HariLibur } from '@/lib/hari-libur'
 
@@ -157,7 +159,8 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
     .limit(1)
     .maybeSingle()
   if (termError) throw termError
-  if (!term) return toJadwal({ lecturer, term: null, schedules: [], exams: [], defenses: [] })
+  const bimbingan = await bimbinganTerbuka(db, lecturer.kode_dosen)
+  if (!term) return { ...toJadwal({ lecturer, term: null, schedules: [], exams: [], defenses: [] }), bimbingan }
 
   const kode = lecturer.kode_dosen
   const [taught, exams, asPembimbing, asPenguji, asEksternal, libur, zoomQuery] = await Promise.all([
@@ -199,13 +202,65 @@ export async function loadJadwalDosen(token: string): Promise<JadwalDosen | null
     .map((r) => one(r.schedules))
     .filter((s): s is RawSchedule => !!s)
 
-  return toJadwal({
-    lecturer,
-    term,
-    schedules,
-    exams: (exams.data ?? []) as unknown as RawExam[],
-    defenses: roles.flatMap((r) => (r.data ?? []) as unknown as RawDefense[]),
-    libur,
-    zoom,
-  })
+  return {
+    ...toJadwal({
+      lecturer,
+      term,
+      schedules,
+      exams: (exams.data ?? []) as unknown as RawExam[],
+      defenses: roles.flatMap((r) => (r.data ?? []) as unknown as RawDefense[]),
+      libur,
+      zoom,
+    }),
+    bimbingan,
+  }
+}
+
+/**
+ * The Nilai Bimbingan this dosen can fill today (kiprat 2026-11-27: a button on Jadwal Dosen), by the same rule as the
+ * grading page (aksesBimbingan): the student's Pembimbing I/II in Data Mahasiswa, the sidang locked lulus, not yet sent,
+ * today inside the prodi's range. Any sidang year. A failed read only hides the card; the schedule still loads.
+ */
+async function bimbinganTerbuka(db: ReturnType<typeof createAdminClient>, kode: string): Promise<BimbinganItem[]> {
+  try {
+    const [m1, m2] = await Promise.all([
+      db.from('students').select('npm, prodi, pembimbing_1_kode, pembimbing_2_kode').eq('pembimbing_1_kode', kode),
+      db.from('students').select('npm, prodi, pembimbing_1_kode, pembimbing_2_kode').eq('pembimbing_2_kode', kode),
+    ])
+    if (m1.error || m2.error) throw m1.error ?? m2.error
+    const mhs = new Map([...(m1.data ?? []), ...(m2.data ?? [])].map((m) => [m.npm as string, m]))
+    if (mhs.size === 0) return []
+    const { data: sid, error } = await db.from('defenses').select('id, prodi, jenis, npm, nama_mahasiswa')
+      .eq('jenis', 'sidang').in('prodi', ['s1', 's2']).in('npm', [...mhs.keys()])
+    if (error) throw error
+    const ids = (sid ?? []).map((d) => d.id as string)
+    if (ids.length === 0) return []
+    const [hs, nb, s1, s2] = await Promise.all([
+      db.from('hasil_sidang').select('defense_id, locked_at, yudisium_lulus').in('defense_id', ids),
+      db.from('nilai_bimbingan').select('defense_id, peran').eq('kode_dosen', kode).in('defense_id', ids),
+      loadAturan(db, 's1'),
+      loadAturan(db, 's2'),
+    ])
+    if (hs.error || nb.error) throw hs.error ?? nb.error
+    const kunci = new Map((hs.data ?? []).map((h) => [h.defense_id as string, { lockedAt: h.locked_at as string, lulus: !!h.yudisium_lulus }]))
+    const today = todayJakarta()
+    return (sid ?? []).flatMap((d): BimbinganItem[] => {
+      const m = mhs.get(d.npm as string)!
+      const prodi = d.prodi as Prodi
+      const akses = aksesBimbingan(
+        { id: d.id as string, prodi, jenis: d.jenis as string, pembimbing_1_kode: m.pembimbing_1_kode, pembimbing_2_kode: m.pembimbing_2_kode },
+        kode,
+        {
+          submitted: new Set((nb.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as Peran)),
+          kunci: kunci.get(d.id as string) ?? null,
+          today,
+          periode: (prodi === 's2' ? s2 : s1).periodeBimbingan,
+        },
+      )
+      return akses.kind === 'isi' ? [{ id: d.id as string, prodi, npm: d.npm as string, nama_mahasiswa: d.nama_mahasiswa as string, batas: akses.batas }] : []
+    })
+  } catch (e) {
+    console.error('jadwal-dosen: nilai bimbingan unreadable:', e instanceof Error ? e.message : e)
+    return []
+  }
 }

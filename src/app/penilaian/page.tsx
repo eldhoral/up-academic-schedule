@@ -176,9 +176,11 @@ async function barisBimbingan(kode: string, today: string): Promise<Baris[]> {
     const m = mhs.get(d.npm as string)!
     const ref = { ...d, pembimbing_1_kode: m.pembimbing_1_kode, pembimbing_2_kode: m.pembimbing_2_kode }
     const submitted = new Set((nb.data ?? []).filter((n) => n.defense_id === d.id).map((n) => n.peran as Peran))
-    const akses = aksesBimbingan(ref, kode, { submitted, kunci: kunci.get(d.id) ?? null, today, batasHari: aturan[d.prodi as 's1' | 's2'].batasHariBimbingan })
+    const akses = aksesBimbingan(ref, kode, { submitted, kunci: kunci.get(d.id) ?? null, today, periode: aturan[d.prodi as 's1' | 's2'].periodeBimbingan })
     if (akses.kind === 'tidak-ada') return []
-    const status = akses.kind === 'isi' ? STATUS_BIMBINGAN.isi(akses.batas) : STATUS_BIMBINGAN[akses.kind]()
+    const status = akses.kind === 'isi' ? STATUS_BIMBINGAN.isi(akses.batas)
+      : akses.kind === 'belum-dibuka' ? `Belum dibuka (mulai ${tanggalPanjang(akses.mulai, false)})`
+        : STATUS_BIMBINGAN[akses.kind]()
     const peran: Peran = m.pembimbing_1_kode === kode ? 'pembimbing_1' : 'pembimbing_2'
     return [{ id: `nb-${d.id}`, href: penilaianPath(d.id), tanggal: d.tanggal, npm: d.npm, nama: d.nama_mahasiswa, judul: d.judul_skripsi, jenis: 'Nilai Bimbingan', peran: PERAN_LABEL[peran], status }]
   })

@@ -30,12 +30,13 @@ export async function submitNilaiAction(defenseId: string, peran: Peran, tampil:
     submitted: new Set(Object.keys(data?.nilai ?? {}) as Peran[]),
     kunci: data?.kunci ?? null,
     today: todayJakarta(),
-    batasHari: data?.aturan.batasHariBimbingan ?? 0,
+    periode: data?.aturan.periodeBimbingan ?? { mulai: '9999-12-31', selesai: '9999-12-31' },
   })
   if (!data || akses.kind === 'tidak-ada') return { error: TIDAK_ADA }
   if (akses.kind === 'terkirim') return { error: SUDAH_DIKIRIM }
   if (akses.kind === 'menunggu-kunci') return { error: 'Penilaian bimbingan dibuka setelah sidang dikunci Ketua.' }
   if (akses.kind === 'tidak-lulus') return { error: 'Sidang tidak lulus: nilai bimbingan tidak dibuka.' }
+  if (akses.kind === 'belum-dibuka') return { error: `Pengisian nilai bimbingan dibuka mulai ${tanggalPanjang(akses.mulai, false)}.` }
   if (akses.kind === 'lewat') return { error: `Batas pengisian sudah lewat (${tanggalPanjang(akses.batas, false)}). Hubungi admin akademik.` }
   if (akses.peran !== peran) return { error: TIDAK_ADA }
   if (!aspekSama(tampil, data.aturan.aspekBimbingan)) return { error: ASPEK_BERUBAH }

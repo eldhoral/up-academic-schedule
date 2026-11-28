@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   DEFAULT_ATURAN, loadAturan, validateAspek, validatePredikat, validateSks, validateTabelNilai,
 } from '../src/lib/penilaian/aturan'
-import { aksesBimbingan, batasBimbingan, halamanDosen, penilaianPath, peranBimbingan, todayJakarta, type BimbinganRef, type Peran } from '../src/lib/penilaian/akses'
+import { aksesBimbingan, halamanDosen, penilaianPath, peranBimbingan, todayJakarta, type BimbinganRef, type Peran } from '../src/lib/penilaian/akses'
 import { buildRekapBimbingan } from '../src/lib/penilaian/rekap'
 import { buildRekapBimbinganXlsx } from '../src/lib/penilaian/rekap-xlsx'
 import ExcelJS from 'exceljs'
@@ -109,11 +109,12 @@ assert.equal(peranBimbingan(s, 'X'), null)
 assert.equal(peranBimbingan({ ...s, prodi: 's2' }, 'P1'), 'pembimbing_1', 'S2 sidang tesis takes a Nilai Bimbingan too (kiprat 2026-11-27)')
 assert.equal(peranBimbingan({ ...s, jenis: 'prasidang' }, 'P1'), null)
 assert.equal(peranBimbingan({ ...s, pembimbing_1_kode: null }, 'P1'), null)
-// 17:30 UTC on 10 Nov = 00:30 on 11 Nov in Jakarta: day 0 is 11 Nov
+// The window is the prodi's range, both ends inclusive (kiprat 2026-11-27), not the lock day plus n days.
 const kunci = { lockedAt: '2026-11-10T17:30:00Z', lulus: true }
-assert.equal(batasBimbingan(kunci.lockedAt, 7), '2026-11-18')
-assert.equal(batasBimbingan('2026-12-28T10:00:00Z', 7), '2027-01-04')
-const o = (x: Partial<Parameters<typeof aksesBimbingan>[2]> = {}) => ({ submitted: new Set<Peran>(), kunci, today: '2026-11-12', batasHari: 7, ...x })
+const periode = { mulai: '2026-11-11', selesai: '2026-11-18' }
+const o = (x: Partial<Parameters<typeof aksesBimbingan>[2]> = {}) => ({ submitted: new Set<Peran>(), kunci, today: '2026-11-12', periode, ...x })
+assert.deepEqual(aksesBimbingan(s, 'P1', o({ today: '2026-11-10' })), { kind: 'belum-dibuka', mulai: '2026-11-11' }, 'before the range: not open yet')
+assert.deepEqual(aksesBimbingan(s, 'P1', o({ today: '2026-11-10', kunci: null })), { kind: 'menunggu-kunci' }, 'the lock comes first')
 assert.deepEqual(aksesBimbingan(s, 'P2', o()), { kind: 'isi', peran: 'pembimbing_2', batas: '2026-11-18' })
 assert.deepEqual(aksesBimbingan(s, 'P1', o({ today: '2026-11-11' })), { kind: 'isi', peran: 'pembimbing_1', batas: '2026-11-18' })
 assert.deepEqual(aksesBimbingan(s, 'P1', o({ today: '2026-11-18' })), { kind: 'isi', peran: 'pembimbing_1', batas: '2026-11-18' })
@@ -141,7 +142,8 @@ function fakeDb(rows: { kunci: string; nilai: unknown }[] | null, error: { messa
 async function main() {
   assert.match(DEFAULT_ATURAN.tanggalMulai, /^\d{4}-\d{2}-\d{2}$/)
   const kosong = await loadAturan(fakeDb([]), 's1')
-  assert.deepEqual({ ...kosong, tanggalMulai: '' }, { ...DEFAULT_ATURAN, tanggalMulai: '' })
+  const tanpaTanggal = (a: typeof DEFAULT_ATURAN) => ({ ...a, tanggalMulai: '', periodeBimbingan: { mulai: '', selesai: '' } })
+  assert.deepEqual(tanpaTanggal(kosong), tanpaTanggal(DEFAULT_ATURAN))
   assert.deepEqual((await loadAturan(fakeDb(null), 's1')).tabelNilai, tabel)
   const sebagian = await loadAturan(fakeDb([
     { kunci: 'sks_skripsi', nilai: 8 },
@@ -150,10 +152,10 @@ async function main() {
     { kunci: 'tabel_nilai', nilai: [{ min: 0, huruf: 'E', mutu: 0 }, { min: 50, huruf: 'A', mutu: 4 }] },
     { kunci: 'predikat', nilai: [{ min: 3, max: 4, predikat: 'Z', butuhTepatWaktu: true }] },
     { kunci: 'pertanyaan_prasidang', nilai: [{ teks: 'Q1', jenis: 'ya_tidak' }, { teks: 'Q2', jenis: 'uraian' }] },
-    { kunci: 'batas_hari_bimbingan', nilai: 14 },
+    { kunci: 'periode_bimbingan', nilai: { mulai: '2026-12-01', selesai: '2026-12-15' } },
   ]), 's1')
   assert.deepEqual(sebagian.pertanyaanPrasidang, [{ teks: 'Q1', jenis: 'ya_tidak' }, { teks: 'Q2', jenis: 'uraian' }])
-  assert.equal(sebagian.batasHariBimbingan, 14)
+  assert.deepEqual(sebagian.periodeBimbingan, { mulai: '2026-12-01', selesai: '2026-12-15' })
   assert.equal(sebagian.sksSkripsi, 8)
   assert.equal(sebagian.tanggalMulai, '2026-11-01')
   assert.equal(sebagian.aspekBimbingan[0].label, 'X')
@@ -166,10 +168,10 @@ async function main() {
     { kunci: 'tabel_nilai', nilai: { not: 'array' } },
     { kunci: 'predikat', nilai: [{ min: 1 }] },
     { kunci: 'pertanyaan_prasidang', nilai: ['bukan objek'] },
-    { kunci: 'batas_hari_bimbingan', nilai: 0 },
+    { kunci: 'periode_bimbingan', nilai: { mulai: '2026-12-15', selesai: '2026-12-01' } },
   ]), 's1')
   assert.deepEqual(rusak.pertanyaanPrasidang, DEFAULT_ATURAN.pertanyaanPrasidang)
-  assert.equal(rusak.batasHariBimbingan, 7)
+  assert.ok(rusak.periodeBimbingan.mulai <= rusak.periodeBimbingan.selesai && rusak.periodeBimbingan.mulai !== '2026-12-15', 'a reversed range falls back')
   assert.equal(rusak.sksSkripsi, DEFAULT_ATURAN.sksSkripsi)
   assert.deepEqual(rusak.aspekBimbingan, DEFAULT_ATURAN.aspekBimbingan)
   assert.deepEqual(rusak.tabelNilai, tabel)
@@ -201,7 +203,7 @@ async function main() {
     [mhs('1', 'A', 'B', 139, 404.57), mhs('2', 'A', 'B'), mhs('4', null, 'B')],
     [n('1', 'pembimbing_1', 80), n('1', 'pembimbing_2', 77, 'manual'), n('2', 'pembimbing_1', 70), n('4', 'pembimbing_2', 90)],
     [{ defense_id: '1', locked_at: '2026-11-10T03:00:00Z' }],
-    7,
+    { mulai: '2026-11-10', selesai: '2026-11-17' },
     (k) => `Dr. ${k}`,
   )
   assert.deepEqual(rekap.map((r) => r.nama), ['Ani', 'Budi', 'Zed', 'Cici']) // as given: the SQL query sorts
@@ -226,7 +228,7 @@ async function main() {
 
   // Tanpa Pembimbing II: Nilai Bimbingan is Pembimbing I's grade; the Pembimbing II cell says so.
   const [solo] = buildRekapBimbingan([d('5', '2026-11-14', 'Dedi')], [mhs('5', 'A', null, null, null, true)],
-    [n('5', 'pembimbing_1', 82)], [], 7, (k) => `Dr. ${k}`)
+    [n('5', 'pembimbing_1', 82)], [], { mulai: '2026-11-10', selesai: '2026-11-17' }, (k) => `Dr. ${k}`)
   assert.equal(solo.tanpaP2, true)
   assert.equal(solo.bimbingan, 82)
   assert.deepEqual(solo.dospem2, { nama: 'Tidak ada', nilai: null, manual: false })
