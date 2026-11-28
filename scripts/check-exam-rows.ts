@@ -48,7 +48,7 @@ function assertGrid(rows: TableRow[]) {
   assert.equal(text(rows, 0, 3), 'SENIN')
   assert.equal(text(rows, 0, 4), '27/10/2025')
   assert.equal(text(rows, 0, 5), '08.00-10.00')
-  assert.equal(text(rows, 0, 6), 'DR. BUDI')
+  assert.equal(text(rows, 0, 6), 'Dr. Budi', 'names as written in Data Dosen (kiprat 2026-11-27)')
   assert.equal(text(rows, 0, 10), 'OFFLINE')
 }
 
@@ -57,8 +57,8 @@ function assertGrid(rows: TableRow[]) {
   const rows = buildExamRows([exam({ kelas: 'A' }), exam({ kelas: 'B', dosen: ['Dr. Vinaya', 'Anindya'], pengawas: ['Ani', 'Budi'], keterangan: 'take_home' })])
   assertGrid(rows)
   assert.equal(rows[0].cells[6]?.rowSpan, 1)
-  assert.equal(text(rows, 1, 6), 'DR. VINAYA\nANINDYA')
-  assert.equal(text(rows, 1, 8), 'ANI\nBUDI')
+  assert.equal(text(rows, 1, 6), 'Dr. Vinaya\nAnindya')
+  assert.equal(text(rows, 1, 8), 'Ani\nBudi')
   assert.equal(rows[0].cells[10]?.rowSpan, 1, 'different keterangan do not merge')
   assert.equal(text(rows, 1, 10), 'TAKE HOME')
 }

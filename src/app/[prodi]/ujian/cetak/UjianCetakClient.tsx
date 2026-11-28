@@ -8,7 +8,7 @@ import { UjianCetakPreview } from './UjianCetakPreview'
 import type { UjianDoc, UjianSheet } from './ujian-cetak-data'
 import type { AcademicYear } from '../../kuliah/penjadwalan-types'
 import { PRODI_CONFIG, semesterList, type JenisKelas, type Prodi } from '@/lib/prodi'
-import { UJIAN_LABEL } from '@/lib/ujian'
+import { UJIAN_LABEL, ujianLabel } from '@/lib/ujian'
 
 const ALL_DOSEN = '__all__'
 const CONTROL = 'bg-[var(--cekung)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)] px-[0.53rem] py-[0.33rem] text-[0.93rem] min-h-[2.4rem]'
@@ -115,7 +115,7 @@ export function UjianCetakClient({
           enabled={hasRows}
           xlsxUrl={`/${prodi}/ujian/cetak/xlsx?${query}`}
           pdfUrl={`/${prodi}/ujian/cetak/pdf?${query}`}
-          pdfFallbackName={`Jadwal ${context.jenis_ujian.toUpperCase()}.pdf`}
+          pdfFallbackName={`Jadwal ${ujianLabel(context.jenis_ujian)}.pdf`}
         />
       </div>
 
@@ -124,7 +124,7 @@ export function UjianCetakClient({
       ) : (
         <EmptySheet
           title="Belum ada jadwal ujian untuk dicetak"
-          detail={`${context.jenis_ujian.toUpperCase()} · ${context.semester_ke === 'all' ? 'Semua semester' : `Semester ${context.semester_ke}`} · ${program}${
+          detail={`${ujianLabel(context.jenis_ujian)} · ${context.semester_ke === 'all' ? 'Semua semester' : `Semester ${context.semester_ke}`} · ${program}${
             context.dosen ? `${dosenOptions.find((d) => d.value === context.dosen)?.label ?? context.dosen} · ` : ''
           }${
             academicYears.find((ay) => ay.id === context.academic_year_id)?.label ?? ''

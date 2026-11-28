@@ -2,6 +2,7 @@ import { PRODI_CONFIG } from '@/lib/prodi'
 import { prodiParam } from '@/lib/prodi-server'
 import { buildUjianCetakData } from '../ujian-cetak-data'
 import { buildUjianXlsx } from '../build-ujian-xlsx'
+import { ujianLabel } from '@/lib/ujian'
 
 export async function GET(request: Request, ctx: RouteContext<'/[prodi]/ujian/cetak/xlsx'>) {
   const prodi = await prodiParam(ctx.params)
@@ -15,7 +16,7 @@ export async function GET(request: Request, ctx: RouteContext<'/[prodi]/ujian/ce
   })
 
   const buffer = await buildUjianXlsx(data)
-  const filename = `${PRODI_CONFIG[prodi].short} Jadwal ${data.context.jenis_ujian.toUpperCase()} ${data.academicYearLabel.replace(/\//g, '-')}${PRODI_CONFIG[prodi].jenisKelas.length > 1 ? (data.context.jenis_kelas === 'reguler' ? ' Reguler' : ' Reguler Khusus') : ''}${data.dosen ? ` ${data.dosen.label.replace(/[\\/:*?"<>|]/g, '')}` : ''}.xlsx`
+  const filename = `${PRODI_CONFIG[prodi].short} Jadwal ${ujianLabel(data.context.jenis_ujian)} ${data.academicYearLabel.replace(/\//g, '-')}${PRODI_CONFIG[prodi].jenisKelas.length > 1 ? (data.context.jenis_kelas === 'reguler' ? ' Reguler' : ' Reguler Khusus') : ''}${data.dosen ? ` ${data.dosen.label.replace(/[\\/:*?"<>|]/g, '')}` : ''}.xlsx`
 
   return new Response(buffer, {
     headers: {

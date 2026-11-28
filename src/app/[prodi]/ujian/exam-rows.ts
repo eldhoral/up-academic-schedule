@@ -84,7 +84,8 @@ export function buildExamRows(exams: PrintExam[]): TableRow[] {
 function blockRows(list: PrintExam[]): TableRow[] {
   const n = list.length
   const head = list[0]
-  const dosen = mergeRuns(list.map((e) => e.dosen.join('\n').toUpperCase()))
+  // Dosen and pengawas names as written in Data Dosen, not in capitals (kiprat 2026-11-27).
+  const dosen = mergeRuns(list.map((e) => e.dosen.join('\n')))
   const keterangan = mergeRuns(list.map((e) => KETERANGAN_LABEL[e.keterangan].toUpperCase()))
 
   return list.map((e, i) => {
@@ -100,7 +101,7 @@ function blockRows(list: PrintExam[]): TableRow[] {
         first ? cell(jamText(head), n) : null,
         dosen[i],
         cell(e.kelas),
-        cell(e.pengawas.join('\n').toUpperCase()),
+        cell(e.pengawas.join('\n')),
         cell(e.ruangan),
         keterangan[i],
       ],
