@@ -39,11 +39,16 @@ export function CariSelect({
   className?: string
 }) {
   const [inner, setInner] = useState(defaultValue)
+  // A trigger that fills its field takes the field's width, never a long name's (a native select does the same):
+  // without this a long dosen name pushed side-by-side fields out of the form (kiprat 2026-11-27).
+  // ponytail: read from the caller's classes; a fill prop if more layouts need it.
+  const mengisi = /(^|\s)(w-full|flex-1)(\s|$)/.test(className)
   const value = controlled ?? inner
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
-  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null)
+  // Below the trigger, or above it when the viewport has no room below (kiprat 2026-11-27: the list ran off the form).
+  const [rect, setRect] = useState<{ top?: number; bottom?: number; left: number; width: number; maxH: number } | null>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -58,7 +63,12 @@ export function CariSelect({
     const el = triggerRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    setRect({ top: r.bottom + 4, left: r.left, width: r.width })
+    const bawah = window.innerHeight - r.bottom - 8
+    const atas = r.top - 8
+    // ponytail: the list needs ~40px for the search box plus its rows; 14rem of rows is the cap.
+    const naik = bawah < 260 && atas > bawah
+    const maxH = Math.max(120, Math.min(224, (naik ? atas : bawah) - 48))
+    setRect(naik ? { bottom: window.innerHeight - r.top + 4, left: r.left, width: r.width, maxH } : { top: r.bottom + 4, left: r.left, width: r.width, maxH })
   }
 
   function buka() {
@@ -146,7 +156,8 @@ export function CariSelect({
   }
 
   return (
-    <div className="relative">
+    // contents: the trigger itself sits in the caller's layout (flex-1, w-full), as the plain Select's trigger does.
+    <div className="contents">
       {required ? (
         // A hidden input can't be required: an invisible one can, and the browser's message points at the trigger's spot.
         <input
@@ -172,7 +183,7 @@ export function CariSelect({
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`inline-flex items-center justify-between gap-[0.4rem] cursor-pointer disabled:cursor-default disabled:opacity-60 data-[placeholder]:text-[var(--tinta-3)] ${className}`}
+        className={`inline-flex items-center justify-between gap-[0.4rem] cursor-pointer disabled:cursor-default disabled:opacity-60 data-[placeholder]:text-[var(--tinta-3)] ${mengisi ? '[contain:inline-size]' : ''} ${className}`}
         data-placeholder={selected ? undefined : ''}
       >
         <span className="min-w-0 truncate text-left">{selected ? selected.label : placeholder}</span>
@@ -185,7 +196,7 @@ export function CariSelect({
           <div
             ref={listRef}
             className="fixed z-[70] overflow-hidden bg-[var(--lembar)] border border-[var(--garis-kuat)] rounded-[var(--r-kecil)]"
-            style={{ top: rect.top, left: rect.left, width: rect.width }}
+            style={{ top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width }}
           >
             <input
               ref={inputRef}
@@ -197,7 +208,7 @@ export function CariSelect({
               aria-label={`Cari ${ariaLabel ?? ''}`.trim()}
               className="w-full bg-[var(--cekung)] border-b border-[var(--garis-kuat)] px-[0.6rem] py-[0.45rem] text-[0.87rem] outline-none"
             />
-            <div role="listbox" aria-label={ariaLabel} className="p-[0.27rem] max-h-[14rem] overflow-y-auto">
+            <div role="listbox" aria-label={ariaLabel} className="p-[0.27rem] overflow-y-auto" style={{ maxHeight: rect.maxH }}>
               {items.length === 0 ? (
                 <p className="m-0 px-[0.6rem] py-[0.4rem] text-[0.87rem] text-[var(--tinta-3)]">Tidak ada yang cocok.</p>
               ) : (
