@@ -1885,6 +1885,11 @@ do $$ begin
     assert not exists (select kunci from aturan_penilaian where prodi = 's1' except select kunci from aturan_penilaian where prodi = 's2'),
         'every S1 rule has an S2 copy';
     assert exists (select 1 from settings where prodi = 's2' and key = 'email_revisi_subjek' and value like '%Tesis%'), 'S2 revisi email says tesis';
+    -- 20261128000002: no S2 email template says skripsi (e.g. "Catatan Seminar Proposal Tesis").
+    assert not exists (select 1 from settings where prodi = 's2' and key like 'email_%'
+                       and (value ilike '%skripsi%' or label ilike '%skripsi%' or coalesce(help, '') ilike '%skripsi%')), 'S2 email templates say tesis';
+    assert (select value from settings where prodi = 's2' and key = 'email_prasidang_subjek') like 'Catatan Seminar Proposal Tesis%', 'S2 catatan subject';
+    assert (select value from settings where prodi = 's1' and key = 'email_prasidang_subjek') like 'Catatan Prasidang Skripsi%', 'S1 untouched';
 end $$;
 update aturan_penilaian set nilai = '8'::jsonb where prodi = 's2' and kunci = 'sks_skripsi';
 insert into students (npm, nama, prodi, pembimbing_1_kode, tanpa_pembimbing_2) values ('88300', 'Tesis', 's2', 'DSN03', true);
