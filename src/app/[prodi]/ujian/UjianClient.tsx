@@ -243,9 +243,6 @@ export function UjianClient({
             <h1 className="m-0 text-[1.6rem] font-semibold tracking-[-0.015em]">
               {UJIAN_LABEL[context.jenis_ujian]} &middot; Semester {context.semester_ke}{programText}
             </h1>
-            <p className="mt-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
-              Satu blok per mata kuliah; ubah blok untuk mengatur tanggal, jam, pengawas, dan ruangan semua kelasnya.
-            </p>
           </div>
           <div className="flex items-center gap-[0.53rem] flex-wrap">
             <input

@@ -276,11 +276,6 @@ export function PenjadwalanClient({
               Semester {context.semester_ke}
               {PRODI_CONFIG[context.prodi].jenisKelas.length > 1 && <> &middot; {context.jenis_kelas === 'reguler' ? 'Reguler' : 'Reguler Khusus'}</>}
             </h1>
-            {canEdit && (
-              <p className="mt-[0.27rem] text-[0.93rem] text-[var(--tinta-3)]">
-                Klik “Tambah mata kuliah” lalu isi jendela yang muncul; tabel di bawah bertambah, dikelompokkan per kelas.
-              </p>
-            )}
           </div>
           <div className="flex items-center gap-[0.53rem] flex-wrap">
             <input

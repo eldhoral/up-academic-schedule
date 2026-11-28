@@ -185,13 +185,16 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                 {PERAN_SIDANG.map((p) => {
                   const row = data.nilai[p]
                   return (
-                    <div key={p} className="border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] p-[0.8rem]" style={{ borderTop: `3px solid ${WARNA_PERAN[p]}` }}>
+                    <div key={p} className="row-span-4 grid grid-rows-subgrid gap-0 border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] p-[0.8rem]" style={{ borderTop: `3px solid ${WARNA_PERAN[p]}` }}>
                       <p className="m-0 text-[0.8rem] text-[var(--tinta-3)]">{PERAN_SIDANG_LABEL[p]}</p>
                       <p className="m-0 text-[0.87rem] font-medium">{data.dosen[p]}</p>
+                      {/* Rows (label, name, grade, button) shared across the three cards: the grades line up when a name wraps. */}
                       <p className="m-0 mt-[0.4rem] mono text-[1.3rem] font-semibold">{row ? nilaiHuruf(row.nilai, tabel) : <span className="text-[0.87rem] font-normal text-[var(--tinta-3)]">belum dikirim</span>}</p>
                       {/* The Ketua sends an Anggota's grade back before locking (kiprat 2026-11-25). */}
                       {row && !hasil && peranSaya === 'ketua' && p !== 'ketua' && (
-                        <Unvalidasi defenseId={defense.id} peran={p} label={PERAN_SIDANG_LABEL[p]} dosen={data.dosen[p]} />
+                        <div>
+                          <Unvalidasi defenseId={defense.id} peran={p} label={PERAN_SIDANG_LABEL[p]} dosen={data.dosen[p]} />
+                        </div>
                       )}
                     </div>
                   )
