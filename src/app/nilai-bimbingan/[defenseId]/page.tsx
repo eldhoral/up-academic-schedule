@@ -17,6 +17,7 @@ const PERAN: Peran[] = ['pembimbing_1', 'pembimbing_2']
 const waktu = (iso: string) =>
   new Intl.DateTimeFormat('id-ID', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date(iso))
 const KOTAK = 'm-0 p-[1rem] border border-[var(--garis-kuat)] rounded-[var(--r-sedang)] bg-[var(--lembar)] text-[0.93rem]'
+const UNDUH = 'inline-block px-[0.8rem] py-[0.45rem] rounded-[var(--r-kecil)] border border-[var(--garis-kuat)] text-[var(--tinta)] text-[0.87rem] font-medium no-underline hover:bg-[var(--cekung)]'
 
 export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbingan/[defenseId]'>) {
   const { defenseId } = await props.params
@@ -149,6 +150,13 @@ export default async function NilaiBimbinganPage(props: PageProps<'/nilai-bimbin
             )
           })}
         {akhir && beku && <HasilAkhirPanel bimbingan={bimbingan} h={akhir} ipkAwal={data.ipk} tabel={beku.tabelNilai} />}
+        {/* Staff: this page as a file (kiprat 2026-11-27). */}
+        {akhir && beku && !dosen && (
+          <div className="mt-[1rem] flex flex-wrap gap-[0.6rem]">
+            <a href={`/api/hasil-bimbingan/${defense.id}?format=pdf`} className={UNDUH}>Unduh PDF</a>
+            <a href={`/api/hasil-bimbingan/${defense.id}?format=xlsx`} className={UNDUH}>Unduh Excel</a>
+          </div>
+        )}
       </main>
     </AppShell>
   )

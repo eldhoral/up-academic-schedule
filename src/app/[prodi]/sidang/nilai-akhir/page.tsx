@@ -5,7 +5,7 @@ import { PreviewTable, cell } from '@/components/preview'
 import { prodiParam } from '@/lib/prodi-server'
 import { canManage, getCurrentRole } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
-import { penilaianSidangPath } from '@/lib/penilaian/akses'
+import { penilaianPath } from '@/lib/penilaian/akses'
 import { formatNilai } from '@/lib/penilaian/nilai'
 import { loadRekapAkhir, pilihTahun } from '@/lib/penilaian/rekap-data'
 import { bolehKirimUlang, EMAIL_LABEL } from '@/lib/penilaian/rekap'
@@ -16,7 +16,7 @@ import { KirimUlang } from './KirimUlang'
 import { istilah } from '@/lib/prodi'
 
 const C = 'center' as const
-const URUT = ['tanggal', 'npm', 'nama', 'nilai_sidang', 'nilai_akhir'] as const
+const URUT = ['tanggal', 'npm', 'nama', 'nilai_sidang', 'nilai_bimbingan', 'nilai_akhir'] as const
 const STATUS = [
   { value: 'lengkap', label: 'Nilai akhir lengkap' },
   { value: 'belum', label: 'Nilai akhir belum lengkap' },
@@ -43,6 +43,7 @@ export default async function RekapNilaiAkhirPage(props: PageProps<'/[prodi]/sid
         : f.status === 'email_gagal' ? r.emailStatus === 'gagal' || r.emailStatus === 'sebagian'
           : true)
   const rows = f.urut === 'nilai_sidang' ? urutkan(cocok, (r) => r.hasil.nilaiSidang, f.arah)
+    : f.urut === 'nilai_bimbingan' ? urutkan(cocok, (r) => r.bimbingan, f.arah)
     : f.urut === 'nilai_akhir' ? urutkan(cocok, (r) => (r.hasil.status === 'lengkap' ? r.hasil.nilaiAkhir : null), f.arah)
       : cocok
   const aktif = !!(f.q || f.status)
@@ -51,7 +52,9 @@ export default async function RekapNilaiAkhirPage(props: PageProps<'/[prodi]/sid
   const k = (key: (typeof URUT)[number]) => kolomUrut(path, ay, f, key)
   const columns = [
     { label: 'No', align: C }, { label: 'NPM', ...k('npm') }, { label: 'Nama', ...k('nama') },
-    { label: 'Nilai Sidang', align: C, ...k('nilai_sidang') }, { label: 'Nilai Akhir', align: C, ...k('nilai_akhir') },
+    // Nilai Bimbingan between the two it combines (kiprat 2026-11-27).
+    { label: 'Nilai Sidang', align: C, ...k('nilai_sidang') }, { label: 'Nilai Bimbingan', align: C, ...k('nilai_bimbingan') },
+    { label: 'Nilai Akhir', align: C, ...k('nilai_akhir') },
     { label: 'Huruf', align: C }, { label: 'Predikat' }, { label: 'Status Email' },
   ]
 
@@ -78,8 +81,10 @@ export default async function RekapNilaiAkhirPage(props: PageProps<'/[prodi]/sid
                       <tr key={r.defenseId} className="border-t border-[var(--garis)] align-top">
                         <td className={`${cell(C)} mono`}>{i + 1}</td>
                         <td className={`${cell()} mono whitespace-nowrap`}>{r.npm}</td>
-                        <td className={cell()}><Link href={penilaianSidangPath(r.defenseId)}>{r.nama}</Link></td>
+                        {/* The Nilai Bimbingan page, where the Hasil Akhir panel is (kiprat 2026-11-27). */}
+                        <td className={cell()}><Link href={penilaianPath(r.defenseId)}>{r.nama}</Link></td>
                         <td className={cell(C)}>{angka(h.nilaiSidang)}</td>
+                        <td className={cell(C)}>{angka(r.bimbingan)}</td>
                         {h.status === 'lengkap' ? (
                           <>
                             <td className={`${cell(C)} mono font-semibold`}>{formatNilai(h.nilaiAkhir)}</td>

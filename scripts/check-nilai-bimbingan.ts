@@ -8,6 +8,7 @@ import { aksesBimbingan, batasBimbingan, halamanDosen, penilaianPath, peranBimbi
 import { buildRekapBimbingan } from '../src/lib/penilaian/rekap'
 import { buildRekapBimbinganXlsx } from '../src/lib/penilaian/rekap-xlsx'
 import ExcelJS from 'exceljs'
+import { buildHasilBimbinganXlsx, namaHasilBimbingan, type HasilBimbingan } from '../src/lib/penilaian/hasil-bimbingan-xlsx'
 import { baris, formatNilai, ipkSebelum, nilaiBimbingan, nilaiDariSnapshot, parseAngka, round2, snapshotDariSkor, aspekSama } from '../src/lib/penilaian/nilai'
 
 // ---- validation
@@ -237,6 +238,33 @@ async function main() {
   assert.equal(sel.getCell(6).value, 'Dr. A')
   assert.equal(sel.getCell(9).value, 'Dr. B (input admin)')
   assert.equal(sel.getCell(10).value, 77)
+
+  // The Nilai Bimbingan page as a file (kiprat 2026-11-27): both pembimbing's aspek, then Hasil Akhir; S2 reads tesis.
+  const doc: HasilBimbingan = {
+    prodi: 's1', npm: '2021110099', nama: 'Budi', judul: 'J', tanggal: '2026-11-09',
+    pembimbing: [
+      { label: 'Dosen Pembimbing I', nama: 'Dr. A', aspek: [{ label: 'Kajian Pustaka', bobot: 100, skor: 80 }], nilai: 80 },
+      { label: 'Dosen Pembimbing II', nama: 'Dr. B', aspek: null, nilai: null },
+    ],
+    bimbingan: 80,
+    hasil: { status: 'lengkap', nilaiSidang: 77.5, nilaiAkhir: 78.75, huruf: 'A-', mutu: 3.7, ipkSebelum: 3.65, ipkSetelah: 3.65, predikat: 'Sangat Memuaskan' },
+    ipkAwal: 3.65, tabel: DEFAULT_ATURAN.tabelNilai,
+  }
+  const sel2 = async (d: HasilBimbingan) => {
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load((await buildHasilBimbinganXlsx(d)).buffer)
+    const ws = wb.worksheets[0]
+    const teks: string[] = []
+    ws.eachRow((r) => r.eachCell((c) => { teks.push(String(c.value)) }))
+    return teks
+  }
+  const s1Teks = await sel2(doc)
+  assert.ok(s1Teks.includes('FORM PENILAIAN PEMBIMBINGAN SKRIPSI SARJANA (S1) PSIKOLOGI'), s1Teks.join('|'))
+  assert.ok(s1Teks.includes('Dosen Pembimbing II: Dr. B') && s1Teks.includes('Belum dinilai.'))
+  assert.ok(s1Teks.includes('78.75') && s1Teks.includes('Sangat Memuaskan'), 'Nilai Akhir and predikat')
+  const s2Teks = await sel2({ ...doc, prodi: 's2' })
+  assert.ok(s2Teks.includes('FORM PENILAIAN PEMBIMBINGAN TESIS MAGISTER (S2) PSIKOLOGI'), s2Teks.join('|'))
+  assert.equal(namaHasilBimbingan(doc), 'Nilai Bimbingan 2021110099 Budi')
 
   console.log('nilai-bimbingan: all checks passed')
 }
