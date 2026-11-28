@@ -14,7 +14,8 @@ export function RekapFilter({ path, ay, f, status }: { path: string; ay: string;
       <input type="hidden" name="urut" value={f.urut} />
       <input type="hidden" name="arah" value={f.arah} />
       <input type="search" name="q" defaultValue={f.q} placeholder="Cari NPM atau nama" aria-label="Cari NPM atau nama" className={`${CONTROL} w-[15rem]`} />
-      <select name="status" defaultValue={f.status} aria-label="Status" className={CONTROL}>
+      {/* Fixed width: a select sizes to its longest option, which differs per recap (2026-11-28). */}
+      <select name="status" defaultValue={f.status} aria-label="Status" className={`${CONTROL} w-[15rem] max-w-full`}>
         <option value="">Semua status</option>
         {status.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
       </select>
