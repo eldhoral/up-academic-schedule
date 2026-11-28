@@ -189,7 +189,12 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                       <p className="m-0 text-[0.8rem] text-[var(--tinta-3)]">{PERAN_SIDANG_LABEL[p]}</p>
                       <p className="m-0 text-[0.87rem] font-medium">{data.dosen[p]}</p>
                       {/* Rows (label, name, grade, button) shared across the three cards: the grades line up when a name wraps. */}
-                      <p className="m-0 mt-[0.4rem] mono text-[1.3rem] font-semibold">{row ? nilaiHuruf(row.nilai, tabel) : <span className="text-[0.87rem] font-normal text-[var(--tinta-3)]">belum dikirim</span>}</p>
+                      {/* Nilai Angka / Nilai Huruf box, like the form (2026-11-28). */}
+                      {row ? (
+                        <KotakNilai nilai={row.nilai} tabel={tabel} className="mt-[0.6rem]" />
+                      ) : (
+                        <p className="m-0 mt-[0.6rem] text-[0.87rem] text-[var(--tinta-3)]">belum dikirim</p>
+                      )}
                       {/* The Ketua sends an Anggota's grade back before locking (kiprat 2026-11-25). */}
                       {row && !hasil && peranSaya === 'ketua' && p !== 'ketua' && (
                         <div>
@@ -201,7 +206,7 @@ export default async function NilaiSidangPage(props: PageProps<'/nilai-sidang/[d
                 })}
               </div>
               {nSidang !== null && (
-                <p className="m-0 mt-[0.6rem] text-[0.93rem]">Nilai sidang (rata-rata): <span className="mono font-semibold">{nilaiHuruf(nSidang, tabel)}</span></p>
+                <KotakNilai judul="Nilai sidang (rata-rata)" nilai={nSidang} tabel={tabel} className="mt-[0.8rem] w-[16rem] max-w-full" />
               )}
               {PERAN_SIDANG.some((p) => data.nilai[p]) && (
                 <details className="mt-[0.8rem]">
