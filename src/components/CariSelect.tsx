@@ -221,7 +221,7 @@ export function CariSelect({
                     data-active={i === active}
                     onMouseEnter={() => setActive(i)}
                     onClick={() => pilih(o)}
-                    className={`block w-full text-left px-[0.6rem] py-[0.33rem] rounded-[var(--r-kecil)] text-[0.93rem] cursor-pointer whitespace-nowrap ${
+                    className={`block w-full text-left px-[0.6rem] py-[0.33rem] rounded-[var(--r-kecil)] text-[0.93rem] cursor-pointer leading-snug ${
                       i === active ? 'bg-[var(--cekung)]' : ''
                     } ${o.value === value ? 'text-[var(--biru)] font-medium' : ''}`}
                   >
